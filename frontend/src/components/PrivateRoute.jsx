@@ -1,4 +1,5 @@
 import { Navigate } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
 export default function PrivateRoute({ children }) {
@@ -6,8 +7,9 @@ export default function PrivateRoute({ children }) {
 
   if (loading) {
     return (
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", fontFamily: "Tahoma" }}>
-        <p>در حال بارگذاری...</p>
+      <div className="flex h-screen flex-col items-center justify-center gap-3 bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground animate-pulse">در حال بارگذاری...</p>
       </div>
     );
   }

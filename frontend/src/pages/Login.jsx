@@ -1,6 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import { Landmark, Loader2 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function Login() {
   const { login } = useAuth();
@@ -26,105 +31,71 @@ export default function Login() {
   }
 
   return (
-    <div style={styles.page}>
-      <form onSubmit={handleSubmit} style={styles.card}>
-        <h2 style={styles.title}>سامانه جامع نظام مالی</h2>
-        <p style={styles.subtitle}>برای ادامه وارد شوید</p>
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-background via-accent/30 to-background p-4">
+      <div className="pointer-events-none absolute -left-20 -top-20 h-72 w-72 rounded-full bg-primary/5 blur-3xl animate-float" />
+      <div className="pointer-events-none absolute -bottom-20 -right-20 h-96 w-96 rounded-full bg-sidebar-primary/10 blur-3xl animate-float [animation-delay:2s]" />
 
-        {error && <div style={styles.error}>{error}</div>}
+      <Card className="relative w-full max-w-md animate-in fade-in zoom-in-95 slide-in-from-bottom-4 duration-700 ease-smooth">
+        <CardHeader className="space-y-4 text-center">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-transform duration-500 hover:scale-110">
+            <Landmark className="h-7 w-7" />
+          </div>
+          <div className="space-y-1.5">
+            <CardTitle className="text-2xl">سامانه جامع نظام مالی</CardTitle>
+            <CardDescription>برای ادامه وارد شوید</CardDescription>
+          </div>
+        </CardHeader>
 
-        <label style={styles.label}>نام کاربری</label>
-        <input
-          style={styles.input}
-          type="text"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          autoComplete="username"
-          required
-          disabled={loading}
-        />
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {error && (
+              <div className="animate-in fade-in slide-in-from-top-1 rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive duration-300">
+                {error}
+              </div>
+            )}
 
-        <label style={styles.label}>رمز عبور</label>
-        <input
-          style={styles.input}
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          autoComplete="current-password"
-          required
-          disabled={loading}
-        />
+            <div className="space-y-2">
+              <Label htmlFor="username">نام کاربری</Label>
+              <Input
+                id="username"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                autoComplete="username"
+                required
+                disabled={loading}
+                className="transition-all duration-300"
+              />
+            </div>
 
-        <button style={{ ...styles.button, opacity: loading ? 0.7 : 1 }} type="submit" disabled={loading}>
-          {loading ? "در حال ورود..." : "ورود"}
-        </button>
-      </form>
+            <div className="space-y-2">
+              <Label htmlFor="password">رمز عبور</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                required
+                disabled={loading}
+                dir="ltr"
+                className="text-left transition-all duration-300"
+              />
+            </div>
+
+            <Button type="submit" className="mt-2 w-full rounded-xl" size="lg" disabled={loading}>
+              {loading ? (
+                <>
+                  <Loader2 className="animate-spin" />
+                  در حال ورود...
+                </>
+              ) : (
+                "ورود"
+              )}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }
-
-const styles = {
-  page: {
-    minHeight: "100vh",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    background: "#f0f4f8",
-    fontFamily: "Tahoma",
-    direction: "rtl",
-  },
-  card: {
-    background: "white",
-    padding: "40px 36px",
-    borderRadius: 12,
-    boxShadow: "0 4px 24px rgba(0,0,0,0.1)",
-    width: "100%",
-    maxWidth: 380,
-    display: "flex",
-    flexDirection: "column",
-    gap: 12,
-  },
-  title: {
-    margin: 0,
-    color: "#1e3a5f",
-    fontSize: 20,
-    textAlign: "center",
-  },
-  subtitle: {
-    margin: "0 0 8px",
-    color: "#666",
-    fontSize: 13,
-    textAlign: "center",
-  },
-  label: {
-    fontSize: 13,
-    color: "#333",
-    marginBottom: 2,
-  },
-  input: {
-    padding: "10px 12px",
-    borderRadius: 6,
-    border: "1px solid #ccc",
-    fontSize: 14,
-    outline: "none",
-    direction: "ltr",
-  },
-  button: {
-    marginTop: 8,
-    padding: "11px",
-    background: "#1e3a5f",
-    color: "white",
-    border: "none",
-    borderRadius: 6,
-    fontSize: 15,
-    cursor: "pointer",
-  },
-  error: {
-    background: "#fff0f0",
-    color: "#c0392b",
-    border: "1px solid #f5c6cb",
-    borderRadius: 6,
-    padding: "8px 12px",
-    fontSize: 13,
-  },
-};

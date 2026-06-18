@@ -1,218 +1,167 @@
-/* frontend/src/index.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+@layer base {
+  :root {
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 215 60% 27%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 214 32% 93%;
+    --secondary-foreground: 215 60% 27%;
+    --muted: 214 32% 93%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 214 32% 91%;
+    --accent-foreground: 215 60% 27%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214 32% 88%;
+    --input: 214 32% 88%;
+    --ring: 215 60% 27%;
+    --radius: 0.75rem;
+    --sidebar-background: 215 55% 18%;
+    --sidebar-foreground: 210 40% 96%;
+    --sidebar-accent: 215 45% 24%;
+    --sidebar-border: 215 40% 28%;
+    --sidebar-primary: 43 85% 59%;
+  }
 
-body {
-  font-family: "Vazirmatn", Tahoma, sans-serif;
-  background: #f4f6f9;
-  color: #1a1a2e;
-  direction: rtl;
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    direction: rtl;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
 }
 
-/* ─── Layout ─── */
-.page-container {
-  max-width: 1100px;
-  margin: 2rem auto;
-  padding: 0 1rem;
+@layer components {
+  .page-container {
+    @apply mx-auto max-w-6xl px-4 py-8 animate-in fade-in slide-in-from-bottom-3 duration-500;
+  }
+
+  .page-title {
+    @apply mb-6 text-2xl font-bold text-primary border-r-4 border-primary pr-3;
+  }
+
+  .card {
+    @apply rounded-xl border bg-card text-card-foreground shadow-card transition-all duration-300 hover:shadow-elevated p-6 mt-4;
+  }
+
+  .card h3 {
+    @apply text-lg font-semibold text-primary mb-4;
+  }
+
+  .tabs {
+    @apply flex gap-1 mb-4 border-b border-border pb-0;
+  }
+
+  .tab-btn {
+    @apply px-4 py-2.5 text-sm font-medium text-muted-foreground bg-transparent border-0 border-b-2 border-transparent cursor-pointer transition-all duration-300 ease-smooth -mb-px rounded-t-lg hover:text-primary hover:bg-accent/50;
+  }
+
+  .tab-btn.active {
+    @apply text-primary font-bold border-b-2 border-primary bg-accent/30;
+  }
+
+  .form-grid {
+    @apply grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4 mb-4;
+  }
+
+  .form-group {
+    @apply flex flex-col gap-1.5;
+  }
+
+  .form-group label {
+    @apply text-sm font-semibold text-foreground;
+  }
+
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    @apply rounded-lg border border-input bg-background px-3 py-2 text-sm transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary;
+  }
+
+  .required {
+    @apply text-destructive;
+  }
+
+  .form-actions {
+    @apply flex gap-3 mt-5;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-sm transition-all duration-300 ease-smooth hover:bg-primary/90 hover:shadow-soft active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center rounded-lg bg-secondary px-5 py-2.5 text-sm font-medium text-secondary-foreground transition-all duration-300 ease-smooth hover:bg-secondary/80 active:scale-[0.98];
+  }
+
+  .data-table {
+    @apply w-full border-collapse mt-4 text-sm overflow-hidden rounded-xl;
+  }
+
+  .data-table th {
+    @apply bg-primary text-primary-foreground px-3 py-2.5 text-right font-semibold first:rounded-tr-xl last:rounded-tl-xl;
+  }
+
+  .data-table td {
+    @apply px-3 py-2.5 border-b border-border text-right transition-colors duration-200;
+  }
+
+  .data-table tbody tr {
+    @apply transition-colors duration-200 hover:bg-accent/40;
+  }
+
+  .badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-all duration-200;
+  }
+
+  .badge-صادر { @apply bg-blue-100 text-blue-800; }
+  .badge-پاس‌شده { @apply bg-green-100 text-green-800; }
+  .badge-ابطالی { @apply bg-red-100 text-red-800; }
+  .badge-برگشتی { @apply bg-amber-100 text-amber-800; }
+  .badge-تجمیعی { @apply bg-purple-100 text-purple-800; }
+
+  .balance-box {
+    @apply rounded-xl px-4 py-3 text-sm transition-all duration-300;
+  }
+
+  .balance-box.balanced {
+    @apply bg-emerald-50 border border-emerald-200 text-emerald-800;
+  }
+
+  .report-summary {
+    @apply flex gap-4 flex-wrap mt-2;
+  }
+
+  .report-card {
+    @apply flex-1 min-w-[140px] rounded-xl bg-accent/50 border border-border p-4 text-center transition-all duration-300 hover:shadow-soft hover:-translate-y-0.5;
+  }
+
+  .report-label { @apply font-bold text-primary mb-1.5; }
+  .report-count { @apply text-xl font-bold text-foreground; }
+  .report-amount { @apply text-xs text-muted-foreground mt-1; }
 }
 
-.page-title {
-  font-size: 1.6rem;
-  font-weight: 700;
-  margin-bottom: 1.25rem;
-  color: #1a3c6e;
-  border-right: 4px solid #1a3c6e;
-  padding-right: 0.75rem;
+@layer utilities {
+  .animate-stagger > * {
+    animation: fade-in 0.5s ease-out both;
+  }
+  .animate-stagger > *:nth-child(1) { animation-delay: 0ms; }
+  .animate-stagger > *:nth-child(2) { animation-delay: 60ms; }
+  .animate-stagger > *:nth-child(3) { animation-delay: 120ms; }
+  .animate-stagger > *:nth-child(4) { animation-delay: 180ms; }
+  .animate-stagger > *:nth-child(5) { animation-delay: 240ms; }
 }
-
-/* ─── Card ─── */
-.card {
-  background: #fff;
-  border-radius: 10px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
-  padding: 1.5rem;
-  margin-top: 1rem;
-}
-
-.card h3 {
-  font-size: 1.1rem;
-  font-weight: 600;
-  margin-bottom: 1rem;
-  color: #1a3c6e;
-}
-
-/* ─── Tabs ─── */
-.tabs {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-  border-bottom: 2px solid #e0e4ef;
-  padding-bottom: 0;
-}
-
-.tab-btn {
-  padding: 0.55rem 1.25rem;
-  border: none;
-  background: transparent;
-  font-size: 0.95rem;
-  cursor: pointer;
-  border-bottom: 3px solid transparent;
-  color: #555;
-  font-family: inherit;
-  transition: all 0.2s;
-  margin-bottom: -2px;
-}
-
-.tab-btn:hover { color: #1a3c6e; }
-
-.tab-btn.active {
-  color: #1a3c6e;
-  font-weight: 700;
-  border-bottom: 3px solid #1a3c6e;
-}
-
-/* ─── Form ─── */
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.form-group label {
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: #333;
-}
-
-.form-group input,
-.form-group select,
-.form-group textarea {
-  padding: 0.5rem 0.75rem;
-  border: 1px solid #cdd3e0;
-  border-radius: 6px;
-  font-size: 0.92rem;
-  font-family: inherit;
-  background: #fafbfd;
-  transition: border 0.2s;
-}
-
-.form-group input:focus,
-.form-group select:focus,
-.form-group textarea:focus {
-  outline: none;
-  border-color: #1a3c6e;
-  background: #fff;
-}
-
-.required { color: #e53e3e; }
-
-.form-actions {
-  display: flex;
-  gap: 0.75rem;
-  margin-top: 1.25rem;
-}
-
-/* ─── Buttons ─── */
-.btn-primary {
-  background: #1a3c6e;
-  color: #fff;
-  border: none;
-  padding: 0.6rem 1.5rem;
-  border-radius: 7px;
-  font-size: 0.95rem;
-  font-family: inherit;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.btn-primary:hover { background: #142d52; }
-
-.btn-secondary {
-  background: #e9ecf4;
-  color: #333;
-  border: none;
-  padding: 0.6rem 1.25rem;
-  border-radius: 7px;
-  font-size: 0.95rem;
-  font-family: inherit;
-  cursor: pointer;
-}
-.btn-secondary:hover { background: #d1d9ee; }
-
-/* ─── Table ─── */
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 1rem;
-  font-size: 0.88rem;
-}
-
-.data-table th {
-  background: #1a3c6e;
-  color: #fff;
-  padding: 0.6rem 0.75rem;
-  text-align: right;
-  font-weight: 600;
-}
-
-.data-table td {
-  padding: 0.55rem 0.75rem;
-  border-bottom: 1px solid #e8eaf0;
-  text-align: right;
-}
-
-.data-table tbody tr:hover { background: #f0f4ff; }
-
-/* ─── Badges ─── */
-.badge {
-  display: inline-block;
-  padding: 0.2rem 0.6rem;
-  border-radius: 20px;
-  font-size: 0.78rem;
-  font-weight: 600;
-}
-
-.badge-صادر       { background: #dbeafe; color: #1e40af; }
-.badge-پاس‌شده    { background: #dcfce7; color: #166534; }
-.badge-ابطالی     { background: #fee2e2; color: #991b1b; }
-.badge-برگشتی     { background: #fef3c7; color: #92400e; }
-.badge-تجمیعی     { background: #f3e8ff; color: #6b21a8; }
-
-/* ─── Balance box ─── */
-.balance-box {
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  font-size: 0.9rem;
-}
-.balance-box.balanced {
-  background: #ecfdf5;
-  border: 1px solid #6ee7b7;
-  color: #065f46;
-}
-
-/* ─── Report ─── */
-.report-summary {
-  display: flex;
-  gap: 1rem;
-  flex-wrap: wrap;
-  margin-top: 0.5rem;
-}
-
-.report-card {
-  flex: 1 1 140px;
-  background: #f0f4ff;
-  border-radius: 8px;
-  padding: 1rem;
-  text-align: center;
-  border: 1px solid #c7d2f5;
-}
-
-.report-label  { font-weight: 700; color: #1a3c6e; margin-bottom: 0.4rem; }
-.report-count  { font-size: 1.3rem; font-weight: 700; color: #333; }
-.report-amount { font-size: 0.8rem; color: #555; margin-top: 0.25rem; }
