@@ -48,13 +48,37 @@ jobs:
           else
             TEXT="📢 *Event: $EVENT*\n\n📦 Repo: $REPO\n👤 By: $ACTOR"
           fi
-          echo "TEXT<<EOF" >> $GITHUB_OUTPUT
-          echo -e "$TEXT" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          {
+            echo 'TEXT<<EOF'
+            echo -e "$TEXT"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
 
       - name: Send to Telegram
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
         run: |
-          curl -s -X POST https://api.telegram.org/bot${{ secrets.BOT_TOKEN }}/sendMessage \
-            -d chat_id=${{ secrets.CHAT_ID }} \
+          # بررسی وجود توکن و آیدی
+          if [ -z "$BOT_TOKEN" ]; then
+            echo "❌ BOT_TOKEN is not set!"
+            exit 1
+          fi
+          if [ -z "$CHAT_ID" ]; then
+            echo "❌ CHAT_ID is not set!"
+            exit 1
+          fi
+          
+          # ارسال پیام
+          RESPONSE=$(curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+            -d chat_id="${CHAT_ID}" \
             -d text="${{ steps.msg.outputs.TEXT }}" \
-            -d parse_mode=Markdown
+            -d parse_mode=Markdown)
+          
+          # بررسی پاسخ
+          if echo "$RESPONSE" | grep -q '"ok":true'; then
+            echo "✅ Message sent successfully!"
+          else
+            echo "❌ Failed to send message: $RESPONSE"
+            exit 1
+          fi
