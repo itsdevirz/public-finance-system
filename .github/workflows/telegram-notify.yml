@@ -1,0 +1,59 @@
+name: Telegram Notify
+
+on:
+push:
+pull_request:
+types: [opened, closed, reopened, synchronize]
+issues:
+types: [opened, closed, reopened]
+release:
+types: [published]
+fork:
+watch:
+
+jobs:
+notify:
+runs-on: ubuntu-latest
+
+steps:
+  - name: Build message
+    id: msg
+    run: |
+      EVENT="${{ github.event_name }}"
+      REPO="${{ github.repository }}"
+      ACTOR="${{ github.actor }}"
+      TEXT=""
+      if [ "$EVENT" = "push" ]; then
+        COMMIT_MSG=$(echo "${{ github.event.head_commit.message }}" | head -c 200)
+        URL="${{ github.event.compare }}"
+        TEXT="🚀 *New Push*\n\n📦 Repo: $REPO\n👤 By: $ACTOR\n\n📝 $COMMIT_MSG\n🔗 $URL"
+      elif [ "$EVENT" = "pull_request" ]; then
+        TITLE="${{ github.event.pull_request.title }}"
+        URL="${{ github.event.pull_request.html_url }}"
+        ACTION="${{ github.event.action }}"
+        TEXT="🔀 *Pull Request ($ACTION)*\n\n📦 Repo: $REPO\n👤 By: $ACTOR\n\n📌 $TITLE\n🔗 $URL"
+      elif [ "$EVENT" = "issues" ]; then
+        TITLE="${{ github.event.issue.title }}"
+        URL="${{ github.event.issue.html_url }}"
+        ACTION="${{ github.event.action }}"
+        TEXT="🐞 *Issue ($ACTION)*\n\n📦 Repo: $REPO\n👤 By: $ACTOR\n\n📌 $TITLE\n🔗 $URL"
+      elif [ "$EVENT" = "release" ]; then
+        NAME="${{ github.event.release.name }}"
+        URL="${{ github.event.release.html_url }}"
+        TEXT="🏷 *New Release*\n\n📦 Repo: $REPO\n👤 By: $ACTOR\n\n📌 $NAME\n🔗 $URL"
+      elif [ "$EVENT" = "fork" ]; then
+        TEXT="🍴 *Repo Forked*\n\n📦 Repo: $REPO\n👤 By: $ACTOR"
+      elif [ "$EVENT" = "watch" ]; then
+        TEXT="⭐ *New Star*\n\n📦 Repo: $REPO\n👤 By: $ACTOR"
+      else
+        TEXT="📢 *Event: $EVENT*\n\n📦 Repo: $REPO\n👤 By: $ACTOR"
+      fi
+      echo "TEXT<<EOF" >> $GITHUB_OUTPUT
+      echo -e "$TEXT" >> $GITHUB_OUTPUT
+      echo "EOF" >> $GITHUB_OUTPUT
+  - name: Send to Telegram
+    run: |
+      curl -s -X POST https://api.telegram.org/bot${{ secrets.BOT_TOKEN }}/sendMessage \
+      -d chat_id=${{ secrets.CHAT_ID }} \
+      -d text="${{ steps.msg.outputs.TEXT }}" \
+      -d parse_mode=Markdown
