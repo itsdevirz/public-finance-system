@@ -156,6 +156,32 @@
 }
 
 @layer utilities {
+  .scrollbar-sidebar {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--sidebar-primary) / 0.5) transparent;
+    scrollbar-gutter: stable;
+  }
+
+  .scrollbar-sidebar::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .scrollbar-sidebar::-webkit-scrollbar-track {
+    background: transparent;
+    margin-block: 10px;
+    margin-inline: 0 2px;
+  }
+
+  .scrollbar-sidebar::-webkit-scrollbar-thumb {
+    background: hsl(var(--sidebar-primary) / 0.4);
+    border-radius: 9999px;
+    min-height: 32px;
+  }
+
+  .scrollbar-sidebar::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--sidebar-primary) / 0.65);
+  }
+
   .animate-stagger > * {
     animation: fade-in 0.5s ease-out both;
   }

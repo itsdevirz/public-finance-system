@@ -8,14 +8,18 @@ import { BASIC_INFO_SUB, TOP_NAV } from "@/config/navigation";
 
 const TimerCtx = createContext(null);
 
-function FloatingMenu({ items, anchorRect, onClose }) {
+const MENU_GAP = 16;
+
+function FloatingMenu({ items, anchorRect, onClose, parentPanelLeft = null }) {
   const navigate = useNavigate();
   const { cancelClose, scheduleClose } = useContext(TimerCtx);
+  const panelRef = useRef(null);
   const [activeChild, setActiveChild] = useState(null);
   const [childRect, setChildRect] = useState(null);
+  const [childPanelLeft, setChildPanelLeft] = useState(null);
 
-  const bridgeWidth = 16;
-  const right = window.innerWidth - anchorRect.left + 2;
+  const horizontalAnchor = parentPanelLeft ?? anchorRect.left;
+  const right = window.innerWidth - horizontalAnchor + MENU_GAP;
   const maxH = window.innerHeight * 0.8;
   const popupH = Math.min(items.length * 40 + 16, maxH);
   const rawTop = anchorRect.top;
@@ -27,9 +31,11 @@ function FloatingMenu({ items, anchorRect, onClose }) {
     if (item.children) {
       setActiveChild(item);
       setChildRect(e.currentTarget.getBoundingClientRect());
+      setChildPanelLeft(panelRef.current?.getBoundingClientRect().left ?? null);
     } else {
       setActiveChild(null);
       setChildRect(null);
+      setChildPanelLeft(null);
     }
   }
 
@@ -45,9 +51,9 @@ function FloatingMenu({ items, anchorRect, onClose }) {
       <div
         className="fixed z-[9998]"
         style={{
-          right: window.innerWidth - anchorRect.left - bridgeWidth,
+          right: window.innerWidth - horizontalAnchor,
           top: anchorRect.top,
-          width: bridgeWidth,
+          width: MENU_GAP,
           height: anchorRect.height,
         }}
         onMouseEnter={cancelClose}
@@ -57,30 +63,41 @@ function FloatingMenu({ items, anchorRect, onClose }) {
       <div
         onMouseEnter={cancelClose}
         onMouseLeave={scheduleClose}
-        className="fixed z-[9999] min-w-[260px] overflow-y-auto rounded-xl border border-sidebar-border bg-sidebar p-1.5 shadow-elevated animate-in fade-in slide-in-from-right-2 duration-300 ease-smooth scrollbar-thin"
+        className="fixed z-[9999] min-w-[260px] overflow-hidden rounded-xl border border-sidebar-border bg-sidebar shadow-elevated animate-in fade-in slide-in-from-right-2 duration-300 ease-smooth"
         style={{ right, top, maxHeight: `${maxH}px` }}
       >
-        {items.map((item, i) => (
-          <div
-            key={item.to}
-            onMouseEnter={(e) => handleItemEnter(item, e)}
-            onClick={() => handleItemClick(item)}
-            className={cn(
-              "flex cursor-pointer select-none items-center gap-2.5 rounded-lg px-3.5 py-2.5 text-[13px] transition-all duration-200 ease-smooth",
-              activeChild?.to === item.to
-                ? "bg-sidebar-accent text-sidebar-primary border-r-2 border-sidebar-primary"
-                : "text-sidebar-foreground/80 hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
-            )}
-          >
-            <span className="min-w-[22px] text-center text-[10px] opacity-40">{i + 1}</span>
-            <span className="flex-1 whitespace-nowrap">{item.label}</span>
-            {item.children && <ChevronLeft className="h-3 w-3 opacity-50" />}
-          </div>
-        ))}
+        <div
+          ref={panelRef}
+          className="scrollbar-sidebar overflow-x-hidden overflow-y-auto p-1.5 pl-2 pr-1.5"
+          style={{ maxHeight: `${maxH}px` }}
+        >
+          {items.map((item, i) => (
+            <div
+              key={item.to}
+              onMouseEnter={(e) => handleItemEnter(item, e)}
+              onClick={() => handleItemClick(item)}
+              className={cn(
+                "flex cursor-pointer select-none items-center gap-2.5 rounded-lg px-3.5 py-2.5 text-[13px] transition-all duration-200 ease-smooth",
+                activeChild?.to === item.to
+                  ? "bg-sidebar-accent text-sidebar-primary border-r-2 border-sidebar-primary"
+                  : "text-sidebar-foreground/80 hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
+              )}
+            >
+              <span className="min-w-[22px] text-center text-[10px] opacity-40">{i + 1}</span>
+              <span className="flex-1 whitespace-nowrap">{item.label}</span>
+              {item.children && <ChevronLeft className="h-3 w-3 opacity-50" />}
+            </div>
+          ))}
+        </div>
       </div>
 
       {activeChild && childRect && (
-        <FloatingMenu items={activeChild.children} anchorRect={childRect} onClose={onClose} />
+        <FloatingMenu
+          items={activeChild.children}
+          anchorRect={childRect}
+          parentPanelLeft={childPanelLeft}
+          onClose={onClose}
+        />
       )}
     </>
   );
@@ -156,7 +173,7 @@ export default function Sidebar() {
         </div>
       </div>
 
-      <div className="flex-1 py-2">
+      <div className="flex-1 overflow-y-auto py-2 scrollbar-sidebar">
         <SidebarItem num={1} label="اطلاعات پایه" to="/basic-info" subItems={BASIC_INFO_SUB} />
         {TOP_NAV.map(({ to, label, num, subItems }) => (
           <SidebarItem key={to} num={num} label={label} to={to} subItems={subItems ?? null} />
