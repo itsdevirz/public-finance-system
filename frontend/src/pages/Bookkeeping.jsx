@@ -1,99 +1,76 @@
-import { useEffect, useState } from "react";
-import { FileX, Scale } from "lucide-react";
-import api from "../api";
-import { PageShell, PageHeader, EmptyState, LoadingSkeleton } from "@/components/layout/PageShell";
+import { useLocation } from "react-router-dom";
+import { FileX } from "lucide-react";
+import { PageShell, PageHeader, EmptyState } from "@/components/layout/PageShell";
 import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
+const ROUTE_LABELS = {
+  "/bookkeeping": "دفترداری و تنظیم حساب‌ها",
+  "/bookkeeping/operations-balance": "تراز عملیات",
+  "/bookkeeping/operations-balance/different-states": "تراز در حالت های مختلف",
+  "/bookkeeping/operations-balance/moein-chapters": "تراز عملیات معین/فصول",
+  "/bookkeeping/operations-balance/moein-detail-link": "ارتباط معین و تفصیلی",
+  "/bookkeeping/operations-balance/samad-system": "سامانه سماد(الف-ب)",
+  "/bookkeeping/operations-balance/sanama-attachments": "ضمائم الصاقی سناما",
+  "/bookkeeping/misc-accounts": "متفرقه(لیست حساب‌ها)",
+  "/bookkeeping/misc-accounts/account-groups": "لیست گروه حساب ها",
+  "/bookkeeping/misc-accounts/main-accounts": "لیست حساب های کل",
+  "/bookkeeping/misc-accounts/moein-accounts": "لیست حساب های معین",
+  "/bookkeeping/misc-accounts/detail-accounts": "لیست حساب های تفصیلی",
+  "/bookkeeping/misc-accounts/detailed-report": "گزارش تفصیلی",
+  "/bookkeeping/ledger-reports": "گزارش دفاتر",
+  "/bookkeeping/ledger-reports/general-ledger": "دفتر کل",
+  "/bookkeeping/ledger-reports/moein-ledger": "دفتر معین",
+  "/bookkeeping/ledger-reports/journal": "دفتر روزنامه",
+  "/bookkeeping/ledger-reports/model-13": "مدل 13",
+  "/bookkeeping/ledger-reports/moein-program-chapter": "دفتر معین (معین-برنامه-فصل)",
+  "/bookkeeping/ledger-reports/detail-ledger": "دفتر تفصیلی",
+  "/bookkeeping/ledger-reports/account-review": "مرور حساب ها",
+  "/bookkeeping/ledger-reports/securities": "گزارش اوراق بهادار",
+  "/bookkeeping/summary-status": "گزارش خلاصه وضعیت",
+  "/bookkeeping/bank-reconciliation": "مغایرت بانکی",
+  "/bookkeeping/bank-reconciliation/account-format-setup": "تنظیم فرمت صورت حساب بانک",
+  "/bookkeeping/bank-reconciliation/account-info-read": "خواندن اطلاعات حساب ها",
+  "/bookkeeping/bank-reconciliation/account-reconciliation": "مغایرت حساب ها",
+  "/bookkeeping/final-documents": "سندهای قطعی",
+  "/bookkeeping/final-documents/finalize-doc": "قطعی کردن سند",
+  "/bookkeeping/final-documents/unfinalize-doc": "خارج نمودن سند از قطعی",
+  "/bookkeeping/budget-execution": "گزارش‌های تفریغ بودجه",
+  "/bookkeeping/budget-execution/budget-allocation-setup": "تنظیمات تفریغ بودجه",
+  "/bookkeeping/budget-execution/budget-allocation": "تفریغ بودجه",
+  "/bookkeeping/budget-execution/aggregate-budget-allocation": "تفریغ بودجه تجمیعی",
+  "/bookkeeping/misc-persons": "گزارش‌های متفرقه(اشخاص)",
+  "/bookkeeping/misc-persons/persons-report": "گزارش اشخاص",
+  "/bookkeeping/misc-persons/persons-balance": "گزارش مانده اشخاص",
+  "/bookkeeping/financial-statements": "صورت‌های مالی",
+  "/bookkeeping/financial-statements/balance-sheet": "صورت وضعیت مالی1",
+  "/bookkeeping/financial-statements/change-in-financial-position": "صورت تغییرات در وضعیت مالی",
+  "/bookkeeping/financial-statements/comparison-budget-performance": "صورت مقایسه بودجه عمومی و عملکرد تلفیقی",
+  "/bookkeeping/financial-statements/parametric-balance-sheet": "صورت وضعیت مالی پارامتریک",
+  "/bookkeeping/financial-statements/notes": "یادداشت توضیحی",
+  "/bookkeeping/financial-statements/reports-settings": "تنظیمات گزارش",
+  "/bookkeeping/accountant-agents": "گزارش عاملین ذیحساب",
+  "/bookkeeping/document-notification": "گزارش ابلاغ سند",
+  "/bookkeeping/smart-control": "کنترل هوشمند",
+  "/bookkeeping/petty-cash": "گزارش تنخواه",
+  "/bookkeeping/open-items": "هشدار اقلام باز دفتر",
+  "/bookkeeping/resource-forms": "فرم‌های منابع و مصارف",
+  "/bookkeeping/resource-forms/deposit-expense-confirmation": "فرم تاییدیه مصارف سپرده",
+};
 
 export default function Bookkeeping() {
-  const [data, setData] = useState([]);
-  const [balance, setBalance] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    Promise.all([api.get("/api/ledger/"), api.get("/api/ledger/balance")])
-      .then(([l, b]) => {
-        setData(l.data.data ?? []);
-        setBalance(b.data.data);
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, []);
-
-  const isBalanced = balance && balance.total_debit === balance.total_credit;
+  const { pathname } = useLocation();
+  const title = ROUTE_LABELS[pathname] ?? "دفترداری و تنظیم حساب‌ها";
 
   return (
     <PageShell>
-      <PageHeader title="دفترداری و تنظیم حساب‌ها" description="دفتر کل و تراز حساب‌ها" />
-
-      {balance && !loading && (
-        <div className="mb-4 grid gap-4 sm:grid-cols-2 animate-in fade-in slide-in-from-top-2 duration-500">
-          <Card className="rounded-xl">
-            <CardContent className="flex items-center gap-3 p-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/10 text-red-600">
-                <Scale className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">مجموع بدهکار</p>
-                <p className="text-lg font-bold">{Number(balance.total_debit).toLocaleString("fa-IR")} ریال</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="rounded-xl">
-            <CardContent className="flex items-center gap-3 p-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600">
-                <Scale className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">مجموع بستانکار</p>
-                <p className="text-lg font-bold">{Number(balance.total_credit).toLocaleString("fa-IR")} ریال</p>
-              </div>
-            </CardContent>
-          </Card>
-          {isBalanced && (
-            <div className="balance-box balanced sm:col-span-2 animate-in fade-in duration-500">
-              تراز حساب‌ها برقرار است
-            </div>
-          )}
-        </div>
-      )}
-
+      <PageHeader title={title} description="بخش دفترداری و تنظیم حساب‌ها - در حال توسعه" />
       <Card>
-        <CardContent className="p-0 pt-6">
-          {loading ? (
-            <div className="px-6 pb-6">
-              <LoadingSkeleton rows={5} />
-            </div>
-          ) : data.length === 0 ? (
-            <div className="px-6 pb-6">
-              <EmptyState icon={FileX} title="رکوردی وجود ندارد" description="هنوز سندی در دفتر کل ثبت نشده" />
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>شماره سند</TableHead>
-                  <TableHead>کد حساب</TableHead>
-                  <TableHead>بدهکار</TableHead>
-                  <TableHead>بستانکار</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.map((row, i) => (
-                  <TableRow
-                    key={i}
-                    className="animate-in fade-in duration-300"
-                    style={{ animationDelay: `${i * 30}ms` }}
-                  >
-                    <TableCell className="font-medium">{row.doc_number}</TableCell>
-                    <TableCell>{row.account_code}</TableCell>
-                    <TableCell>{Number(row.debit).toLocaleString("fa-IR")}</TableCell>
-                    <TableCell>{Number(row.credit).toLocaleString("fa-IR")}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+        <CardContent className="p-0 pt-6 px-6 pb-6">
+          <EmptyState
+            icon={FileX}
+            title="این بخش در حال توسعه است"
+            description={`صفحه «${title}» به زودی پیاده‌سازی می‌شود`}
+          />
         </CardContent>
       </Card>
     </PageShell>
