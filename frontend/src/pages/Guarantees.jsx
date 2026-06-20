@@ -1,21 +1,39 @@
-import { PageShell, PageHeader } from "@/components/layout/PageShell";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Shield } from "lucide-react";
+import { useLocation } from "react-router-dom";
+import { FileX } from "lucide-react";
+import { PageShell, PageHeader, EmptyState } from "@/components/layout/PageShell";
+import { Card, CardContent } from "@/components/ui/card";
+
+const ROUTE_LABELS = {
+  "/guarantees": "تضمینات",
+  "/guarantees/types": "انواع تضمینات",
+  "/guarantees/causes": "تعریف علت ضمانت",
+  "/guarantees/guarantee-type": "نوع تضمین",
+  "/guarantees/subject": "موضوع تضمین",
+  "/guarantees/register": "ثبت ضمانت نامه",
+  "/guarantees/register/contract": "ضمانت قرارداد",
+  "/guarantees/register/person": "ضمانت اشخاص",
+  "/guarantees/auto-doc": "سند اتوماتیک ضمانت",
+  "/guarantees/extension-request": "درخواست تمدید ضمانت نامه گروهی",
+  "/guarantees/report": "گزارش ضمانت نامه",
+  "/guarantees/status-report": "گزارشات وضعیت تضمینات",
+  "/guarantees/status-report/status": "وضعیت تضمینات",
+  "/guarantees/date-report": "گزارش ضمانت نامه ها بر اساس تاریخ",
+};
 
 export default function Guarantees() {
+  const { pathname } = useLocation();
+  const title = ROUTE_LABELS[pathname] ?? "تضمینات";
+
   return (
     <PageShell>
-      <PageHeader title="تضمینات" description="مدیریت ضمانت‌نامه‌ها و تضمینات" />
+      <PageHeader title={title} description="مدیریت ضمانت‌نامه‌ها و تضمینات" />
       <Card className="animate-in fade-in zoom-in-95 duration-500">
-        <CardHeader>
-          <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <Shield className="h-5 w-5" />
-          </div>
-          <CardTitle>تضمینات</CardTitle>
-          <CardDescription>ثبت و پیگیری ضمانت‌نامه‌ها</CardDescription>
-        </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">این بخش در حال توسعه است.</p>
+          <EmptyState
+            icon={FileX}
+            title="این بخش در حال توسعه است"
+            description={`صفحه «${title}» به زودی پیاده‌سازی می‌شود`}
+          />
         </CardContent>
       </Card>
     </PageShell>

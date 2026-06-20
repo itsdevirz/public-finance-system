@@ -1,21 +1,30 @@
-import { PageShell, PageHeader } from "@/components/layout/PageShell";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { PiggyBank } from "lucide-react";
+import { useLocation } from "react-router-dom";
+import { FileX } from "lucide-react";
+import { PageShell, PageHeader, EmptyState } from "@/components/layout/PageShell";
+import { Card, CardContent } from "@/components/ui/card";
+
+const ROUTE_LABELS = {
+  "/deposits": "سپرده‌ها",
+  "/deposits/auto-register": "ثبت اتوماتیک سپرده از سند",
+  "/deposits/manual-form": "ثبت فرم سپرده دستی",
+  "/deposits/treasury": "دریافت سپرده از خزانه/استرداد/ثبت شماره بستانکاری",
+  "/deposits/search": "جستجوی سپرده",
+};
 
 export default function Deposits() {
+  const { pathname } = useLocation();
+  const title = ROUTE_LABELS[pathname] ?? "سپرده‌ها";
+
   return (
     <PageShell>
-      <PageHeader title="سپرده‌ها" description="مدیریت سپرده‌های مالی" />
+      <PageHeader title={title} description="مدیریت سپرده‌های مالی" />
       <Card className="animate-in fade-in zoom-in-95 duration-500">
-        <CardHeader>
-          <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <PiggyBank className="h-5 w-5" />
-          </div>
-          <CardTitle>سپرده‌ها</CardTitle>
-          <CardDescription>ثبت و گزارش‌گیری سپرده‌ها</CardDescription>
-        </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">این بخش در حال توسعه است.</p>
+          <EmptyState
+            icon={FileX}
+            title="این بخش در حال توسعه است"
+            description={`صفحه «${title}» به زودی پیاده‌سازی می‌شود`}
+          />
         </CardContent>
       </Card>
     </PageShell>

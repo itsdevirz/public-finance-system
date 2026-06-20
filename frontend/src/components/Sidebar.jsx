@@ -158,10 +158,14 @@ function SidebarItem({ label, num, to, subItems }) {
 
 export default function Sidebar() {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <nav className="relative z-[100] flex w-[230px] shrink-0 flex-col overflow-visible bg-sidebar text-sidebar-foreground shadow-elevated">
-      <div className="border-b border-sidebar-border px-4 py-5">
+      <button
+        onClick={() => navigate("/")}
+        className="border-b border-sidebar-border px-4 py-5 text-right transition-colors duration-200 hover:bg-sidebar-accent/50"
+      >
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sidebar-primary/15 text-sidebar-primary transition-transform duration-300 hover:scale-105">
             <Landmark className="h-5 w-5" />
@@ -171,7 +175,7 @@ export default function Sidebar() {
             <div className="mt-0.5 text-[10px] text-sidebar-foreground/40">نظام مالی بخش عمومی</div>
           </div>
         </div>
-      </div>
+      </button>
 
       <div className="flex-1 overflow-y-auto py-2 scrollbar-sidebar">
         <SidebarItem num={1} label="اطلاعات پایه" to="/basic-info" subItems={BASIC_INFO_SUB} />

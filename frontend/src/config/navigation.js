@@ -438,7 +438,17 @@ export const TOP_NAV = [
     { to: "/system-management/update-manager", label: "مدیریت بروزرسانی" },
     { to: "/system-management/backup", label: "گرفتن نسخه پشتیبان" },
     { to: "/system-management/report-signature", label: "تنظیم امضای گزارشات" },
-    { to: "/system-management/report-generator", label: "گزارش ساز" },
+    {
+      to: "/system-management/report-generator",
+      label: "گزارش ساز",
+      children: [
+        { to: "/system-management/report-generator/define", label: "تعریف گزارش" },
+        { to: "/system-management/report-generator/settings", label: "تنظیم گزارش" },
+        { to: "/system-management/report-generator/generate", label: "گزارش گیری" },
+        { to: "/system-management/report-generator/generate-2", label: "گزارش گیری-2" },
+        { to: "/system-management/report-generator/generate-3", label: "گزارش گیری-3" },
+      ],
+    },
     { to: "/system-management/person-chapters", label: "تنظیم سرفصل های اشخاص" },
     { to: "/system-management/revoke-reconciliation", label: "ابطال مغایرت گیری" },
     { to: "/system-management/user-circle", label: "تعریف دایره کاربران" },
@@ -454,8 +464,29 @@ export const TOP_NAV = [
     { to: "/system-management/sanama-file-check", label: "بررسی فایل سناما" },
     { to: "/system-management/doc-requirements", label: "بررسی الزامات اسناد" },
   ] },
-  { to: "/guarantees", label: "تضمینات", num: 8 },
-  { to: "/deposits", label: "سپرده‌ها", num: 9 },
+  { to: "/guarantees", label: "تضمینات", num: 8, subItems: [
+    { to: "/guarantees/types", label: "انواع تضمینات" },
+    { to: "/guarantees/causes", label: "تعریف علت ضمانت" },
+    { to: "/guarantees/guarantee-type", label: "نوع تضمین" },
+    { to: "/guarantees/subject", label: "موضوع تضمین" },
+    { to: "/guarantees/register", label: "ثبت ضمانت نامه", children: [
+      { to: "/guarantees/register/contract", label: "ضمانت قرارداد" },
+      { to: "/guarantees/register/person", label: "ضمانت اشخاص" },
+    ] },
+    { to: "/guarantees/auto-doc", label: "سند اتوماتیک ضمانت" },
+    { to: "/guarantees/extension-request", label: "درخواست تمدید ضمانت نامه گروهی" },
+    { to: "/guarantees/report", label: "گزارش ضمانت نامه" },
+    { to: "/guarantees/status-report", label: "گزارشات وضعیت تضمینات", children: [
+      { to: "/guarantees/status-report/status", label: "وضعیت تضمینات" },
+    ] },
+    { to: "/guarantees/date-report", label: "گزارش ضمانت نامه ها بر اساس تاریخ" },
+  ] },
+  { to: "/deposits", label: "سپرده‌ها", num: 9, subItems: [
+    { to: "/deposits/auto-register", label: "ثبت اتوماتیک سپرده از سند" },
+    { to: "/deposits/manual-form", label: "ثبت فرم سپرده دستی" },
+    { to: "/deposits/treasury", label: "دریافت سپرده از خزانه/استرداد/ثبت شماره بستانکاری" },
+    { to: "/deposits/search", label: "جستجوی سپرده" },
+  ] },
 ];
 
 /** تمام مسیرهای منو را به‌صورت تخت برمی‌گرداند */

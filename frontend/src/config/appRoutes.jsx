@@ -7,6 +7,8 @@ import Bookkeeping from "@/pages/Bookkeeping";
 import SystemManagement from "@/pages/SystemManagement";
 import Guarantees from "@/pages/Guarantees";
 import Deposits from "@/pages/Deposits";
+import GuaranteeContractForm from "@/pages/GuaranteeContractForm";
+import DepositManualForm from "@/pages/DepositManualForm";
 import Placeholder from "@/pages/Placeholder";
 import { getAllMenuRoutes } from "@/config/navigation";
 
@@ -227,6 +229,11 @@ export const PAGE_COMPONENTS = {
   "/system-management/backup": SystemManagement,
   "/system-management/report-signature": SystemManagement,
   "/system-management/report-generator": SystemManagement,
+  "/system-management/report-generator/define": SystemManagement,
+  "/system-management/report-generator/settings": SystemManagement,
+  "/system-management/report-generator/generate": SystemManagement,
+  "/system-management/report-generator/generate-2": SystemManagement,
+  "/system-management/report-generator/generate-3": SystemManagement,
   "/system-management/person-chapters": SystemManagement,
   "/system-management/revoke-reconciliation": SystemManagement,
   "/system-management/user-circle": SystemManagement,
@@ -242,7 +249,24 @@ export const PAGE_COMPONENTS = {
   "/system-management/sanama-file-check": SystemManagement,
   "/system-management/doc-requirements": SystemManagement,
   "/guarantees": Guarantees,
+  "/guarantees/types": Guarantees,
+  "/guarantees/causes": Guarantees,
+  "/guarantees/guarantee-type": Guarantees,
+  "/guarantees/subject": Guarantees,
+  "/guarantees/register": Guarantees,
+  "/guarantees/register/contract": GuaranteeContractForm,
+  "/guarantees/register/person": Guarantees,
+  "/guarantees/auto-doc": Guarantees,
+  "/guarantees/extension-request": Guarantees,
+  "/guarantees/report": Guarantees,
+  "/guarantees/status-report": Guarantees,
+  "/guarantees/status-report/status": Guarantees,
+  "/guarantees/date-report": Guarantees,
   "/deposits": Deposits,
+  "/deposits/auto-register": Deposits,
+  "/deposits/manual-form": DepositManualForm,
+  "/deposits/treasury": Deposits,
+  "/deposits/search": Deposits,
 };
 
 export function buildLayoutRoutes(HomePage) {
