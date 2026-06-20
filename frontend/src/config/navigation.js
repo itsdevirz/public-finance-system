@@ -120,8 +120,7 @@ export const DOCUMENT_SETUP_TOP = [
   { to: "/document-setup/search-doc", label: "جستجو در سند" },
   { to: "/document-setup/transfer-doc", label: "انتقال اسناد" },
   {
-    to: "/document-setup/report",
-    label: "گزارش",
+    to: "/document-setup/report", label: "گزارش",
     children: [
       { to: "/document-setup/report/doc-report", label: "گزارش اسناد" },
       { to: "/document-setup/report/no-doc-funded", label: "گزارش تامین اعتبار شده‌هایی که سند ندارند" },
@@ -146,8 +145,7 @@ export const DOCUMENT_SETUP_TOP = [
   { to: "/document-setup/securities-dist", label: "توزیع اوراق بهادار" },
   { to: "/document-setup/securities-collect", label: "وصول درآمد اوراق بهادار" },
   {
-    to: "/document-setup/securities-report",
-    label: "گزارشات اوراق",
+    to: "/document-setup/securities-report", label: "گزارشات اوراق",
     children: [{ to: "/document-setup/securities-report/performance", label: "گزارش عملکرد اوراق" }],
   },
   { to: "/document-setup/merge-docs", label: "ادغام اسناد" },
@@ -156,13 +154,11 @@ export const DOCUMENT_SETUP_TOP = [
   { to: "/document-setup/penalty-calc", label: "محاسبه جرائم" },
 ];
 
-export const REVIEW_REPORTS_SUB = [
-  { to: "/review/reports/contract-card", label: "گزارش کارت قرارداد" },
-  { to: "/review/reports/contract-card-summary", label: "گزارش کارت قرارداد خلاصه" },
-];
-
 export const REVIEW_SUB = [
-  { to: "/review/reports", label: "گزارش‌ها", children: REVIEW_REPORTS_SUB },
+  { to: "/review/reports", label: "گزارش‌ها", children: [
+    { to: "/review/reports/contract-card", label: "گزارش کارت قرارداد" },
+    { to: "/review/reports/contract-card-summary", label: "گزارش کارت قرارداد خلاصه" },
+  ]},
   { to: "/review/fixed-transfer", label: "حواله ثابت" },
   { to: "/review/construction-deposit", label: "واریزی عمرانی" },
   { to: "/review/current-payment", label: "پرداختی جاری" },
@@ -176,10 +172,7 @@ export const REVIEW_SUB = [
 export const CREDITS_TOP_SUB = [
   { to: "/credits/agreements", label: "موافقت نامه" },
   { to: "/credits/allocation-no-doc", label: "تخصیص بدون سند" },
-  {
-    to: "/credits/search",
-    label: "جستجو در موافقت نامه، تخصیص و دریافت وجه",
-  },
+  { to: "/credits/search", label: "جستجو در موافقت نامه، تخصیص و دریافت وجه" },
   { to: "/credits/receipt-no-doc", label: "دریافت وجه بدون سند" },
   { to: "/credits/funded", label: "اعتبار تامین شده" },
   { to: "/credits/funded-search", label: "جستجو در اعتبار تامین شده" },
@@ -189,8 +182,7 @@ export const CREDITS_TOP_SUB = [
   { to: "/credits/payroll-funding", label: "تامین اعتبار حقوق" },
   { to: "/credits/payment-request-no-doc", label: "درخواست وجه بدون سند" },
   {
-    to: "/credits/notification",
-    label: "ابلاغ",
+    to: "/credits/notification", label: "ابلاغ",
     children: [
       { to: "/credits/notification/request", label: "درخواست ابلاغ" },
       { to: "/credits/notification/bank-report", label: "گزارش اعلام به بانک" },
@@ -204,8 +196,7 @@ export const CREDITS_TOP_SUB = [
     ],
   },
   {
-    to: "/credits/reports",
-    label: "گزارش ها",
+    to: "/credits/reports", label: "گزارش ها",
     children: [
       { to: "/credits/reports/budget", label: "گزارش های بودجه ای", children: [
         { to: "/credits/reports/budget/all-programs", label: "لیست کلیه برنامه ها" },
@@ -221,7 +212,7 @@ export const CREDITS_TOP_SUB = [
         { to: "/credits/reports/budget/contract-programs", label: "لیست برنامه های یک قرارداد" },
         { to: "/credits/reports/budget/contract-activities", label: "لیست فعالیت های یک قرارداد" },
         { to: "/credits/reports/budget/contract-sub-activities", label: "لیست زیرفعالیت های یک قرارداد" },
-      ] },
+      ]},
       { to: "/credits/reports/performance", label: "گزارش های عملکردی", children: [
         { to: "/credits/reports/performance/program-stats", label: "آمار عملکرد برنامه ها به تفکیک هر برنامه" },
         { to: "/credits/reports/performance/by-program", label: "گزارش اعتبارات به تفکیک برنامه" },
@@ -231,7 +222,7 @@ export const CREDITS_TOP_SUB = [
         { to: "/credits/reports/performance/funding", label: "گزارش تامین اعتبار" },
         { to: "/credits/reports/performance/by-agent", label: "گزارش اعتبارات به تفکیک عامل ذیحساب" },
         { to: "/credits/reports/performance/by-notif-receiver", label: "گزارش اعتبارات به تفکیک ابلاغ گیرنده" },
-      ] },
+      ]},
       { to: "/credits/reports/ledgers", label: "دفاتر اعتبارات", children: [
         { to: "/credits/reports/ledgers/program-level", label: "درسطح برنامه/طرح-فعالیت/پروژه-زیرفعالیت/زیرپروژه" },
         { to: "/credits/reports/ledgers/contract-level", label: "درسطح قرارداد" },
@@ -242,41 +233,7 @@ export const CREDITS_TOP_SUB = [
         { to: "/credits/reports/ledgers/documentary", label: "دفتر اعتبارات اسنادی" },
         { to: "/credits/reports/ledgers/petty-cash", label: "گزارش تنخواه" },
         { to: "/credits/reports/ledgers/overall", label: "گزارش اعتباری کلی" },
-      ] },
-      { to: "/credits/reports/agreements", label: "گزارش های موافقت نامه ای", children: [
-        { to: "/credits/reports/agreements/by-detail", label: "اعتبارات به تفکیک", children: [
-          { to: "/credits/reports/agreements/by-detail/program", label: "برنامه" },
-          { to: "/credits/reports/agreements/by-detail/activity", label: "فعالیت" },
-          { to: "/credits/reports/agreements/by-detail/clause", label: "بند و اجرا" },
-          { to: "/credits/reports/agreements/by-detail/investment-chapters", label: "فصول سرمایه گذاری" },
-          { to: "/credits/reports/agreements/by-detail/expense-resources", label: "اعتبارات هزینه و منابع" },
-        ] },
-        { to: "/credits/reports/agreements/expense-resources", label: "موافقت نامه اعتبارات هزینه ای و منابع", children: [
-          { to: "/credits/reports/agreements/expense-resources/form-2a", label: "فرم دو الف-اعتبارات هزینه ای بر حسب برنامه/فصل" },
-          { to: "/credits/reports/agreements/expense-resources/form-4-chapters", label: "فرم شماره چهار-شروع شرح فصول هزینه" },
-          { to: "/credits/reports/agreements/expense-resources/form-4-personnel", label: "فرم شماره چهار-انتساب هزینه های پرسنلی" },
-          { to: "/credits/reports/agreements/expense-resources/form-5-income", label: "فرم شماره پنج-درآمدها-واگذاری دارایی های سرمایه ای و مالی" },
-          { to: "/credits/reports/agreements/expense-resources/form-1-summary", label: "فرم شماره یک-خلاصه بودجه دستگاه" },
-          { to: "/credits/reports/agreements/expense-resources/form-6-manpower", label: "فرم شماره شش-نیروی انسانی" },
-          { to: "/credits/reports/agreements/expense-resources/form-4b-non-personnel", label: "فرم شماره چهار ب-انتساب هزینه های غیر پرسنلی" },
-          { to: "/credits/reports/agreements/expense-resources/form-3-program-activity", label: "فرم شماره سه-اعتبارات هزینه ای بر حسب برنامه/فعالیت و اهداف کمی" },
-          { to: "/credits/reports/agreements/expense-resources/form-2b-annual-plan", label: "فرم شماره دو ب-ارتباط برنامه سالانه با مراکز فعالیت اصلی" },
-          { to: "/credits/reports/agreements/expense-resources/form-7-provincial", label: "فرم شماره هفت-توزیع استانی اعتبارات" },
-          { to: "/credits/reports/agreements/expense-resources/form-2-expense-program", label: "فرم شماره دو-اعتبارات هزینه بر حسب برنامه" },
-        ] },
-        { to: "/credits/reports/agreements/form-four", label: "فرم چهار موافقت نامه" },
-        { to: "/credits/reports/agreements/detailed-budget", label: "گزارش بودجه تفصیلی" },
-        { to: "/credits/reports/agreements/payment-control", label: "گزارش کنترل پرداخت های بودجه، فرم شماره پنج" },
-      ] },
-      { to: "/credits/reports/allocation", label: "گزارش های تخصیص اعتبار", children: [
-        { to: "/credits/reports/allocation/by-program", label: "لیست تخصیص اعتبار بر حسب برنامه" },
-        { to: "/credits/reports/allocation/all", label: "لیست کلیه تخصیص اعتبارات" },
-        { to: "/credits/reports/allocation/program-chapter", label: "لیست تخصیص اعتبار برنامه فصل" },
-      ] },
-      { to: "/credits/reports/receipts", label: "گزارش های دریافت وجه", children: [
-        { to: "/credits/reports/receipts/all", label: "لیست کلیه دریافتی ها" },
-        { to: "/credits/reports/receipts/no-program", label: "لیست دریافتی های بدون برنامه" },
-      ] },
+      ]},
       { to: "/credits/reports/credits-1", label: "گزارش اعتبارات-1" },
       { to: "/credits/reports/payment-request-no-doc", label: "گزارش درخواست وجه بدون سند" },
       { to: "/credits/reports/comprehensive", label: "گزارش جامع اعتبارات" },
@@ -284,24 +241,6 @@ export const CREDITS_TOP_SUB = [
       { to: "/credits/reports/by-detail", label: "گزارش اعتبارات بر حسب تفصیل" },
     ],
   },
-  { to: "/credits/sub-accountant-agent", label: "عامل ذیحساب", children: [
-    { to: "/credits/sub-accountant-agent/version-1", label: "نسخه اول", children: [
-      { to: "/credits/sub-accountant-agent/version-1/total-credit-form", label: "فرم تعیین اعتبار کلی" },
-      { to: "/credits/sub-accountant-agent/version-1/agent-requests", label: "درخواست وجه های عاملین" },
-      { to: "/credits/sub-accountant-agent/version-1/agent-expenses", label: "هزینه های عاملین" },
-      { to: "/credits/sub-accountant-agent/version-1/fund-from-expense", label: "ثبت تامین اعتبار از هزینه" },
-    ] },
-    { to: "/credits/sub-accountant-agent/version-2", label: "نسخه دوم", children: [
-      { to: "/credits/sub-accountant-agent/version-2/send-credit", label: "ارسال اعتبار به عامل" },
-      { to: "/credits/sub-accountant-agent/version-2/confirm-issue", label: "تایید و صدور تامین برای عامل" },
-    ] },
-    { to: "/credits/sub-accountant-agent/view-confirm-credit", label: "مشاهده و تایید اعتبار" },
-    { to: "/credits/sub-accountant-agent/view-confirm-request", label: "مشاهده و تایید درخواست" },
-    { to: "/credits/sub-accountant-agent/view-confirm-expense", label: "مشاهده و تایید هزینه" },
-    { to: "/credits/sub-accountant-agent/plan-program-percent", label: "درصد طرح/برنامه" },
-    { to: "/credits/sub-accountant-agent/cost-center-relation", label: "ارتباط مراکز هزینه" },
-    { to: "/credits/sub-accountant-agent/agents-relation", label: "ارتباط عاملین ذیحساب" },
-  ] },
   { to: "/credits/read-from-file", label: "خواندن اطلاعات از فایل" },
   { to: "/credits/warehouse-receipt-reg", label: "ثبت اعتبارات رسید و حواله انبار" },
   { to: "/credits/fund-from-doc", label: "ثبت تامین اعتبار از سند" },
@@ -311,7 +250,7 @@ export const CREDITS_TOP_SUB = [
 export const CHECK_ISSUANCE_TOP = [
   { to: "/check-issuance/receipts", label: "دریافت ها", children: [
     { to: "/check-issuance/receipts/check-issuance", label: "دریافت وجه - صدور چک" },
-  ] },
+  ]},
   { to: "/check-issuance/payments", label: "پرداخت ها", children: [
     { to: "/check-issuance/payments/with-check", label: "پرداخت با چک" },
     { to: "/check-issuance/payments/without-check", label: "پرداخت بدون چک" },
@@ -328,12 +267,12 @@ export const CHECK_ISSUANCE_TOP = [
     { to: "/check-issuance/payments/print-receipt", label: "چاپ فیش" },
     { to: "/check-issuance/payments/register-bank-receipt", label: "ثبت فیش های بانکی" },
     { to: "/check-issuance/payments/print-aggregate-confirmation", label: "چاپ تجمیعی تاییدیه چک" },
-  ] },
+  ]},
   { to: "/check-issuance/reports", label: "گزارش ها", children: [
     { to: "/check-issuance/reports/bank-ledgers", label: "دفاتر بانک", children: [
       { to: "/check-issuance/reports/bank-ledgers/regular", label: "گزارش عادی" },
       { to: "/check-issuance/reports/bank-ledgers/detailed", label: "گزارش تفکیکی" },
-    ] },
+    ]},
     { to: "/check-issuance/reports/balances", label: "موجودی ها" },
     { to: "/check-issuance/reports/bank-accounts", label: "لیست شماره حساب های هر بانک" },
     { to: "/check-issuance/reports/used-checks", label: "لیست چک های استفاده شده از دسته چک/شماره حساب" },
@@ -343,7 +282,7 @@ export const CHECK_ISSUANCE_TOP = [
     { to: "/check-issuance/reports/misc-search", label: "جستجوی متفرقه روی چک/بی چک" },
     { to: "/check-issuance/reports/aggregate-checks", label: "گزارش چک های تجمیعی" },
     { to: "/check-issuance/reports/aggregate-with-doc", label: "گزارش چک های تجمیعی با سند و بدون سند" },
-  ] },
+  ]},
   { to: "/check-issuance/e-transfer", label: "حواله الکترونیکی" },
   { to: "/check-issuance/e-transfer-batch", label: "حواله الکترونیکی-گروهی" },
 ];
@@ -355,14 +294,14 @@ export const BOOKKEEPING_TOP = [
     { to: "/bookkeeping/operations-balance/moein-detail-link", label: "ارتباط معین و تفصیلی" },
     { to: "/bookkeeping/operations-balance/samad-system", label: "سامانه سماد(الف-ب)" },
     { to: "/bookkeeping/operations-balance/sanama-attachments", label: "ضمائم الصاقی سناما" },
-  ] },
+  ]},
   { to: "/bookkeeping/misc-accounts", label: "متفرقه(لیست حساب‌ها)", children: [
     { to: "/bookkeeping/misc-accounts/account-groups", label: "لیست گروه حساب ها" },
     { to: "/bookkeeping/misc-accounts/main-accounts", label: "لیست حساب های کل" },
     { to: "/bookkeeping/misc-accounts/moein-accounts", label: "لیست حساب های معین" },
     { to: "/bookkeeping/misc-accounts/detail-accounts", label: "لیست حساب های تفصیلی" },
     { to: "/bookkeeping/misc-accounts/detailed-report", label: "گزارش تفصیلی" },
-  ] },
+  ]},
   { to: "/bookkeeping/ledger-reports", label: "گزارش دفاتر", children: [
     { to: "/bookkeeping/ledger-reports/general-ledger", label: "دفتر کل" },
     { to: "/bookkeeping/ledger-reports/moein-ledger", label: "دفتر معین" },
@@ -372,26 +311,26 @@ export const BOOKKEEPING_TOP = [
     { to: "/bookkeeping/ledger-reports/detail-ledger", label: "دفتر تفصیلی" },
     { to: "/bookkeeping/ledger-reports/account-review", label: "مرور حساب ها" },
     { to: "/bookkeeping/ledger-reports/securities", label: "گزارش اوراق بهادار" },
-  ] },
+  ]},
   { to: "/bookkeeping/summary-status", label: "گزارش خلاصه وضعیت" },
   { to: "/bookkeeping/bank-reconciliation", label: "مغایرت بانکی", children: [
     { to: "/bookkeeping/bank-reconciliation/account-format-setup", label: "تنظیم فرمت صورت حساب بانک" },
     { to: "/bookkeeping/bank-reconciliation/account-info-read", label: "خواندن اطلاعات حساب ها" },
     { to: "/bookkeeping/bank-reconciliation/account-reconciliation", label: "مغایرت حساب ها" },
-  ] },
+  ]},
   { to: "/bookkeeping/final-documents", label: "سندهای قطعی", children: [
     { to: "/bookkeeping/final-documents/finalize-doc", label: "قطعی کردن سند" },
     { to: "/bookkeeping/final-documents/unfinalize-doc", label: "خارج نمودن سند از قطعی" },
-  ] },
+  ]},
   { to: "/bookkeeping/budget-execution", label: "گزارش‌های تفریغ بودجه", children: [
     { to: "/bookkeeping/budget-execution/budget-allocation-setup", label: "تنظیمات تفریغ بودجه" },
     { to: "/bookkeeping/budget-execution/budget-allocation", label: "تفریغ بودجه" },
     { to: "/bookkeeping/budget-execution/aggregate-budget-allocation", label: "تفریغ بودجه تجمیعی" },
-  ] },
+  ]},
   { to: "/bookkeeping/misc-persons", label: "گزارش‌های متفرقه(اشخاص)", children: [
     { to: "/bookkeeping/misc-persons/persons-report", label: "گزارش اشخاص" },
     { to: "/bookkeeping/misc-persons/persons-balance", label: "گزارش مانده اشخاص" },
-  ] },
+  ]},
   { to: "/bookkeeping/financial-statements", label: "صورت‌های مالی", children: [
     { to: "/bookkeeping/financial-statements/balance-sheet", label: "صورت وضعیت مالی1" },
     { to: "/bookkeeping/financial-statements/change-in-financial-position", label: "صورت تغییرات در وضعیت مالی" },
@@ -399,7 +338,7 @@ export const BOOKKEEPING_TOP = [
     { to: "/bookkeeping/financial-statements/parametric-balance-sheet", label: "صورت وضعیت مالی پارامتریک" },
     { to: "/bookkeeping/financial-statements/notes", label: "یادداشت توضیحی" },
     { to: "/bookkeeping/financial-statements/reports-settings", label: "تنظیمات گزارش" },
-  ] },
+  ]},
   { to: "/bookkeeping/accountant-agents", label: "گزارش عاملین ذیحساب" },
   { to: "/bookkeeping/document-notification", label: "گزارش ابلاغ سند" },
   { to: "/bookkeeping/smart-control", label: "کنترل هوشمند" },
@@ -407,7 +346,7 @@ export const BOOKKEEPING_TOP = [
   { to: "/bookkeeping/open-items", label: "هشدار اقلام باز دفتر" },
   { to: "/bookkeeping/resource-forms", label: "فرم‌های منابع و مصارف", children: [
     { to: "/bookkeeping/resource-forms/deposit-expense-confirmation", label: "فرم تاییدیه مصارف سپرده" },
-  ] },
+  ]},
 ];
 
 export const TOP_NAV = [
@@ -439,12 +378,11 @@ export const TOP_NAV = [
     { to: "/system-management/backup", label: "گرفتن نسخه پشتیبان" },
     { to: "/system-management/report-signature", label: "تنظیم امضای گزارشات" },
     {
-      to: "/system-management/report-generator",
-      label: "گزارش ساز",
+      to: "/system-management/report-generator", label: "گزارش ساز",
       children: [
-        { to: "/system-management/report-generator/define", label: "تعریف گزارش" },
-        { to: "/system-management/report-generator/settings", label: "تنظیم گزارش" },
-        { to: "/system-management/report-generator/generate", label: "گزارش گیری" },
+        { to: "/system-management/report-generator/define",     label: "تعریف گزارش" },
+        { to: "/system-management/report-generator/settings",   label: "تنظیم گزارش" },
+        { to: "/system-management/report-generator/generate",   label: "گزارش گیری" },
         { to: "/system-management/report-generator/generate-2", label: "گزارش گیری-2" },
         { to: "/system-management/report-generator/generate-3", label: "گزارش گیری-3" },
       ],
@@ -463,7 +401,7 @@ export const TOP_NAV = [
     { to: "/system-management/revoke-e-transfer", label: "ابطال حواله الکترونیکی" },
     { to: "/system-management/sanama-file-check", label: "بررسی فایل سناما" },
     { to: "/system-management/doc-requirements", label: "بررسی الزامات اسناد" },
-  ] },
+  ]},
   { to: "/guarantees", label: "تضمینات", num: 8, subItems: [
     { to: "/guarantees/types", label: "انواع تضمینات" },
     { to: "/guarantees/causes", label: "تعریف علت ضمانت" },
@@ -471,31 +409,182 @@ export const TOP_NAV = [
     { to: "/guarantees/subject", label: "موضوع تضمین" },
     { to: "/guarantees/register", label: "ثبت ضمانت نامه", children: [
       { to: "/guarantees/register/contract", label: "ضمانت قرارداد" },
-      { to: "/guarantees/register/person", label: "ضمانت اشخاص" },
-    ] },
+      { to: "/guarantees/register/person",   label: "ضمانت اشخاص" },
+    ]},
     { to: "/guarantees/auto-doc", label: "سند اتوماتیک ضمانت" },
     { to: "/guarantees/extension-request", label: "درخواست تمدید ضمانت نامه گروهی" },
     { to: "/guarantees/report", label: "گزارش ضمانت نامه" },
     { to: "/guarantees/status-report", label: "گزارشات وضعیت تضمینات", children: [
       { to: "/guarantees/status-report/status", label: "وضعیت تضمینات" },
-    ] },
+    ]},
     { to: "/guarantees/date-report", label: "گزارش ضمانت نامه ها بر اساس تاریخ" },
-  ] },
+  ]},
   { to: "/deposits", label: "سپرده‌ها", num: 9, subItems: [
     { to: "/deposits/auto-register", label: "ثبت اتوماتیک سپرده از سند" },
-    { to: "/deposits/manual-form", label: "ثبت فرم سپرده دستی" },
-    { to: "/deposits/treasury", label: "دریافت سپرده از خزانه/استرداد/ثبت شماره بستانکاری" },
-    { to: "/deposits/search", label: "جستجوی سپرده" },
-  ] },
+    { to: "/deposits/manual-form",   label: "ثبت فرم سپرده دستی" },
+    { to: "/deposits/treasury",      label: "دریافت سپرده از خزانه/استرداد/ثبت شماره بستانکاری" },
+    { to: "/deposits/search",        label: "جستجوی سپرده" },
+  ]},
+  { to: "/assets", label: "سیستم اموال", num: 10, subItems: [
+    { to: "/assets/basic-info", label: "اطلاعات پایه", children: [
+      { to: "/assets/basic-info/asset-groups",           label: "تعریف گروه اموال" },
+      { to: "/assets/basic-info/asset-subgroups",        label: "تعریف زیرگروه اموال" },
+      { to: "/assets/basic-info/asset-types",            label: "تعریف نوع مال (مصرفی/غیرمصرفی)" },
+      { to: "/assets/basic-info/asset-nature",           label: "تعریف ماهیت مال (منقول/غیرمنقول)" },
+      { to: "/assets/basic-info/units",                  label: "تعریف واحد اندازه‌گیری" },
+      { to: "/assets/basic-info/locations",              label: "تعریف مکان‌ها (ساختمان/طبقه/اتاق)" },
+      { to: "/assets/basic-info/suppliers",              label: "تعریف تامین‌کنندگان" },
+      { to: "/assets/basic-info/depreciation-methods",  label: "روش‌های استهلاک" },
+    ]},
+    { to: "/assets/register", label: "ثبت اموال", children: [
+      { to: "/assets/register/new",        label: "ثبت مال جدید" },
+      { to: "/assets/register/label",      label: "الصاق برچسب / QR Code" },
+      { to: "/assets/register/delivery",   label: "تحویل به پرسنل" },
+      { to: "/assets/register/return",     label: "عودت مال" },
+      { to: "/assets/register/transfer",   label: "انتقال بین واحدها" },
+      { to: "/assets/register/repair",     label: "ارسال به تعمیر" },
+      { to: "/assets/register/scrap",      label: "اسقاط مال" },
+      { to: "/assets/register/sale",       label: "فروش مال" },
+      { to: "/assets/register/lost",       label: "ثبت مفقودی" },
+    ]},
+    { to: "/assets/depreciation", label: "استهلاک", children: [
+      { to: "/assets/depreciation/setup",    label: "تنظیم استهلاک" },
+      { to: "/assets/depreciation/monthly",  label: "محاسبه استهلاک ماهانه" },
+      { to: "/assets/depreciation/annual",   label: "محاسبه استهلاک سالانه" },
+      { to: "/assets/depreciation/document", label: "صدور سند استهلاک" },
+    ]},
+    { to: "/assets/warehouse", label: "انبار و موجودی", children: [
+      { to: "/assets/warehouse/receipt",   label: "رسید انبار (اموال مصرفی)" },
+      { to: "/assets/warehouse/issue",     label: "حواله انبار" },
+      { to: "/assets/warehouse/balance",   label: "موجودی انبار" },
+      { to: "/assets/warehouse/min-stock", label: "هشدار حداقل موجودی" },
+    ]},
+    { to: "/assets/reports", label: "گزارش‌ها", children: [
+      { to: "/assets/reports/all",                       label: "لیست کلیه اموال" },
+      { to: "/assets/reports/by-unit",                   label: "اموال هر واحد" },
+      { to: "/assets/reports/by-employee",               label: "اموال هر کارمند" },
+      { to: "/assets/reports/labeled",                   label: "اموال برچسب‌دار" },
+      { to: "/assets/reports/unlabeled",                 label: "اموال بدون برچسب" },
+      { to: "/assets/reports/depreciation-monthly",     label: "استهلاک ماهانه" },
+      { to: "/assets/reports/depreciation-annual",      label: "استهلاک سالانه" },
+      { to: "/assets/reports/depreciation-cumulative",  label: "استهلاک انباشته" },
+      { to: "/assets/reports/book-value",               label: "ارزش دفتری اموال" },
+      { to: "/assets/reports/lost",                     label: "اموال مفقود" },
+      { to: "/assets/reports/scrapped",                 label: "اموال اسقاطی" },
+      { to: "/assets/reports/in-repair",                label: "اموال در تعمیر" },
+      { to: "/assets/reports/transferred",              label: "اموال منتقل شده" },
+    ]},
+  ]},
+  { to: "/warehouse", label: "سیستم انبار", num: 11, subItems: [
+    { to: "/warehouse/dashboard", label: "داشبورد انبار" },
+    { to: "/warehouse/items", label: "مدیریت کالاها", children: [
+      { to: "/warehouse/items/list",       label: "لیست کالاها" },
+      { to: "/warehouse/items/new",        label: "ثبت کالای جدید" },
+      { to: "/warehouse/items/categories", label: "دسته‌بندی کالاها" },
+      { to: "/warehouse/items/barcodes",   label: "بارکد و QR Code" },
+    ]},
+    { to: "/warehouse/stores", label: "مدیریت انبارها", children: [
+      { to: "/warehouse/stores/list",  label: "لیست انبارها" },
+      { to: "/warehouse/stores/new",   label: "ثبت انبار جدید" },
+      { to: "/warehouse/stores/stock", label: "موجودی کالا در انبار" },
+    ]},
+    { to: "/warehouse/receipts", label: "ورود کالا (رسید)", children: [
+      { to: "/warehouse/receipts/new",         label: "رسید جدید" },
+      { to: "/warehouse/receipts/list",        label: "لیست رسیدها" },
+      { to: "/warehouse/receipts/purchase",    label: "رسید خرید" },
+      { to: "/warehouse/receipts/return",      label: "برگشت از مصرف" },
+      { to: "/warehouse/receipts/transfer-in", label: "رسید انتقال از انبار دیگر" },
+    ]},
+    { to: "/warehouse/issues", label: "خروج کالا (حواله)", children: [
+      { to: "/warehouse/issues/new",         label: "حواله جدید" },
+      { to: "/warehouse/issues/list",        label: "لیست حواله‌ها" },
+      { to: "/warehouse/issues/consumption", label: "مصرف داخلی" },
+      { to: "/warehouse/issues/delivery",    label: "تحویل به پرسنل" },
+      { to: "/warehouse/issues/scrap",       label: "اسقاط" },
+    ]},
+    { to: "/warehouse/requests", label: "درخواست کالا", children: [
+      { to: "/warehouse/requests/new",     label: "درخواست جدید" },
+      { to: "/warehouse/requests/list",    label: "لیست درخواست‌ها" },
+      { to: "/warehouse/requests/pending", label: "در انتظار تایید" },
+      { to: "/warehouse/requests/approve", label: "تایید درخواست‌ها" },
+    ]},
+    { to: "/warehouse/transfers", label: "انتقال بین انبارها", children: [
+      { to: "/warehouse/transfers/new",     label: "انتقال جدید" },
+      { to: "/warehouse/transfers/list",    label: "لیست انتقالات" },
+      { to: "/warehouse/transfers/confirm", label: "تایید دریافت" },
+    ]},
+    { to: "/warehouse/inventory", label: "انبارگردانی", children: [
+      { to: "/warehouse/inventory/new",         label: "شروع انبارگردانی" },
+      { to: "/warehouse/inventory/count",       label: "ثبت شمارش" },
+      { to: "/warehouse/inventory/discrepancy", label: "گزارش مغایرت" },
+      { to: "/warehouse/inventory/history",     label: "تاریخچه انبارگردانی" },
+    ]},
+    { to: "/warehouse/suppliers", label: "تامین‌کنندگان", children: [
+      { to: "/warehouse/suppliers/list", label: "لیست تامین‌کنندگان" },
+      { to: "/warehouse/suppliers/new",  label: "ثبت تامین‌کننده" },
+    ]},
+    { to: "/warehouse/reports", label: "گزارش‌ها", children: [
+      { to: "/warehouse/reports/stock",          label: "موجودی لحظه‌ای" },
+      { to: "/warehouse/reports/stock-by-store", label: "موجودی هر انبار" },
+      { to: "/warehouse/reports/stock-by-group", label: "موجودی هر گروه" },
+      { to: "/warehouse/reports/turnover",       label: "گردش ورود و خروج" },
+      { to: "/warehouse/reports/transfers",      label: "گزارش انتقالات" },
+      { to: "/warehouse/reports/shortage",       label: "کالاهای کمتر از نقطه سفارش" },
+      { to: "/warehouse/reports/discrepancy",    label: "مغایرت‌های انبار" },
+      { to: "/warehouse/reports/audit",          label: "تاریخچه عملیات (Audit)" },
+    ]},
+  ]},
+  { to: "/payroll", label: "سیستم حقوق و دستمزد", num: 12, subItems: [
+    { to: "/payroll/dashboard", label: "داشبورد حقوق" },
+    { to: "/payroll/employees", label: "اطلاعات کارکنان", children: [
+      { to: "/payroll/employees/list",      label: "لیست کارکنان" },
+      { to: "/payroll/employees/new",       label: "ثبت کارمند جدید" },
+      { to: "/payroll/employees/contracts", label: "قراردادها" },
+      { to: "/payroll/employees/decrees",   label: "احکام حقوقی" },
+    ]},
+    { to: "/payroll/attendance", label: "حضور و غیاب", children: [
+      { to: "/payroll/attendance/register", label: "ثبت کارکرد ماه" },
+      { to: "/payroll/attendance/list",     label: "لیست کارکرد" },
+      { to: "/payroll/attendance/leave",    label: "مرخصی‌ها" },
+      { to: "/payroll/attendance/mission",  label: "مأموریت" },
+    ]},
+    { to: "/payroll/calculate", label: "محاسبه حقوق", children: [
+      { to: "/payroll/calculate/monthly",   label: "محاسبه ماهانه" },
+      { to: "/payroll/calculate/settings",  label: "تنظیمات محاسبه" },
+      { to: "/payroll/calculate/tax-table", label: "جدول مالیات" },
+      { to: "/payroll/calculate/insurance", label: "تنظیمات بیمه" },
+    ]},
+    { to: "/payroll/payslip", label: "فیش حقوقی", children: [
+      { to: "/payroll/payslip/view",  label: "مشاهده فیش حقوقی" },
+      { to: "/payroll/payslip/print", label: "چاپ فیش حقوقی" },
+      { to: "/payroll/payslip/bulk",  label: "چاپ گروهی فیش‌ها" },
+    ]},
+    { to: "/payroll/loans", label: "وام و مساعده", children: [
+      { to: "/payroll/loans/new",     label: "ثبت وام" },
+      { to: "/payroll/loans/list",    label: "لیست وام‌ها" },
+      { to: "/payroll/loans/advance", label: "مساعده" },
+      { to: "/payroll/loans/balance", label: "مانده وام کارکنان" },
+    ]},
+    { to: "/payroll/reports", label: "گزارش‌ها", children: [
+      { to: "/payroll/reports/list",       label: "لیست حقوق ماهانه" },
+      { to: "/payroll/reports/insurance",  label: "لیست بیمه" },
+      { to: "/payroll/reports/tax",        label: "لیست مالیات" },
+      { to: "/payroll/reports/overtime",   label: "گزارش اضافه‌کاری" },
+      { to: "/payroll/reports/absence",    label: "گزارش غیبت" },
+      { to: "/payroll/reports/leave",      label: "گزارش مرخصی" },
+      { to: "/payroll/reports/unit-cost",  label: "هزینه حقوق واحدها" },
+      { to: "/payroll/reports/annual",     label: "گزارش سالانه حقوق" },
+      { to: "/payroll/reports/eid",        label: "گزارش عیدی و سنوات" },
+    ]},
+  ]},
 ];
 
 /** تمام مسیرهای منو را به‌صورت تخت برمی‌گرداند */
 export function flattenMenuItems(items, acc = []) {
   for (const item of items) {
     acc.push({ path: item.to, label: item.label });
-    if (item.children?.length) {
-      flattenMenuItems(item.children, acc);
-    }
+    if (item.children?.length) flattenMenuItems(item.children, acc);
+    if (item.subItems?.length) flattenMenuItems(item.subItems, acc);
   }
   return acc;
 }
@@ -507,14 +596,10 @@ export function getAllMenuRoutes() {
 
   for (const item of TOP_NAV) {
     routes.push({ path: item.to, label: item.label });
-    if (item.subItems) {
-      flattenMenuItems(item.subItems, routes);
-    }
+    if (item.subItems) flattenMenuItems(item.subItems, routes);
   }
 
   const unique = new Map();
-  for (const route of routes) {
-    unique.set(route.path, route.label);
-  }
+  for (const route of routes) unique.set(route.path, route.label);
   return Array.from(unique, ([path, label]) => ({ path, label }));
 }

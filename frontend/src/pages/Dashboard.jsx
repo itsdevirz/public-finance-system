@@ -227,7 +227,7 @@ export default function Dashboard() {
 
   return (
     <PageShell>
-      <PageHeader title={`خوش آمدید، ${user?.username}`} description={now} />
+      <PageHeader title={`خوش آمدید ${user?.username}`} description={now} />
 
       {/* هشدارها */}
       <div className="mb-6 space-y-2">
