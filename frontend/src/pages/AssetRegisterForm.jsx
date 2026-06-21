@@ -18,7 +18,7 @@ const TABS = [
   { key: "depreciation", label: "استهلاک",        icon: Calculator },
 ];
 
-const ASSET_TYPES    = [{ value: "non-consumable", label: "غیرمصرفی" }, { value: "consumable", label: "مصرفی" }];
+const ASSET_TYPES    = [{ value: "non-consumable", label: "غیرمصرفی" }, { value: "consumable", label: "مصرفی" }, { value: "consumable-2", label: "در حکم مصرفی" }];
 const ASSET_NATURES  = [{ value: "movable", label: "منقول" }, { value: "immovable", label: "غیرمنقول" }];
 const STATUSES       = [{ value: "active", label: "فعال" }, { value: "scrap", label: "اسقاط" }, { value: "lost", label: "مفقود" }, { value: "repair", label: "در تعمیر" }];
 const DEPREC_METHODS = [{ value: "straight", label: "خط مستقیم" }, { value: "declining", label: "نزولی" }, { value: "sum_years", label: "مجموع سنوات" }, { value: "units", label: "تعداد تولید" }];
@@ -161,7 +161,7 @@ export default function AssetRegisterForm() {
             <div className="space-y-4">
               <SecTitle icon={Package} title="مشخصات کلی" />
               <div className="form-grid">
-                <Field label="کد مال"><Input value={form.assetCode} onChange={set("assetCode")} placeholder="خودکار" className="h-8 text-sm font-mono" /></Field>
+                <Field label="کد مال"><Input value={form.assetCode} onChange={set("assetCode")} className="h-8 text-sm font-mono" /></Field>
                 <Field label="نام مال" required><Input value={form.assetName} onChange={set("assetName")} className="h-8 text-sm" /></Field>
                 <Field label="گروه مال"><Input value={form.assetGroup} onChange={set("assetGroup")} className="h-8 text-sm" /></Field>
                 <Field label="زیرگروه مال"><Input value={form.assetSubgroup} onChange={set("assetSubgroup")} className="h-8 text-sm" /></Field>

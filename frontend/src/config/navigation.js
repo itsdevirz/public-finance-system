@@ -47,6 +47,15 @@ export const CREDITS_SUB = [
 ];
 
 export const BASIC_INFO_SUB = [
+  {
+    to: "/basic-info/account-heads",
+    label: "تعریف سرفصل حساب‌ها",
+    children: [
+      { to: "/basic-info/account-heads/list", label: "لیست سرفصل‌ها" },
+      { to: "/basic-info/account-heads/register-document", label: "ثبت سند مالی (سناما)" },
+      { to: "/basic-info/account-heads/tag-matrix", label: "ماتریس تگ‌های سناما" },
+    ],
+  },
   { to: "/basic-info/credits", label: "اعتبارات", children: CREDITS_SUB },
   {
     to: "/basic-info/document-setup",

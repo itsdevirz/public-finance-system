@@ -1,3 +1,6 @@
+import AccountHeads from "@/pages/AccountHeads";
+import SanamaDocumentForm from "@/pages/SanamaDocumentForm";
+import SanamaTagMatrix from "@/pages/SanamaTagMatrix";
 import BasicInfo from "@/pages/BasicInfo";
 import DocumentSetup from "@/pages/DocumentSetup";
 import Review from "@/pages/Review";
@@ -23,6 +26,10 @@ import { getAllMenuRoutes } from "@/config/navigation";
 /** صفحاتی که پیاده‌سازی شده‌اند — بقیه خودکار Placeholder می‌شوند */
 export const PAGE_COMPONENTS = {
   "/basic-info": BasicInfo,
+  "/basic-info/account-heads": AccountHeads,
+  "/basic-info/account-heads/list": AccountHeads,
+  "/basic-info/account-heads/register-document": SanamaDocumentForm,
+  "/basic-info/account-heads/tag-matrix": SanamaTagMatrix,
   "/basic-info/credits": Credits,
   "/basic-info/document-setup": DocumentSetup,
   "/basic-info/check-issuance": CheckIssuance,

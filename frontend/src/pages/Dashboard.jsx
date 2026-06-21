@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
 import { PageShell, PageHeader } from "@/components/layout/PageShell";
+import { StaggerContainer, StaggerItem, ScaleOnHover } from "@/components/motion/AnimatedPage";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -230,92 +232,123 @@ export default function Dashboard() {
       <PageHeader title={`خوش آمدید ${user?.username}`} description={now} />
 
       {/* هشدارها */}
-      <div className="mb-6 space-y-2">
+      <StaggerContainer className="mb-6 space-y-2" staggerDelay={0.1}>
         {ALERTS.map((a, i) => (
-          <div key={i} className="flex items-center gap-3 rounded-xl border bg-card px-4 py-3 text-sm shadow-sm animate-in fade-in duration-300" style={{ animationDelay: `${i * 60}ms` }}>
-            {a.type === "warning" ? <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
-             : a.type === "success" ? <CheckCircle className="h-4 w-4 text-emerald-500 shrink-0" />
-             : <Clock className="h-4 w-4 text-blue-500 shrink-0" />}
-            <span>{a.text}</span>
-          </div>
+          <StaggerItem key={i}>
+            <div className="flex items-center gap-3 rounded-xl border bg-card px-4 py-3 text-sm shadow-sm">
+              {a.type === "warning" ? <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+               : a.type === "success" ? <CheckCircle className="h-4 w-4 text-emerald-500 shrink-0" />
+               : <Clock className="h-4 w-4 text-blue-500 shrink-0" />}
+              <span>{a.text}</span>
+            </div>
+          </StaggerItem>
         ))}
-      </div>
+      </StaggerContainer>
 
       {/* کارت‌های آمار */}
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <StaggerContainer className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4" staggerDelay={0.1}>
         {[
           { label: "اسناد این ماه",   value: "—", icon: FileText,       color: "text-primary",     bg: "bg-primary/10"  },
           { label: "چک‌های صادره",    value: "—", icon: ArrowLeftRight,  color: "text-amber-600",   bg: "bg-amber-50"    },
           { label: "ضمانت‌نامه فعال", value: "—", icon: Shield,          color: "text-rose-600",    bg: "bg-rose-50"     },
           { label: "عملکرد بودجه",    value: "—", icon: TrendingUp,      color: "text-emerald-600", bg: "bg-emerald-50"  },
         ].map((item, i) => (
-          <Card key={i} className="p-4 animate-in fade-in zoom-in-95 duration-500" style={{ animationDelay: `${i * 80}ms` }}>
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs text-muted-foreground">{item.label}</p>
-                <p className={`mt-1 text-2xl font-bold ${item.color}`}>{item.value}</p>
-              </div>
-              <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${item.bg}`}>
-                <item.icon className={`h-5 w-5 ${item.color}`} />
-              </div>
-            </div>
-          </Card>
+          <StaggerItem key={i}>
+            <ScaleOnHover>
+              <Card className="p-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground">{item.label}</p>
+                    <p className={`mt-1 text-2xl font-bold ${item.color}`}>{item.value}</p>
+                  </div>
+                  <motion.div
+                    initial={{ rotate: -10, scale: 0 }}
+                    animate={{ rotate: 0, scale: 1 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 20, delay: 0.2 + i * 0.1 }}
+                    className={`flex h-9 w-9 items-center justify-center rounded-xl ${item.bg}`}
+                  >
+                    <item.icon className={`h-5 w-5 ${item.color}`} />
+                  </motion.div>
+                </div>
+              </Card>
+            </ScaleOnHover>
+          </StaggerItem>
         ))}
-      </div>
+      </StaggerContainer>
 
       {/* دسترسی سریع */}
-      <Card className="mb-6">
-        <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <LayoutDashboard className="h-4 w-4" />
-            دسترسی سریع
-          </CardTitle>
-          <CardDescription>پرکاربردترین عملیات‌ها</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-            {QUICK_ACCESS.map((item) => (
-              <button key={item.to} onClick={() => navigate(item.to)}
-                className="group flex flex-col items-center gap-2 rounded-xl border bg-muted/30 p-4 text-center transition-all duration-200 hover:bg-accent hover:shadow-soft hover:-translate-y-0.5">
-                <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${item.color} transition-transform duration-200 group-hover:scale-110`}>
-                  <item.icon className="h-5 w-5" />
-                </div>
-                <span className="text-xs font-medium leading-tight">{item.label}</span>
-              </button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.3 }}
+      >
+        <Card className="mb-6">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <LayoutDashboard className="h-4 w-4" />
+              دسترسی سریع
+            </CardTitle>
+            <CardDescription>پرکاربردترین عملیات‌ها</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <StaggerContainer className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6" staggerDelay={0.06}>
+              {QUICK_ACCESS.map((item) => (
+                <StaggerItem key={item.to}>
+                  <ScaleOnHover scale={1.05}>
+                    <button onClick={() => navigate(item.to)}
+                      className="group flex w-full flex-col items-center gap-2 rounded-xl border bg-muted/30 p-4 text-center transition-all duration-200 hover:bg-accent hover:shadow-soft">
+                      <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${item.color} transition-transform duration-200 group-hover:scale-110`}>
+                        <item.icon className="h-5 w-5" />
+                      </div>
+                      <span className="text-xs font-medium leading-tight">{item.label}</span>
+                    </button>
+                  </ScaleOnHover>
+                </StaggerItem>
+              ))}
+            </StaggerContainer>
+          </CardContent>
+        </Card>
+      </motion.div>
 
       {/* تعاریف پایه */}
-      <Card className="mb-6">
-        <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <ListChecks className="h-4 w-4" />
-            تعاریف پایه سیستم
-          </CardTitle>
-          <CardDescription>پیش از ورود اطلاعات، این موارد را تعریف کنید</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-            {DEFINITIONS.map((def) => (
-              <button key={def.key} onClick={() => setActiveModal(def.key)}
-                className="group flex flex-col items-center gap-2 rounded-xl border bg-muted/30 p-4 text-center transition-all duration-200 hover:bg-accent hover:shadow-soft hover:-translate-y-0.5">
-                <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${def.color} transition-transform duration-200 group-hover:scale-110`}>
-                  <def.icon className="h-5 w-5" />
-                </div>
-                <span className="text-xs font-medium leading-tight">{def.title}</span>
-                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                  {def.items.length} مورد
-                </Badge>
-              </button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.4 }}
+      >
+        <Card className="mb-6">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <ListChecks className="h-4 w-4" />
+              تعاریف پایه سیستم
+            </CardTitle>
+            <CardDescription>پیش از ورود اطلاعات، این موارد را تعریف کنید</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <StaggerContainer className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6" staggerDelay={0.06}>
+              {DEFINITIONS.map((def) => (
+                <StaggerItem key={def.key}>
+                  <ScaleOnHover scale={1.05}>
+                    <button onClick={() => setActiveModal(def.key)}
+                      className="group flex w-full flex-col items-center gap-2 rounded-xl border bg-muted/30 p-4 text-center transition-all duration-200 hover:bg-accent hover:shadow-soft">
+                      <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${def.color} transition-transform duration-200 group-hover:scale-110`}>
+                        <def.icon className="h-5 w-5" />
+                      </div>
+                      <span className="text-xs font-medium leading-tight">{def.title}</span>
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                        {def.items.length} مورد
+                      </Badge>
+                    </button>
+                  </ScaleOnHover>
+                </StaggerItem>
+              ))}
+            </StaggerContainer>
+          </CardContent>
+        </Card>
+      </motion.div>
 
       {/* بخش‌های اصلی */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <StaggerContainer className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" staggerDelay={0.08}>
         {[
           { title: "تنظیم اسناد",  desc: "صدور، جستجو و انتقال اسناد مالی",    to: "/document-setup",               icon: FileText       },
           { title: "اعتبارات",      desc: "موافقت‌نامه، تخصیص و تامین اعتبار",   to: "/credits",                      icon: CreditCard     },
@@ -324,20 +357,27 @@ export default function Dashboard() {
           { title: "تضمینات",       desc: "ثبت و پیگیری ضمانت‌نامه‌ها",          to: "/guarantees",                   icon: Shield         },
           { title: "سپرده‌ها",      desc: "ثبت و مدیریت سپرده‌های مالی",         to: "/deposits",                     icon: PiggyBank      },
         ].map((item, i) => (
-          <Card key={i} className="group cursor-pointer animate-in fade-in zoom-in-95 duration-500" style={{ animationDelay: `${i * 60}ms` }} onClick={() => navigate(item.to)}>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary transition-all duration-300 group-hover:scale-110 group-hover:bg-primary group-hover:text-primary-foreground">
-                  <item.icon className="h-5 w-5" />
-                </div>
-                <ChevronLeft className="h-4 w-4 text-muted-foreground opacity-0 transition-all duration-200 group-hover:opacity-100 group-hover:-translate-x-1" />
-              </div>
-              <CardTitle className="text-base">{item.title}</CardTitle>
-              <CardDescription className="text-xs">{item.desc}</CardDescription>
-            </CardHeader>
-          </Card>
+          <StaggerItem key={i}>
+            <ScaleOnHover>
+              <Card className="group cursor-pointer" onClick={() => navigate(item.to)}>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <motion.div
+                      whileHover={{ rotate: 5 }}
+                      className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary transition-all duration-300 group-hover:bg-primary group-hover:text-primary-foreground"
+                    >
+                      <item.icon className="h-5 w-5" />
+                    </motion.div>
+                    <ChevronLeft className="h-4 w-4 text-muted-foreground opacity-0 transition-all duration-200 group-hover:opacity-100 group-hover:-translate-x-1" />
+                  </div>
+                  <CardTitle className="text-base">{item.title}</CardTitle>
+                  <CardDescription className="text-xs">{item.desc}</CardDescription>
+                </CardHeader>
+              </Card>
+            </ScaleOnHover>
+          </StaggerItem>
         ))}
-      </div>
+      </StaggerContainer>
 
       {/* Modal تعاریف پایه */}
       {activeDef && (

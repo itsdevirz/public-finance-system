@@ -1,5 +1,6 @@
 import { useState, useRef, createContext, useContext } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import { ChevronLeft, LogOut, Landmark } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -161,30 +162,61 @@ export default function Sidebar() {
   const navigate = useNavigate();
 
   return (
-    <nav className="relative z-[100] flex w-[230px] shrink-0 flex-col overflow-visible bg-sidebar text-sidebar-foreground shadow-elevated">
-      <button
+    <motion.nav
+      initial={{ x: 50, opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
+      className="relative z-[100] flex w-[230px] shrink-0 flex-col overflow-visible bg-sidebar text-sidebar-foreground shadow-elevated"
+    >
+      <motion.button
+        whileHover={{ backgroundColor: "rgba(var(--sidebar-accent), 0.5)" }}
+        whileTap={{ scale: 0.98 }}
         onClick={() => navigate("/")}
-        className="border-b border-sidebar-border px-4 py-5 text-right transition-colors duration-200 hover:bg-sidebar-accent/50"
+        className="border-b border-sidebar-border px-4 py-5 text-right transition-colors duration-200"
       >
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sidebar-primary/15 text-sidebar-primary transition-transform duration-300 hover:scale-105">
+          <motion.div
+            initial={{ scale: 0, rotate: -90 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ type: "spring", stiffness: 200, damping: 15, delay: 0.2 }}
+            className="flex h-10 w-10 items-center justify-center rounded-xl bg-sidebar-primary/15 text-sidebar-primary"
+          >
             <Landmark className="h-5 w-5" />
-          </div>
-          <div>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, x: 10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.3, duration: 0.4 }}
+          >
             <div className="text-sm font-bold text-sidebar-primary">سامانه مالی</div>
             <div className="mt-0.5 text-[10px] text-sidebar-foreground/40">نظام مالی بخش عمومی</div>
-          </div>
+          </motion.div>
         </div>
-      </button>
+      </motion.button>
 
       <div className="flex-1 overflow-y-auto py-2 scrollbar-sidebar">
-        <SidebarItem num={1} label="اطلاعات پایه" to="/basic-info" subItems={BASIC_INFO_SUB} />
-        {TOP_NAV.map(({ to, label, num, subItems }) => (
-          <SidebarItem key={to} num={num} label={label} to={to} subItems={subItems ?? null} />
-        ))}
+        <motion.div
+          initial="hidden"
+          animate="visible"
+          variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.04 } } }}
+        >
+          <motion.div variants={{ hidden: { opacity: 0, x: 15 }, visible: { opacity: 1, x: 0, transition: { duration: 0.3 } } }}>
+            <SidebarItem num={1} label="اطلاعات پایه" to="/basic-info" subItems={BASIC_INFO_SUB} />
+          </motion.div>
+          {TOP_NAV.map(({ to, label, num, subItems }) => (
+            <motion.div key={to} variants={{ hidden: { opacity: 0, x: 15 }, visible: { opacity: 1, x: 0, transition: { duration: 0.3 } } }}>
+              <SidebarItem num={num} label={label} to={to} subItems={subItems ?? null} />
+            </motion.div>
+          ))}
+        </motion.div>
       </div>
 
-      <div className="border-t border-sidebar-border bg-black/10 px-4 py-4">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5, duration: 0.4 }}
+        className="border-t border-sidebar-border bg-black/10 px-4 py-4"
+      >
         <div className="mb-3 flex items-center gap-2.5">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary/80 to-sidebar text-xs font-bold text-sidebar-primary">
             {user?.username?.[0]?.toUpperCase()}
@@ -200,7 +232,7 @@ export default function Sidebar() {
           <LogOut className="h-3.5 w-3.5" />
           خروج از سیستم
         </Button>
-      </div>
-    </nav>
+      </motion.div>
+    </motion.nav>
   );
 }
