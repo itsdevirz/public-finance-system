@@ -47,15 +47,7 @@ export const CREDITS_SUB = [
 ];
 
 export const BASIC_INFO_SUB = [
-  {
-    to: "/basic-info/account-heads",
-    label: "تعریف سرفصل حساب‌ها",
-    children: [
-      { to: "/basic-info/account-heads/list", label: "لیست سرفصل‌ها" },
-      { to: "/basic-info/account-heads/register-document", label: "ثبت سند مالی (سناما)" },
-      { to: "/basic-info/account-heads/tag-matrix", label: "ماتریس تگ‌های سناما" },
-    ],
-  },
+  { to: "/basic-info/account-heads", label: "تعریف سرفصل حساب‌ها" },
   { to: "/basic-info/credits", label: "اعتبارات", children: CREDITS_SUB },
   {
     to: "/basic-info/document-setup",
@@ -356,6 +348,7 @@ export const BOOKKEEPING_TOP = [
   { to: "/bookkeeping/resource-forms", label: "فرم‌های منابع و مصارف", children: [
     { to: "/bookkeeping/resource-forms/deposit-expense-confirmation", label: "فرم تاییدیه مصارف سپرده" },
   ]},
+  { to: "/bookkeeping/account-setup", label: "تنظیم حساب" },
 ];
 
 export const TOP_NAV = [

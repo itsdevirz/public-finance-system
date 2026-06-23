@@ -1,6 +1,5 @@
 import AccountHeads from "@/pages/AccountHeads";
-import SanamaDocumentForm from "@/pages/SanamaDocumentForm";
-import SanamaTagMatrix from "@/pages/SanamaTagMatrix";
+import AccountSetup from "@/pages/AccountSetup";
 import BasicInfo from "@/pages/BasicInfo";
 import DocumentSetup from "@/pages/DocumentSetup";
 import Review from "@/pages/Review";
@@ -27,9 +26,6 @@ import { getAllMenuRoutes } from "@/config/navigation";
 export const PAGE_COMPONENTS = {
   "/basic-info": BasicInfo,
   "/basic-info/account-heads": AccountHeads,
-  "/basic-info/account-heads/list": AccountHeads,
-  "/basic-info/account-heads/register-document": SanamaDocumentForm,
-  "/basic-info/account-heads/tag-matrix": SanamaTagMatrix,
   "/basic-info/credits": Credits,
   "/basic-info/document-setup": DocumentSetup,
   "/basic-info/check-issuance": CheckIssuance,
@@ -222,6 +218,7 @@ export const PAGE_COMPONENTS = {
   "/bookkeeping/open-items": Bookkeeping,
   "/bookkeeping/resource-forms": Bookkeeping,
   "/bookkeeping/resource-forms/deposit-expense-confirmation": Bookkeeping,
+  "/bookkeeping/account-setup": AccountSetup,
   "/system-management": SystemManagement,
   "/system-management/automatic-doc-types": SystemManagement,
   "/system-management/non-calc-doc-types": SystemManagement,
