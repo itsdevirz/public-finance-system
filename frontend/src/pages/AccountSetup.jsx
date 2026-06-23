@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  Plus, ChevronLeft, ChevronDown, Layers, FolderTree,
+  Plus, ChevronLeft, ChevronDown, Layers, FolderTree, TrendingUp, TrendingDown, ArrowLeftRight,
 } from "lucide-react";
 import sanamaCodes from "@/data/sanamaCodes.json";
 
@@ -27,6 +27,31 @@ const ACCOUNT_GROUPS = sanamaCodes.groups.map((g, i) => ({
   ][i],
   accounts: g.accounts,
 }));
+
+function NatureBadge({ nature }) {
+  if (nature === "debit")
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-600">
+        <TrendingUp className="h-3 w-3" />
+        بدهکار
+      </span>
+    );
+  if (nature === "credit")
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-600">
+        <TrendingDown className="h-3 w-3" />
+        بستانکار
+      </span>
+    );
+  if (nature === "both")
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-600">
+        <ArrowLeftRight className="h-3 w-3" />
+        هر دو
+      </span>
+    );
+  return null;
+}
 
 function AccountRow({ account, idx }) {
   const [open, setOpen] = useState(false);
@@ -58,6 +83,7 @@ function AccountRow({ account, idx }) {
             )}
           </div>
         </td>
+        <td className="px-4 py-2.5 text-center">—</td>
       </motion.tr>
       <AnimatePresence>
         {open && hasChildren && account.children.map((child, childIdx) => (
@@ -75,6 +101,9 @@ function AccountRow({ account, idx }) {
               </Badge>
             </td>
             <td className="px-4 py-2 text-sm text-muted-foreground">{child.title}</td>
+            <td className="px-4 py-2 text-center">
+              <NatureBadge nature={child.nature} />
+            </td>
           </motion.tr>
         ))}
       </AnimatePresence>
@@ -161,6 +190,7 @@ export default function AccountSetup() {
                                       <tr className="border-b bg-muted/50">
                                         <th className="px-4 py-2.5 text-right font-medium text-muted-foreground w-24">کد حساب</th>
                                         <th className="px-4 py-2.5 text-right font-medium text-muted-foreground">شرح حساب</th>
+                                        <th className="px-4 py-2.5 text-center font-medium text-muted-foreground w-28">ماهیت</th>
                                       </tr>
                                     </thead>
                                     <tbody>

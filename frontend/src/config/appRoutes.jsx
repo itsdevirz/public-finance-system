@@ -19,6 +19,7 @@ import WarehouseDashboard from "@/pages/WarehouseDashboard";
 import Payroll from "@/pages/Payroll";
 import PayrollDashboard from "@/pages/PayrollDashboard";
 import PayrollCalculate from "@/pages/PayrollCalculate";
+import ManualDocument from "@/pages/ManualDocument";
 import Placeholder from "@/pages/Placeholder";
 import { getAllMenuRoutes } from "@/config/navigation";
 
@@ -32,6 +33,7 @@ export const PAGE_COMPONENTS = {
   "/basic-info/bookkeeping": Bookkeeping,
   "/basic-info/bookkeeping/persons": PersonsForm,
   "/document-setup": DocumentSetup,
+  "/document-setup/manual-doc": ManualDocument,
   "/review": Review,
   "/credits": Credits,
   "/credits/agreements": Credits,
