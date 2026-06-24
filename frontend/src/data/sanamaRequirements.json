@@ -1,0 +1,176 @@
+{
+  "11001": { "requiredRows": [31, 43] },
+  "11002": { "requiredRows": [31, 43] },
+  "11003": { "requiredRows": [31, 43] },
+  "11004": { "requiredRows": [31] },
+  "11005": { "requiredRows": [31] },
+  "11006": { "requiredRows": [31] },
+  "11007": { "requiredRows": [31] },
+  "11009": { "requiredRows": [31] },
+  "11010": { "requiredRows": [31] },
+  "11011": { "requiredRows": [31] },
+  "11012": { "requiredRows": [31] },
+  "11013": { "requiredRows": [31] },
+  "11014": { "requiredRows": [31] },
+  "11015": { "requiredRows": [31] },
+  "11016": { "requiredRows": [31] },
+  "11017": { "requiredRows": [31] },
+  "11018": { "requiredRows": [31] },
+  "11019": { "requiredRows": [30, 31] },
+  "11020": { "requiredRows": [1, 4, 5, 6, 7, 8, 15, 20] },
+  "11021": { "requiredRows": [1, 4, 5, 6, 7, 8, 15, 20, 21] },
+  "11022": { "requiredRows": [1, 4, 5, 6, 7, 8, 15, 20, 21] },
+  "11023": { "requiredRows": [20, 21] },
+  "11024": { "requiredRows": [30] },
+  "11025": { "requiredRows": [31] },
+  "11026": { "requiredRows": [20, 30] },
+  
+  "11501": { "requiredRows": [1, 12, 20, 21, 23] },
+  "11502": { "requiredRows": [1, 12, 20, 21, 23, 30] },
+  "11503": { "requiredRows": [1, 12, 13, 20, 21] },
+  "11504": { "requiredRows": [1, 12, 13, 20, 21] },
+  "11505": { "requiredRows": [20, 21] },
+  "11506": { "requiredRows": [20, 21] },
+  "11507": { "requiredRows": [20, 21, 25] },
+  "11508": { "requiredRows": [20, 21, 25] },
+  "11509": { "requiredRows": [1, 4, 5, 6, 7, 8, 15, 20, 21] },
+  "11510": { "requiredRows": [1, 4, 5, 6, 7, 8, 15, 20, 21] },
+
+  "11511": { "requiredRows": [1, 4, 5, 6, 7, 8, 15, 20, 21] },
+  "11513": { "requiredRows": [20, 21] },
+  "11517": { "requiredRows": [20, 21] },
+  "11519": { "requiredRows": [14, 20, 21] },
+  "11520": { "requiredRows": [20, 21] },
+  "11521": { "requiredRows": [1, 4, 5, 6, 7, 8, 15, 20, 21] },
+  "11522": { "requiredRows": [20, 21, 42] },
+
+  "12001": { "requiredRows": [1, 12, 20, 21, 23] },
+  "12002": { "requiredRows": [1, 12, 20, 21, 23, 30] },
+  "12003": { "requiredRows": [1, 12, 13, 20, 21] },
+  "12004": { "requiredRows": [1, 12, 13, 20, 21] },
+
+  "12501": { "requiredRows": [21, 30] },
+  "12502": { "requiredRows": [30, 38] },
+  "12503": { "requiredRows": [20, 30] },
+
+  "13001": { "requiredRows": [20] },
+  "13002": { "requiredRows": [20] },
+
+  "13003": { "requiredRows": [20] },
+  "13004": { "requiredRows": [20] },
+  "13005": { "requiredRows": [20, 27] },
+  "13006": { "requiredRows": [20, 21] },
+  "13007": { "requiredRows": [20, 21] },
+  "13008": { "requiredRows": [20, 21] },
+  "13009": { "requiredRows": [20, 21] },
+  "13010": { "requiredRows": [19, 33] },
+  "13011": { "requiredRows": [19, 33] },
+
+  "14001": {
+    "requiredRows": [1, 5, 6, 7, 8, 10, 15, 20, 21]
+  },
+
+  "14523": {
+    "requiredRows": [20, 26]
+  },
+
+  "14551": {
+    "requiredRows": [20, 26]
+  },
+
+  "15001": {
+    "requiredRows": [1, 5, 6, 7, 8, 15, 20]
+  },
+
+  "15002": {
+    "requiredRows": [20]
+  },
+
+  "15003": {
+    "requiredRows": [20]
+  },
+  "15004": {
+    "requiredRows": [20]
+  },
+  "15005": {
+    "requiredRows": [20]
+  },
+  "15006": {
+    "requiredRows": [20]
+  },
+  "15007": {
+    "requiredRows": [20]
+  },
+  "15008": {
+    "requiredRows": [20]
+  },
+  "15009": {
+    "requiredRows": [20]
+  },
+  "15010": {
+    "requiredRows": [20]
+  },
+  "15011": {
+    "requiredRows": [20]
+  },
+  "15012": {
+    "requiredRows": [20]
+  },
+  "15013": {
+    "requiredRows": [20]
+  },
+  "15014": {
+    "requiredRows": [20]
+  },
+  "15015": {
+    "requiredRows": [20]
+  },
+  "15016": {
+    "requiredRows": [20]
+  },
+  "15020": {
+    "requiredRows": [20, 26]
+  },
+  "15022": {
+    "requiredRows": [20, 21]
+  },
+  "15023": {
+    "requiredRows": [20, 21]
+  },
+  "15024": {
+    "requiredRows": [20, 21]
+  },
+  "150235": {
+    "requiredRows": [20, 21]
+  },
+  "15026": {
+    "requiredRows": [20, 21]
+  },
+  "15027": {
+    "requiredRows": [20, 21]
+  },
+  "15028": {
+    "requiredRows": [20, 21]
+  },
+  "15029": {
+    "requiredRows": [20, 21]
+  },
+  "15030": {
+    "requiredRows": [20, 21]
+  },
+  "15032": {
+    "requiredRows": [20, 21]
+  },
+  "15036": {
+    "requiredRows": [20, 21]
+  },
+  "15040": {
+    "requiredRows": [26]
+  },
+  "15045": {
+    "requiredRows": [26]
+  },
+  "15050": {
+    "requiredRows": [20, 26]
+  },
+}

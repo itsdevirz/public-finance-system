@@ -11,9 +11,25 @@ import {
   FileText, CheckCircle2, Clock, Ban,
 } from "lucide-react";
 import sanamaCodes from "@/data/sanamaCodes.json";
+import subAccountTitles from "@/data/subAccountTitles.json";
+import sanamaRequirements from "@/data/sanamaRequirements.json";
+import manualDocLookups from "@/data/manualDocLookups.json";
 
 // ---- helpers ----
 const allGroups = sanamaCodes.groups.map((g) => ({ code: g.code, title: g.title, accounts: g.accounts }));
+const { bankAccounts, budgetRows } = manualDocLookups;
+
+function getSubAccountTitle(rowNum) {
+  return subAccountTitles.find((t) => t.row === rowNum);
+}
+
+function getRequiredRows(subAccountCode) {
+  return sanamaRequirements[subAccountCode]?.requiredRows ?? [];
+}
+
+function needsSanamaFields(subAccountCode) {
+  return getRequiredRows(subAccountCode).length > 0;
+}
 
 function getAccounts(groupCode) {
   const g = allGroups.find((x) => x.code === groupCode);
@@ -41,24 +57,20 @@ const EMPTY_ROW = {
   group: "",
   account: "",
   subAccount: "",
-  program: "",
-  activity: "",
-  chapter: "",
-  subChapter: "",
-  rowNum: "",
   debit: "",
   credit: "",
-  person: "",
   checkDate: "",
   checkNo: "",
   createYear: "",
   personFlag: false,
   checkFlag: false,
   desc: "",
+  accountNumber: "",
+  subBudgetCode: "",
 };
 
 // ---- ردیف جدول ----
-function DocRow({ row, idx, onChange, onDelete }) {
+function DocRow({ row, idx, onChange, onDelete, isActive, onActivate }) {
   const accounts = getAccounts(row.group);
   const subAccounts = getSubAccounts(row.group, row.account);
 
@@ -66,17 +78,32 @@ function DocRow({ row, idx, onChange, onDelete }) {
     onChange({ ...row, [field]: val });
   }
 
+  function setGroup(val) {
+    onChange({ ...row, group: val, account: "", subAccount: "", accountNumber: "", subBudgetCode: "" });
+  }
+
+  function setAccount(val) {
+    onChange({ ...row, account: val, subAccount: "", accountNumber: "", subBudgetCode: "" });
+  }
+
+  function setSubAccount(val) {
+    onChange({ ...row, subAccount: val, accountNumber: "", subBudgetCode: "" });
+  }
+
   const cellCls = "border-l last:border-l-0 px-1 py-0.5";
   const inputCls = "h-7 text-xs rounded border-0 bg-transparent focus:bg-white focus:border focus:border-primary w-full px-1";
   const selectCls = "h-7 text-xs rounded border-0 bg-transparent focus:bg-white focus:outline-none w-full px-1 cursor-pointer";
 
   return (
-    <tr className="border-b hover:bg-blue-50/40 transition-colors text-xs">
+    <tr
+      className={`border-b transition-colors text-xs ${isActive ? "bg-primary/5 ring-1 ring-inset ring-primary/20" : "hover:bg-blue-50/40"}`}
+      onClick={onActivate}
+    >
       <td className={`${cellCls} text-center text-muted-foreground w-8`}>{idx + 1}</td>
 
       {/* گروه */}
       <td className={`${cellCls} w-20`}>
-        <select className={selectCls} value={row.group} onChange={(e) => set("group", e.target.value)}>
+        <select className={selectCls} value={row.group} onChange={(e) => setGroup(e.target.value)}>
           <option value="" />
           {allGroups.map((g) => (
             <option key={g.code} value={g.code}>{g.code} - {g.title}</option>
@@ -86,7 +113,7 @@ function DocRow({ row, idx, onChange, onDelete }) {
 
       {/* کل */}
       <td className={`${cellCls} w-28`}>
-        <select className={selectCls} value={row.account} onChange={(e) => set("account", e.target.value)} disabled={!row.group}>
+        <select className={selectCls} value={row.account} onChange={(e) => setAccount(e.target.value)} disabled={!row.group}>
           <option value="" />
           {accounts.map((a) => (
             <option key={a.code} value={a.code}>{a.code} - {a.title}</option>
@@ -96,37 +123,12 @@ function DocRow({ row, idx, onChange, onDelete }) {
 
       {/* معین */}
       <td className={`${cellCls} w-40`}>
-        <select className={selectCls} value={row.subAccount} onChange={(e) => set("subAccount", e.target.value)} disabled={!row.account}>
+        <select className={selectCls} value={row.subAccount} onChange={(e) => setSubAccount(e.target.value)} disabled={!row.account}>
           <option value="" />
           {subAccounts.map((s) => (
             <option key={s.code} value={s.code}>{s.code} - {s.title}</option>
           ))}
         </select>
-      </td>
-
-      {/* برنامه */}
-      <td className={`${cellCls} w-20`}>
-        <input className={inputCls} value={row.program} onChange={(e) => set("program", e.target.value)} />
-      </td>
-
-      {/* فعالیت */}
-      <td className={`${cellCls} w-20`}>
-        <input className={inputCls} value={row.activity} onChange={(e) => set("activity", e.target.value)} />
-      </td>
-
-      {/* فصل */}
-      <td className={`${cellCls} w-16`}>
-        <input className={inputCls} value={row.chapter} onChange={(e) => set("chapter", e.target.value)} />
-      </td>
-
-      {/* جز فصل */}
-      <td className={`${cellCls} w-16`}>
-        <input className={inputCls} value={row.subChapter} onChange={(e) => set("subChapter", e.target.value)} />
-      </td>
-
-      {/* شما */}
-      <td className={`${cellCls} w-12`}>
-        <input className={inputCls} value={row.rowNum} onChange={(e) => set("rowNum", e.target.value)} />
       </td>
 
       {/* مبلغ بدهکار */}
@@ -136,7 +138,6 @@ function DocRow({ row, idx, onChange, onDelete }) {
           value={row.debit}
           onChange={(e) => set("debit", e.target.value)}
           onBlur={(e) => set("debit", formatNumber(e.target.value))}
-          placeholder="۰"
         />
       </td>
 
@@ -147,25 +148,16 @@ function DocRow({ row, idx, onChange, onDelete }) {
           value={row.credit}
           onChange={(e) => set("credit", e.target.value)}
           onBlur={(e) => set("credit", formatNumber(e.target.value))}
-          placeholder="۰"
         />
-      </td>
-
-      {/* اشخاص */}
-      <td className={`${cellCls} w-24`}>
-        <input className={inputCls} value={row.person} onChange={(e) => set("person", e.target.value)} />
-      </td>
-
-      {/* ماهیت */}
-      <td className={`${cellCls} w-20 text-center`}>
-        {subAccounts.find((s) => s.code === row.subAccount)?.nature ? (
-          <NaturePill nature={subAccounts.find((s) => s.code === row.subAccount)?.nature} />
-        ) : null}
       </td>
 
       {/* حذف */}
       <td className={`${cellCls} w-8 text-center`}>
-        <button onClick={onDelete} className="text-muted-foreground hover:text-rose-500 transition-colors">
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          className="text-muted-foreground hover:text-rose-500 transition-colors"
+        >
           <Trash2 className="h-3.5 w-3.5" />
         </button>
       </td>
@@ -181,6 +173,65 @@ function NaturePill({ nature }) {
   if (nature === "both")
     return <span className="rounded-full bg-amber-50 text-amber-600 px-1.5 py-0.5 text-[10px]">هر دو</span>;
   return null;
+}
+
+function SanamaExtraFields({ row, onAccountNumberChange, onBudgetRowChange }) {
+  const requiredRows = getRequiredRows(row.subAccount);
+  if (!requiredRows.length) return null;
+
+  const inputCls = "h-8 text-xs rounded-md border bg-white px-2 focus:border-primary focus:outline-none w-full";
+  const selectCls = "h-8 text-xs rounded-md border bg-white px-2 focus:border-primary focus:outline-none w-full";
+  const labelCls = "text-[11px] text-muted-foreground shrink-0";
+
+  return (
+    <div className="border-t bg-amber-50/40 px-3 py-3">
+      <p className="text-xs font-medium text-amber-800 mb-2">
+        الزامات سناما برای معین {row.subAccount}
+      </p>
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+        {requiredRows.includes(31) && (
+          <div className="flex items-center gap-2">
+            <Label className={`${labelCls} w-40`}>
+              {getSubAccountTitle(31)?.title ?? "مشخصات حساب (شماره شبا)"}
+            </Label>
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              className={inputCls}
+              placeholder="شماره شبا (فقط عدد)"
+              value={row.accountNumber}
+              onChange={(e) => {
+                const val = e.target.value.replace(/\D/g, "");
+                onAccountNumberChange(val);
+              }}
+              dir="ltr"
+            />
+          </div>
+        )}
+        {requiredRows.includes(43) && (
+          <div className="flex items-center gap-2">
+            <Label className={`${labelCls} w-40`}>
+              {getSubAccountTitle(43)?.title ?? "ردیف بودجه‌ای"}
+            </Label>
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              className={inputCls}
+              placeholder="ردیف بودجه‌ای (فقط عدد)"
+              value={row.subBudgetCode}
+              onChange={(e) => {
+                const val = e.target.value.replace(/\D/g, "");
+                onBudgetRowChange(val);
+              }}
+              dir="ltr"
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 // ---- component اصلی ----
@@ -200,14 +251,20 @@ export default function ManualDocument() {
   });
 
   const [rows, setRows] = useState([{ ...EMPTY_ROW, id: 1 }]);
+  const [activeRowId, setActiveRowId] = useState(1);
   const [notes1, setNotes1] = useState({ program: "", activity: "", subActivity: "", chapter: "", subChapter: "", partChapter: "", costCenter: "" });
   const [notes2, setNotes2] = useState({ resourceName: "", personName: "", contractParty: "", contractSubject: "", details: "", personId: "", notifReceiver: "" });
   const [activeTab, setActiveTab] = useState(1);
 
+  const activeRow = rows.find((r) => r.id === activeRowId) ?? rows[0];
+  const showSanamaFields = needsSanamaFields(activeRow?.subAccount);
+
   function setH(k, v) { setHeader((p) => ({ ...p, [k]: v })); }
 
   function addRow() {
-    setRows((prev) => [...prev, { ...EMPTY_ROW, id: Date.now() }]);
+    const id = Date.now();
+    setRows((prev) => [...prev, { ...EMPTY_ROW, id }]);
+    setActiveRowId(id);
   }
 
   function updateRow(id, updated) {
@@ -215,7 +272,27 @@ export default function ManualDocument() {
   }
 
   function deleteRow(id) {
-    setRows((prev) => prev.filter((r) => r.id !== id));
+    setRows((prev) => {
+      const next = prev.filter((r) => r.id !== id);
+      if (activeRowId === id && next.length) setActiveRowId(next[0].id);
+      return next.length ? next : [{ ...EMPTY_ROW, id: Date.now() }];
+    });
+  }
+
+  function handleAccountNumberChange(rowId, val) {
+    setRows((prev) =>
+      prev.map((r) =>
+        r.id === rowId ? { ...r, accountNumber: val } : r
+      )
+    );
+  }
+
+  function handleBudgetRowChange(rowId, val) {
+    setRows((prev) =>
+      prev.map((r) =>
+        r.id === rowId ? { ...r, subBudgetCode: val } : r
+      )
+    );
   }
 
   const totalDebit = rows.reduce((s, r) => s + parseNumber(r.debit), 0);
@@ -336,15 +413,8 @@ export default function ManualDocument() {
                     <th className="px-2 py-2 text-right w-20">گروه</th>
                     <th className="px-2 py-2 text-right w-28">کل</th>
                     <th className="px-2 py-2 text-right w-40">معین</th>
-                    <th className="px-2 py-2 text-right w-20">برنامه</th>
-                    <th className="px-2 py-2 text-right w-20">فعالیت</th>
-                    <th className="px-2 py-2 text-right w-16">فصل</th>
-                    <th className="px-2 py-2 text-right w-16">جز فصل</th>
-                    <th className="px-2 py-2 text-right w-12">شما</th>
                     <th className="px-2 py-2 text-right w-28 text-blue-600">بدهکار</th>
                     <th className="px-2 py-2 text-right w-28 text-rose-600">بستانکار</th>
-                    <th className="px-2 py-2 text-right w-24">اشخاص</th>
-                    <th className="px-2 py-2 text-center w-20">ماهیت منطق</th>
                     <th className="px-2 py-2 text-center w-8"></th>
                   </tr>
                 </thead>
@@ -354,6 +424,8 @@ export default function ManualDocument() {
                       key={row.id}
                       row={row}
                       idx={idx}
+                      isActive={row.id === activeRowId}
+                      onActivate={() => setActiveRowId(row.id)}
                       onChange={(updated) => updateRow(row.id, updated)}
                       onDelete={() => deleteRow(row.id)}
                     />
@@ -361,6 +433,14 @@ export default function ManualDocument() {
                 </tbody>
               </table>
             </div>
+
+            {showSanamaFields && (
+              <SanamaExtraFields
+                row={activeRow}
+                onAccountNumberChange={(code) => handleAccountNumberChange(activeRowId, code)}
+                onBudgetRowChange={(code) => handleBudgetRowChange(activeRowId, code)}
+              />
+            )}
 
             {/* جمع و دکمه اضافه */}
             <div className="flex items-center justify-between border-t px-3 py-2 bg-muted/20">
@@ -454,21 +534,33 @@ export default function ManualDocument() {
               <p className="text-xs font-medium text-muted-foreground mb-3">اطلاعات کدینگ انتخابی</p>
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { label: "گروه", value: rows[0]?.group ? `${rows[0].group}` : "—" },
-                  { label: "کل", value: rows[0]?.account ? `${rows[0].account}` : "—" },
-                  { label: "معین", value: rows[0]?.subAccount ? `${rows[0].subAccount}` : "—" },
+                  { label: "گروه", value: activeRow?.group ? `${activeRow.group}` : "—" },
+                  { label: "کل", value: activeRow?.account ? `${activeRow.account}` : "—" },
+                  { label: "معین", value: activeRow?.subAccount ? `${activeRow.subAccount}` : "—" },
                   {
                     label: "ماهیت",
                     value: (() => {
-                      const row = rows[0];
+                      const row = activeRow;
                       if (!row?.subAccount) return "—";
                       const subs = getSubAccounts(row.group, row.account);
                       const nature = subs.find((s) => s.code === row.subAccount)?.nature;
-                      return nature === "debit" ? "بدهکار" : 
-                        nature === "credit" ? "بستانکار" : 
-                        nature === "both" ? "هر دو" : "";
+                      return nature === "debit" ? "بدهکار" :
+                        nature === "credit" ? "بستانکار" :
+                        nature === "both" ? "هر دو" : "—";
                     })(),
                   },
+                  ...(needsSanamaFields(activeRow?.subAccount)
+                    ? [
+                        {
+                          label: getSubAccountTitle(31)?.title ?? "شماره شبا",
+                          value: activeRow?.accountNumber || "—",
+                        },
+                        {
+                          label: getSubAccountTitle(43)?.title ?? "ردیف بودجه‌ای",
+                          value: activeRow?.subBudgetCode || "—",
+                        },
+                      ]
+                    : []),
                 ].map(({ label, value }) => (
                   <div key={label} className="flex items-center gap-2">
                     <span className="text-[11px] text-muted-foreground w-16 shrink-0">{label}:</span>
