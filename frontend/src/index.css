@@ -4,31 +4,39 @@
 
 @layer base {
   :root {
-    --background: 210 40% 98%;
-    --foreground: 222 47% 11%;
+    /* پس‌زمینه خنثی و سفید کامل برای کارت‌ها */
+    --background: 220 14% 96%;
+    --foreground: 220 20% 14%;
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 220 20% 14%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
-    --primary: 215 60% 27%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 214 32% 93%;
-    --secondary-foreground: 215 60% 27%;
-    --muted: 214 32% 93%;
-    --muted-foreground: 215 16% 47%;
-    --accent: 214 32% 91%;
-    --accent-foreground: 215 60% 27%;
-    --destructive: 0 72% 51%;
+    --popover-foreground: 220 20% 14%;
+
+    /* آبی تیره مینیمال — رنگ اصلی */
+    --primary: 218 55% 28%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 14% 92%;
+    --secondary-foreground: 218 55% 28%;
+    --muted: 220 14% 92%;
+    --muted-foreground: 220 10% 50%;
+    --accent: 220 14% 90%;
+    --accent-foreground: 218 55% 28%;
+
+    --destructive: 0 65% 50%;
     --destructive-foreground: 0 0% 100%;
-    --border: 214 32% 88%;
-    --input: 214 32% 88%;
-    --ring: 215 60% 27%;
-    --radius: 0.75rem;
-    --sidebar-background: 215 55% 18%;
-    --sidebar-foreground: 210 40% 96%;
-    --sidebar-accent: 215 45% 24%;
-    --sidebar-border: 215 40% 28%;
-    --sidebar-primary: 43 85% 59%;
+
+    --border: 220 14% 86%;
+    --input: 220 14% 86%;
+    --ring: 218 55% 28%;
+    --radius: 0.5rem;
+
+    /* سایدبار — خاکستری تیره بدون رنگ آبی زیاد */
+    --sidebar-background: 220 16% 18%;
+    --sidebar-foreground: 220 14% 90%;
+    --sidebar-accent: 220 14% 24%;
+    --sidebar-border: 220 12% 26%;
+    --sidebar-primary: 42 80% 55%;
   }
 
   * {
@@ -41,25 +49,25 @@
   }
 
   html {
-    scroll-behavior: smooth;
+    scroll-behavior: auto;
   }
 }
 
 @layer components {
   .page-container {
-    @apply mx-auto max-w-6xl px-4 py-8 animate-in fade-in slide-in-from-bottom-3 duration-500;
+    @apply mx-auto max-w-6xl px-4 py-6;
   }
 
   .page-title {
-    @apply mb-6 text-2xl font-bold text-primary border-r-4 border-primary pr-3;
+    @apply mb-4 text-xl font-semibold text-primary border-r-[3px] border-primary pr-3;
   }
 
   .card {
-    @apply rounded-xl border bg-card text-card-foreground shadow-card transition-all duration-300 hover:shadow-elevated p-6 mt-4;
+    @apply rounded-lg border bg-card text-card-foreground shadow-sm p-5 mt-3;
   }
 
   .card h3 {
-    @apply text-lg font-semibold text-primary mb-4;
+    @apply text-base font-semibold text-primary mb-3;
   }
 
   .tabs {
@@ -67,29 +75,29 @@
   }
 
   .tab-btn {
-    @apply px-4 py-2.5 text-sm font-medium text-muted-foreground bg-transparent border-0 border-b-2 border-transparent cursor-pointer transition-all duration-300 ease-smooth -mb-px rounded-t-lg hover:text-primary hover:bg-accent/50;
+    @apply px-4 py-2 text-sm font-medium text-muted-foreground bg-transparent border-0 border-b-2 border-transparent cursor-pointer -mb-px rounded-t-md hover:text-primary hover:bg-accent/40 transition-colors duration-150;
   }
 
   .tab-btn.active {
-    @apply text-primary font-bold border-b-2 border-primary bg-accent/30;
+    @apply text-primary font-semibold border-b-2 border-primary;
   }
 
   .form-grid {
-    @apply grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4 mb-4;
+    @apply grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-3 mb-3;
   }
 
   .form-group {
-    @apply flex flex-col gap-1.5;
+    @apply flex flex-col gap-1;
   }
 
   .form-group label {
-    @apply text-sm font-semibold text-foreground;
+    @apply text-sm font-medium text-foreground;
   }
 
   .form-group input,
   .form-group select,
   .form-group textarea {
-    @apply rounded-lg border border-input bg-background px-3 py-2 text-sm transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary;
+    @apply rounded-md border border-input bg-background px-3 py-2 text-sm transition-colors duration-150 focus:outline-none focus:ring-1 focus:ring-ring/40 focus:border-primary;
   }
 
   .required {
@@ -97,45 +105,45 @@
   }
 
   .form-actions {
-    @apply flex gap-3 mt-5;
+    @apply flex gap-2 mt-4;
   }
 
   .btn-primary {
-    @apply inline-flex items-center justify-center rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-sm transition-all duration-300 ease-smooth hover:bg-primary/90 hover:shadow-soft active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none;
+    @apply inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-colors duration-150 hover:bg-primary/90 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none;
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center rounded-lg bg-secondary px-5 py-2.5 text-sm font-medium text-secondary-foreground transition-all duration-300 ease-smooth hover:bg-secondary/80 active:scale-[0.98];
+    @apply inline-flex items-center justify-center rounded-md bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground transition-colors duration-150 hover:bg-secondary/80 active:scale-[0.98];
   }
 
   .data-table {
-    @apply w-full border-collapse mt-4 text-sm overflow-hidden rounded-xl;
+    @apply w-full border-collapse mt-3 text-sm overflow-hidden rounded-lg;
   }
 
   .data-table th {
-    @apply bg-primary text-primary-foreground px-3 py-2.5 text-right font-semibold first:rounded-tr-xl last:rounded-tl-xl;
+    @apply bg-primary text-primary-foreground px-3 py-2 text-right font-medium first:rounded-tr-lg last:rounded-tl-lg text-xs;
   }
 
   .data-table td {
-    @apply px-3 py-2.5 border-b border-border text-right transition-colors duration-200;
+    @apply px-3 py-2 border-b border-border text-right transition-colors duration-100;
   }
 
   .data-table tbody tr {
-    @apply transition-colors duration-200 hover:bg-accent/40;
+    @apply transition-colors duration-100 hover:bg-accent/30;
   }
 
   .badge {
-    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-all duration-200;
+    @apply inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium;
   }
 
-  .badge-صادر { @apply bg-blue-100 text-blue-800; }
-  .badge-پاس‌شده { @apply bg-green-100 text-green-800; }
-  .badge-ابطالی { @apply bg-red-100 text-red-800; }
-  .badge-برگشتی { @apply bg-amber-100 text-amber-800; }
-  .badge-تجمیعی { @apply bg-purple-100 text-purple-800; }
+  .badge-صادر       { @apply bg-blue-50 text-blue-700 border border-blue-200; }
+  .badge-پاس‌شده    { @apply bg-emerald-50 text-emerald-700 border border-emerald-200; }
+  .badge-ابطالی     { @apply bg-red-50 text-red-700 border border-red-200; }
+  .badge-برگشتی     { @apply bg-amber-50 text-amber-700 border border-amber-200; }
+  .badge-تجمیعی    { @apply bg-purple-50 text-purple-700 border border-purple-200; }
 
   .balance-box {
-    @apply rounded-xl px-4 py-3 text-sm transition-all duration-300;
+    @apply rounded-lg px-4 py-2.5 text-sm;
   }
 
   .balance-box.balanced {
@@ -143,51 +151,39 @@
   }
 
   .report-summary {
-    @apply flex gap-4 flex-wrap mt-2;
+    @apply flex gap-3 flex-wrap mt-2;
   }
 
   .report-card {
-    @apply flex-1 min-w-[140px] rounded-xl bg-accent/50 border border-border p-4 text-center transition-all duration-300 hover:shadow-soft hover:-translate-y-0.5;
+    @apply flex-1 min-w-[130px] rounded-lg bg-white border border-border p-3 text-center transition-colors duration-150 hover:bg-accent/20;
   }
 
-  .report-label { @apply font-bold text-primary mb-1.5; }
-  .report-count { @apply text-xl font-bold text-foreground; }
-  .report-amount { @apply text-xs text-muted-foreground mt-1; }
+  .report-label  { @apply text-xs font-medium text-muted-foreground mb-1; }
+  .report-count  { @apply text-lg font-bold text-foreground; }
+  .report-amount { @apply text-xs text-muted-foreground mt-0.5; }
 }
 
 @layer utilities {
   .scrollbar-sidebar {
     scrollbar-width: thin;
-    scrollbar-color: hsl(var(--sidebar-primary) / 0.5) transparent;
+    scrollbar-color: hsl(var(--sidebar-primary) / 0.4) transparent;
     scrollbar-gutter: stable;
   }
 
-  .scrollbar-sidebar::-webkit-scrollbar {
-    width: 4px;
-  }
+  .scrollbar-sidebar::-webkit-scrollbar { width: 3px; }
 
   .scrollbar-sidebar::-webkit-scrollbar-track {
     background: transparent;
-    margin-block: 10px;
-    margin-inline: 0 2px;
+    margin-block: 8px;
   }
 
   .scrollbar-sidebar::-webkit-scrollbar-thumb {
-    background: hsl(var(--sidebar-primary) / 0.4);
+    background: hsl(var(--sidebar-primary) / 0.35);
     border-radius: 9999px;
-    min-height: 32px;
+    min-height: 28px;
   }
 
   .scrollbar-sidebar::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--sidebar-primary) / 0.65);
+    background: hsl(var(--sidebar-primary) / 0.55);
   }
-
-  .animate-stagger > * {
-    animation: fade-in 0.5s ease-out both;
-  }
-  .animate-stagger > *:nth-child(1) { animation-delay: 0ms; }
-  .animate-stagger > *:nth-child(2) { animation-delay: 60ms; }
-  .animate-stagger > *:nth-child(3) { animation-delay: 120ms; }
-  .animate-stagger > *:nth-child(4) { animation-delay: 180ms; }
-  .animate-stagger > *:nth-child(5) { animation-delay: 240ms; }
 }

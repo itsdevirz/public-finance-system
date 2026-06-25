@@ -1,5 +1,4 @@
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
-import { AnimatePresence } from "framer-motion";
 import { AuthProvider } from "./context/AuthContext";
 import PrivateRoute from "./components/PrivateRoute";
 import Sidebar from "./components/Sidebar";
@@ -12,20 +11,16 @@ import { buildLayoutRoutes } from "./config/appRoutes";
 
 const layoutRoutes = buildLayoutRoutes(Dashboard);
 
-function AnimatedRoutes({ routes }) {
-  const location = useLocation();
-
+function AppRoutes({ routes }) {
   return (
-    <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
-        {routes.map(({ path, element }) => (
-          <Route key={path} path={path} element={element} />
-        ))}
-        <Route path="/guarantees/register/contract" element={<GuaranteeContractForm />} />
-        <Route path="/deposits/manual-form" element={<DepositManualForm />} />
-        <Route path="*" element={<Placeholder label="صفحه یافت نشد" />} />
-      </Routes>
-    </AnimatePresence>
+    <Routes>
+      {routes.map(({ path, element }) => (
+        <Route key={path} path={path} element={element} />
+      ))}
+      <Route path="/guarantees/register/contract" element={<GuaranteeContractForm />} />
+      <Route path="/deposits/manual-form" element={<DepositManualForm />} />
+      <Route path="*" element={<Placeholder label="صفحه یافت نشد" />} />
+    </Routes>
   );
 }
 
@@ -33,8 +28,8 @@ function Layout() {
   return (
     <div className="flex min-h-screen bg-background">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto bg-gradient-to-br from-background via-muted/20 to-background">
-        <AnimatedRoutes routes={layoutRoutes} />
+      <main className="flex-1 overflow-y-auto">
+        <AppRoutes routes={layoutRoutes} />
       </main>
     </div>
   );

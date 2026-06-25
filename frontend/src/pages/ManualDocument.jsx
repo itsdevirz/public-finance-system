@@ -1,5 +1,4 @@
 import { useState, useRef } from "react";
-import { motion } from "framer-motion";
 import { PageShell, PageHeader } from "@/components/layout/PageShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,13 +42,13 @@ function getSubAccounts(groupCode, accountCode) {
 }
 
 function formatNumber(val) {
-  const n = parseInt(val?.toString().replace(/,/g, "") || "0", 10);
+  const n = parseInt(val?.toString().replace(/,/g, ""), 10);
   if (isNaN(n)) return "";
   return n.toLocaleString("fa-IR");
 }
 
 function parseNumber(str) {
-  return parseInt(str?.toString().replace(/,/g, "") || "0", 10) || 0;
+  return parseInt(str?.toString().replace(/,/g, ""), 10) || 0;
 }
 
 const EMPTY_ROW = {
@@ -180,13 +179,13 @@ function SanamaField({ rowDef, value, onChange, optional }) {
   const selectCls = "h-8 text-xs rounded-md border bg-white px-2 focus:border-primary focus:outline-none w-full";
   const labelCls = "text-[11px] text-muted-foreground shrink-0 w-44";
 
-  const placeholder = optional ? `اختیاری — پیش‌فرض: ${rowDef.default ?? "0"}` : "انتخاب کنید...";
+  const placeholder = optional ? `${rowDef.default ?? "0"}` : "انتخاب کنید...";
 
   // ردیف‌های با values (dropdown ساده)
   if (rowDef.values) {
     return (
       <div className="flex items-center gap-2">
-        <Label className={labelCls}>{rowDef.title}{optional && <span className="text-[10px] text-muted-foreground/60 mr-1">(اختیاری)</span>}</Label>
+        <Label className={labelCls}>{rowDef.title}</Label>
         <select className={selectCls} value={value ?? ""} onChange={(e) => onChange(e.target.value || (rowDef.default ?? ""))}>
           <option value="">{placeholder}</option>
           {rowDef.values.map((v) => (
@@ -201,7 +200,7 @@ function SanamaField({ rowDef, value, onChange, optional }) {
   if (rowDef.groups) {
     return (
       <div className="flex items-center gap-2">
-        <Label className={labelCls}>{rowDef.title}{optional && <span className="text-[10px] text-muted-foreground/60 mr-1">(اختیاری)</span>}</Label>
+        <Label className={labelCls}>{rowDef.title}</Label>
         <select className={selectCls} value={value ?? ""} onChange={(e) => onChange(e.target.value || (rowDef.default ?? ""))}>
           <option value="">{placeholder}</option>
           {rowDef.groups.map((g) => (
@@ -220,13 +219,13 @@ function SanamaField({ rowDef, value, onChange, optional }) {
   if ("default" in rowDef) {
     return (
       <div className="flex items-center gap-2">
-        <Label className={labelCls}>{rowDef.title}{optional && <span className="text-[10px] text-muted-foreground/60 mr-1">(اختیاری)</span>}</Label>
+        <Label className={labelCls}>{rowDef.title}</Label>
         <input
           type="text"
           inputMode="numeric"
           pattern="[0-9]*"
           className={inputCls}
-          placeholder={optional ? `اختیاری — پیش‌فرض: ${rowDef.default}` : "عدد وارد کنید"}
+          placeholder={optional ? `${rowDef.default ?? "0"}` : "عدد وارد کنید"}
           value={value === rowDef.default ? "" : (value ?? "")}
           onChange={(e) => {
             const val = e.target.value.replace(/\D/g, "");
@@ -372,7 +371,7 @@ export default function ManualDocument() {
       <PageHeader title="صدور سند دستی" description="ثبت و ویرایش اسناد حسابداری" />
 
       {/* ===== هدر سند ===== */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+      <div>
         <Card className="mb-3">
           <CardContent className="p-3">
             <div className="grid grid-cols-2 gap-x-8 gap-y-2 md:grid-cols-4">
@@ -453,10 +452,10 @@ export default function ManualDocument() {
             </div>
           </CardContent>
         </Card>
-      </motion.div>
+      </div>
 
       {/* ===== جدول ردیف‌های سند ===== */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+      <div>
         <Card className="mb-3">
           <CardContent className="p-0">
             <div className="overflow-x-auto">
@@ -511,10 +510,10 @@ export default function ManualDocument() {
             </div>
           </CardContent>
         </Card>
-      </motion.div>
+      </div>
 
       {/* ===== پنل پایین ===== */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+      <div>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {/* توضیحات ۱ - برنامه / اعتبارات */}
           <Card>
@@ -644,10 +643,10 @@ export default function ManualDocument() {
             </CardContent>
           </Card>
         </div>
-      </motion.div>
+      </div>
 
       {/* ===== نوار دکمه‌ها ===== */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+      <div>
         <Card className="mt-3">
           <CardContent className="p-3">
             <div className="flex flex-wrap items-center gap-2">
@@ -694,7 +693,7 @@ export default function ManualDocument() {
             </div>
           </CardContent>
         </Card>
-      </motion.div>
+      </div>
     </PageShell>
   );
 }

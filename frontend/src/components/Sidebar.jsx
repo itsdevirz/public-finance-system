@@ -1,6 +1,5 @@
 import { useState, useRef, createContext, useContext } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
 import { ChevronLeft, LogOut, Landmark } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -8,8 +7,7 @@ import { cn } from "@/lib/utils";
 import { BASIC_INFO_SUB, TOP_NAV } from "@/config/navigation";
 
 const TimerCtx = createContext(null);
-
-const MENU_GAP = 16;
+const MENU_GAP = 12;
 
 function FloatingMenu({ items, anchorRect, onClose, parentPanelLeft = null }) {
   const navigate = useNavigate();
@@ -22,7 +20,7 @@ function FloatingMenu({ items, anchorRect, onClose, parentPanelLeft = null }) {
   const horizontalAnchor = parentPanelLeft ?? anchorRect.left;
   const right = window.innerWidth - horizontalAnchor + MENU_GAP;
   const maxH = window.innerHeight * 0.8;
-  const popupH = Math.min(items.length * 40 + 16, maxH);
+  const popupH = Math.min(items.length * 38 + 12, maxH);
   const rawTop = anchorRect.top;
   const overflow = rawTop + popupH - window.innerHeight + 8;
   const top = overflow > 0 ? Math.max(8, rawTop - overflow) : rawTop;
@@ -49,6 +47,7 @@ function FloatingMenu({ items, anchorRect, onClose, parentPanelLeft = null }) {
 
   return (
     <>
+      {/* bridge gap */}
       <div
         className="fixed z-[9998]"
         style={{
@@ -64,12 +63,12 @@ function FloatingMenu({ items, anchorRect, onClose, parentPanelLeft = null }) {
       <div
         onMouseEnter={cancelClose}
         onMouseLeave={scheduleClose}
-        className="fixed z-[9999] min-w-[260px] overflow-hidden rounded-xl border border-sidebar-border bg-sidebar shadow-elevated animate-in fade-in slide-in-from-right-2 duration-300 ease-smooth"
+        className="fixed z-[9999] min-w-[250px] overflow-hidden rounded-lg border border-sidebar-border bg-sidebar shadow-lg"
         style={{ right, top, maxHeight: `${maxH}px` }}
       >
         <div
           ref={panelRef}
-          className="scrollbar-sidebar overflow-x-hidden overflow-y-auto p-1.5 pl-2 pr-1.5"
+          className="scrollbar-sidebar overflow-x-hidden overflow-y-auto p-1"
           style={{ maxHeight: `${maxH}px` }}
         >
           {items.map((item, i) => (
@@ -78,15 +77,15 @@ function FloatingMenu({ items, anchorRect, onClose, parentPanelLeft = null }) {
               onMouseEnter={(e) => handleItemEnter(item, e)}
               onClick={() => handleItemClick(item)}
               className={cn(
-                "flex cursor-pointer select-none items-center gap-2.5 rounded-lg px-3.5 py-2.5 text-[13px] transition-all duration-200 ease-smooth",
+                "flex cursor-pointer select-none items-center gap-2 rounded-md px-3 py-2 text-[13px] transition-colors duration-100",
                 activeChild?.to === item.to
-                  ? "bg-sidebar-accent text-sidebar-primary border-r-2 border-sidebar-primary"
-                  : "text-sidebar-foreground/80 hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
+                  ? "bg-sidebar-accent text-sidebar-primary"
+                  : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
               )}
             >
-              <span className="min-w-[22px] text-center text-[10px] opacity-40">{i + 1}</span>
+              <span className="w-5 text-center text-[10px] text-sidebar-foreground/30 shrink-0">{i + 1}</span>
               <span className="flex-1 whitespace-nowrap">{item.label}</span>
-              {item.children && <ChevronLeft className="h-3 w-3 opacity-50" />}
+              {item.children && <ChevronLeft className="h-3 w-3 opacity-40" />}
             </div>
           ))}
         </div>
@@ -112,7 +111,7 @@ function SidebarItem({ label, num, to, subItems }) {
 
   const cancelClose = () => clearTimeout(closeTimer.current);
   const scheduleClose = () => {
-    closeTimer.current = setTimeout(() => setMenuOpen(false), 300);
+    closeTimer.current = setTimeout(() => setMenuOpen(false), 250);
   };
 
   function handleMouseEnter(e) {
@@ -131,18 +130,18 @@ function SidebarItem({ label, num, to, subItems }) {
           onClick={(e) => hasChildren && e.preventDefault()}
           className={({ isActive }) =>
             cn(
-              "group flex items-center gap-2.5 px-4 py-2.5 text-[13px] no-underline transition-all duration-300 ease-smooth",
+              "group flex items-center gap-2 px-3 py-2 text-[13px] no-underline transition-colors duration-100",
               isActive || menuOpen
-                ? "border-r-[3px] border-sidebar-primary bg-sidebar-primary/10 text-sidebar-primary"
-                : "border-r-[3px] border-transparent text-sidebar-foreground/85 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                ? "border-r-2 border-sidebar-primary bg-sidebar-accent text-sidebar-primary"
+                : "border-r-2 border-transparent text-sidebar-foreground/75 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
             )
           }
         >
-          <span className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-md bg-sidebar-foreground/10 text-[10px] text-sidebar-foreground/50 transition-colors duration-300 group-hover:bg-sidebar-primary/20 group-hover:text-sidebar-primary">
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-[10px] text-sidebar-foreground/40">
             {num}
           </span>
-          <span className="flex-1">{label}</span>
-          {hasChildren && <ChevronLeft className="h-3 w-3 opacity-40 transition-transform duration-300 group-hover:opacity-70" />}
+          <span className="flex-1 text-sm">{label}</span>
+          {hasChildren && <ChevronLeft className="h-3 w-3 opacity-30" />}
         </NavLink>
 
         {menuOpen && anchorRect && (
@@ -162,77 +161,49 @@ export default function Sidebar() {
   const navigate = useNavigate();
 
   return (
-    <motion.nav
-      initial={{ x: 50, opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className="relative z-[100] flex w-[230px] shrink-0 flex-col overflow-visible bg-sidebar text-sidebar-foreground shadow-elevated"
-    >
-      <motion.button
-        whileHover={{ backgroundColor: "rgba(var(--sidebar-accent), 0.5)" }}
-        whileTap={{ scale: 0.98 }}
+    <nav className="relative z-[100] flex w-[220px] shrink-0 flex-col overflow-visible bg-sidebar text-sidebar-foreground border-l border-sidebar-border">
+      {/* لوگو */}
+      <button
         onClick={() => navigate("/")}
-        className="border-b border-sidebar-border px-4 py-5 text-right transition-colors duration-200"
+        className="border-b border-sidebar-border px-4 py-4 text-right transition-colors duration-100 hover:bg-sidebar-accent/40"
       >
         <div className="flex items-center gap-3">
-          <motion.div
-            initial={{ scale: 0, rotate: -90 }}
-            animate={{ scale: 1, rotate: 0 }}
-            transition={{ type: "spring", stiffness: 200, damping: 15, delay: 0.2 }}
-            className="flex h-10 w-10 items-center justify-center rounded-xl bg-sidebar-primary/15 text-sidebar-primary"
-          >
-            <Landmark className="h-5 w-5" />
-          </motion.div>
-          <motion.div
-            initial={{ opacity: 0, x: 10 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.3, duration: 0.4 }}
-          >
-            <div className="text-sm font-bold text-sidebar-primary">سامانه مالی</div>
-            <div className="mt-0.5 text-[10px] text-sidebar-foreground/40">نظام مالی بخش عمومی</div>
-          </motion.div>
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary/15 text-sidebar-primary">
+            <Landmark className="h-4 w-4" />
+          </div>
+          <div>
+            <div className="text-sm font-semibold text-sidebar-primary">سامانه مالی</div>
+            <div className="text-[10px] text-sidebar-foreground/40 mt-0.5">نظام مالی بخش عمومی</div>
+          </div>
         </div>
-      </motion.button>
+      </button>
 
-      <div className="flex-1 overflow-y-auto py-2 scrollbar-sidebar">
-        <motion.div
-          initial="hidden"
-          animate="visible"
-          variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.04 } } }}
-        >
-          <motion.div variants={{ hidden: { opacity: 0, x: 15 }, visible: { opacity: 1, x: 0, transition: { duration: 0.3 } } }}>
-            <SidebarItem num={1} label="اطلاعات پایه" to="/basic-info" subItems={BASIC_INFO_SUB} />
-          </motion.div>
-          {TOP_NAV.map(({ to, label, num, subItems }) => (
-            <motion.div key={to} variants={{ hidden: { opacity: 0, x: 15 }, visible: { opacity: 1, x: 0, transition: { duration: 0.3 } } }}>
-              <SidebarItem num={num} label={label} to={to} subItems={subItems ?? null} />
-            </motion.div>
-          ))}
-        </motion.div>
+      {/* منو */}
+      <div className="flex-1 overflow-y-auto py-1 scrollbar-sidebar">
+        <SidebarItem num={1} label="اطلاعات پایه" to="/basic-info" subItems={BASIC_INFO_SUB} />
+        {TOP_NAV.map(({ to, label, num, subItems }) => (
+          <SidebarItem key={to} num={num} label={label} to={to} subItems={subItems ?? null} />
+        ))}
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5, duration: 0.4 }}
-        className="border-t border-sidebar-border bg-black/10 px-4 py-4"
-      >
-        <div className="mb-3 flex items-center gap-2.5">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary/80 to-sidebar text-xs font-bold text-sidebar-primary">
+      {/* فوتر کاربر */}
+      <div className="border-t border-sidebar-border px-3 py-3">
+        <div className="mb-2 flex items-center gap-2">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-sidebar-primary/20 text-xs font-semibold text-sidebar-primary">
             {user?.username?.[0]?.toUpperCase()}
           </div>
-          <span className="truncate text-xs text-sidebar-foreground/60">{user?.username}</span>
+          <span className="truncate text-xs text-sidebar-foreground/55">{user?.username}</span>
         </div>
         <Button
           variant="ghost"
           size="sm"
           onClick={logout}
-          className="h-9 w-full justify-center rounded-lg border border-sidebar-border bg-sidebar-foreground/5 text-sidebar-foreground/60 transition-all duration-300 hover:border-sidebar-primary/30 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+          className="h-8 w-full justify-center rounded-md text-xs text-sidebar-foreground/55 transition-colors duration-100 hover:bg-sidebar-accent hover:text-sidebar-foreground border border-sidebar-border/60"
         >
-          <LogOut className="h-3.5 w-3.5" />
-          خروج از سیستم
+          <LogOut className="h-3 w-3 ml-1" />
+          خروج
         </Button>
-      </motion.div>
-    </motion.nav>
+      </div>
+    </nav>
   );
 }
