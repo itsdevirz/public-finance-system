@@ -65,8 +65,7 @@ const EMPTY_ROW = {
   personFlag: false,
   checkFlag: false,
   desc: "",
-  accountNumber: "",
-  subBudgetCode: "",
+  sanamaFields: {},
 };
 
 // ---- ردیف جدول ----
@@ -79,15 +78,15 @@ function DocRow({ row, idx, onChange, onDelete, isActive, onActivate }) {
   }
 
   function setGroup(val) {
-    onChange({ ...row, group: val, account: "", subAccount: "", accountNumber: "", subBudgetCode: "" });
+    onChange({ ...row, group: val, account: "", subAccount: "", sanamaFields: {} });
   }
 
   function setAccount(val) {
-    onChange({ ...row, account: val, subAccount: "", accountNumber: "", subBudgetCode: "" });
+    onChange({ ...row, account: val, subAccount: "", sanamaFields: {} });
   }
 
   function setSubAccount(val) {
-    onChange({ ...row, subAccount: val, accountNumber: "", subBudgetCode: "" });
+    onChange({ ...row, subAccount: val, sanamaFields: {} });
   }
 
   const cellCls = "border-l last:border-l-0 px-1 py-0.5";
@@ -175,60 +174,121 @@ function NaturePill({ nature }) {
   return null;
 }
 
-function SanamaExtraFields({ row, onAccountNumberChange, onBudgetRowChange }) {
+// ---- SanamaField: رندر یک فیلد سناما بر اساس نوع ردیف ----
+function SanamaField({ rowDef, value, onChange, optional }) {
+  const inputCls = "h-8 text-xs rounded-md border bg-white px-2 focus:border-primary focus:outline-none w-full";
+  const selectCls = "h-8 text-xs rounded-md border bg-white px-2 focus:border-primary focus:outline-none w-full";
+  const labelCls = "text-[11px] text-muted-foreground shrink-0 w-44";
+
+  const placeholder = optional ? `اختیاری — پیش‌فرض: ${rowDef.default ?? "0"}` : "انتخاب کنید...";
+
+  // ردیف‌های با values (dropdown ساده)
+  if (rowDef.values) {
+    return (
+      <div className="flex items-center gap-2">
+        <Label className={labelCls}>{rowDef.title}{optional && <span className="text-[10px] text-muted-foreground/60 mr-1">(اختیاری)</span>}</Label>
+        <select className={selectCls} value={value ?? ""} onChange={(e) => onChange(e.target.value || (rowDef.default ?? ""))}>
+          <option value="">{placeholder}</option>
+          {rowDef.values.map((v) => (
+            <option key={v.type} value={v.type}>{v.title}</option>
+          ))}
+        </select>
+      </div>
+    );
+  }
+
+  // ردیف‌های با groups (dropdown گروه‌بندی‌شده)
+  if (rowDef.groups) {
+    return (
+      <div className="flex items-center gap-2">
+        <Label className={labelCls}>{rowDef.title}{optional && <span className="text-[10px] text-muted-foreground/60 mr-1">(اختیاری)</span>}</Label>
+        <select className={selectCls} value={value ?? ""} onChange={(e) => onChange(e.target.value || (rowDef.default ?? ""))}>
+          <option value="">{placeholder}</option>
+          {rowDef.groups.map((g) => (
+            <optgroup key={g.title} label={g.title}>
+              {g.values.map((v) => (
+                <option key={v.type} value={v.type}>{v.title}</option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+      </div>
+    );
+  }
+
+  // ردیف‌های با default (input عددی — اختیاری یا اجباری)
+  if ("default" in rowDef) {
+    return (
+      <div className="flex items-center gap-2">
+        <Label className={labelCls}>{rowDef.title}{optional && <span className="text-[10px] text-muted-foreground/60 mr-1">(اختیاری)</span>}</Label>
+        <input
+          type="text"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          className={inputCls}
+          placeholder={optional ? `اختیاری — پیش‌فرض: ${rowDef.default}` : "عدد وارد کنید"}
+          value={value === rowDef.default ? "" : (value ?? "")}
+          onChange={(e) => {
+            const val = e.target.value.replace(/\D/g, "");
+            onChange(val === "" ? (rowDef.default ?? "0") : val);
+          }}
+          dir="ltr"
+        />
+      </div>
+    );
+  }
+
+  // ردیف ۲۱ اشخاص — فعلاً input متنی
+  if (rowDef.types) {
+    return (
+      <div className="flex items-center gap-2">
+        <Label className={labelCls}>{rowDef.title}{optional && <span className="text-[10px] text-muted-foreground/60 mr-1">(اختیاری)</span>}</Label>
+        <input
+          type="text"
+          className={inputCls}
+          placeholder="کد اشخاص را وارد کنید"
+          value={value ?? ""}
+          onChange={(e) => onChange(e.target.value)}
+          dir="ltr"
+        />
+      </div>
+    );
+  }
+
+  return null;
+}
+
+// فیلدهایی که اختیاری‌اند (default دارند)
+const OPTIONAL_ROWS = new Set(
+  subAccountTitles.filter((r) => "default" in r).map((r) => r.row)
+);
+
+function SanamaExtraFields({ row, onSanamaChange }) {
   const requiredRows = getRequiredRows(row.subAccount);
   if (!requiredRows.length) return null;
 
-  const inputCls = "h-8 text-xs rounded-md border bg-white px-2 focus:border-primary focus:outline-none w-full";
-  const selectCls = "h-8 text-xs rounded-md border bg-white px-2 focus:border-primary focus:outline-none w-full";
-  const labelCls = "text-[11px] text-muted-foreground shrink-0";
-
   return (
     <div className="border-t bg-amber-50/40 px-3 py-3">
-      <p className="text-xs font-medium text-amber-800 mb-2">
-        الزامات سناما برای معین {row.subAccount}
+      <p className="text-xs font-medium text-amber-800 mb-3">
+        الزامات سناما — معین {row.subAccount}
       </p>
       <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-        {requiredRows.includes(31) && (
-          <div className="flex items-center gap-2">
-            <Label className={`${labelCls} w-40`}>
-              {getSubAccountTitle(31)?.title ?? "مشخصات حساب (شماره شبا)"}
-            </Label>
-            <input
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              className={inputCls}
-              placeholder="شماره شبا (فقط عدد)"
-              value={row.accountNumber}
-              onChange={(e) => {
-                const val = e.target.value.replace(/\D/g, "");
-                onAccountNumberChange(val);
-              }}
-              dir="ltr"
+        {requiredRows.map((rowNum) => {
+          const rowDef = getSubAccountTitle(rowNum);
+          if (!rowDef) return null;
+          const optional = OPTIONAL_ROWS.has(rowNum);
+          const fieldKey = `sanama_${rowNum}`;
+          const value = row.sanamaFields?.[fieldKey];
+          return (
+            <SanamaField
+              key={rowNum}
+              rowDef={rowDef}
+              value={value}
+              optional={optional}
+              onChange={(val) => onSanamaChange(fieldKey, val)}
             />
-          </div>
-        )}
-        {requiredRows.includes(43) && (
-          <div className="flex items-center gap-2">
-            <Label className={`${labelCls} w-40`}>
-              {getSubAccountTitle(43)?.title ?? "ردیف بودجه‌ای"}
-            </Label>
-            <input
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              className={inputCls}
-              placeholder="ردیف بودجه‌ای (فقط عدد)"
-              value={row.subBudgetCode}
-              onChange={(e) => {
-                const val = e.target.value.replace(/\D/g, "");
-                onBudgetRowChange(val);
-              }}
-              dir="ltr"
-            />
-          </div>
-        )}
+          );
+        })}
       </div>
     </div>
   );
@@ -279,18 +339,12 @@ export default function ManualDocument() {
     });
   }
 
-  function handleAccountNumberChange(rowId, val) {
+  function handleSanamaChange(rowId, fieldKey, val) {
     setRows((prev) =>
       prev.map((r) =>
-        r.id === rowId ? { ...r, accountNumber: val } : r
-      )
-    );
-  }
-
-  function handleBudgetRowChange(rowId, val) {
-    setRows((prev) =>
-      prev.map((r) =>
-        r.id === rowId ? { ...r, subBudgetCode: val } : r
+        r.id === rowId
+          ? { ...r, sanamaFields: { ...r.sanamaFields, [fieldKey]: val } }
+          : r
       )
     );
   }
@@ -437,8 +491,7 @@ export default function ManualDocument() {
             {showSanamaFields && (
               <SanamaExtraFields
                 row={activeRow}
-                onAccountNumberChange={(code) => handleAccountNumberChange(activeRowId, code)}
-                onBudgetRowChange={(code) => handleBudgetRowChange(activeRowId, code)}
+                onSanamaChange={(fieldKey, val) => handleSanamaChange(activeRowId, fieldKey, val)}
               />
             )}
 
@@ -550,16 +603,16 @@ export default function ManualDocument() {
                     })(),
                   },
                   ...(needsSanamaFields(activeRow?.subAccount)
-                    ? [
-                        {
-                          label: getSubAccountTitle(31)?.title ?? "شماره شبا",
-                          value: activeRow?.accountNumber || "—",
-                        },
-                        {
-                          label: getSubAccountTitle(43)?.title ?? "ردیف بودجه‌ای",
-                          value: activeRow?.subBudgetCode || "—",
-                        },
-                      ]
+                    ? getRequiredRows(activeRow.subAccount).map((rowNum) => {
+                        const rowDef = getSubAccountTitle(rowNum);
+                        const fieldKey = `sanama_${rowNum}`;
+                        const val = activeRow?.sanamaFields?.[fieldKey];
+                        const defaultVal = rowDef?.default ?? "0";
+                        return {
+                          label: rowDef?.title ?? `ردیف ${rowNum}`,
+                          value: val && val !== defaultVal ? String(val) : "—",
+                        };
+                      })
                     : []),
                 ].map(({ label, value }) => (
                   <div key={label} className="flex items-center gap-2">
