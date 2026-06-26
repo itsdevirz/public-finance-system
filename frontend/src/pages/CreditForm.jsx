@@ -228,8 +228,8 @@ function CapitalFields({ data, onChange, onAnyFocus }) {
           placeholder="شماره طرح" className="h-10 text-sm" dir="ltr" />
       </Field>
       <Field label="فصول" required>
-        <Input value={data.capitalChapter} onChange={set("capitalChapter")} onFocus={onAnyFocus}
-          placeholder="فصول" className="h-10 text-sm" dir="ltr" />
+        <StyledSelect value={data.capitalChapter} onChange={set("capitalChapter")}
+          onFocus={onAnyFocus} options={EXPENSE_CHAPTER_OPTIONS} />
       </Field>
     </div>
   );
