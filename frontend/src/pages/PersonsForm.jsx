@@ -31,45 +31,44 @@ const NATURAL_PERSON_KINDS = ["B", "C", "D"];
 // نوع‌هایی که نیاز به کد ملی ندارند (از کد پیشنهادی استفاده می‌کنند)
 const NO_NATIONAL_ID_KINDS = ["C", "D"];
 
-// ساختار ثابت طبقه اشخاص (۲ رقم) - همه انواع A-D از این استفاده می‌کنند
-const ALL_CLASSES = [
-  { value: "31", label: "31 - بخش خصوصی" },
-  { value: "32", label: "32 - بخش دولتی" },
-  { value: "33", label: "33 - بخش عمومی غیردولتی" },
-  { value: "34", label: "34 - بخش تعاونی" },
-  { value: "35", label: "35 - بخش خارجی" },
-];
-
-// استخراج طبقات — همیشه همه ۵ طبقه، مستقل از نوع شخص
-function getClasses() {
-  return ALL_CLASSES;
+// استخراج بخش مربوط به personKind از sanamaTypes.json
+function getSectionByKind(personKind) {
+  return personTypesData.personTypes.find((s) => s.type === personKind) ?? null;
 }
 
-// استخراج ریزطبقه‌ها بر اساس کد طبقه — فقط از بخش A (کامل‌ترین منبع)
-function getSubClasses(classCode) {
+// استخراج طبقات (۲ رقم) بر اساس نوع شخص
+function getClasses(personKind) {
+  const section = getSectionByKind(personKind);
+  if (!section) return [];
+  return (section.children || []).map((cls) => ({
+    value: cls.code,
+    label: `${cls.code} - ${cls.title}`,
+  }));
+}
+
+// استخراج ریزطبقه‌ها (۳ رقم) بر اساس نوع شخص و کد طبقه
+function getSubClasses(personKind, classCode) {
   if (!classCode) return [];
-  for (const sec of personTypesData.personTypes) {
-    if (sec.type !== "A") continue;
-    for (const cls of sec.children || []) {
-      if (cls.code === classCode) {
-        return (cls.children || []).map((s) => ({ value: s.code, label: `${s.code} - ${s.title}` }));
-      }
+  const section = getSectionByKind(personKind);
+  if (!section) return [];
+  for (const cls of section.children || []) {
+    if (cls.code === classCode) {
+      return (cls.children || []).map((s) => ({ value: s.code, label: `${s.code} - ${s.title}` }));
     }
   }
   return [];
 }
 
-// استخراج جزءطبقه‌ها بر اساس کد ریزطبقه — فقط از بخش A
-function getDetailClasses(classCode, subCode) {
+// استخراج جزءطبقه‌ها (۴ رقم) بر اساس نوع شخص، کد طبقه و کد ریزطبقه
+function getDetailClasses(personKind, classCode, subCode) {
   if (!classCode || !subCode) return [];
-  for (const sec of personTypesData.personTypes) {
-    if (sec.type !== "A") continue;
-    for (const cls of sec.children || []) {
-      if (cls.code !== classCode) continue;
-      for (const sub of cls.children || []) {
-        if (sub.code === subCode) {
-          return (sub.children || []).map((d) => ({ value: d.code, label: `${d.code} - ${d.title}` }));
-        }
+  const section = getSectionByKind(personKind);
+  if (!section) return [];
+  for (const cls of section.children || []) {
+    if (cls.code !== classCode) continue;
+    for (const sub of cls.children || []) {
+      if (sub.code === subCode) {
+        return (sub.children || []).map((d) => ({ value: d.code, label: `${d.code} - ${d.title}` }));
       }
     }
   }
@@ -81,7 +80,7 @@ const INITIAL_FORM = {
   // بخش اول NomineeCode
   personKind: "A",         // A=حقوقی، B=حقیقی ایرانی باهمیت، C=حقیقی ایرانی سایر، D=حقیقی خارجی سایر
   // طبقه‌بندی (بخش دوم NomineeCode - ۴ رقم)
-  personClass: "31",       // طبقه اشخاص (2 رقم): 31 تا 35
+  personClass: "31",       // طبقه اشخاص (2 رقم): اولین طبقه موجود برای نوع A
   subClass: "311",         // ریزطبقه (3 رقم)
   detailClass: "3111",     // جزءطبقه (4 رقم)
   // کدهای شناسایی
@@ -207,10 +206,10 @@ export default function PersonsForm() {
   const [selected, setSelected]   = useState(null);
   const [saved, setSaved]         = useState(false);
 
-  // گزینه‌های وابسته — کاملاً مستقل از نوع شخص
-  const classOptions    = useMemo(() => getClasses(), []);
-  const subClassOptions = useMemo(() => getSubClasses(form.personClass), [form.personClass]);
-  const detailOptions   = useMemo(() => getDetailClasses(form.personClass, form.subClass), [form.personClass, form.subClass]);
+  // گزینه‌های وابسته — فیلتر شده بر اساس نوع شخص انتخاب‌شده
+  const classOptions    = useMemo(() => getClasses(form.personKind), [form.personKind]);
+  const subClassOptions = useMemo(() => getSubClasses(form.personKind, form.personClass), [form.personKind, form.personClass]);
+  const detailOptions   = useMemo(() => getDetailClasses(form.personKind, form.personClass, form.subClass), [form.personKind, form.personClass, form.subClass]);
 
   // NomineeCode پیش‌نمایش
   const nomineeCode = buildNomineeCode(form.personKind, form.detailClass, form.exclusiveCode, form.nationalId, form.suggestedCode);
@@ -224,16 +223,25 @@ export default function PersonsForm() {
       const val = e.target.type === "checkbox" ? e.target.checked : e.target.value;
       setForm((f) => {
         const next = { ...f, [field]: val };
+        // ریست کامل طبقه‌بندی وقتی نوع شخص عوض شد
+        if (field === "personKind") {
+          const classes = getClasses(val);
+          next.personClass = classes[0]?.value ?? "";
+          const subs = getSubClasses(val, next.personClass);
+          next.subClass = subs[0]?.value ?? "";
+          const details = getDetailClasses(val, next.personClass, next.subClass);
+          next.detailClass = details[0]?.value ?? "";
+        }
         // ریست ریزطبقه و جزءطبقه وقتی طبقه عوض شد
         if (field === "personClass") {
-          const subs = getSubClasses(val);
+          const subs = getSubClasses(f.personKind, val);
           next.subClass    = subs[0]?.value ?? "";
-          const details    = getDetailClasses(val, subs[0]?.value ?? "");
+          const details    = getDetailClasses(f.personKind, val, subs[0]?.value ?? "");
           next.detailClass = details[0]?.value ?? "";
         }
         // ریست جزءطبقه وقتی ریزطبقه عوض شد
         if (field === "subClass") {
-          const details    = getDetailClasses(f.personClass, val);
+          const details    = getDetailClasses(f.personKind, f.personClass, val);
           next.detailClass = details[0]?.value ?? "";
         }
         return next;
