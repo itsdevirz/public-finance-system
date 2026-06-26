@@ -48,6 +48,16 @@ export const CREDITS_SUB = [
 
 export const BASIC_INFO_SUB = [
   { to: "/basic-info/account-heads", label: "تعریف سرفصل حساب‌ها" },
+  {
+    to: "/basic-info/definitions",
+    label: "تعاریف",
+    children: [
+      { to: "/basic-info/definitions/persons", label: "تعریف اشخاص" },
+      { to: "/basic-info/definitions/bank", label: "تعریف بانک" },
+      { to: "/basic-info/definitions/credit", label: "تعریف اعتبار" },
+      { to: "/basic-info/definitions/check", label: "تعریف چک" },
+    ],
+  },
   { to: "/basic-info/credits", label: "اعتبارات", children: CREDITS_SUB },
   {
     to: "/basic-info/document-setup",
@@ -57,17 +67,7 @@ export const BASIC_INFO_SUB = [
       { to: "/basic-info/document-setup/payment-types", label: "تعریف انواع پرداخت" },
     ],
   },
-  {
-    to: "/basic-info/check-issuance",
-    label: "صدور چک",
-    children: [
-      { to: "/basic-info/check-issuance/bank-branches", label: "تعریف شعب بانکی" },
-      { to: "/basic-info/check-issuance/bank-accounts", label: "تعریف شماره حساب بانکی" },
-      { to: "/basic-info/check-issuance/checkbooks", label: "تعریف دسته چک هر شماره حساب" },
-      { to: "/basic-info/check-issuance/recipients", label: "تعریف گیرندگان چک" },
-      { to: "/basic-info/check-issuance/contract-desc", label: "تعریف شرح چک هر قرارداد" },
-    ],
-  },
+
   {
     to: "/basic-info/contracts",
     label: "قراردادها",
