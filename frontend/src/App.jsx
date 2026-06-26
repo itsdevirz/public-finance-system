@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
+import { AssetProvider } from "./context/AssetContext";
 import PrivateRoute from "./components/PrivateRoute";
 import Sidebar from "./components/Sidebar";
 import Login from "./pages/Login";
@@ -38,6 +39,7 @@ function Layout() {
 export default function App() {
   return (
     <AuthProvider>
+      <AssetProvider>
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
@@ -51,6 +53,7 @@ export default function App() {
           />
         </Routes>
       </BrowserRouter>
+      </AssetProvider>
     </AuthProvider>
   );
 }

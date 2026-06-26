@@ -19,6 +19,11 @@ import AssetGroupForm from "@/pages/AssetGroupForm";
 import AssetSubGroupForm from "@/pages/AssetSubGroupForm";
 import AssetTypeForm from "@/pages/AssetTypeForm";
 import AssetNatureForm from "@/pages/AssetNatureForm";
+import AssetUnitForm from "@/pages/AssetUnitForm";
+import AssetLocationForm from "@/pages/AssetLocationForm";
+import AssetSupplierForm from "@/pages/AssetSupplierForm";
+import DepreciationMethodForm from "@/pages/DepreciationMethodForm";
+import AssetDeliveryForm from "@/pages/AssetDeliveryForm";
 import AssetRegisterForm from "@/pages/AssetRegisterForm";
 import Warehouse from "@/pages/Warehouse";
 import WarehouseDashboard from "@/pages/WarehouseDashboard";
@@ -266,14 +271,14 @@ export const PAGE_COMPONENTS = {
   "/assets/basic-info/asset-subgroups": AssetSubGroupForm,
   "/assets/basic-info/asset-types": AssetTypeForm,
   "/assets/basic-info/asset-nature": AssetNatureForm,
-  "/assets/basic-info/units": Assets,
-  "/assets/basic-info/locations": Assets,
-  "/assets/basic-info/suppliers": Assets,
-  "/assets/basic-info/depreciation-methods": Assets,
+  "/assets/basic-info/units": AssetUnitForm,
+  "/assets/basic-info/locations": AssetLocationForm,
+  "/assets/basic-info/suppliers": AssetSupplierForm,
+  "/assets/basic-info/depreciation-methods": DepreciationMethodForm,
   "/assets/register": Assets,
   "/assets/register/new": AssetRegisterForm,
   "/assets/register/label": Assets,
-  "/assets/register/delivery": Assets,
+  "/assets/register/delivery": AssetDeliveryForm,
   "/assets/register/return": Assets,
   "/assets/register/transfer": Assets,
   "/assets/register/repair": Assets,

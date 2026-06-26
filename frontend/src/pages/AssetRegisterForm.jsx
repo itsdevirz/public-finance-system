@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { useAssets } from "@/context/AssetContext";
 
 const TABS = [
   { key: "basic",        label: "اطلاعات پایه",  icon: Package    },
@@ -84,10 +85,13 @@ function SecTitle({ icon: Icon, title }) {
 }
 
 export default function AssetRegisterForm() {
+  const { assets, addAsset, updateAsset, deleteAsset } = useAssets();
   const [form, setForm]           = useState(INITIAL);
   const [activeTab, setActiveTab] = useState("basic");
-  const [records, setRecords]     = useState([]);
   const [editingId, setEditingId] = useState(null);
+
+  // records حالا از context می‌آید
+  const records = assets;
 
   const isConsumable = form.assetType === "consumable";
 
@@ -119,10 +123,10 @@ export default function AssetRegisterForm() {
   function handleSave() {
     if (!form.assetName.trim()) return;
     if (editingId !== null) {
-      setRecords((r) => r.map((rec) => rec.id === editingId ? { ...form, id: editingId } : rec));
+      updateAsset({ ...form, id: editingId });
       setEditingId(null);
     } else {
-      setRecords((r) => [...r, { ...form, id: Date.now() }]);
+      addAsset({ ...form });
     }
     setForm(INITIAL);
   }
@@ -135,7 +139,7 @@ export default function AssetRegisterForm() {
   }
 
   function handleDelete(id) {
-    setRecords((r) => r.filter((rec) => rec.id !== id));
+    deleteAsset(id);
     if (editingId === id) { setForm(INITIAL); setEditingId(null); }
   }
 

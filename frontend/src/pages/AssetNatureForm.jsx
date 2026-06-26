@@ -338,17 +338,6 @@ export default function AssetNatureForm() {
                           <span className="leading-none mt-0.5">ایران</span>
                         </div>
 
-                        {/* بخش ۴: متن استان */}
-                        <input
-                          type="text"
-                          value={form.plate.province}
-                          onChange={(e) => setForm((f) => ({ ...f, plate: { ...f.plate, province: e.target.value } }))}
-                          placeholder="تهران"
-                          maxLength={20}
-                          className="w-24 h-11 rounded-lg border-2 border-input bg-background text-center text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400"
-                          style={{ direction: "rtl" }}
-                        />
-
                         {/* جداکننده */}
                         <span className="text-muted-foreground text-lg font-bold px-0.5">-</span>
 
