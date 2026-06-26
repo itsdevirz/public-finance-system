@@ -15,6 +15,10 @@ import GuaranteeContractForm from "@/pages/GuaranteeContractForm";
 import DepositManualForm from "@/pages/DepositManualForm";
 import PersonsForm from "@/pages/PersonsForm";
 import Assets from "@/pages/Assets";
+import AssetGroupForm from "@/pages/AssetGroupForm";
+import AssetSubGroupForm from "@/pages/AssetSubGroupForm";
+import AssetTypeForm from "@/pages/AssetTypeForm";
+import AssetNatureForm from "@/pages/AssetNatureForm";
 import AssetRegisterForm from "@/pages/AssetRegisterForm";
 import Warehouse from "@/pages/Warehouse";
 import WarehouseDashboard from "@/pages/WarehouseDashboard";
@@ -258,10 +262,10 @@ export const PAGE_COMPONENTS = {
   "/deposits/search": Deposits,
   "/assets": Assets,
   "/assets/basic-info": Assets,
-  "/assets/basic-info/asset-groups": Assets,
-  "/assets/basic-info/asset-subgroups": Assets,
-  "/assets/basic-info/asset-types": Assets,
-  "/assets/basic-info/asset-nature": Assets,
+  "/assets/basic-info/asset-groups": AssetGroupForm,
+  "/assets/basic-info/asset-subgroups": AssetSubGroupForm,
+  "/assets/basic-info/asset-types": AssetTypeForm,
+  "/assets/basic-info/asset-nature": AssetNatureForm,
   "/assets/basic-info/units": Assets,
   "/assets/basic-info/locations": Assets,
   "/assets/basic-info/suppliers": Assets,
