@@ -13,7 +13,7 @@ timeout /t 2 /nobreak >nul
 start "Frontend - Public Finance" cmd /k "cd /d "%~dp0frontend" && npm run dev"
 
 echo Both servers are starting...
-echo  Backend:  http://localhost:3000
+echo  Backend:  http://localhost:8000
 echo  Frontend: http://localhost:5173
 echo.
 echo Close the opened terminal windows to stop the servers.
