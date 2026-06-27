@@ -1,41 +1,44 @@
-import AccountHeads from "@/pages/AccountHeads";
-import AccountSetup from "@/pages/AccountSetup";
-import BasicInfo from "@/pages/BasicInfo";
-import DocumentSetup from "@/pages/DocumentSetup";
-import Review from "@/pages/Review";
-import Credits from "@/pages/Credits";
-import CheckIssuance from "@/pages/CheckIssuance";
-import BankForm from "@/pages/BankForm";
-import CreditForm from "@/pages/CreditForm";
-import Bookkeeping from "@/pages/Bookkeeping";
-import SystemManagement from "@/pages/SystemManagement";
-import Guarantees from "@/pages/Guarantees";
-import Deposits from "@/pages/Deposits";
-import GuaranteeContractForm from "@/pages/GuaranteeContractForm";
-import DepositManualForm from "@/pages/DepositManualForm";
-import PersonsForm from "@/pages/PersonsForm";
-import Assets from "@/pages/Assets";
-import AssetGroupForm from "@/pages/AssetGroupForm";
-import AssetSubGroupForm from "@/pages/AssetSubGroupForm";
-import AssetTypeForm from "@/pages/AssetTypeForm";
-import AssetNatureForm from "@/pages/AssetNatureForm";
-import AssetUnitForm from "@/pages/AssetUnitForm";
-import AssetLocationForm from "@/pages/AssetLocationForm";
-import AssetSupplierForm from "@/pages/AssetSupplierForm";
-import DepreciationMethodForm from "@/pages/DepreciationMethodForm";
-import AssetDeliveryForm from "@/pages/AssetDeliveryForm";
-import AssetScrapForm from "@/pages/AssetScrapForm";
-import AssetSaleForm from "@/pages/AssetSaleForm";
-import AssetLostForm from "@/pages/AssetLostForm";
-import AssetRegisterForm from "@/pages/AssetRegisterForm";
-import Warehouse from "@/pages/Warehouse";
-import WarehouseDashboard from "@/pages/WarehouseDashboard";
-import Payroll from "@/pages/Payroll";
-import PayrollDashboard from "@/pages/PayrollDashboard";
-import PayrollCalculate from "@/pages/PayrollCalculate";
-import ManualDocument from "@/pages/ManualDocument";
+import { lazy } from "react";
 import Placeholder from "@/pages/Placeholder";
 import { getAllMenuRoutes } from "@/config/navigation";
+
+// ─── بهینه‌سازی پرفورمنس و سرعت: بارگذاری تنبل (Code Splitting) ─────────────
+const AccountHeads = lazy(() => import("@/pages/AccountHeads"));
+const AccountSetup = lazy(() => import("@/pages/AccountSetup"));
+const BasicInfo = lazy(() => import("@/pages/BasicInfo"));
+const DocumentSetup = lazy(() => import("@/pages/DocumentSetup"));
+const Review = lazy(() => import("@/pages/Review"));
+const Credits = lazy(() => import("@/pages/Credits"));
+const CheckIssuance = lazy(() => import("@/pages/CheckIssuance"));
+const BankForm = lazy(() => import("@/pages/BankForm"));
+const CreditForm = lazy(() => import("@/pages/CreditForm"));
+const Bookkeeping = lazy(() => import("@/pages/Bookkeeping"));
+const SystemManagement = lazy(() => import("@/pages/SystemManagement"));
+const Guarantees = lazy(() => import("@/pages/Guarantees"));
+const Deposits = lazy(() => import("@/pages/Deposits"));
+const GuaranteeContractForm = lazy(() => import("@/pages/GuaranteeContractForm"));
+const DepositManualForm = lazy(() => import("@/pages/DepositManualForm"));
+const PersonsForm = lazy(() => import("@/pages/PersonsForm"));
+const Assets = lazy(() => import("@/pages/Assets"));
+const AssetGroupForm = lazy(() => import("@/pages/AssetGroupForm"));
+const AssetSubGroupForm = lazy(() => import("@/pages/AssetSubGroupForm"));
+const AssetTypeForm = lazy(() => import("@/pages/AssetTypeForm"));
+const AssetNatureForm = lazy(() => import("@/pages/AssetNatureForm"));
+const AssetUnitForm = lazy(() => import("@/pages/AssetUnitForm"));
+const AssetLocationForm = lazy(() => import("@/pages/AssetLocationForm"));
+const AssetSupplierForm = lazy(() => import("@/pages/AssetSupplierForm"));
+const DepreciationMethodForm = lazy(() => import("@/pages/DepreciationMethodForm"));
+const AssetDeliveryForm = lazy(() => import("@/pages/AssetDeliveryForm"));
+const AssetScrapForm = lazy(() => import("@/pages/AssetScrapForm"));
+const AssetSaleForm = lazy(() => import("@/pages/AssetSaleForm"));
+const AssetLostForm = lazy(() => import("@/pages/AssetLostForm"));
+const AssetRegisterForm = lazy(() => import("@/pages/AssetRegisterForm"));
+const Warehouse = lazy(() => import("@/pages/Warehouse"));
+const WarehouseDashboard = lazy(() => import("@/pages/WarehouseDashboard"));
+const Payroll = lazy(() => import("@/pages/Payroll"));
+const PayrollDashboard = lazy(() => import("@/pages/PayrollDashboard"));
+const PayrollCalculate = lazy(() => import("@/pages/PayrollCalculate"));
+const ManualDocument = lazy(() => import("@/pages/ManualDocument"));
 
 /** صفحاتی که پیاده‌سازی شده‌اند — بقیه خودکار Placeholder می‌شوند */
 export const PAGE_COMPONENTS = {
@@ -187,9 +190,6 @@ export const PAGE_COMPONENTS = {
   "/bookkeeping/budget-execution": Bookkeeping,
   "/bookkeeping/budget-execution/budget-allocation-setup": Bookkeeping,
   "/bookkeeping/budget-execution/budget-allocation": Bookkeeping,
-  "/bookkeeping/budget-execution/aggregate-budget-allocation": Bookkeeping,
-  "/bookkeeping/misc-persons": Bookkeeping,
-  "/bookkeeping/misc-persons/persons-report": Bookkeeping,
   "/bookkeeping/misc-persons/persons-balance": Bookkeeping,
   "/bookkeeping/financial-statements": Bookkeeping,
   "/bookkeeping/financial-statements/balance-sheet": Bookkeeping,
