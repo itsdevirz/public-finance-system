@@ -87,6 +87,57 @@ router.post("/delegations", async (c) => {
   return c.json({ message: "تفویض اعتبار ثبت شد", data: serialize(inserted as Record<string, unknown>) }, 201);
 });
 
+// ─── Credit Definitions (تعریف اعتبار) ───────────────────────────────────────
+
+router.get("/definitions", async (c) => {
+  const data = await getDb().collection("credit_definitions").find().sort({ createdAt: -1 }).toArray();
+  return c.json({ data: data.map((d) => serialize(d as Record<string, unknown>)), message: "لیست اعتبارهای تعریف‌شده" });
+});
+
+router.post("/definitions", async (c) => {
+  const body = await c.req.json();
+  const doc = {
+    ...body,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  const result = await getDb().collection("credit_definitions").insertOne(doc);
+  const inserted = await getDb().collection("credit_definitions").findOne({ _id: result.insertedId });
+  return c.json({ message: "اعتبار با موفقیت ثبت شد", data: serialize(inserted as Record<string, unknown>) }, 201);
+});
+
+router.put("/definitions/:id", async (c) => {
+  const id = c.req.param("id");
+  let oid: import("mongodb").ObjectId;
+  try {
+    oid = new ObjectId(id);
+  } catch {
+    return c.json({ message: "شناسه نامعتبر است" }, 400);
+  }
+  const body = await c.req.json();
+  const { _id, createdAt, ...updateData } = body;
+  const result = await getDb().collection("credit_definitions").findOneAndUpdate(
+    { _id: oid },
+    { $set: { ...updateData, updatedAt: new Date().toISOString() } },
+    { returnDocument: "after" }
+  );
+  if (!result) return c.json({ message: "اعتبار یافت نشد" }, 404);
+  return c.json({ message: "اعتبار با موفقیت ویرایش شد", data: serialize(result as Record<string, unknown>) });
+});
+
+router.delete("/definitions/:id", async (c) => {
+  const id = c.req.param("id");
+  let oid: import("mongodb").ObjectId;
+  try {
+    oid = new ObjectId(id);
+  } catch {
+    return c.json({ message: "شناسه نامعتبر است" }, 400);
+  }
+  const result = await getDb().collection("credit_definitions").deleteOne({ _id: oid });
+  if (result.deletedCount === 0) return c.json({ message: "اعتبار یافت نشد" }, 404);
+  return c.json({ message: "اعتبار با موفقیت حذف شد" });
+});
+
 router.get("/", (_c) => _c.json({ message: "اعتبارات" }));
 
 export default router;
