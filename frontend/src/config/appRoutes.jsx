@@ -24,6 +24,9 @@ import AssetLocationForm from "@/pages/AssetLocationForm";
 import AssetSupplierForm from "@/pages/AssetSupplierForm";
 import DepreciationMethodForm from "@/pages/DepreciationMethodForm";
 import AssetDeliveryForm from "@/pages/AssetDeliveryForm";
+import AssetScrapForm from "@/pages/AssetScrapForm";
+import AssetSaleForm from "@/pages/AssetSaleForm";
+import AssetLostForm from "@/pages/AssetLostForm";
 import AssetRegisterForm from "@/pages/AssetRegisterForm";
 import Warehouse from "@/pages/Warehouse";
 import WarehouseDashboard from "@/pages/WarehouseDashboard";
@@ -47,7 +50,6 @@ export const PAGE_COMPONENTS = {
   "/basic-info/definitions/credit": CreditForm,
   "/basic-info/definitions/check": CheckIssuance,
   "/basic-info/bookkeeping": Bookkeeping,
-  "/basic-info/bookkeeping/persons": PersonsForm,
   "/document-setup": DocumentSetup,
   "/document-setup/manual-doc": ManualDocument,
   "/review": Review,
@@ -277,14 +279,10 @@ export const PAGE_COMPONENTS = {
   "/assets/basic-info/depreciation-methods": DepreciationMethodForm,
   "/assets/register": Assets,
   "/assets/register/new": AssetRegisterForm,
-  "/assets/register/label": Assets,
   "/assets/register/delivery": AssetDeliveryForm,
-  "/assets/register/return": Assets,
-  "/assets/register/transfer": Assets,
-  "/assets/register/repair": Assets,
-  "/assets/register/scrap": Assets,
-  "/assets/register/sale": Assets,
-  "/assets/register/lost": Assets,
+  "/assets/register/scrap": AssetScrapForm,
+  "/assets/register/sale": AssetSaleForm,
+  "/assets/register/lost": AssetLostForm,
   "/assets/depreciation": Assets,
   "/assets/depreciation/setup": Assets,
   "/assets/depreciation/monthly": Assets,

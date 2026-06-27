@@ -88,19 +88,19 @@ function DocRow({ row, idx, onChange, onDelete, isActive, onActivate }) {
     onChange({ ...row, subAccount: val, sanamaFields: {} });
   }
 
-  const cellCls = "border-l last:border-l-0 px-1 py-0.5";
-  const inputCls = "h-7 text-xs rounded border-0 bg-transparent focus:bg-white focus:border focus:border-primary w-full px-1";
-  const selectCls = "h-7 text-xs rounded border-0 bg-transparent focus:bg-white focus:outline-none w-full px-1 cursor-pointer";
+  const cellCls = "border-l last:border-l-0 px-2 py-1";
+  const inputCls = "h-8 text-sm rounded border-0 bg-transparent focus:bg-white focus:border focus:border-primary w-full px-1.5";
+  const selectCls = "h-8 text-sm rounded border-0 bg-transparent focus:bg-white focus:outline-none w-full px-1.5 cursor-pointer";
 
   return (
     <tr
       className={`border-b transition-colors text-xs ${isActive ? "bg-primary/5 ring-1 ring-inset ring-primary/20" : "hover:bg-blue-50/40"}`}
       onClick={onActivate}
     >
-      <td className={`${cellCls} text-center text-muted-foreground w-8`}>{idx + 1}</td>
+      <td className={`${cellCls} text-center text-muted-foreground w-10`}>{idx + 1}</td>
 
       {/* گروه */}
-      <td className={`${cellCls} w-20`}>
+      <td className={`${cellCls} w-36`}>
         <select className={selectCls} value={row.group} onChange={(e) => setGroup(e.target.value)}>
           <option value="" />
           {allGroups.map((g) => (
@@ -110,7 +110,7 @@ function DocRow({ row, idx, onChange, onDelete, isActive, onActivate }) {
       </td>
 
       {/* کل */}
-      <td className={`${cellCls} w-28`}>
+      <td className={`${cellCls} w-44`}>
         <select className={selectCls} value={row.account} onChange={(e) => setAccount(e.target.value)} disabled={!row.group}>
           <option value="" />
           {accounts.map((a) => (
@@ -120,7 +120,7 @@ function DocRow({ row, idx, onChange, onDelete, isActive, onActivate }) {
       </td>
 
       {/* معین */}
-      <td className={`${cellCls} w-40`}>
+      <td className={`${cellCls} w-56`}>
         <select className={selectCls} value={row.subAccount} onChange={(e) => setSubAccount(e.target.value)} disabled={!row.account}>
           <option value="" />
           {subAccounts.map((s) => (
@@ -130,7 +130,7 @@ function DocRow({ row, idx, onChange, onDelete, isActive, onActivate }) {
       </td>
 
       {/* مبلغ بدهکار */}
-      <td className={`${cellCls} w-28`}>
+      <td className={`${cellCls} w-36`}>
         <input
           className={`${inputCls} text-blue-700`}
           value={row.debit}
@@ -140,7 +140,7 @@ function DocRow({ row, idx, onChange, onDelete, isActive, onActivate }) {
       </td>
 
       {/* مبلغ بستانکار */}
-      <td className={`${cellCls} w-28`}>
+      <td className={`${cellCls} w-36`}>
         <input
           className={`${inputCls} text-rose-700`}
           value={row.credit}
@@ -150,7 +150,7 @@ function DocRow({ row, idx, onChange, onDelete, isActive, onActivate }) {
       </td>
 
       {/* حذف */}
-      <td className={`${cellCls} w-8 text-center`}>
+      <td className={`${cellCls} w-10 text-center`}>
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onDelete(); }}
@@ -459,16 +459,16 @@ export default function ManualDocument() {
         <Card className="mb-3">
           <CardContent className="p-0">
             <div className="overflow-x-auto">
-              <table className="w-full text-xs border-collapse min-w-[900px]" dir="rtl">
+              <table className="w-full text-sm border-collapse min-w-[1100px]" dir="rtl">
                 <thead>
-                  <tr className="bg-muted/60 border-b text-muted-foreground text-[11px]">
-                    <th className="px-2 py-2 text-center w-8">#</th>
-                    <th className="px-2 py-2 text-right w-20">گروه</th>
-                    <th className="px-2 py-2 text-right w-28">کل</th>
-                    <th className="px-2 py-2 text-right w-40">معین</th>
-                    <th className="px-2 py-2 text-right w-28 text-blue-600">بدهکار</th>
-                    <th className="px-2 py-2 text-right w-28 text-rose-600">بستانکار</th>
-                    <th className="px-2 py-2 text-center w-8"></th>
+                  <tr className="bg-muted/60 border-b text-muted-foreground text-xs">
+                    <th className="px-2 py-2.5 text-center w-10">#</th>
+                    <th className="px-2 py-2.5 text-right w-36">گروه</th>
+                    <th className="px-2 py-2.5 text-right w-44">کل</th>
+                    <th className="px-2 py-2.5 text-right w-56">معین</th>
+                    <th className="px-2 py-2.5 text-right w-36 text-blue-600">بدهکار</th>
+                    <th className="px-2 py-2.5 text-right w-36 text-rose-600">بستانکار</th>
+                    <th className="px-2 py-2.5 text-center w-10"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -514,135 +514,74 @@ export default function ManualDocument() {
 
       {/* ===== پنل پایین ===== */}
       <div>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          {/* توضیحات ۱ - برنامه / اعتبارات */}
-          <Card>
-            <CardContent className="p-3">
-              <div className="flex border-b mb-3">
-                {["توضیحات ۱", "توضیحات ۲"].map((t, i) => (
-                  <button
-                    key={t}
-                    onClick={() => setActiveTab(i + 1)}
-                    className={`px-4 py-1.5 text-xs font-medium border-b-2 transition-colors ${
-                      activeTab === i + 1 ? "border-primary text-primary" : "border-transparent text-muted-foreground"
-                    }`}
-                  >
-                    {t}
-                  </button>
-                ))}
-              </div>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm font-medium text-muted-foreground mb-4">اطلاعات کدینگ انتخابی</p>
 
-              {activeTab === 1 && (
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { key: "program", label: "برنامه" },
-                    { key: "activity", label: "فعالیت" },
-                    { key: "subActivity", label: "زیرفعالیت" },
-                    { key: "chapter", label: "فصل" },
-                    { key: "subChapter", label: "زیر فصل" },
-                    { key: "partChapter", label: "جز فصل" },
-                    { key: "costCenter", label: "مرکز هزینه" },
-                  ].map(({ key, label }) => (
-                    <div key={key} className="flex items-center gap-2">
-                      <Label className="text-[11px] text-muted-foreground w-24 shrink-0">{label}</Label>
-                      <Input
-                        className="h-7 text-xs"
-                        value={notes1[key]}
-                        onChange={(e) => setNotes1((p) => ({ ...p, [key]: e.target.value }))}
-                      />
-                    </div>
-                  ))}
+            {/* فیلدهای کدینگ — چهار ستون */}
+            <div className="grid grid-cols-2 gap-x-10 gap-y-2.5 md:grid-cols-4" dir="rtl">
+              {[
+                { label: "گروه",  value: activeRow?.group      || "—" },
+                { label: "کل",    value: activeRow?.account    || "—" },
+                { label: "معین",  value: activeRow?.subAccount || "—" },
+                {
+                  label: "ماهیت",
+                  value: (() => {
+                    const row = activeRow;
+                    if (!row?.subAccount) return "—";
+                    const subs = getSubAccounts(row.group, row.account);
+                    const nature = subs.find((s) => s.code === row.subAccount)?.nature;
+                    return nature === "debit"  ? "بدهکار"  :
+                           nature === "credit" ? "بستانکار":
+                           nature === "both"   ? "هر دو"   : "—";
+                  })(),
+                },
+                ...(needsSanamaFields(activeRow?.subAccount)
+                  ? getRequiredRows(activeRow.subAccount).map((rowNum) => {
+                      const rowDef   = getSubAccountTitle(rowNum);
+                      const fieldKey = `sanama_${rowNum}`;
+                      const val      = activeRow?.sanamaFields?.[fieldKey];
+                      const defVal   = rowDef?.default ?? "0";
+                      return {
+                        label: rowDef?.title ?? `ردیف ${rowNum}`,
+                        value: val && val !== defVal ? String(val) : "—",
+                      };
+                    })
+                  : []),
+              ].map(({ label, value }) => (
+                <div key={label} className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground w-20 shrink-0">{label}:</span>
+                  <span className="text-sm font-semibold">{value}</span>
                 </div>
-              )}
+              ))}
+            </div>
 
-              {activeTab === 2 && (
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { key: "resourceName", label: "نام منبع" },
-                    { key: "personName", label: "نام بند" },
-                    { key: "contractParty", label: "طرف قرارداد" },
-                    { key: "contractSubject", label: "موضوع قرارداد" },
-                    { key: "details", label: "مشخصات تفصیلی" },
-                    { key: "personId", label: "نام شخص" },
-                    { key: "notifReceiver", label: "ابلاغ گیرنده" },
-                  ].map(({ key, label }) => (
-                    <div key={key} className="flex items-center gap-2">
-                      <Label className="text-[11px] text-muted-foreground w-24 shrink-0">{label}</Label>
-                      <Input
-                        className="h-7 text-xs"
-                        value={notes2[key]}
-                        onChange={(e) => setNotes2((p) => ({ ...p, [key]: e.target.value }))}
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* پنل راست - کدینگ انتخابی */}
-          <Card>
-            <CardContent className="p-3">
-              <p className="text-xs font-medium text-muted-foreground mb-3">اطلاعات کدینگ انتخابی</p>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { label: "گروه", value: activeRow?.group ? `${activeRow.group}` : "—" },
-                  { label: "کل", value: activeRow?.account ? `${activeRow.account}` : "—" },
-                  { label: "معین", value: activeRow?.subAccount ? `${activeRow.subAccount}` : "—" },
-                  {
-                    label: "ماهیت",
-                    value: (() => {
-                      const row = activeRow;
-                      if (!row?.subAccount) return "—";
-                      const subs = getSubAccounts(row.group, row.account);
-                      const nature = subs.find((s) => s.code === row.subAccount)?.nature;
-                      return nature === "debit" ? "بدهکار" :
-                        nature === "credit" ? "بستانکار" :
-                        nature === "both" ? "هر دو" : "—";
-                    })(),
-                  },
-                  ...(needsSanamaFields(activeRow?.subAccount)
-                    ? getRequiredRows(activeRow.subAccount).map((rowNum) => {
-                        const rowDef = getSubAccountTitle(rowNum);
-                        const fieldKey = `sanama_${rowNum}`;
-                        const val = activeRow?.sanamaFields?.[fieldKey];
-                        const defaultVal = rowDef?.default ?? "0";
-                        return {
-                          label: rowDef?.title ?? `ردیف ${rowNum}`,
-                          value: val && val !== defaultVal ? String(val) : "—",
-                        };
-                      })
-                    : []),
-                ].map(({ label, value }) => (
-                  <div key={label} className="flex items-center gap-2">
-                    <span className="text-[11px] text-muted-foreground w-16 shrink-0">{label}:</span>
-                    <span className="text-xs font-medium">{value}</span>
-                  </div>
-                ))}
-              </div>
+            {/* ردیف پایین: وضعیت + خروج/ورود */}
+            <div className="mt-4 flex flex-wrap items-center gap-6 border-t pt-3" dir="rtl">
 
               {/* وضعیت سند */}
-              <div className="mt-4 rounded-lg bg-muted/30 p-2">
-                <p className="text-[11px] text-muted-foreground mb-1">وضعیت فعلی سند</p>
-                <Badge className={`${statusColors[header.status]} text-white text-xs`}>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-muted-foreground">وضعیت سند:</span>
+                <Badge className={`${statusColors[header.status]} text-white text-xs px-3 py-1`}>
                   {header.status}
                 </Badge>
               </div>
 
               {/* خروج / ورود */}
-              <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                <div>
-                  <span className="block">خروج:</span>
-                  <Input className="h-7 text-xs mt-1" placeholder="—" readOnly />
+              <div className="flex items-center gap-4 mr-auto">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">خروج:</span>
+                  <Input className="h-8 text-sm w-32" placeholder="—" readOnly />
                 </div>
-                <div>
-                  <span className="block">ورود:</span>
-                  <Input className="h-7 text-xs mt-1" placeholder="—" readOnly />
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">ورود:</span>
+                  <Input className="h-8 text-sm w-32" placeholder="—" readOnly />
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* ===== نوار دکمه‌ها ===== */}

@@ -94,7 +94,6 @@ export const BASIC_INFO_SUB = [
     children: [
       { to: "/basic-info/bookkeeping/account-heads", label: "تعریف سرفصل حساب‌ها" },
       { to: "/basic-info/bookkeeping/fiscal-period", label: "تعریف دوره مالی" },
-      { to: "/basic-info/bookkeeping/persons", label: "تعریف اشخاص" },
       { to: "/basic-info/bookkeeping/detail", label: "تعریف تفصیلی" },
       { to: "/basic-info/bookkeeping/detail-moein", label: "ارتباط تفصیلی با معین" },
       {
@@ -439,15 +438,11 @@ export const TOP_NAV = [
       { to: "/assets/basic-info/depreciation-methods",  label: "روش‌های استهلاک" },
     ]},
     { to: "/assets/register", label: "ثبت اموال", children: [
-      { to: "/assets/register/new",        label: "ثبت مال جدید" },
-      { to: "/assets/register/label",      label: "الصاق برچسب / QR Code" },
-      { to: "/assets/register/delivery",   label: "تحویل به پرسنل" },
-      { to: "/assets/register/return",     label: "عودت مال" },
-      { to: "/assets/register/transfer",   label: "انتقال بین واحدها" },
-      { to: "/assets/register/repair",     label: "ارسال به تعمیر" },
-      { to: "/assets/register/scrap",      label: "اسقاط مال" },
-      { to: "/assets/register/sale",       label: "فروش مال" },
-      { to: "/assets/register/lost",       label: "ثبت مفقودی" },
+      { to: "/assets/register/new",      label: "ثبت مال جدید" },
+      { to: "/assets/register/delivery", label: "تحویل به پرسنل" },
+      { to: "/assets/register/scrap",    label: "اسقاط مال" },
+      { to: "/assets/register/sale",     label: "فروش مال" },
+      { to: "/assets/register/lost",     label: "ثبت مفقودی" },
     ]},
     { to: "/assets/depreciation", label: "استهلاک", children: [
       { to: "/assets/depreciation/setup",    label: "تنظیم استهلاک" },

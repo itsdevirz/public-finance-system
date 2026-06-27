@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>کاتالوگ سامانه جامع مالی دولتی</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;900&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Vazirmatn',Tahoma,sans-serif;background:#fff;color:#1e293b;line-height:1.7;font-size:13px}
+  @page{size:A4;margin:15mm 12mm}
+  @media print{
+    .no-print{display:none!important}
+    .page-break{page-break-before:always}
+    body{font-size:11px}
+  }
+
+  /* ─── Cover ─── */
+  .cover{min-height:100vh;background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 50%,#0f4c81 100%);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    color:#fff;text-align:center;padding:40px;position:relative;overflow:hidden}
+  .cover::before{content:'';position:absolute;top:-80px;left:-80px;width:400px;height:400px;
+    background:rgba(99,179,237,.08);border-radius:50%;pointer-events:none}
+  .cover::after{content:'';position:absolute;bottom:-60px;right:-60px;width:300px;height:300px;
+    background:rgba(99,179,237,.06);border-radius:50%;pointer-events:none}
+  .cover .badge{background:rgba(99,179,237,.2);border:1px solid rgba(99,179,237,.4);
+    color:#93c5fd;padding:6px 18px;border-radius:20px;font-size:11px;letter-spacing:1px;margin-bottom:24px;display:inline-block}
+  .cover h1{font-size:36px;font-weight:900;margin-bottom:12px;line-height:1.3}
+  .cover h1 span{color:#60a5fa}
+  .cover .subtitle{font-size:16px;color:#94a3b8;margin-bottom:32px}
+  .cover .version-box{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);
+    border-radius:12px;padding:20px 40px;display:inline-flex;gap:40px;margin-top:20px}
+  .cover .version-box div{text-align:center}
+  .cover .version-box .label{font-size:10px;color:#94a3b8;margin-bottom:4px}
+  .cover .version-box .value{font-size:15px;font-weight:700;color:#e2e8f0}
+
+  /* ─── Layout ─── */
+  .container{max-width:800px;margin:0 auto;padding:20px 30px}
+  h2.section-title{font-size:20px;font-weight:800;color:#1e3a5f;border-right:4px solid #3b82f6;
+    padding-right:12px;margin:32px 0 16px}
+  h3.sub-title{font-size:14px;font-weight:700;color:#1e40af;margin:20px 0 10px;
+    display:flex;align-items:center;gap:8px}
+  h3.sub-title::before{content:'';width:8px;height:8px;background:#3b82f6;border-radius:50%;display:inline-block;flex-shrink:0}
+
+  /* ─── Intro box ─── */
+  .intro-box{background:linear-gradient(135deg,#eff6ff,#e0f2fe);border:1px solid #bfdbfe;
+    border-radius:12px;padding:24px 28px;margin-bottom:24px}
+  .intro-box p{color:#1e40af;font-size:13px;line-height:2}
+
+  /* ─── Feature grid ─── */
+  .feature-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
+  .feature-card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;transition:.2s}
+  .feature-card:hover{border-color:#93c5fd;background:#eff6ff}
+  .feature-card .icon{font-size:22px;margin-bottom:8px}
+  .feature-card .title{font-size:12px;font-weight:700;color:#1e3a5f;margin-bottom:4px}
+  .feature-card .desc{font-size:11px;color:#64748b;line-height:1.6}
+
+  /* ─── Module block ─── */
+  .module{background:#fff;border:1px solid #e2e8f0;border-radius:12px;margin-bottom:16px;overflow:hidden}
+  .module-header{background:linear-gradient(90deg,#1e3a5f,#1e40af);color:#fff;
+    padding:12px 20px;display:flex;align-items:center;gap:12px}
+  .module-header .num{background:rgba(255,255,255,.2);width:28px;height:28px;border-radius:8px;
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0}
+  .module-header h3{font-size:14px;font-weight:700;margin:0}
+  .module-header p{font-size:11px;color:#bfdbfe;margin:2px 0 0}
+  .module-body{padding:14px 20px}
+  .sub-list{display:grid;grid-template-columns:repeat(2,1fr);gap:4px}
+  .sub-list li{list-style:none;font-size:11px;color:#475569;padding:4px 0;
+    border-bottom:1px dashed #f1f5f9;display:flex;align-items:center;gap:6px}
+  .sub-list li::before{content:'◂';color:#93c5fd;font-size:9px;flex-shrink:0}
+
+  /* ─── Spec table ─── */
+  .spec-table{width:100%;border-collapse:collapse;margin-bottom:16px}
+  .spec-table th{background:#1e3a5f;color:#fff;padding:10px 14px;text-align:right;font-size:12px;font-weight:600}
+  .spec-table td{padding:9px 14px;border-bottom:1px solid #f1f5f9;font-size:12px;color:#374151;vertical-align:top}
+  .spec-table tr:nth-child(even) td{background:#f8fafc}
+  .spec-table td:first-child{font-weight:600;color:#1e40af;width:35%}
+
+  /* ─── Tag list ─── */
+  .tag-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .tag{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;
+    border-radius:6px;padding:3px 10px;font-size:11px;font-weight:500}
+  .tag.green{background:#f0fdf4;border-color:#86efac;color:#166534}
+  .tag.amber{background:#fffbeb;border-color:#fcd34d;color:#92400e}
+
+  /* ─── Security section ─── */
+  .security-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+  .security-card{border-radius:10px;padding:16px;border:1px solid}
+  .security-card.blue{background:#eff6ff;border-color:#bfdbfe}
+  .security-card.green{background:#f0fdf4;border-color:#86efac}
+  .security-card.amber{background:#fffbeb;border-color:#fcd34d}
+  .security-card.red{background:#fef2f2;border-color:#fca5a5}
+  .security-card h4{font-size:12px;font-weight:700;margin-bottom:8px;color:#1e293b}
+  .security-card ul{padding-right:16px}
+  .security-card ul li{font-size:11px;color:#475569;margin-bottom:4px}
+
+  /* ─── Footer ─── */
+  .footer{text-align:center;padding:24px;background:#f8fafc;border-top:1px solid #e2e8f0;
+    color:#94a3b8;font-size:11px;margin-top:40px}
+  .footer strong{color:#1e3a5f}
+
+  /* ─── Print button ─── */
+  .print-btn{position:fixed;bottom:30px;left:30px;background:#1e40af;color:#fff;
+    border:none;padding:12px 24px;border-radius:10px;font-family:inherit;font-size:13px;
+    cursor:pointer;box-shadow:0 4px 20px rgba(30,64,175,.4);z-index:999;transition:.2s}
+  .print-btn:hover{background:#1d4ed8;transform:translateY(-2px)}
+
+  /* ─── Divider ─── */
+  .divider{border:none;border-top:2px dashed #e2e8f0;margin:28px 0}
+</style>
+</head>
+<body>
+
+<!-- ══════════ COVER ══════════ -->
+<div class="cover">
+  <div class="badge">نسخه ۱.۰ — ۱۴۰۵</div>
+  <h1>سامانه جامع<br/><span>مالی دولتی</span></h1>
+  <p class="subtitle">راهکار یکپارچه مدیریت مالی، اعتباری، اموال و قراردادهای دستگاه‌های اجرایی</p>
+  <div class="version-box">
+    <div><div class="label">نسخه نرم‌افزار</div><div class="value">۱.۰.۰</div></div>
+    <div><div class="label">معماری</div><div class="value">Web-based</div></div>
+    <div><div class="label">استاندارد</div><div class="value">سناما</div></div>
+    <div><div class="label">سال تولید</div><div class="value">۱۴۰۵</div></div>
+  </div>
+</div>
+
+<!-- ══════════ BODY ══════════ -->
+<div class="container">
+
+<!-- دکمه چاپ -->
+<button class="print-btn no-print" onclick="window.print()">🖨️ ذخیره PDF</button>
+
+<!-- معرفی -->
+<h2 class="section-title">معرفی سامانه</h2>
+<div class="intro-box">
+  <p>
+    سامانه جامع مالی دولتی یک راهکار نرم‌افزاری <strong>تحت وب</strong> است که به‌منظور
+    <strong>مدیریت یکپارچه</strong> فرآیندهای مالی، بودجه‌ای، اعتباری، اموال و قراردادهای
+    دستگاه‌های اجرایی طراحی و پیاده‌سازی شده است. این سامانه با رعایت کامل
+    <strong>الزامات سناما</strong> (سامانه نظارت و مدیریت اموال) و استانداردهای بین‌المللی
+    حسابداری دولتی، امکان پایش، کنترل و گزارش‌گیری دقیق از منابع و مصارف سازمان را فراهم
+    می‌آورد.
+  </p>
+</div>
+
+<!-- قابلیت‌های کلیدی -->
+<h2 class="section-title">قابلیت‌های کلیدی</h2>
+<div class="feature-grid">
+  <div class="feature-card">
+    <div class="icon">🏦</div>
+    <div class="title">مدیریت اعتبارات</div>
+    <div class="desc">موافقت‌نامه، تخصیص، تامین اعتبار، دریافت وجه با پشتیبانی کامل از ساختار بودجه‌ای</div>
+  </div>
+  <div class="feature-card">
+    <div class="icon">📄</div>
+    <div class="title">صدور سند حسابداری</div>
+    <div class="desc">صدور سند دستی، اتوماتیک، حقوق و اموال با قالب‌بندی انعطاف‌پذیر</div>
+  </div>
+  <div class="feature-card">
+    <div class="icon">🏢</div>
+    <div class="title">سیستم اموال</div>
+    <div class="desc">ثبت، برچسب‌گذاری، استهلاک، تحویل به پرسنل و گزارش‌های جامع اموال</div>
+  </div>
+  <div class="feature-card">
+    <div class="icon">📑</div>
+    <div class="title">مدیریت قراردادها</div>
+    <div class="desc">ثبت، پایش و مدیریت کسور قراردادها با امکان افزایش/کاهش ۲۵٪</div>
+  </div>
+  <div class="feature-card">
+    <div class="icon">🏛️</div>
+    <div class="title">دفترداری</div>
+    <div class="desc">دفتر کل، معین، روزنامه، تراز عملیاتی و صورت‌های مالی استاندارد</div>
+  </div>
+  <div class="feature-card">
+    <div class="icon">🏦</div>
+    <div class="title">مدیریت چک و بانک</div>
+    <div class="desc">صدور چک، پرداخت، مغایرت‌گیری بانکی و حواله الکترونیکی</div>
+  </div>
+  <div class="feature-card">
+    <div class="icon">🔒</div>
+    <div class="title">تضمینات</div>
+    <div class="desc">ثبت و پایش ضمانت‌نامه‌های قرارداد و اشخاص با تاریخ انقضا</div>
+  </div>
+  <div class="feature-card">
+    <div class="icon">💰</div>
+    <div class="title">سپرده‌ها</div>
+    <div class="desc">ثبت، استرداد و پایش سپرده‌ها با ثبت خودکار از سند</div>
+  </div>
+  <div class="feature-card">
+    <div class="icon">📊</div>
+    <div class="title">گزارش‌ساز</div>
+    <div class="desc">گزارش‌ساز پارامتریک با قابلیت تعریف و تنظیم گزارش‌های سفارشی</div>
+  </div>
+</div>
+
+<hr class="divider" />
+
+<!-- ══ ماژول‌ها ══ -->
+<h2 class="section-title">ماژول‌های سامانه</h2>
+
+<!-- ۱ اطلاعات پایه -->
+<div class="module">
+  <div class="module-header">
+    <div class="num">۱</div>
+    <div>
+      <h3>اطلاعات پایه و تعاریف</h3>
+      <p>پایه‌گذاری ساختار مالی و سازمانی دستگاه</p>
+    </div>
+  </div>
+  <div class="module-body">
+    <ul class="sub-list">
+      <li>تعریف سرفصل حساب‌ها (کل، معین، تفصیلی)</li>
+      <li>تعریف اشخاص حقیقی و حقوقی </li>
+      <li>تعریف بانک و حساب‌های بانکی</li>
+      <li>تعریف اعتبار (مصوب / ابلاغی)</li>
+      <li>تعریف فصول، زیرفصول و جز فصول بودجه‌ای</li>
+      <li>تعریف منابع، بند و اجزا</li>
+      <li>تعریف معاونت‌ها و ادارات کل</li>
+      <li>تعریف برنامه، طرح، فعالیت و پروژه</li>
+      <li>تعریف عاملین زیرحساب</li>
+      <li>تعریف انواع سند و انواع پرداخت</li>
+      <li>تعریف انواع کسور قراردادها</li>
+      <li>تعریف دوره مالی و مرکز هزینه</li>
+      <li>الزامات سناما </li>
+      <li>تعریف اوراق بهادار و قیمت واحد</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ۲ اعتبارات -->
+<div class="module">
+  <div class="module-header">
+    <div class="num">۲</div>
+    <div>
+      <h3>مدیریت اعتبارات</h3>
+      <p>فرآیند کامل موافقت‌نامه، تخصیص و تامین اعتبار</p>
+    </div>
+  </div>
+  <div class="module-body">
+    <ul class="sub-list">
+      <li>موافقت‌نامه بودجه‌ای</li>
+      <li>تخصیص اعتبار (با و بدون سند)</li>
+      <li>دریافت وجه (با و بدون سند)</li>
+      <li>تامین اعتبار — جستجو، کپی، ادغام</li>
+      <li>تامین اعتبار حقوق از اکسل</li>
+      <li>درخواست ابلاغ و مدیریت ابلاغ‌گیرندگان</li>
+      <li>گزارش اعتبارات به تفکیک برنامه / معاونت</li>
+      <li>دفاتر اعتبارات (برنامه، قرارداد، عامل)</li>
+      <li>گزارش جامع اعتبارات و گزارش تامین</li>
+      <li>عاملین ذیرحساب — ارسال و تایید اعتبار</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ۳ تنظیم اسناد -->
+<div class="module">
+  <div class="module-header">
+    <div class="num">۳</div>
+    <div>
+      <h3>تنظیم اسناد حسابداری</h3>
+      <p>صدور، جستجو و مدیریت اسناد مالی</p>
+    </div>
+  </div>
+  <div class="module-body">
+    <ul class="sub-list">
+      <li>صدور سند دستی با قالب آزاد</li>
+      <li>صدور سند اتوماتیک محاسباتی</li>
+      <li>صدور سند حقوق</li>
+      <li>صدور سند اموال</li>
+      <li>فرم محاسبه با قالب‌بندی سفارشی</li>
+      <li>جستجو در اسناد</li>
+      <li>کپی و انتقال اسناد</li>
+      <li>ثبت درآمد و سند درآمدی</li>
+      <li>ثبت اوراق بهادار و توزیع و وصول</li>
+      <li>گزارش اسناد و مقایسه‌ای تامین و سند</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ۴ صدور چک -->
+<div class="module">
+  <div class="module-header">
+    <div class="num">۴</div>
+    <div>
+      <h3>صدور چک و مدیریت بانک</h3>
+      <p>مدیریت کامل دریافت، پرداخت و مغایرت بانکی</p>
+    </div>
+  </div>
+  <div class="module-body">
+    <ul class="sub-list">
+      <li>دریافت وجه — صدور چک</li>
+      <li>پرداخت با چک و بدون چک</li>
+      <li>ابطال پرداخت و بازگشت چک باطله</li>
+      <li>تحویل چک — فعال/غیرفعال‌سازی</li>
+      <li>چک تجمیعی و پرداخت گروهی</li>
+      <li>حواله الکترونیکی و گروهی</li>
+      <li>دفاتر بانک (عادی و تفکیکی)</li>
+      <li>گزارش موجودی و چک‌های استفاده‌شده</li>
+      <li>مغایرت‌گیری بانکی خودکار</li>
+      <li>ثبت و چاپ فیش‌های بانکی</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ۵ دفترداری -->
+<div class="module">
+  <div class="module-header">
+    <div class="num">۵</div>
+    <div>
+      <h3>دفترداری و تنظیم حساب</h3>
+      <p>گزارش‌های مالی استاندارد و صورت‌های مالی دولتی</p>
+    </div>
+  </div>
+  <div class="module-body">
+    <ul class="sub-list">
+      <li>دفتر کل، معین و روزنامه</li>
+      <li>مدل ۱۳ و دفتر تفصیلی</li>
+      <li>تراز عملیاتی در حالت‌های مختلف</li>
+      <li>تراز معین/فصول</li>
+      <li>سامانه سماد (الف-ب)</li>
+      <li>صورت وضعیت مالی (ترازنامه)</li>
+      <li>صورت تغییرات وضعیت مالی</li>
+      <li>مقایسه بودجه عمومی و عملکرد تلفیقی</li>
+      <li>تفریغ بودجه و تفریغ تجمیعی</li>
+      <li>مغایرت بانکی — خواندن صورت‌حساب</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ۶ قراردادها -->
+<div class="module">
+  <div class="module-header">
+    <div class="num">۶</div>
+    <div>
+      <h3>مدیریت قراردادها</h3>
+      <p>چرخه کامل قرارداد از ثبت تا تسویه</p>
+    </div>
+  </div>
+  <div class="module-body">
+    <ul class="sub-list">
+      <li>ثبت قراردادها و پیش‌نویس</li>
+      <li>تعریف انواع کسور و کسور هر قرارداد</li>
+      <li>ثبت افزایش و کاهش ۲۵٪</li>
+      <li>ثبت متمم قرارداد</li>
+      <li>کارت قرارداد و گزارش‌های طرف قرارداد</li>
+      <li>نرخ حفظ قدرت خرید</li>
+      <li>نرخ جرائم و محاسبه جرائم</li>
+      <li>صورت پرداخت قراردادها</li>
+      <li>وضعیت قراردادها</li>
+      <li>تعریف طرف قرارداد</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ۷ تضمینات -->
+<div class="module">
+  <div class="module-header">
+    <div class="num">۷</div>
+    <div>
+      <h3>سیستم تضمینات</h3>
+      <p>ثبت و پایش ضمانت‌نامه‌ها و تضمینات</p>
+    </div>
+  </div>
+  <div class="module-body">
+    <ul class="sub-list">
+      <li>تعریف انواع تضمینات</li>
+      <li>ثبت ضمانت‌نامه قرارداد</li>
+      <li>ثبت ضمانت‌نامه اشخاص</li>
+      <li>پایش تاریخ انقضا</li>
+      <li>درخواست تمدید گروهی</li>
+      <li>سند اتوماتیک ضمانت</li>
+      <li>گزارش ضمانت‌نامه‌ها بر اساس تاریخ</li>
+      <li>گزارش وضعیت تضمینات</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ۸ سیستم اموال -->
+<div class="module">
+  <div class="module-header">
+    <div class="num">۸</div>
+    <div>
+      <h3>سیستم اموال دولتی</h3>
+      <p>مدیریت کامل چرخه عمر دارایی‌های سازمان</p>
+    </div>
+  </div>
+  <div class="module-body">
+    <h3 class="sub-title">اطلاعات پایه</h3>
+    <ul class="sub-list">
+      <li>تعریف گروه اموال با روش استهلاک</li>
+      <li>تعریف زیرگروه اموال</li>
+      <li>تعریف نوع مال (مصرفی/غیرمصرفی)</li>
+      <li>تعریف ماهیت مال (منقول/غیرمنقول)</li>
+      <li>تعریف واحد اندازه‌گیری</li>
+      <li>تعریف مکان‌ها (ساختمان/طبقه/اتاق)</li>
+      <li>تعریف تامین‌کنندگان</li>
+      <li>روش‌های استهلاک (خط مستقیم، نزولی، مجموع سنوات)</li>
+    </ul>
+    <h3 class="sub-title" style="margin-top:12px">ثبت و عملیات اموال</h3>
+    <ul class="sub-list">
+      <li>ثبت مال جدید با اطلاعات کامل</li>
+      <li>الصاق برچسب و QR Code</li>
+      <li>تحویل به پرسنل و عودت</li>
+      <li>انتقال بین واحدها</li>
+      <li>ارسال به تعمیر</li>
+      <li>اسقاط و فروش مال</li>
+      <li>ثبت مفقودی</li>
+      <li>محاسبه خودکار استهلاک ماهانه/سالانه</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ۹ سیستم انبار -->
+<div class="module">
+  <div class="module-header">
+    <div class="num">۹</div>
+    <div>
+      <h3>سیستم انبار</h3>
+      <p>مدیریت رسید، حواله، موجودی و انبارگردانی</p>
+    </div>
+  </div>
+  <div class="module-body">
+    <ul class="sub-list">
+      <li>تعریف کالا، گروه و بارکد</li>
+      <li>تعریف انبارها</li>
+      <li>رسید انبار (خرید، عودت، انتقال)</li>
+      <li>حواله انبار (مصرف، تحویل، اسقاط)</li>
+      <li>درخواست کالا و تایید درخواست</li>
+      <li>انتقال بین انبارها</li>
+      <li>انبارگردانی و اختلاف موجودی</li>
+      <li>گزارش موجودی، گردش و کمبود</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ۱۰ حقوق و دستمزد -->
+<div class="module">
+  <div class="module-header">
+    <div class="num">۱۰</div>
+    <div>
+      <h3>سیستم حقوق و دستمزد</h3>
+      <p>محاسبه و پرداخت حقوق کارکنان</p>
+    </div>
+  </div>
+  <div class="module-body">
+    <ul class="sub-list">
+      <li>تعریف کارمندان و قراردادها</li>
+      <li>ثبت حکم‌های کارگزینی</li>
+      <li>ثبت حضور و غیاب، مرخصی، ماموریت</li>
+      <li>محاسبه حقوق ماهانه</li>
+      <li>جدول مالیاتی و بیمه</li>
+      <li>فیش حقوقی و چاپ انبوه</li>
+      <li>مدیریت وام و مساعده</li>
+      <li>گزارش‌های بیمه، مالیات، اضافه‌کاری</li>
+    </ul>
+  </div>
+</div>
+
+<hr class="divider page-break" />
+
+<!-- مشخصات فنی -->
+<h2 class="section-title">مشخصات فنی</h2>
+<table class="spec-table">
+  <tr><th>مشخصه</th><th>جزئیات</th></tr>
+  <tr><td>معماری</td><td>Single Page Application — Client/Server مجزا</td></tr>
+  <tr><td>Frontend</td><td>React + Vite + TailwindCSS + shadcn/ui</td></tr>
+  <tr><td>Backend</td><td>Node.js + TypeScript + Hono</td></tr>
+  <tr><td>پایگاه داده</td><td>MongoDB</td></tr>
+  <tr><td>پشتیبانی مرورگر</td><td>Chrome 90+، Firefox 88+، Edge 90+، Safari 14+</td></tr>
+  <tr><td>زبان رابط کاربری</td><td>فارسی — RTL کامل</td></tr>
+  <tr><td>استانداردهای پشتیبانی‌شده</td><td>سناما (سامانه نظارت مالی)، ساختار بودجه‌ریزی برنامه‌ای</td></tr>
+  <tr><td>قابلیت چاپ</td><td>گزارش‌های قابل چاپ و خروجی Excel در تمام ماژول‌ها</td></tr>
+  <tr><td>پشتیبان‌گیری</td><td>پشتیبان‌گیری خودکار با امکان بازیابی</td></tr>
+  <tr><td>نصب</td><td>اجرای اسکریپت: setup</td></tr>
+</table>
+
+<!-- امنیت -->
+<h2 class="section-title">ویژگی‌های امنیتی</h2>
+<div class="security-grid">
+  <div class="security-card blue">
+    <h4>🔐 احراز هویت و دسترسی</h4>
+    <ul>
+      <li>session با انقضای خودکار</li>
+      <li>تعریف گروه کاربران و نقش‌ها</li>
+      <li>کنترل دسترسی سطح ماژول</li>
+      <li>تغییر رمز عبور اجباری</li>
+    </ul>
+  </div>
+  <div class="security-card green">
+    <h4>📋 حسابرسی و پایش</h4>
+    <ul>
+      <li>لاگ کامل عملیات کاربران</li>
+      <li>مشاهده عملکرد کاربر</li>
+      <li>کنترل هوشمند تراز حساب</li>
+      <li>بررسی الزامات اسناد</li>
+    </ul>
+  </div>
+  <div class="security-card amber">
+    <h4>🔄 یکپارچگی داده</h4>
+    <ul>
+      <li>کنترل موجودی حساب و برنامه/طرح</li>
+      <li>کنترل تامین اعتبار</li>
+      <li>تصویب گروهی اسناد</li>
+      <li>گروه امضا برای اسناد مهم</li>
+    </ul>
+  </div>
+  <div class="security-card red">
+    <h4>💾 پشتیبان و بازیابی</h4>
+    <ul>
+      <li>پشتیبان‌گیری خودکار زمان‌بندی‌شده</li>
+      <li>بازیابی نقطه‌ای (Point-in-time)</li>
+      <li>مدیریت بروزرسانی</li>
+      <li>تنظیمات امنیتی سیستم</li>
+    </ul>
+  </div>
+</div>
+
+<hr class="divider" />
+
+<!-- ویژگی‌های تمایزی -->
+<h2 class="section-title">ویژگی‌های تمایزی</h2>
+<div class="tag-list">
+  <span class="tag green">✓ رعایت کامل الزامات سناما</span>
+  <span class="tag green">✓ کد ۱۶ رقمی استاندارد</span>
+  <span class="tag green">✓ پشتیبانی از شماره شبا</span>
+  <span class="tag green">✓ صدور سند اتوماتیک از فرآیندها</span>
+  <span class="tag green">✓ گزارش‌ساز سفارشی پارامتریک</span>
+  <span class="tag green">✓ رابط کاربری کاملاً فارسی RTL</span>
+  <span class="tag green">✓ سازگار با استانداردهای حسابداری دولتی</span>
+  <span class="tag amber">◎ پایش لحظه‌ای وضعیت اعتبارات</span>
+  <span class="tag amber">◎ محاسبه خودکار استهلاک اموال</span>
+  <span class="tag amber">◎ یکپارچگی سیستم اموال، انبار و حسابداری</span>
+  <span class="tag amber">◎ مدیریت چرخه کامل قراردادها</span>
+  <span class="tag amber">◎ پشتیبانی از تعدد عاملین ذیرحساب</span>
+</div>
+
+<hr class="divider" />
+
+<!-- مناسب برای -->
+<h2 class="section-title">مناسب برای</h2>
+<div class="feature-grid">
+  <div class="feature-card">
+    <div class="icon">🏛️</div>
+    <div class="title">وزارتخانه‌ها</div>
+    <div class="desc">مدیریت اعتبارات وزارتی و زیرمجموعه‌ها با پشتیبانی از ساختار سلسله‌مراتبی</div>
+  </div>
+  <div class="feature-card">
+    <div class="icon">🏢</div>
+    <div class="title">سازمان‌های دولتی</div>
+    <div class="desc">پوشش کامل فرآیندهای مالی دستگاه‌های اجرایی مشمول قانون محاسبات عمومی</div>
+  </div>
+  <div class="feature-card">
+    <div class="icon">🏙️</div>
+    <div class="title">شهرداری‌ها</div>
+    <div class="desc">مدیریت مالی شهری با پشتیبانی از پروژه‌های عمرانی و اموال شهری</div>
+  </div>
+</div>
+
+</div><!-- /container -->
+
+<!-- Footer -->
+<div class="footer">
+  <strong>سامانه جامع مالی دولتی</strong> — نسخه ۱.۰.۰ — ۱۴۰۵<br/>
+  این سند محرمانه بوده و صرفاً جهت ارائه به آزمایشگاه آزمون و ارزیابی امنیتی تجهیزات شبکه و امنیت دانشگاه صنعتی شریف تهیه شده است.
+</div>
+
+<script>
+  // Auto-open print dialog if query param ?print=1
+  if(new URLSearchParams(location.search).get('print')==='1') window.print();
+</script>
+</body>
+</html>
