@@ -39,6 +39,7 @@ const Payroll = lazy(() => import("@/pages/Payroll"));
 const PayrollDashboard = lazy(() => import("@/pages/PayrollDashboard"));
 const PayrollCalculate = lazy(() => import("@/pages/PayrollCalculate"));
 const ManualDocument = lazy(() => import("@/pages/ManualDocument"));
+const DocumentsList = lazy(() => import("@/pages/DocumentsList"));
 const AiChat = lazy(() => import("@/pages/AiChat"));
 
 /** صفحاتی که پیاده‌سازی شده‌اند — بقیه خودکار Placeholder می‌شوند */
@@ -60,7 +61,7 @@ export const PAGE_COMPONENTS = {
   "/document-setup/manual-doc": ManualDocument,
   "/document-setup/auto-doc":   DocumentSetup,
   "/document-setup/copy-doc":   DocumentSetup,
-  "/document-setup/docs-list":  DocumentSetup,
+  "/document-setup/docs-list":  DocumentsList,
   "/review": Review,
   "/credits": Credits,
   "/credits/agreements": Credits,
