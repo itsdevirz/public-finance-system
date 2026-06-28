@@ -1,0 +1,195 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* پس‌زمینه مرواریدی ملایم و لوکس برای درخشش المان‌ها */
+    --background: 210 33% 98%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    /* فیروزه‌ای/زمردی تیره اقیانوسی — نماد رشد مالی، امنیت و شکوه */
+    --primary: 182 75% 28%;
+    --primary-foreground: 0 0% 100%;
+
+    /* سایه ملایم فیروزه‌ای برای المان‌های ثانویه */
+    --secondary: 182 25% 92%;
+    --secondary-foreground: 182 75% 28%;
+    
+    --muted: 220 16% 94%;
+    --muted-foreground: 220 12% 45%;
+    
+    /* طلایی/کهربایی امپریال — رنگ خاص و جذاب برای تاکیدها */
+    --accent: 38 92% 52%;
+    --accent-foreground: 222 47% 11%;
+
+    --destructive: 0 80% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 20% 89%;
+    --input: 220 20% 89%;
+    --ring: 182 75% 28%;
+    --radius: 0.85rem;
+
+    /* سایدبار — سورمه‌ای تیره شب (کنتراست فوق‌العاده با محیط روشن) */
+    --sidebar-background: 222 47% 11%;
+    --sidebar-foreground: 210 33% 95%;
+    --sidebar-accent: 182 75% 20%;
+    --sidebar-border: 222 40% 18%;
+    --sidebar-primary: 38 92% 52%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    direction: rtl;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer components {
+  .page-container {
+    @apply mx-auto max-w-7xl px-4 py-6 md:px-6 md:py-8;
+  }
+
+  .page-title {
+    @apply mb-2 text-2xl font-bold text-primary border-r-[4px] border-accent pr-3.5 tracking-tight transition-all duration-300;
+  }
+
+  .card {
+    @apply rounded-xl border bg-card text-card-foreground shadow-sm p-6 mt-3 transition-all duration-300 hover:shadow-md hover:border-primary/20 backdrop-blur-sm bg-card/95;
+  }
+
+  .card h3 {
+    @apply text-lg font-bold text-primary mb-3.5 tracking-tight;
+  }
+
+  .tabs {
+    @apply flex gap-1.5 mb-5 border-b border-border pb-0 overflow-x-auto scrollbar-sidebar;
+  }
+
+  .tab-btn {
+    @apply px-4 py-2.5 text-sm font-medium text-muted-foreground bg-transparent border-0 border-b-2 border-transparent cursor-pointer -mb-px rounded-t-lg hover:text-primary hover:bg-primary/5 transition-all duration-200 whitespace-nowrap;
+  }
+
+  .tab-btn.active {
+    @apply text-primary font-bold border-b-2 border-accent bg-gradient-to-t from-primary/10 to-transparent;
+  }
+
+  .form-grid {
+    @apply grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-4 mb-4;
+  }
+
+  .form-group {
+    @apply flex flex-col gap-1.5;
+  }
+
+  .form-group label {
+    @apply text-sm font-semibold text-foreground/90;
+  }
+
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    @apply rounded-lg border border-input bg-background/80 px-3.5 py-2.5 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary focus:bg-background shadow-sm hover:border-primary/40;
+  }
+
+  .required {
+    @apply text-destructive ml-1 font-bold;
+  }
+
+  .form-actions {
+    @apply flex gap-3 mt-6 pt-4 border-t border-border/80;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-md transition-all duration-200 hover:bg-primary/90 hover:shadow-lg active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none hover:ring-2 hover:ring-primary/20;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center rounded-lg bg-secondary px-5 py-2.5 text-sm font-semibold text-secondary-foreground shadow-sm transition-all duration-200 hover:bg-secondary/80 hover:shadow active:scale-[0.98];
+  }
+
+  .data-table {
+    @apply w-full border-collapse mt-4 text-sm overflow-hidden rounded-xl border border-border shadow-sm bg-card;
+  }
+
+  .data-table th {
+    @apply bg-primary text-primary-foreground px-4 py-3 text-right font-semibold text-xs tracking-wider uppercase border-b border-primary/20;
+  }
+
+  .data-table td {
+    @apply px-4 py-3 border-b border-border text-right transition-colors duration-150 text-foreground/90 text-xs md:text-sm;
+  }
+
+  .data-table tbody tr {
+    @apply transition-colors duration-150 hover:bg-primary/[0.03] even:bg-muted/20;
+  }
+
+  .badge {
+    @apply inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-semibold shadow-sm transition-transform duration-200 hover:scale-105;
+  }
+
+  .badge-صادر       { @apply bg-blue-50 text-blue-700 border border-blue-200; }
+  .badge-پاس‌شده    { @apply bg-emerald-50 text-emerald-700 border border-emerald-200; }
+  .badge-ابطالی     { @apply bg-red-50 text-red-700 border border-red-200; }
+  .badge-برگشتی     { @apply bg-amber-50 text-amber-700 border border-amber-200; }
+  .badge-تجمیعی    { @apply bg-purple-50 text-purple-700 border border-purple-200; }
+
+  .balance-box {
+    @apply rounded-xl px-5 py-3 text-sm shadow-sm transition-all duration-200;
+  }
+
+  .balance-box.balanced {
+    @apply bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 text-emerald-900 shadow-sm;
+  }
+
+  .report-summary {
+    @apply flex gap-4 flex-wrap mt-3;
+  }
+
+  .report-card {
+    @apply flex-1 min-w-[150px] rounded-xl bg-card border border-border p-4 text-center transition-all duration-200 hover:border-primary/30 hover:shadow-md hover:-translate-y-0.5;
+  }
+
+  .report-label  { @apply text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wider; }
+  .report-count  { @apply text-xl font-extrabold text-primary; }
+  .report-amount { @apply text-xs font-medium text-accent-foreground mt-1 bg-accent/10 py-0.5 px-2 rounded-full inline-block; }
+}
+
+@layer utilities {
+  .scrollbar-sidebar {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--sidebar-primary) / 0.5) transparent;
+    scrollbar-gutter: stable;
+  }
+
+  .scrollbar-sidebar::-webkit-scrollbar { width: 4px; height: 4px; }
+
+  .scrollbar-sidebar::-webkit-scrollbar-track {
+    background: transparent;
+    margin-block: 8px;
+  }
+
+  .scrollbar-sidebar::-webkit-scrollbar-thumb {
+    background: hsl(var(--sidebar-primary) / 0.4);
+    border-radius: 9999px;
+    min-height: 28px;
+  }
+
+  .scrollbar-sidebar::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--sidebar-primary) / 0.7);
+  }
+}
