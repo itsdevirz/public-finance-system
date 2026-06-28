@@ -34,7 +34,7 @@ sanamaCodes.groups.forEach((g: any) => {
         title: child.title,
         type: "Detail",
         nature: child.nature,
-      });
+      })
     });
   });
 });
