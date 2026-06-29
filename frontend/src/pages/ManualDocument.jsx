@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { PageShell, PageHeader } from "@/components/layout/PageShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,8 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Plus, Trash2, Save, Printer, RotateCcw,
-  FileText, CheckCircle2, Ban,
+  FileText, CheckCircle2, Ban, X,
 } from "lucide-react";
+import api from "@/api";
+import { encrypt } from "@/lib/crypto";
+import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import sanamaCodes from "@/data/sanamaCodes.json";
 import subAccountTitles from "@/data/subAccountTitles.json";
 import sanamaRequirements from "@/data/sanamaRequirements.json";
@@ -319,6 +323,163 @@ export default function ManualDocument() {
   const activeRow = rows.find((r) => r.id === activeRowId) ?? rows[0];
   const showSanamaFields = needsSanamaFields(activeRow?.subAccount);
 
+  const location = useLocation();
+  const navigate = useNavigate();
+  const docId = location.state?.docId || new URLSearchParams(location.search).get("id");
+
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState(null);
+
+  useEffect(() => {
+    if (!docId) return;
+
+    let isMounted = true;
+    async function fetchDoc() {
+      setLoading(true);
+      try {
+        const res = await api.get(`/api/documents/${docId}`);
+        if (!isMounted) return;
+        const doc = res.data.data;
+        if (doc) {
+          setHeader({
+            fiscalYear: String(doc.fiscal_year || "1404"),
+            docNo: doc.document_number || "",
+            docDate: doc.document_date || today,
+            docType: doc.rawHeader?.docType || 
+                     (doc.document_type === "CLOSING" ? "اختتامیه" :
+                      doc.document_type === "TRANSFER" ? "دائم" : "موقت"),
+            access: doc.rawHeader?.access || "عادی",
+            desc: doc.description || "",
+            letterNo: doc.reference_number || "",
+            letterDate: doc.rawHeader?.letterDate || "",
+            status: doc.rawHeader?.status || (doc.status === "CONFIRMED" ? "پرداخت و دریافت" : "صدور سند"),
+          });
+
+          if (doc.rawRows && doc.rawRows.length > 0) {
+            setRows(doc.rawRows);
+            if (doc.rawRows[0]) setActiveRowId(doc.rawRows[0].id);
+          } else if (doc.lines && doc.lines.length > 0) {
+            const parsed = doc.lines.map((l, i) => {
+              const code = l.account_code || "";
+              const group = code.charAt(0) || "";
+              const account = code.substring(0, 4) || "";
+              return {
+                ...EMPTY_ROW,
+                id: i + 1,
+                group,
+                account,
+                subAccount: code,
+                debit: l.debit ? formatNumber(l.debit) : "",
+                credit: l.credit ? formatNumber(l.credit) : "",
+                desc: l.description || "",
+              };
+            });
+            setRows(parsed);
+            if (parsed[0]) setActiveRowId(parsed[0].id);
+          }
+        }
+      } catch (err) {
+        console.error("Error loading document:", err);
+        setMessage({ type: "error", text: "خطا در بارگذاری اطلاعات سند از سرور." });
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+
+    fetchDoc();
+    return () => { isMounted = false; };
+  }, [docId]);
+
+  async function handleSave() {
+    if (diff !== 0) {
+      setMessage({ type: "error", text: "سند تراز نیست! اختلاف بدهکار و بستانکار باید صفر باشد." });
+      return;
+    }
+
+    const validRows = rows.filter(r => r.group && r.account && r.subAccount);
+    if (validRows.length === 0) {
+      setMessage({ type: "error", text: "حداقل یک ردیف کامل (گروه، کل، معین) الزامی است." });
+      return;
+    }
+
+    setLoading(true);
+    setMessage(null);
+
+    try {
+      const sensitiveState = {
+        header,
+        rows: rows.map(r => ({
+          ...r,
+          account_name: getSubAccounts(r.group, r.account).find(s => s.code === r.subAccount)?.title || "",
+        })),
+      };
+
+      const encryptedHex = await encrypt(JSON.stringify(sensitiveState));
+
+      let docTypeMapped = "GENERAL_PAYMENT";
+      if (header.docType === "افتتاحیه" || header.docType === "اختتامیه") {
+        docTypeMapped = "CLOSING";
+      } else if (header.docType === "اصلاحی" || header.docType === "دائم") {
+        docTypeMapped = "TRANSFER";
+      }
+
+      let statusMapped = "DRAFT";
+      if (header.status === "رد شده") {
+        statusMapped = "CANCELLED";
+      } else if (["پرداخت و دریافت", "دفترداری", "اعتمادات", "بایگانی"].includes(header.status)) {
+        statusMapped = "CONFIRMED";
+      }
+
+      const payload = {
+        document_type: docTypeMapped,
+        fiscal_year: Number(header.fiscalYear) || 1404,
+        status: statusMapped,
+        ciphertext: encryptedHex,
+      };
+
+      const res = docId 
+        ? await api.put(`/api/documents/${docId}`, payload)
+        : await api.post("/api/documents", payload);
+      
+      setMessage({ 
+        type: "success", 
+        text: docId 
+          ? `تغییرات سند شماره ${res.data.data.document_number} با موفقیت ذخیره شد.`
+          : `سند با شماره ${res.data.data.document_number} با موفقیت ثبت شد و به صورت رمزنگاری‌شده ذخیره گردید.` 
+      });
+      
+      if (!docId && res.data.data.document_number) {
+        setH("docNo", res.data.data.document_number);
+      }
+    } catch (err) {
+      console.error("Save error:", err);
+      setMessage({ type: "error", text: err.response?.data?.message || "خطا در ثبت سند در سرور. اتصال را بررسی کنید." });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleNew() {
+    setHeader({
+      fiscalYear: "1404",
+      docNo: "",
+      docDate: today,
+      docType: "موقت",
+      access: "عادی",
+      desc: "",
+      letterNo: "",
+      letterDate: "",
+      status: "صدور سند",
+    });
+    const newId = Date.now();
+    setRows([{ ...EMPTY_ROW, id: newId }]);
+    setActiveRowId(newId);
+    setMessage(null);
+    if (docId) {
+      navigate("/document-setup/manual-doc", { replace: true });
+    }
+  }
+
   function setH(k, v) { setHeader((p) => ({ ...p, [k]: v })); }
 
   function addRow() {
@@ -369,7 +530,34 @@ export default function ManualDocument() {
 
   return (
     <PageShell>
-      <PageHeader title="صدور سند دستی" description="ثبت و ویرایش اسناد حسابداری" />
+      <PageHeader 
+        title={docId ? "ویرایش سند مالی" : "صدور سند دستی"} 
+        description={docId ? `ویرایش سند شماره ${header.docNo}` : "ثبت و ویرایش اسناد حسابداری"} 
+      />
+
+      {message && (
+        <div
+          className={`mb-4 flex items-center gap-2 rounded-xl border px-4 py-3 text-xs transition-all ${
+            message.type === "success"
+              ? "border-green-200 bg-green-50 text-green-800"
+              : "border-rose-200 bg-rose-50 text-rose-800"
+          }`}
+          dir="rtl"
+        >
+          {message.type === "success" ? (
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600" />
+          ) : (
+            <Ban className="h-4 w-4 shrink-0 text-rose-600" />
+          )}
+          <span>{message.text}</span>
+          <button
+            onClick={() => setMessage(null)}
+            className="mr-auto hover:opacity-80 transition-opacity"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
 
       {/* ===== هدر سند ===== */}
       <div>
@@ -388,7 +576,7 @@ export default function ManualDocument() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Label className={labelCls}>تاریخ سند</Label>
-                  <Input className={inputCls} value={header.docDate} onChange={(e) => setH("docDate", e.target.value)} />
+                  <PersianDatePicker className="h-8 text-xs rounded-md border bg-white focus:border-primary" value={header.docDate} onChange={(e) => setH("docDate", e.target.value)} />
                 </div>
               </div>
 
@@ -424,7 +612,7 @@ export default function ManualDocument() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Label className={labelCls}>تاریخ نامه</Label>
-                  <Input className={inputCls} value={header.letterDate} onChange={(e) => setH("letterDate", e.target.value)} />
+                  <PersianDatePicker className="h-8 text-xs rounded-md border bg-white focus:border-primary" value={header.letterDate} onChange={(e) => setH("letterDate", e.target.value)} />
                 </div>
               </div>
 
@@ -594,9 +782,14 @@ export default function ManualDocument() {
         <Card className="mt-3">
           <CardContent className="p-3">
             <div className="flex flex-wrap items-center gap-2">
-              <Button size="sm" className="gap-1.5 h-8 text-xs bg-green-600 hover:bg-green-700">
+              <Button
+                size="sm"
+                className="gap-1.5 h-8 text-xs bg-green-600 hover:bg-green-700"
+                onClick={handleSave}
+                disabled={loading}
+              >
                 <Save className="h-3.5 w-3.5" />
-                ثبت تغییرات
+                {loading ? "در حال ثبت..." : "ثبت تغییرات"}
               </Button>
               <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs">
                 <FileText className="h-3.5 w-3.5" />
@@ -610,7 +803,7 @@ export default function ManualDocument() {
                 <CheckCircle2 className="h-3.5 w-3.5" />
                 صدو حواله
               </Button>
-              <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs">
+              <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs" onClick={handleNew}>
                 <Plus className="h-3.5 w-3.5" />
                 جدید
               </Button>

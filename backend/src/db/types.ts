@@ -21,6 +21,7 @@ export interface JournalDocument {
   description?: string;
   reference_number?: string;
   lines: JournalLine[]; // embedded
+  ciphertext?: string;
 }
 
 // ─── Checks ───────────────────────────────────────────────────────────────────

@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { cn } from "@/lib/utils";
 import { useAssets } from "@/context/AssetContext";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 
 const TABS = [
   { key: "basic",        label: "اطلاعات پایه",  icon: Package    },
@@ -166,7 +167,7 @@ export default function AssetRegisterForm() {
                 <Field label="شماره سریال"><Input value={form.serialNumber} onChange={set("serialNumber")} className="h-8 text-sm font-mono" dir="ltr" /></Field>
                 <Field label="برند"><Input value={form.brand} onChange={set("brand")} className="h-8 text-sm" /></Field>
                 <Field label="مدل"><Input value={form.model} onChange={set("model")} className="h-8 text-sm" /></Field>
-                <Field label="تاریخ خرید"><Input value={form.purchaseDate} onChange={set("purchaseDate")} placeholder="۱۴۰۳/۰۱/۰۱" className="h-8 text-sm" /></Field>
+                <Field label="تاریخ خرید"><PersianDatePicker value={form.purchaseDate} onChange={set("purchaseDate")} placeholder="۱۴۰۳/۰۱/۰۱" className="h-8" /></Field>
                 <Field label="مبلغ خرید (ریال)"><Input value={form.purchaseAmount} onChange={set("purchaseAmount")} className="h-8 text-sm" placeholder="0" /></Field>
                 <Field label="تعداد"><Input value={form.quantity} onChange={set("quantity")} type="number" min="1" className="h-8 text-sm" /></Field>
                 <Field label="واحد"><SearchableSelect value={form.unit} onChange={v => setForm(f => ({...f, unit: v}))} options={UNITS} /></Field>
@@ -190,7 +191,7 @@ export default function AssetRegisterForm() {
                     <Field label="شماره برچسب" required><Input value={form.labelNumber} onChange={set("labelNumber")} className="h-8 text-sm font-mono" /></Field>
                     <Field label="QR Code"><Input value={form.qrCode} onChange={set("qrCode")} className="h-8 text-sm font-mono" dir="ltr" /></Field>
                     <Field label="بارکد"><Input value={form.barcode} onChange={set("barcode")} className="h-8 text-sm font-mono" dir="ltr" /></Field>
-                    <Field label="تاریخ الصاق"><Input value={form.labelDate} onChange={set("labelDate")} placeholder="۱۴۰۳/۰۱/۰۱" className="h-8 text-sm" /></Field>
+                    <Field label="تاریخ الصاق"><PersianDatePicker value={form.labelDate} onChange={set("labelDate")} placeholder="۱۴۰۳/۰۱/۰۱" className="h-8" /></Field>
                     <Field label="وضعیت برچسب"><SearchableSelect value={form.labelStatus} onChange={v => setForm(f => ({...f, labelStatus: v}))} options={[{value:"active",label:"فعال"},{value:"damaged",label:"آسیب‌دیده"},{value:"replaced",label:"تعویض شده"}]} /></Field>
                   </div>
                 </>
@@ -214,8 +215,8 @@ export default function AssetRegisterForm() {
               <div className="form-grid">
                 <Field label="نام پرسنل"><Input value={form.personnelName} onChange={set("personnelName")} className="h-8 text-sm" /></Field>
                 <Field label="کد پرسنلی"><Input value={form.personnelCode} onChange={set("personnelCode")} className="h-8 text-sm font-mono" /></Field>
-                <Field label="تاریخ تحویل"><Input value={form.deliveryDate} onChange={set("deliveryDate")} placeholder="۱۴۰۳/۰۱/۰۱" className="h-8 text-sm" /></Field>
-                <Field label="تاریخ عودت"><Input value={form.returnDate} onChange={set("returnDate")} className="h-8 text-sm" /></Field>
+                <Field label="تاریخ تحویل"><PersianDatePicker value={form.deliveryDate} onChange={set("deliveryDate")} placeholder="۱۴۰۳/۰۱/۰۱" className="h-8" /></Field>
+                <Field label="تاریخ عودت"><PersianDatePicker value={form.returnDate} onChange={set("returnDate")} className="h-8" /></Field>
                 <Field label="وضعیت تحویل"><SearchableSelect value={form.deliveryStatus} onChange={v => setForm(f => ({...f, deliveryStatus: v}))} options={[{value:"delivered",label:"تحویل داده شده"},{value:"returned",label:"عودت داده شده"},{value:"pending",label:"در انتظار"}]} /></Field>
               </div>
             </div>
@@ -247,7 +248,7 @@ export default function AssetRegisterForm() {
                   <SecTitle icon={Calculator} title="تنظیمات استهلاک" />
                   <div className="form-grid">
                     <Field label="روش استهلاک"><SearchableSelect value={form.depreciationMethod} onChange={v => setForm(f => ({...f, depreciationMethod: v}))} options={DEPREC_METHODS} /></Field>
-                    <Field label="تاریخ بهره‌برداری"><Input value={form.operationDate} onChange={set("operationDate")} placeholder="۱۴۰۳/۰۱/۰۱" className="h-8 text-sm" /></Field>
+                    <Field label="تاریخ بهره‌برداری"><PersianDatePicker value={form.operationDate} onChange={set("operationDate")} placeholder="۱۴۰۳/۰۱/۰۱" className="h-8" /></Field>
                     <Field label="عمر مفید (سال)"><Input value={form.usefulLife} onChange={set("usefulLife")} type="number" min="1" className="h-8 text-sm" /></Field>
                     <Field label="ارزش اسقاط (ریال)"><Input value={form.salvageValue} onChange={set("salvageValue")} className="h-8 text-sm" placeholder="0" /></Field>
                   </div>

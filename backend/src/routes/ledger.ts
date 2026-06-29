@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { ObjectId } from "mongodb";
 import { getDb } from "../db/index.js";
 import type { JournalDocument } from "../db/types.js";
+import { decryptDocument } from "../lib/crypto.js";
 
 const router = new Hono();
 
@@ -18,38 +19,40 @@ router.get("/", async (c) => {
     .find()
     .toArray();
 
-  const data = docs.flatMap((doc) =>
-    (doc.lines ?? []).map((line) => ({
-      doc_id: doc._id?.toHexString(),
-      doc_number: doc.document_number,
-      doc_date: doc.document_date,
-      doc_status: doc.status,
-      fiscal_year: doc.fiscal_year,
+  const data = docs.flatMap((doc) => {
+    const decrypted = decryptDocument(serialize(doc as Record<string, unknown>));
+    return (decrypted.lines ?? []).map((line: any) => ({
+      doc_id: decrypted._id,
+      doc_number: decrypted.document_number,
+      doc_date: decrypted.document_date,
+      doc_status: decrypted.status,
+      fiscal_year: decrypted.fiscal_year,
       ...line,
-    }))
-  );
+    }));
+  });
 
   return c.json({ data, message: "دفتر کل" });
 });
 
 // GET /api/ledger/balance — total debit vs credit
 router.get("/balance", async (c) => {
-  const result = await getDb()
+  const docs = await getDb()
     .collection<JournalDocument>("journal_documents")
-    .aggregate([
-      { $unwind: "$lines" },
-      {
-        $group: {
-          _id: null,
-          total_debit: { $sum: "$lines.debit" },
-          total_credit: { $sum: "$lines.credit" },
-        },
-      },
-    ])
+    .find()
     .toArray();
 
-  const totals = result[0] ?? { total_debit: 0, total_credit: 0 };
-  return c.json({ data: { total_debit: totals.total_debit, total_credit: totals.total_credit }, message: "تراز کل" });
+  let total_debit = 0;
+  let total_credit = 0;
+
+  for (const doc of docs) {
+    const decrypted = decryptDocument(serialize(doc as Record<string, unknown>));
+    for (const line of decrypted.lines ?? []) {
+      total_debit += line.debit ?? 0;
+      total_credit += line.credit ?? 0;
+    }
+  }
+
+  return c.json({ data: { total_debit, total_credit }, message: "تراز کل" });
 });
 
 export default router;

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 
 // ─── داده‌های نمونه ────────────────────────────────────────────────────────
 const BANKS = [
@@ -93,16 +94,12 @@ function StyledSelect({ value, onChange, options, disabled }) {
 
 function DateInput({ value, onChange, placeholder }) {
   return (
-    <div className="relative">
-      <Input
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder ?? "تاریخ را انتخاب کنید"}
-        className="h-10 text-sm pl-10 text-right"
-        dir="rtl"
-      />
-      <CalendarDays className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-    </div>
+    <PersianDatePicker
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder ?? "تاریخ را انتخاب کنید"}
+      className="h-10"
+    />
   );
 }
 

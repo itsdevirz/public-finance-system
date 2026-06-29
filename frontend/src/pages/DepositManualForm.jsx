@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 
 const DEPOSIT_TYPES = [
   { value: "performance",  label: "حسن انجام کار" },
@@ -75,18 +76,28 @@ export default function DepositManualForm() {
     </div>
   );
 
-  const TextField = ({ label, name, required, placeholder }) => (
+  const TextField = ({ label, name, required, placeholder, type }) => (
     <div className="form-group">
       <Label htmlFor={name} className="flex items-center gap-1">
         {label}{required && <span className="required">*</span>}
       </Label>
-      <Input
-        id={name}
-        value={form[name]}
-        onChange={set(name)}
-        placeholder={placeholder}
-        className={errors[name] ? "border-destructive focus:ring-destructive/30" : ""}
-      />
+      {type === "date" ? (
+        <PersianDatePicker
+          id={name}
+          value={form[name]}
+          onChange={set(name)}
+          placeholder={placeholder}
+          className={errors[name] ? "border-destructive focus:ring-destructive/30" : ""}
+        />
+      ) : (
+        <Input
+          id={name}
+          value={form[name]}
+          onChange={set(name)}
+          placeholder={placeholder}
+          className={errors[name] ? "border-destructive focus:ring-destructive/30" : ""}
+        />
+      )}
       {errors[name] && <p className="flex items-center gap-1 text-xs text-destructive"><AlertCircle className="h-3 w-3" />{errors[name]}</p>}
     </div>
   );
@@ -106,7 +117,7 @@ export default function DepositManualForm() {
           <CardContent>
             <div className="form-grid">
               <TextField label="شماره سند" name="docNumber" placeholder="خودکار تولید می‌شود" />
-              <TextField label="تاریخ سند" name="docDate" required placeholder="۱۴۰۳/۰۱/۰۱" />
+              <TextField label="تاریخ سند" name="docDate" required placeholder="۱۴۰۳/۰۱/۰۱" type="date" />
               <SelectField label="نوع سپرده" name="depositType" required options={DEPOSIT_TYPES} />
               <div className="form-group">
                 <Label htmlFor="contractNumber">شماره قرارداد مرتبط</Label>
@@ -129,7 +140,7 @@ export default function DepositManualForm() {
               <TextField label="نام واریزکننده" name="depositorName" required />
               <TextField label="کد ملی / شناسه" name="depositorCode" />
               <TextField label="مبلغ (ریال)" name="amount" required placeholder="۰" />
-              <TextField label="تاریخ سررسید" name="dueDate" placeholder="۱۴۰۴/۰۱/۰۱" />
+              <TextField label="تاریخ سررسید" name="dueDate" placeholder="۱۴۰۴/۰۱/۰۱" type="date" />
             </div>
           </CardContent>
         </Card>
@@ -144,7 +155,7 @@ export default function DepositManualForm() {
               <TextField label="نام بانک" name="bankName" required />
               <TextField label="شماره حساب" name="accountNumber" />
               <TextField label="شماره فیش/رسید" name="receiptNumber" required />
-              <TextField label="تاریخ فیش" name="receiptDate" required placeholder="۱۴۰۳/۰۱/۰۱" />
+              <TextField label="تاریخ فیش" name="receiptDate" required placeholder="۱۴۰۳/۰۱/۰۱" type="date" />
             </div>
             <Separator className="my-4" />
             <div className="form-group">

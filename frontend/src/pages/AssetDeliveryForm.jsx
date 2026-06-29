@@ -12,6 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAssets } from "@/context/AssetContext";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 
 // ─── نمونه داده تحویل‌ها ──────────────────────────────────────────────────────
 const SAMPLE_DATA = [
@@ -281,15 +282,15 @@ export default function AssetDeliveryForm() {
 
             {/* تاریخ تحویل */}
             <Field label="تاریخ تحویل" required>
-              <Input value={form.deliveryDate} onChange={set("deliveryDate")}
-                className="h-9 text-sm" placeholder="۱۴۰۳/۰۱/۰۱" />
+              <PersianDatePicker value={form.deliveryDate} onChange={set("deliveryDate")}
+                className="h-9" placeholder="۱۴۰۳/۰۱/۰۱" />
             </Field>
 
             {/* تاریخ عودت */}
             <Field label="تاریخ عودت">
-              <Input value={form.returnDate} onChange={set("returnDate")}
+              <PersianDatePicker value={form.returnDate} onChange={set("returnDate")}
                 disabled={form.status !== "returned"}
-                className="h-9 text-sm" placeholder="۱۴۰۳/۰۶/۰۱" />
+                className="h-9" placeholder="۱۴۰۳/۰۶/۰۱" />
             </Field>
 
             {/* یادداشت */}

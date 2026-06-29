@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import personTypesData from "@/data/sanamaTypes.json";
+import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 
 // ─── ساختار سلسله‌مراتبی از sanamaTypes.json ───────────────────────────────
 // personTypesData.personTypes => آرایه‌ای از بخش‌های اصلی (A,B,C,D,E)
@@ -511,7 +512,7 @@ export default function PersonsForm() {
                         <Input value={form.fatherName} onChange={set("fatherName")} className="h-8 text-sm" />
                       </Field>
                       <Field label="تاریخ تولد">
-                        <Input value={form.birthDate} onChange={set("birthDate")} className="h-8 text-sm" placeholder="۱۳۶۰/۰۱/۰۱" dir="ltr" />
+                        <PersianDatePicker value={form.birthDate} onChange={set("birthDate")} className="h-8" placeholder="۱۳۶۰/۰۱/۰۱" />
                       </Field>
                       <Field label="جنسیت">
                         <StyledSelect
@@ -621,21 +622,19 @@ export default function PersonsForm() {
                 <p className="text-xs font-bold text-primary mb-3 uppercase tracking-wide">اطلاعات مالیاتی</p>
                 <div className="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-4">
                   <Field label="تاریخ شروع ثبت‌نام مالیاتی">
-                    <Input
+                    <PersianDatePicker
                       value={form.taxRegStartDate}
                       onChange={set("taxRegStartDate")}
-                      className="h-8 text-sm"
+                      className="h-8"
                       placeholder="۱۴۰۳/۰۱/۰۱"
-                      dir="ltr"
                     />
                   </Field>
                   <Field label="تاریخ پایان ثبت‌نام مالیاتی">
-                    <Input
+                    <PersianDatePicker
                       value={form.taxRegEndDate}
                       onChange={set("taxRegEndDate")}
-                      className="h-8 text-sm"
+                      className="h-8"
                       placeholder="۱۴۰۳/۱۲/۲۹"
-                      dir="ltr"
                     />
                   </Field>
                   <Field label="مشمول ارزش افزوده">

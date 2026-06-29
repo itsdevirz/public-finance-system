@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 
 const GUARANTEE_TYPES = [
   { value: "bank",      label: "ضمانت‌نامه بانکی" },
@@ -68,12 +69,21 @@ export default function GuaranteeContractForm() {
         {required && <span className="required">*</span>}
       </Label>
       {children ?? (
-        <Input
-          id={name} type={type}
-          value={form[name]}
-          onChange={set(name)}
-          className={errors[name] ? "border-destructive focus:ring-destructive/30" : ""}
-        />
+        type === "date" ? (
+          <PersianDatePicker
+            id={name}
+            value={form[name]}
+            onChange={set(name)}
+            className={errors[name] ? "border-destructive focus:ring-destructive/30" : ""}
+          />
+        ) : (
+          <Input
+            id={name} type={type}
+            value={form[name]}
+            onChange={set(name)}
+            className={errors[name] ? "border-destructive focus:ring-destructive/30" : ""}
+          />
+        )
       )}
       {errors[name] && (
         <p className="flex items-center gap-1 text-xs text-destructive">
@@ -120,7 +130,7 @@ export default function GuaranteeContractForm() {
                   </p>
                 )}
               </Field>
-              <Field label="تاریخ قرارداد" name="contractDate" type="text" />
+              <Field label="تاریخ قرارداد" name="contractDate" type="date" />
               <Field label="طرف قرارداد" name="partyName" required />
               <Field label="کد طرف قرارداد" name="partyCode" />
             </div>
@@ -155,8 +165,8 @@ export default function GuaranteeContractForm() {
                 )}
               </Field>
               <Field label="شماره ضمانت‌نامه" name="guaranteeNumber" required />
-              <Field label="تاریخ صدور" name="issueDate" required type="text" />
-              <Field label="تاریخ انقضا" name="expiryDate" required type="text" />
+              <Field label="تاریخ صدور" name="issueDate" required type="date" />
+              <Field label="تاریخ انقضا" name="expiryDate" required type="date" />
               <Field label="مبلغ (ریال)" name="amount" required type="text" />
               <Field label="بانک/موسسه صادرکننده" name="issuingBank" />
               <Field label="نام شعبه" name="branchName" />

@@ -4,7 +4,7 @@ import {
   Search, RefreshCw, FileText, Eye, ChevronLeft,
   ChevronDown, ChevronUp, X, Filter, AlertTriangle,
   CheckCircle2, Clock, Ban, Hash, CalendarDays,
-  Layers, ChevronsUpDown,
+  Layers, ChevronsUpDown, Edit3, Trash2,
 } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import api from "@/api";
+import { toPersianDigits } from "@/components/ui/persian-date-picker";
 
 // ─── ثوابت ────────────────────────────────────────────────────────────────────
 const DOC_TYPE_LABEL = {
@@ -78,7 +79,7 @@ function DocDetailModal({ doc, onClose }) {
           {[
             { label: "شماره سند",  value: doc.document_number, mono: true },
             { label: "دوره مالی",  value: doc.fiscal_year, mono: true },
-            { label: "تاریخ سند",  value: doc.document_date ?? "—" },
+            { label: "تاریخ سند",  value: doc.document_date ? toPersianDigits(doc.document_date) : "—" },
             { label: "مرجع",       value: doc.reference_number ?? "—", mono: true },
           ].map(({ label, value, mono }) => (
             <div key={label} className="flex flex-col gap-0.5">
@@ -122,7 +123,8 @@ function DocDetailModal({ doc, onClose }) {
                 <thead>
                   <tr className="border-b bg-muted/40">
                     <th className="px-3 py-2.5 text-center font-semibold text-muted-foreground w-10">#</th>
-                    <th className="px-3 py-2.5 text-right font-semibold text-muted-foreground">کد حساب</th>
+                    <th className="px-3 py-2.5 text-right font-semibold text-muted-foreground">کد کل</th>
+                    <th className="px-3 py-2.5 text-right font-semibold text-muted-foreground">کد معین</th>
                     <th className="px-3 py-2.5 text-right font-semibold text-muted-foreground">نام حساب</th>
                     <th className="px-3 py-2.5 text-right font-semibold text-muted-foreground text-blue-600">بدهکار (ریال)</th>
                     <th className="px-3 py-2.5 text-right font-semibold text-muted-foreground text-rose-600">بستانکار (ریال)</th>
@@ -130,20 +132,25 @@ function DocDetailModal({ doc, onClose }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {doc.lines.map((line, i) => (
-                    <tr key={i} className="border-b last:border-0 hover:bg-muted/20 transition-colors">
-                      <td className="px-3 py-2 text-center text-muted-foreground/60">{i + 1}</td>
-                      <td className="px-3 py-2 font-mono text-foreground/80">{line.account_code ?? "—"}</td>
-                      <td className="px-3 py-2 text-foreground/80">{line.account_name ?? "—"}</td>
-                      <td className="px-3 py-2 font-mono text-blue-700 font-medium">{line.debit ? line.debit.toLocaleString("fa-IR") : "—"}</td>
-                      <td className="px-3 py-2 font-mono text-rose-700 font-medium">{line.credit ? line.credit.toLocaleString("fa-IR") : "—"}</td>
-                      <td className="px-3 py-2 text-muted-foreground">{line.description ?? "—"}</td>
-                    </tr>
-                  ))}
+                  {doc.lines.map((line, i) => {
+                    const generalCode = line.account_code ? line.account_code.substring(0, 4) : "—";
+                    const detailCode = line.account_code || "—";
+                    return (
+                      <tr key={i} className="border-b last:border-0 hover:bg-muted/20 transition-colors">
+                        <td className="px-3 py-2 text-center text-muted-foreground/60">{i + 1}</td>
+                        <td className="px-3 py-2 font-mono text-foreground/70">{generalCode}</td>
+                        <td className="px-3 py-2 font-mono text-foreground/85">{detailCode}</td>
+                        <td className="px-3 py-2 text-foreground/80">{line.account_name ?? "—"}</td>
+                        <td className="px-3 py-2 font-mono text-blue-700 font-medium">{line.debit ? line.debit.toLocaleString("fa-IR") : "—"}</td>
+                        <td className="px-3 py-2 font-mono text-rose-700 font-medium">{line.credit ? line.credit.toLocaleString("fa-IR") : "—"}</td>
+                        <td className="px-3 py-2 text-muted-foreground">{line.description ?? "—"}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
                 <tfoot>
                   <tr className="border-t-2 bg-muted/30">
-                    <td colSpan={3} className="px-3 py-2 text-xs font-bold text-right text-muted-foreground">جمع</td>
+                    <td colSpan={4} className="px-3 py-2 text-xs font-bold text-right text-muted-foreground">جمع</td>
                     <td className="px-3 py-2 font-mono font-bold text-blue-700">{totalDebit.toLocaleString("fa-IR")}</td>
                     <td className="px-3 py-2 font-mono font-bold text-rose-700">{totalCredit.toLocaleString("fa-IR")}</td>
                     <td className="px-3 py-2">
@@ -221,6 +228,17 @@ export default function DocumentsList() {
       setLoading(false);
     }
   }, []);
+
+  const handleDelete = async (id, docNumber) => {
+    if (!window.confirm(`آیا از حذف سند شماره ${docNumber} مطمئن هستید؟`)) return;
+    try {
+      await api.delete(`/api/documents/${id}`);
+      setDocs(prev => prev.filter(d => d._id !== id));
+    } catch (err) {
+      console.error("Delete error:", err);
+      setError("خطا در حذف سند. مجددا تلاش کنید.");
+    }
+  };
 
   useEffect(() => { fetchDocs(); }, [fetchDocs]);
 
@@ -446,7 +464,7 @@ export default function DocumentsList() {
                     <th className="px-4 py-3 text-right text-xs font-semibold text-blue-600">جمع بدهکار</th>
                     <th className="px-4 py-3 text-right text-xs font-semibold text-rose-600">جمع بستانکار</th>
                     <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">شرح</th>
-                    <th className="px-4 py-3 w-16" />
+                    <th className="px-4 py-3 w-28" />
                   </tr>
                 </thead>
                 <tbody>
@@ -482,7 +500,7 @@ export default function DocumentsList() {
                         <td className="px-4 py-3">
                           <span className="text-xs text-muted-foreground flex items-center gap-1">
                             <CalendarDays className="h-3 w-3 shrink-0" />
-                            {doc.document_date ?? "—"}
+                            {doc.document_date ? toPersianDigits(doc.document_date) : "—"}
                           </span>
                         </td>
 
@@ -535,11 +553,23 @@ export default function DocumentsList() {
 
                         {/* عملیات */}
                         <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-                          <button onClick={() => setSelected(doc)}
-                            className="opacity-0 group-hover:opacity-100 rounded-lg p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-all"
-                            title="مشاهده جزئیات">
-                            <Eye className="h-3.5 w-3.5" />
-                          </button>
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => setSelected(doc)}
+                              className="opacity-0 group-hover:opacity-100 rounded-lg p-1 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-all"
+                              title="مشاهده جزئیات">
+                              <Eye className="h-3.5 w-3.5" />
+                            </button>
+                            <button onClick={() => navigate("/document-setup/manual-doc", { state: { docId: doc._id } })}
+                              className="opacity-0 group-hover:opacity-100 rounded-lg p-1 text-muted-foreground hover:bg-amber-100 hover:text-amber-700 transition-all"
+                              title="ویرایش">
+                              <Edit3 className="h-3.5 w-3.5" />
+                            </button>
+                            <button onClick={() => handleDelete(doc._id, doc.document_number)}
+                              className="opacity-0 group-hover:opacity-100 rounded-lg p-1 text-muted-foreground hover:bg-rose-100 hover:text-rose-600 transition-all"
+                              title="حذف">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
