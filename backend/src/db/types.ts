@@ -159,3 +159,43 @@ export interface Review {
   reviewer_id?: ObjectId;
   journal_document_id?: ObjectId;
 }
+
+// ─── Persons ──────────────────────────────────────────────────────────────────
+export interface Person {
+  _id?: ObjectId;
+  nomineeCode: string;
+  personKind: string;
+  personClass: string;
+  subClass: string;
+  detailClass: string;
+  exclusiveCode?: string;
+  suggestedCode?: string;
+  inactive?: boolean;
+  title: string;
+  nationalId?: string;
+  economicCode?: string;
+  firstName?: string;
+  lastName?: string;
+  fatherName?: string;
+  birthDate?: string;
+  gender?: string;
+  province?: string;
+  city?: string;
+  address?: string;
+  postalCode?: string;
+  phone?: string;
+  sheba?: string;
+  bankName?: string;
+  bankBranch?: string;
+  accountNumber?: string;
+  taxRegStartDate?: string;
+  taxRegEndDate?: string;
+  vatRegistered?: boolean;
+  vatBase?: string;
+  paymentLimitationType?: string;
+  maxPaymentAmount?: string;
+  altTitle?: string;
+  position?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}

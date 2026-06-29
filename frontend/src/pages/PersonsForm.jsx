@@ -1,6 +1,7 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Search, Plus, Printer, FileDown, Trash2, Save } from "lucide-react";
 import { PageShell, PageHeader } from "@/components/layout/PageShell";
+import api from "@/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -129,10 +130,7 @@ const TABS = [
   { key: "contract", label: "تعریف طرف قرارداد" },
 ];
 
-const SAMPLE_LIST = [
-  { id: 1, nomineeCode: "A3111**********", nationalId: "1010115089", title: "شرکت پیمانکاری الف", personKind: "A", detailClass: "3111", economicCode: "23017000000", sheba: "IR410000000000000001", province: "تهران", city: "تهران", address: "" },
-  { id: 2, nomineeCode: "A3221**********", nationalId: "1010031337", title: "بانک مرکزی جمهوری اسلامی ایران", personKind: "A", detailClass: "3221", economicCode: "", sheba: "", province: "تهران", city: "تهران", address: "" },
-];
+
 
 // ─── کامپوننت‌های کمکی ──────────────────────────────────────────────────────
 function StyledSelect({ id, value, onChange, options, placeholder, disabled, className }) {
@@ -177,35 +175,39 @@ function SectionTitle({ children }) {
   );
 }
 
-// ─── تابع ساخت NomineeCode (16 کاراکتر) ──────────────────────────────────
-// ساختار:
-//   A/B: [نوع 1حرف] + [جزءطبقه 4رقم] + [کد انحصاری 5رقم] + [6رقم آخر کدملی/شناسه]
-//   C/D: [نوع 1حرف] + [جزءطبقه 4رقم] + [9999] + [جزءطبقه مجدد 5رقم] + [کد پیشنهادی 2رقم]
-//        مثال تصویر: C31139999311310۱ => C + 3113 + 9999 + 31131 + 01
-function buildNomineeCode(personKind, detailClass, exclusiveCode, nationalId, suggestedCode) {
+// ─── تابع ساخت NomineeCode (بر اساس نوع شخص + جزء‌طبقه + کد ملی کامل) ───
+function buildNomineeCode(personKind, detailClass, nationalId) {
   const kind = personKind || "A";
   const cls4 = (detailClass || "").padEnd(4, "*").substring(0, 4);
-
-  if (kind === "C" || kind === "D") {
-    // فرمت C/D: نوع(1) + جزءطبقه(4) + 9999(4) + جزءطبقه‌مجدد(5) + کدپیشنهادی(2) = 16
-    const cls5 = (detailClass || "").padEnd(5, "0").substring(0, 5);
-    const sugg = (suggestedCode || "01").padStart(2, "0").substring(0, 2);
-    return `${kind}${cls4}9999${cls5}${sugg}`;
-  }
-  // فرمت A/B: نوع(1) + جزءطبقه(4) + انحصاری(5) + 6رقم‌کدملی(6) = 16
-  const excl = (exclusiveCode || "").padEnd(5, "*").substring(0, 5);
-  const natId = (nationalId || "").slice(-6).padStart(6, "*");
-  return `${kind}${cls4}${excl}${natId}`;
+  return `${kind}${cls4}${nationalId || ""}`;
 }
 
-// ─── صفحه اصلی ─────────────────────────────────────────────────────────────
 export default function PersonsForm() {
   const [form, setForm]           = useState(INITIAL_FORM);
   const [activeTab, setActiveTab] = useState("main");
-  const [list, setList]           = useState(SAMPLE_LIST);
+  const [list, setList]           = useState([]);
+  const [loading, setLoading]     = useState(false);
   const [search, setSearch]       = useState("");
   const [selected, setSelected]   = useState(null);
   const [saved, setSaved]         = useState(false);
+
+  const fetchPersons = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get("/api/persons");
+      if (res.data?.success) {
+        setList(res.data.data || []);
+      }
+    } catch (err) {
+      console.error("Error loading persons:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPersons();
+  }, []);
 
   // گزینه‌های وابسته — فیلتر شده بر اساس نوع شخص انتخاب‌شده
   const classOptions    = useMemo(() => getClasses(form.personKind), [form.personKind]);
@@ -213,7 +215,7 @@ export default function PersonsForm() {
   const detailOptions   = useMemo(() => getDetailClasses(form.personKind, form.personClass, form.subClass), [form.personKind, form.personClass, form.subClass]);
 
   // NomineeCode پیش‌نمایش
-  const nomineeCode = buildNomineeCode(form.personKind, form.detailClass, form.exclusiveCode, form.nationalId, form.suggestedCode);
+  const nomineeCode = buildNomineeCode(form.personKind, form.detailClass, form.nationalId);
 
   const isLegal   = form.personKind === "A";
   const isNatural = NATURAL_PERSON_KINDS.includes(form.personKind);
@@ -258,54 +260,88 @@ export default function PersonsForm() {
     setActiveTab("main");
   }
 
-  function handleSave() {
-    if (!form.title.trim() && !form.firstName.trim()) return;
+  async function handleSave() {
+    if (isLegal ? !form.title.trim() : !form.firstName.trim()) return;
     const displayTitle = isLegal
       ? form.title
       : `${form.firstName} ${form.lastName}`.trim();
     const record = {
-      id: selected ?? Date.now(),
+      ...form,
       nomineeCode,
-      nationalId: form.nationalId,
       title: displayTitle,
-      personKind: form.personKind,
-      detailClass: form.detailClass,
-      economicCode: form.economicCode,
-      sheba: form.sheba,
-      province: form.province,
-      city: form.city,
-      address: form.address,
     };
-    if (selected !== null) {
-      setList((l) => l.map((r) => r.id === selected ? record : r));
-    } else {
-      setList((l) => [...l, record]);
+    try {
+      if (selected !== null) {
+        const res = await api.put(`/api/persons/${selected}`, record);
+        if (res.data.success) {
+          setList((l) => l.map((r) => r._id === selected ? res.data.data : r));
+          setSaved(true);
+        }
+      } else {
+        const res = await api.post("/api/persons", record);
+        if (res.data.success) {
+          setList((l) => [...l, res.data.data]);
+          setSaved(true);
+          setSelected(res.data.data._id);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || "خطا در ذخیره‌سازی اطلاعات شخص");
     }
-    setSaved(true);
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (selected === null) return;
-    setList((l) => l.filter((r) => r.id !== selected));
-    handleNew();
+    if (!confirm("آیا از حذف این شخص مطمئن هستید؟")) return;
+    try {
+      const res = await api.delete(`/api/persons/${selected}`);
+      if (res.data.success) {
+        setList((l) => l.filter((r) => r._id !== selected));
+        handleNew();
+      }
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || "خطا در حذف شخص");
+    }
   }
 
   function handleRowClick(row) {
-    setSelected(row.id);
-    setForm((f) => ({
-      ...INITIAL_FORM,
+    setSelected(row._id);
+    setForm({
       personKind: row.personKind ?? "A",
-      detailClass: row.detailClass ?? "",
-      title: row.personKind === "A" ? row.title : "",
-      firstName: row.personKind !== "A" ? row.title?.split(" ")[0] ?? "" : "",
-      lastName: row.personKind !== "A" ? row.title?.split(" ")[1] ?? "" : "",
+      personClass: row.personClass ?? "31",
+      subClass: row.subClass ?? "311",
+      detailClass: row.detailClass ?? "3111",
+      exclusiveCode: row.exclusiveCode ?? "",
+      suggestedCode: row.suggestedCode ?? "",
+      inactive: row.inactive ?? false,
+      title: row.title ?? "",
       nationalId: row.nationalId ?? "",
       economicCode: row.economicCode ?? "",
-      sheba: row.sheba ?? "",
+      firstName: row.firstName ?? "",
+      lastName: row.lastName ?? "",
+      fatherName: row.fatherName ?? "",
+      birthDate: row.birthDate ?? "",
+      gender: row.gender ?? "male",
       province: row.province ?? "",
       city: row.city ?? "",
       address: row.address ?? "",
-    }));
+      postalCode: row.postalCode ?? "",
+      phone: row.phone ?? "",
+      sheba: row.sheba ?? "",
+      bankName: row.bankName ?? "",
+      bankBranch: row.bankBranch ?? "",
+      accountNumber: row.accountNumber ?? "",
+      taxRegStartDate: row.taxRegStartDate ?? "",
+      taxRegEndDate: row.taxRegEndDate ?? "",
+      vatRegistered: row.vatRegistered ?? false,
+      vatBase: row.vatBase ?? "",
+      paymentLimitationType: row.paymentLimitationType ?? "none",
+      maxPaymentAmount: row.maxPaymentAmount ?? "",
+      altTitle: row.altTitle ?? "",
+      position: row.position ?? "",
+    });
     setSaved(false);
     setActiveTab("main");
   }
@@ -327,26 +363,15 @@ export default function PersonsForm() {
 
       {/* نوار NomineeCode */}
       <div className="mb-3 flex items-center gap-3 rounded-xl border bg-muted/30 px-4 py-2 flex-wrap">
-        <span className="text-xs text-muted-foreground">نمونه کد کامل اشخاص (NomineeCode - 16 کاراکتر):</span>
+        <span className="text-xs text-muted-foreground">کد کامل اشخاص (NomineeCode):</span>
         <span className="font-mono text-sm font-bold tracking-widest text-primary bg-primary/10 rounded px-3 py-1">
           {nomineeCode}
         </span>
-        {(form.personKind === "C" || form.personKind === "D") ? (
-          <span className="text-xs text-muted-foreground">
-            [{form.personKind}] نوع &nbsp;|&nbsp;
-            [{form.detailClass || "----"}] جزءطبقه &nbsp;|&nbsp;
-            [9999] ثابت &nbsp;|&nbsp;
-            [{(form.detailClass || "").padEnd(5,"0").substring(0,5)}] جزءطبقه تکرار &nbsp;|&nbsp;
-            [{(form.suggestedCode || "01").padStart(2,"0")}] کد پیشنهادی
-          </span>
-        ) : (
-          <span className="text-xs text-muted-foreground">
-            [{form.personKind}] نوع &nbsp;|&nbsp;
-            [{form.detailClass || "----"}] جزءطبقه &nbsp;|&nbsp;
-            [{(form.exclusiveCode || "").padEnd(5, "*").substring(0, 5)}] کد انحصاری &nbsp;|&nbsp;
-            [{(form.nationalId || "").slice(-6).padStart(6, "*")}] 6 رقم آخر کدملی
-          </span>
-        )}
+        <span className="text-xs text-muted-foreground">
+          [{form.personKind}] نوع &nbsp;|&nbsp;
+          [{form.detailClass || "----"}] جزءطبقه &nbsp;|&nbsp;
+          [{form.nationalId || "----"}] کد ملی کامل
+        </span>
         <label className="mr-auto flex items-center gap-1.5 text-xs cursor-pointer">
           <input type="checkbox" checked={form.inactive} onChange={set("inactive")} className="rounded" />
           <span className={cn("font-medium", form.inactive && "text-destructive")}>غیرفعال</span>
@@ -414,53 +439,16 @@ export default function PersonsForm() {
                     />
                   </Field>
 
-                  {needsNationalId ? (
-                    <>
-                      <Field label="کد شناسایی انحصاری">
-                        <Input
-                          value={form.exclusiveCode}
-                          onChange={set("exclusiveCode")}
-                          className="h-8 text-sm font-mono"
-                          dir="ltr"
-                          maxLength={5}
-                          placeholder="*****"
-                        />
-                      </Field>
-                      <Field label="کد / شناسه ملی" required>
-                        <Input
-                          value={form.nationalId}
-                          onChange={set("nationalId")}
-                      رقم    className="h-8 text-sm font-mono"
-                          dir="ltr"
-                          maxLength={11}
-                          placeholder="10 رقم"
-                        />
-                      </Field>
-                    </>
-                  ) : (
-                    <>
-                      <Field label="کد پیشنهادی (۲ رقم - آخر NomineeCode)">
-                        <Input
-                          value={form.suggestedCode}
-                          onChange={set("suggestedCode")}
-                          className="h-8 text-sm font-mono"
-                          dir="ltr"
-                          maxLength={2}
-                          placeholder="01"
-                        />
-                      </Field>
-                      <Field label="کد ملی (اختیاری)">
-                        <Input
-                          value={form.nationalId}
-                          onChange={set("nationalId")}
-                          className="h-8 text-sm font-mono"
-                          dir="ltr"
-                          maxLength={11}
-                          placeholder="اختیاری"
-                        />
-                      </Field>
-                    </>
-                  )}
+                  <Field label="کد / شناسه ملی" required>
+                    <Input
+                      value={form.nationalId}
+                      onChange={set("nationalId")}
+                      className="h-8 text-sm font-mono"
+                      dir="ltr"
+                      maxLength={11}
+                      placeholder="۱۰ رقم"
+                    />
+                  </Field>
 
                   <Field label="کد اقتصادی">
                     <Input
@@ -754,11 +742,11 @@ export default function PersonsForm() {
                   </TableRow>
                 ) : filtered.map((row) => (
                   <TableRow
-                    key={row.id}
+                    key={row._id}
                     onClick={() => handleRowClick(row)}
                     className={cn(
                       "cursor-pointer transition-colors",
-                      selected === row.id
+                      selected === row._id
                         ? "bg-primary/10 hover:bg-primary/15"
                         : "hover:bg-muted/40"
                     )}
