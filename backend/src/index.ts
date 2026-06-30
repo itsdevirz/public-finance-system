@@ -13,6 +13,7 @@ import ledgerRouter from "./routes/ledger.js";
 import pettyCashRouter from "./routes/petty_cash.js";
 import aiRouter from "./routes/ai.js";
 import personsRouter from "./routes/persons.js";
+import fiscalYearsRouter from "./routes/fiscalYears.js";
 
 const app = new Hono();
 
@@ -55,6 +56,7 @@ app.route("/api/documents", documentsRouter);
 app.route("/api/ledger", ledgerRouter);
 app.route("/api/petty-cash", pettyCashRouter);
 app.route("/api/persons", personsRouter);
+app.route("/api/fiscal-years", fiscalYearsRouter);
 
 connectDb().then(() => {
   serve({ fetch: app.fetch, port: 8000 }, () => {

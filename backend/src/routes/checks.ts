@@ -63,8 +63,8 @@ router.post("/", async (c) => {
     document_date: issue_date,
     description: `صدور چک ${check_number}`,
     lines: [
-      { account_code: "2101", account_name: "تعهدات پرداختنی", debit: amount, credit: 0, is_budgetary: false },
-      { account_code: "1101", account_name: "بانک پرداخت هزینه", debit: 0, credit: amount, is_budgetary: false },
+      { account_code: "21001", account_name: "حساب‌ها و اسناد پرداختنی", debit: amount, credit: 0, is_budgetary: false },
+      { account_code: "11001", account_name: "بانک پرداخت هزینه", debit: 0, credit: amount, is_budgetary: false },
     ],
   });
 

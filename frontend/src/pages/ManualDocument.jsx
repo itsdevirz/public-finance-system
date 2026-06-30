@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { PageShell, PageHeader } from "@/components/layout/PageShell";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Plus, Trash2, Save, Printer, RotateCcw,
-  FileText, CheckCircle2, Ban, X,
+  FileText, CheckCircle2, Ban, X, AlertCircle
 } from "lucide-react";
 import api from "@/api";
 import { encrypt } from "@/lib/crypto";
@@ -17,11 +17,9 @@ import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import sanamaCodes from "@/data/sanamaCodes.json";
 import subAccountTitles from "@/data/subAccountTitles.json";
 import sanamaRequirements from "@/data/sanamaRequirements.json";
-import manualDocLookups from "@/data/manualDocLookups.json";
 
 // ---- helpers ----
 const allGroups = sanamaCodes.groups.map((g) => ({ code: g.code, title: g.title, accounts: g.accounts }));
-const { bankAccounts, budgetRows } = manualDocLookups;
 
 function getSubAccountTitle(rowNum) {
   return subAccountTitles.find((t) => t.row === rowNum);
@@ -46,14 +44,27 @@ function getSubAccounts(groupCode, accountCode) {
   return a ? (a.children || []) : [];
 }
 
+function toEnglishDigits(str) {
+  if (str == null) return "";
+  const persianDigits = [/۰/g, /۱/g, /۲/g, /۳/g, /۴/g, /۵/g, /۶/g, /۷/g, /۸/g, /۹/g];
+  const arabicDigits  = [/٠/g, /١/g, /٢/g, /٣/g, /٤/g, /٥/g, /٦/g, /٧/g, /٨/g, /٩/g];
+  let clean = str.toString().replace(/,/g, "").replace(/،/g, "");
+  for (let i = 0; i < 10; i++) {
+    clean = clean.replace(persianDigits[i], i).replace(arabicDigits[i], i);
+  }
+  return clean.replace(/[^0-9-]/g, "");
+}
+
 function formatNumber(val) {
-  const n = parseInt(val?.toString().replace(/,/g, ""), 10);
+  const clean = toEnglishDigits(val);
+  const n = parseInt(clean, 10);
   if (isNaN(n)) return "";
   return n.toLocaleString("fa-IR");
 }
 
 function parseNumber(str) {
-  return parseInt(str?.toString().replace(/,/g, ""), 10) || 0;
+  const clean = toEnglishDigits(str);
+  return parseInt(clean, 10) || 0;
 }
 
 const EMPTY_ROW = {
@@ -85,20 +96,36 @@ function subAccountOptions(groupCode, accountCode) {
 
 // ---- ردیف جدول ----
 function DocRow({ row, idx, onChange, onDelete, isActive, onActivate }) {
+  const nature = useMemo(() => {
+    if (!row.group || !row.account || !row.subAccount) return null;
+    const subs = getSubAccounts(row.group, row.account);
+    const found = subs.find((s) => s.code === row.subAccount);
+    return found ? found.nature : null;
+  }, [row.group, row.account, row.subAccount]);
+
   function set(field, val) {
     onChange({ ...row, [field]: val });
   }
 
   function setGroup(val) {
-    onChange({ ...row, group: val, account: "", subAccount: "", sanamaFields: {} });
+    onChange({ ...row, group: val, account: "", subAccount: "", debit: "", credit: "", sanamaFields: {} });
   }
 
   function setAccount(val) {
-    onChange({ ...row, account: val, subAccount: "", sanamaFields: {} });
+    onChange({ ...row, account: val, subAccount: "", debit: "", credit: "", sanamaFields: {} });
   }
 
   function setSubAccount(val) {
-    onChange({ ...row, subAccount: val, sanamaFields: {} });
+    const subs = getSubAccounts(row.group, row.account);
+    const sub = subs.find((s) => s.code === val);
+    const newNature = sub ? sub.nature : null;
+    onChange({
+      ...row,
+      subAccount: val,
+      sanamaFields: {},
+      debit: newNature === "credit" ? "" : row.debit,
+      credit: newNature === "debit" ? "" : row.credit,
+    });
   }
 
   const cellCls = "border-l last:border-l-0 px-2 py-1";
@@ -146,20 +173,24 @@ function DocRow({ row, idx, onChange, onDelete, isActive, onActivate }) {
       {/* مبلغ بدهکار */}
       <td className={`${cellCls} w-36`}>
         <input
-          className={`${inputCls} text-blue-700`}
+          className={`${inputCls} text-blue-700 disabled:opacity-30 disabled:cursor-not-allowed`}
           value={row.debit}
           onChange={(e) => set("debit", e.target.value)}
           onBlur={(e) => set("debit", formatNumber(e.target.value))}
+          disabled={nature === "credit"}
+          placeholder={nature === "credit" ? "—" : ""}
         />
       </td>
 
       {/* مبلغ بستانکار */}
       <td className={`${cellCls} w-36`}>
         <input
-          className={`${inputCls} text-rose-700`}
+          className={`${inputCls} text-rose-700 disabled:opacity-30 disabled:cursor-not-allowed`}
           value={row.credit}
           onChange={(e) => set("credit", e.target.value)}
           onBlur={(e) => set("credit", formatNumber(e.target.value))}
+          disabled={nature === "debit"}
+          placeholder={nature === "debit" ? "—" : ""}
         />
       </td>
 
@@ -223,7 +254,7 @@ function SanamaField({ rowDef, value, onChange, optional }) {
     );
   }
 
-  // ردیف‌های با default (input عددی — اختیاری یا اجباری)
+  // ردیف‌های با default (input عددی — اجباری)
   if ("default" in rowDef) {
     return (
       <div className="flex items-center gap-2">
@@ -233,11 +264,11 @@ function SanamaField({ rowDef, value, onChange, optional }) {
           inputMode="numeric"
           pattern="[0-9]*"
           className={inputCls}
-          placeholder={optional ? `${rowDef.default ?? "0"}` : "عدد وارد کنید"}
-          value={value === rowDef.default ? "" : (value ?? "")}
+          placeholder="عدد وارد کنید..."
+          value={value ?? ""}
           onChange={(e) => {
             const val = e.target.value.replace(/\D/g, "");
-            onChange(val === "" ? (rowDef.default ?? "0") : val);
+            onChange(val);
           }}
           dir="ltr"
         />
@@ -266,9 +297,7 @@ function SanamaField({ rowDef, value, onChange, optional }) {
 }
 
 // فیلدهایی که اختیاری‌اند (default دارند)
-const OPTIONAL_ROWS = new Set(
-  subAccountTitles.filter((r) => "default" in r).map((r) => r.row)
-);
+const OPTIONAL_ROWS = new Set();
 
 function SanamaExtraFields({ row, onSanamaChange }) {
   const requiredRows = getRequiredRows(row.subAccount);
@@ -306,7 +335,7 @@ export default function ManualDocument() {
   const today = new Date().toLocaleDateString("fa-IR").replace(/\//g, "/");
 
   const [header, setHeader] = useState({
-    fiscalYear: "1404",
+    fiscalYear: "",
     docNo: "",
     docDate: today,
     docType: "موقت",
@@ -316,6 +345,31 @@ export default function ManualDocument() {
     letterDate: "",
     status: "صدور سند",
   });
+
+  const [fiscalYears, setFiscalYears] = useState([]);
+
+  useEffect(() => {
+    async function loadFiscalYears() {
+      try {
+        const res = await api.get("/api/fiscal-years");
+        if (res.data?.success) {
+          const list = res.data.data || [];
+          setFiscalYears(list);
+          if (list.length > 0) {
+            setHeader(h => {
+              if (!h.fiscalYear) {
+                return { ...h, fiscalYear: String(list[0].year) };
+              }
+              return h;
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Error loading fiscal years:", err);
+      }
+    }
+    loadFiscalYears();
+  }, []);
 
   const [rows, setRows] = useState([{ ...EMPTY_ROW, id: 1 }]);
   const [activeRowId, setActiveRowId] = useState(1);
@@ -356,13 +410,23 @@ export default function ManualDocument() {
           });
 
           if (doc.rawRows && doc.rawRows.length > 0) {
-            setRows(doc.rawRows);
-            if (doc.rawRows[0]) setActiveRowId(doc.rawRows[0].id);
+            const sanitizedRows = doc.rawRows.map(r => {
+              const code = r.subAccount || "";
+              const group = code.charAt(0) || "";
+              const account = group === "9" ? code.substring(0, 2) : code.substring(0, 3);
+              return {
+                ...r,
+                group,
+                account
+              };
+            });
+            setRows(sanitizedRows);
+            if (sanitizedRows[0]) setActiveRowId(sanitizedRows[0].id);
           } else if (doc.lines && doc.lines.length > 0) {
             const parsed = doc.lines.map((l, i) => {
               const code = l.account_code || "";
               const group = code.charAt(0) || "";
-              const account = code.substring(0, 4) || "";
+              const account = group === "9" ? code.substring(0, 2) : code.substring(0, 3);
               return {
                 ...EMPTY_ROW,
                 id: i + 1,
@@ -400,6 +464,27 @@ export default function ManualDocument() {
     if (validRows.length === 0) {
       setMessage({ type: "error", text: "حداقل یک ردیف کامل (گروه، کل، معین) الزامی است." });
       return;
+    }
+
+    // بررسی الزامات سناما برای تمامی ردیف‌ها
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      if (r.group && r.account && r.subAccount) {
+        const requiredRows = getRequiredRows(r.subAccount);
+        for (const rowNum of requiredRows) {
+          const rowDef = getSubAccountTitle(rowNum);
+          const fieldKey = `sanama_${rowNum}`;
+          const isOptional = OPTIONAL_ROWS.has(rowNum);
+          const val = r.sanamaFields?.[fieldKey];
+          if (!isOptional && (!val || String(val).trim() === "")) {
+            setMessage({
+              type: "error",
+              text: `در ردیف ${i + 1}، پر کردن فیلد الزامی سناما «${rowDef?.title ?? `ردیف ${rowNum}`}» برای معین ${r.subAccount} اجباری است.`
+            });
+            return;
+          }
+        }
+      }
     }
 
     setLoading(true);
@@ -460,8 +545,9 @@ export default function ManualDocument() {
   }
 
   function handleNew() {
+    const firstYear = fiscalYears.length > 0 ? String(fiscalYears[0].year) : "";
     setHeader({
-      fiscalYear: "1404",
+      fiscalYear: firstYear,
       docNo: "",
       docDate: today,
       docType: "موقت",
@@ -568,7 +654,15 @@ export default function ManualDocument() {
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <Label className={labelCls}>دوره مالی</Label>
-                  <Input className={inputCls} value={header.fiscalYear} onChange={(e) => setH("fiscalYear", e.target.value)} />
+                  <div className="flex-1">
+                    <SearchableSelect
+                      value={header.fiscalYear}
+                      onChange={(v) => setH("fiscalYear", v || "")}
+                      options={fiscalYears.map((fy) => ({ value: String(fy.year), label: `${fy.year}` }))}
+                      placeholder="دوره مالی..."
+                      searchable={false}
+                    />
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Label className={labelCls}>شماره سند</Label>
@@ -696,9 +790,18 @@ export default function ManualDocument() {
               <div className="flex items-center gap-6 text-xs">
                 <span className="text-muted-foreground">جمع بدهکار: <span className="font-semibold text-blue-700">{totalDebit.toLocaleString("fa-IR")}</span></span>
                 <span className="text-muted-foreground">جمع بستانکار: <span className="font-semibold text-rose-700">{totalCredit.toLocaleString("fa-IR")}</span></span>
-                <span className={`font-semibold ${diff === 0 ? "text-green-600" : "text-red-600"}`}>
-                  اختلاف: {diff.toLocaleString("fa-IR")}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className={`font-semibold ${diff === 0 ? "text-green-600" : "text-rose-600 flex items-center gap-1.5 bg-rose-50 border border-rose-200 px-2.5 py-0.5 rounded-lg"}`}>
+                    {diff === 0 ? (
+                      `تراز (اختلاف: ۰)`
+                    ) : (
+                      <>
+                        <AlertCircle className="h-3.5 w-3.5 text-rose-600" />
+                        <span>سند ناتراز است! (اختلاف: {Math.abs(diff).toLocaleString("fa-IR")} ریال) - مبالغ را اصلاح کنید</span>
+                      </>
+                    )}
+                  </span>
+                </div>
               </div>
             </div>
           </CardContent>

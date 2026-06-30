@@ -199,3 +199,12 @@ export interface Person {
   createdAt?: string;
   updatedAt?: string;
 }
+
+// ─── Fiscal Years ─────────────────────────────────────────────────────────────
+export interface FiscalYear {
+  _id?: ObjectId;
+  year: number;
+  title: string;
+  createdAt?: string;
+  updatedAt?: string;
+}

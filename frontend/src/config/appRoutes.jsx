@@ -14,11 +14,13 @@ const BankForm = lazy(() => import("@/pages/BankForm"));
 const CreditForm = lazy(() => import("@/pages/CreditForm"));
 const Bookkeeping = lazy(() => import("@/pages/Bookkeeping"));
 const SystemManagement = lazy(() => import("@/pages/SystemManagement"));
+const CurrentOperations = lazy(() => import("@/pages/CurrentOperations"));
 const Guarantees = lazy(() => import("@/pages/Guarantees"));
 const Deposits = lazy(() => import("@/pages/Deposits"));
 const GuaranteeContractForm = lazy(() => import("@/pages/GuaranteeContractForm"));
 const DepositManualForm = lazy(() => import("@/pages/DepositManualForm"));
 const PersonsForm = lazy(() => import("@/pages/PersonsForm"));
+const FiscalYearForm = lazy(() => import("@/pages/FiscalYearForm"));
 const Assets = lazy(() => import("@/pages/Assets"));
 const AssetGroupForm = lazy(() => import("@/pages/AssetGroupForm"));
 const AssetSubGroupForm = lazy(() => import("@/pages/AssetSubGroupForm"));
@@ -51,6 +53,7 @@ export const PAGE_COMPONENTS = {
   "/basic-info/document-setup": DocumentSetup,
   "/basic-info/check-issuance": CheckIssuance,
   "/basic-info/definitions": BasicInfo,
+  "/basic-info/definitions/fiscal-year": FiscalYearForm,
   "/basic-info/definitions/persons": PersonsForm,
   "/basic-info/definitions/bank": BankForm,
   "/basic-info/definitions/credit": CreditForm,
@@ -232,6 +235,13 @@ export const PAGE_COMPONENTS = {
   "/system-management/approve-docs": SystemManagement,
   "/system-management/close-account-chapters": SystemManagement,
   "/system-management/settings": SystemManagement,
+  "/system-management/document-templates": SystemManagement,
+  "/system-management/document-templates/current-operations": CurrentOperations,
+  "/system-management/document-templates/payroll": SystemManagement,
+  "/system-management/document-templates/capital-operations": SystemManagement,
+  "/system-management/document-templates/revenues": SystemManagement,
+  "/system-management/document-templates/deposits": SystemManagement,
+  "/system-management/document-templates/special-cases": SystemManagement,
   "/system-management/update-manager": SystemManagement,
   "/system-management/backup": SystemManagement,
   "/system-management/report-signature": SystemManagement,

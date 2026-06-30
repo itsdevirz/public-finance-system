@@ -51,6 +51,21 @@ export function decrypt(encryptedText: string): string {
  * Decrypts a document's ciphertext field (if present) and merges the decrypted
  * fields back into the document object, with fallback support for legacy plaintext documents.
  */
+function toEnglishDigits(str: any): string {
+  if (str == null) return "";
+  const persianDigits = [/۰/g, /۱/g, /۲/g, /۳/g, /۴/g, /۵/g, /۶/g, /۷/g, /۸/g, /۹/g];
+  const arabicDigits  = [/٠/g, /١/g, /٢/g, /٣/g, /٤/g, /٥/g, /٦/g, /٧/g, /٨/g, /٩/g];
+  let clean = str.toString().replace(/,/g, "").replace(/،/g, "");
+  for (let i = 0; i < 10; i++) {
+    clean = clean.replace(persianDigits[i], String(i)).replace(arabicDigits[i], String(i));
+  }
+  return clean.replace(/[^0-9-]/g, "");
+}
+
+/**
+ * Decrypts a document's ciphertext field (if present) and merges the decrypted
+ * fields back into the document object, with fallback support for legacy plaintext documents.
+ */
 export function decryptDocument(doc: any): any {
   if (!doc || !doc.ciphertext) return doc;
   try {
@@ -68,10 +83,12 @@ export function decryptDocument(doc: any): any {
         lines: (rows || []).map((r: any) => ({
           account_code: r.subAccount || "",
           account_name: r.account_name || "",
-          debit: parseInt(String(r.debit || "0").replace(/,/g, ""), 10) || 0,
-          credit: parseInt(String(r.credit || "0").replace(/,/g, ""), 10) || 0,
+          debit: parseInt(toEnglishDigits(r.debit), 10) || 0,
+          credit: parseInt(toEnglishDigits(r.credit), 10) || 0,
           description: r.desc || r.description || "",
         })),
+        rawHeader: header,
+        rawRows: rows,
       };
     }
     

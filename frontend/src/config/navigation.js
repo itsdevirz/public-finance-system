@@ -5,6 +5,7 @@ export const BASIC_INFO_SUB = [
     to: "/basic-info/definitions",
     label: "تعاریف",
     children: [
+      { to: "/basic-info/definitions/fiscal-year", label: "تعریف دوره مالی" },
       { to: "/basic-info/definitions/persons", label: "تعریف اشخاص" },
       { to: "/basic-info/definitions/bank",    label: "تعریف بانک" },
       { to: "/basic-info/definitions/credit",  label: "تعریف اعتبار" },
@@ -153,16 +154,31 @@ export const TOP_NAV = [
     ],
   },
 
-  // ۶ — دستیار هوش مصنوعی
+  // ۶ — الگوی سند
   {
-    to: "/ai", label: "دستیار هوشمند مالی (AI)", num: 6, subItems: [
+    to: "/system-management/document-templates",
+    label: "الگوی سند",
+    num: 6,
+    subItems: [
+      { to: "/system-management/document-templates/current-operations", label: "حسابداری عملیات جاری" },
+      { to: "/system-management/document-templates/payroll",            label: "حسابداری حقوق و مزایای مستمر کارکنان" },
+      { to: "/system-management/document-templates/capital-operations",  label: "حسابداری عملیات سرمایه‌ای" },
+      { to: "/system-management/document-templates/revenues",            label: "حسابداری درآمدها" },
+      { to: "/system-management/document-templates/deposits",            label: "حسابداری وجوه سپرده" },
+      { to: "/system-management/document-templates/special-cases",       label: "حسابداری موارد خاص" },
+    ],
+  },
+
+  // ۷ — دستیار هوش مصنوعی
+  {
+    to: "/ai", label: "دستیار هوشمند مالی (AI)", num: 7, subItems: [
       { to: "/ai/chat", label: "گفتگو با دستیار" },
     ],
   },
 
   // ۷ — سیستم حقوق و دستمزد
   {
-    to: "/payroll", label: "سیستم حقوق و دستمزد", num: 7, subItems: [
+    to: "/payroll", label: "سیستم حقوق و دستمزد", num: 8, subItems: [
       { to: "/payroll/dashboard", label: "داشبورد حقوق" },
       { to: "/payroll/employees", label: "اطلاعات کارکنان", children: [
         { to: "/payroll/employees/list",      label: "لیست کارکنان" },
@@ -209,7 +225,7 @@ export const TOP_NAV = [
 
   // ۸ — سیستم انبار
   {
-    to: "/warehouse", label: "سیستم انبار", num: 8, subItems: [
+    to: "/warehouse", label: "سیستم انبار", num: 9, subItems: [
       { to: "/warehouse/dashboard", label: "داشبورد انبار" },
       { to: "/warehouse/items", label: "مدیریت کالاها", children: [
         { to: "/warehouse/items/list",       label: "لیست کالاها" },
@@ -272,7 +288,7 @@ export const TOP_NAV = [
 
   // ۹ — سیستم اموال
   {
-    to: "/assets", label: "سیستم اموال", num: 9, subItems: [
+    to: "/assets", label: "سیستم اموال", num: 10, subItems: [
       { to: "/assets/basic-info", label: "اطلاعات پایه", children: [
         { to: "/assets/basic-info/asset-groups",          label: "تعریف گروه اموال" },
         { to: "/assets/basic-info/asset-subgroups",       label: "تعریف زیرگروه اموال" },
