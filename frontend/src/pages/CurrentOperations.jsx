@@ -117,85 +117,92 @@ const INITIAL_TEMPLATES = [
   {
     id: 8,
     title: "ثبت شماره ۸",
-    description: "خرید دارایی‌های ثابت مشهود (اثاثه و منصوبات)",
+    description: "به هنگام دریافت اعلامیه بانکی در خصوص واریز وجوه تنخواه‌گردان پرداخت (دریافتی از ذیحسابی سایر واحدها)",
     code: "OP-08",
-    category: "expenses",
+    category: "receipts",
     status: "active",
     lines: [
-      { type: "debit", accountCode: "15002", accountName: "اثاثه و منصوبات", ratio: "100%" },
-      { type: "credit", accountCode: "11001", accountName: "بانک پرداخت هزینه", ratio: "100%" }
+      { type: "debit", accountCode: "11004", accountName: "بانک وجوه سایر منابع", ratio: "100%" },
+      { type: "credit", accountCode: "21001", accountName: "حساب‌ها و اسناد پرداختنی", ratio: "100%" }
     ]
   },
   {
     id: 9,
     title: "ثبت شماره ۹",
-    description: "پرداخت هزینه آب، برق و گاز مصرفی",
+    description: "به هنگام دریافت اعلامیه بانکی در خصوص واریز وجوه حاصل از هدایای نقدی و سایر وجوه انتقالی مشروط که شرایط مصرف آن تعیین شده است",
     code: "OP-09",
-    category: "expenses",
+    category: "receipts",
     status: "active",
     lines: [
-      { type: "debit", accountCode: "61002", accountName: "هزینه استفاده از کالا و خدمات", ratio: "100%" },
-      { type: "credit", accountCode: "11001", accountName: "بانک پرداخت هزینه", ratio: "100%" }
+      { type: "debit", accountCode: "11004", accountName: "بانک وجوه سایر منابع", ratio: "100%" },
+      { type: "credit", accountCode: "22001", accountName: "حساب‌ها و اسناد پرداختنی", ratio: "100%" }
     ]
   },
   {
     id: 10,
     title: "ثبت شماره ۱۰",
-    description: "پرداخت هزینه تلفن و ارتباطات اداری",
+    description: "مصرف هدایای نقدی محدود شده برای هدف خاص مطابق با شرایط تعیین شده",
     code: "OP-10",
-    category: "expenses",
+    category: "payments",
     status: "active",
     lines: [
-      { type: "debit", accountCode: "61002", accountName: "هزینه استفاده از کالا و خدمات", ratio: "100%" },
-      { type: "credit", accountCode: "11001", accountName: "بانک پرداخت هزینه", ratio: "100%" }
+      { type: "debit", accountCode: "22001", accountName: "حساب‌ها و اسناد پرداختنی", ratio: "100%" },
+      { type: "credit", accountCode: "43001", accountName: "هدایا و کمک‌ها", ratio: "100%" }
     ]
   },
   {
     id: 11,
     title: "ثبت شماره ۱۱",
-    description: "پرداخت اجاره‌بهای ساختمان‌های اداری",
+    description: "تامین و دریافت بخشی از منابع واحد گزارشگر به عنوان سایر منابع از خزانه",
     code: "OP-11",
-    category: "expenses",
+    category: "receipts",
     status: "active",
     lines: [
-      { type: "debit", accountCode: "61002", accountName: "هزینه استفاده از کالا و خدمات", ratio: "100%" },
-      { type: "credit", accountCode: "11001", accountName: "بانک پرداخت هزینه", ratio: "100%" }
+      { type: "debit", accountCode: "11004", accountName: "بانک وجوه سایر منابع", ratio: "100%" },
+      { type: "credit", accountCode: "41010", accountName: "دریافتی از محل سایر منابع", ratio: "100%" }
     ]
   },
   {
     id: 12,
     title: "ثبت شماره ۱۲",
-    description: "ثبت هزینه بیمه ساختمان و تجهیزات",
+    description: "به هنگام ابلاغ تمام یا بخشی از اعتبار تخصیص یافته به سایر واحدها",
     code: "OP-12",
-    category: "expenses",
+    category: "payments",
     status: "active",
     lines: [
-      { type: "debit", accountCode: "61002", accountName: "هزینه استفاده از کالا و خدمات", ratio: "100%" },
-      { type: "credit", accountCode: "21001", accountName: "حساب‌ها و اسناد پرداختنی حاصل از عملیات مبادله ای", ratio: "100%" }
+      { type: "debit", accountCode: "94001", accountName: "حواله اعتبار هزینه", ratio: "100%" },
+      { type: "credit", accountCode: "93001", accountName: "اعتبار هزینه تخصیص یافته", ratio: "100%" },
+      { type: "credit", accountCode: "92001", accountName: "اعتبار هزینه", ratio: "100%" }
     ]
   },
   {
     id: 13,
     title: "ثبت شماره ۱۳",
-    description: "پرداخت هزینه‌های حمل و نقل و ایاب و ذهاب",
+    description: "انتقال وجوه مربوط به ابلاغ اعتبار (عمومی / اختصاصی) به واحد دریافت‌کننده اعتبار ابلاغی",
     code: "OP-13",
-    category: "expenses",
+    category: "payments",
     status: "active",
     lines: [
-      { type: "debit", accountCode: "61002", accountName: "هزینه استفاده از کالا و خدمات", ratio: "100%" },
-      { type: "credit", accountCode: "11001", accountName: "بانک پرداخت هزینه", ratio: "100%" }
+      { type: "debit", accountCode: "62001", accountName: "هزینه‌ها - انتقالات", ratio: "100%" },
+      { type: "credit", accountCode: "11001", accountName: "بانک پرداخت هزینه", ratio: "100%" },
+      { type: "credit", accountCode: "11003", accountName: "بانک پرداخت اختصاصی", ratio: "100%" }
     ]
   },
   {
     id: 14,
     title: "ثبت شماره ۱۴",
-    description: "ثبت هزینه تعمیر و نگهداری ساختمان",
+    description: "به هنگام دریافت اعلامیه ابلاغ اعتبار و واریز وجوه ابلاغی (عمومی / اختصاصی)",
     code: "OP-14",
-    category: "expenses",
+    category: "receipts",
     status: "active",
     lines: [
-      { type: "debit", accountCode: "61002", accountName: "هزینه استفاده از کالا و خدمات", ratio: "100%" },
-      { type: "credit", accountCode: "11001", accountName: "بانک پرداخت هزینه", ratio: "100%" }
+      { type: "debit", accountCode: "95001", accountName: "اعتبار هزینه ابلاغی", ratio: "100%" },
+      { type: "debit", accountCode: "11001", accountName: "بانک پرداخت هزینه", ratio: "100%" },
+      { type: "debit", accountCode: "11003", accountName: "بانک پرداخت اختصاصی", ratio: "100%" },
+      { type: "debit", accountCode: "81017", accountName: "حساب انتظامی - کنترل دریافتی‌ها بابت اعتبار", ratio: "100%" },
+      { type: "credit", accountCode: "91001", accountName: "بودجه اعتبار هزینه", ratio: "100%" },
+      { type: "credit", accountCode: "46001", accountName: "درآمدها - انتقالات", ratio: "100%" },
+      { type: "credit", accountCode: "82017", accountName: "طرف حساب انتظامی - کنترل دریافتی‌ها بابت اعتبار", ratio: "100%" }
     ]
   },
   {
