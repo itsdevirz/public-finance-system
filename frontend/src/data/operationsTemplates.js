@@ -185,13 +185,15 @@ export const INITIAL_TEMPLATES = [
   {
     id: 15,
     title: "ثبت شماره ۱۵",
-    description: "ثبت هزینه تعمیر و نگهداری وسایل نقلیه",
+    description: "به هنگام تامین اعتبار (عمومی / اختصاصی)",
     code: "OP-15",
-    category: "expenses",
+    category: "payments",
     status: "active",
     lines: [
-      { type: "debit", accountCode: "61002", accountName: "هزینه استفاده از کالا و خدمات", ratio: "100%" },
-      { type: "credit", accountCode: "11001", accountName: "بانک پرداخت هزینه", ratio: "100%" }
+      { type: "debit", accountCode: "97001", accountName: "اعتبار هزینه تامین شده", ratio: "100%" },
+      { type: "credit", accountCode: "93001", accountName: "اعتبار هزینه تخصیص یافته", ratio: "100%" },
+      { type: "credit", accountCode: "92001", accountName: "اعتبار هزینه", ratio: "100%" },
+      { type: "credit", accountCode: "95001", accountName: "اعتبار هزینه ابلاغی", ratio: "100%" }
     ]
   },
   {
