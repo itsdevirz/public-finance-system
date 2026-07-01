@@ -1,6 +1,11 @@
 import crypto from "crypto";
 
-const secretString = process.env.ENCRYPTION_KEY || "my-super-secret-key-32-bytes!!!";
+const secretString = process.env.ENCRYPTION_KEY ?? (() => {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("ENCRYPTION_KEY must be set in production to protect sensitive data!");
+  }
+  return "my-super-secret-key-32-bytes!!!";
+})();
 // SHA-256 hash ensures exactly 32-byte key
 const SECRET_KEY = crypto.createHash("sha256").update(secretString).digest();
 const ALGORITHM = "aes-256-gcm";

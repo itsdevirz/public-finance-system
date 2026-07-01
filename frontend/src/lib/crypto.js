@@ -1,7 +1,12 @@
 // Frontend encryption helper using Web Crypto API (AES-GCM)
 
 async function getCryptoKey() {
-  const secretString = (import.meta.env && import.meta.env.VITE_ENCRYPTION_KEY) || "my-super-secret-key-32-bytes!!!";
+  const secretString = (import.meta.env && import.meta.env.VITE_ENCRYPTION_KEY) || (() => {
+    if (import.meta.env && import.meta.env.PROD) {
+      throw new Error("VITE_ENCRYPTION_KEY must be defined in production to encrypt/decrypt sensitive records!");
+    }
+    return "my-super-secret-key-32-bytes!!!";
+  })();
   const msgUint8 = new TextEncoder().encode(secretString);
   // Hash the key using SHA-256 to ensure it is exactly 32 bytes (256 bits)
   const hashBuffer = await window.crypto.subtle.digest("SHA-256", msgUint8);

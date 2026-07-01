@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { PageShell, PageHeader } from "@/components/layout/PageShell";
 import { Card, CardContent } from "@/components/ui/card";
@@ -95,17 +95,24 @@ function subAccountOptions(groupCode, accountCode) {
 }
 
 // ---- ردیف جدول ----
-function DocRow({ row, idx, onChange, onDelete, isActive, onActivate }) {
+const DocRow = React.memo(({ row, idx, onChange, onDelete, isActive, onActivate }) => {
+  const [debitVal, setDebitVal] = useState(row.debit || "");
+  const [creditVal, setCreditVal] = useState(row.credit || "");
+
+  useEffect(() => {
+    setDebitVal(row.debit || "");
+  }, [row.debit]);
+
+  useEffect(() => {
+    setCreditVal(row.credit || "");
+  }, [row.credit]);
+
   const nature = useMemo(() => {
     if (!row.group || !row.account || !row.subAccount) return null;
     const subs = getSubAccounts(row.group, row.account);
     const found = subs.find((s) => s.code === row.subAccount);
     return found ? found.nature : null;
   }, [row.group, row.account, row.subAccount]);
-
-  function set(field, val) {
-    onChange({ ...row, [field]: val });
-  }
 
   function setGroup(val) {
     onChange({ ...row, group: val, account: "", subAccount: "", debit: "", credit: "", sanamaFields: {} });
@@ -174,9 +181,13 @@ function DocRow({ row, idx, onChange, onDelete, isActive, onActivate }) {
       <td className={`${cellCls} w-36`}>
         <input
           className={`${inputCls} text-blue-700 disabled:opacity-30 disabled:cursor-not-allowed`}
-          value={row.debit}
-          onChange={(e) => set("debit", e.target.value)}
-          onBlur={(e) => set("debit", formatNumber(e.target.value))}
+          value={debitVal}
+          onChange={(e) => setDebitVal(e.target.value)}
+          onBlur={(e) => {
+            const formatted = formatNumber(e.target.value);
+            setDebitVal(formatted);
+            onChange({ ...row, debit: formatted });
+          }}
           disabled={nature === "credit"}
           placeholder={nature === "credit" ? "—" : ""}
         />
@@ -186,9 +197,13 @@ function DocRow({ row, idx, onChange, onDelete, isActive, onActivate }) {
       <td className={`${cellCls} w-36`}>
         <input
           className={`${inputCls} text-rose-700 disabled:opacity-30 disabled:cursor-not-allowed`}
-          value={row.credit}
-          onChange={(e) => set("credit", e.target.value)}
-          onBlur={(e) => set("credit", formatNumber(e.target.value))}
+          value={creditVal}
+          onChange={(e) => setCreditVal(e.target.value)}
+          onBlur={(e) => {
+            const formatted = formatNumber(e.target.value);
+            setCreditVal(formatted);
+            onChange({ ...row, credit: formatted });
+          }}
           disabled={nature === "debit"}
           placeholder={nature === "debit" ? "—" : ""}
         />
@@ -206,7 +221,11 @@ function DocRow({ row, idx, onChange, onDelete, isActive, onActivate }) {
       </td>
     </tr>
   );
-}
+}, (prev, next) => {
+  return prev.idx === next.idx &&
+         prev.isActive === next.isActive &&
+         prev.row === next.row;
+});
 
 // ---- SanamaField: رندر یک فیلد سناما بر اساس نوع ردیف ----
 function SanamaField({ rowDef, value, onChange, optional }) {

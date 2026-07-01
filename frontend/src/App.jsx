@@ -11,8 +11,8 @@ import Dashboard from "./pages/Dashboard";
 import { buildLayoutRoutes } from "./config/appRoutes";
 
 // بارگذاری تنبل فرم‌های جانبی برای حداکثر سرعت
-const GuaranteeContractForm = lazy(() => import("./pages/GuaranteeContractForm"));
-const DepositManualForm = lazy(() => import("./pages/DepositManualForm"));
+const GuaranteeContractForm = lazy(() => import("./modules/treasury/pages/GuaranteeContractForm"));
+const DepositManualForm = lazy(() => import("./modules/treasury/pages/DepositManualForm"));
 
 const layoutRoutes = buildLayoutRoutes(Dashboard);
 

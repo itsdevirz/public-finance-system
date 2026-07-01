@@ -4,6 +4,9 @@ import { cors } from "hono/cors";
 import { connectDb } from "./db/index.js";
 import { requireAuth } from "./middleware/requireAuth.js";
 
+import { compress } from "hono/compress";
+import { logger } from "hono/logger";
+
 import authRouter from "./routes/auth.js";
 import checksRouter from "./routes/checks.js";
 import contractsRouter from "./routes/contracts.js";
@@ -16,6 +19,21 @@ import personsRouter from "./routes/persons.js";
 import fiscalYearsRouter from "./routes/fiscalYears.js";
 
 const app = new Hono();
+
+app.use("*", compress());
+app.use("*", logger());
+
+app.onError((err, c) => {
+  console.error("Global Hono Error:", err);
+  return c.json(
+    {
+      success: false,
+      message: "خطایی در سمت سرور رخ داد. لطفا دوباره تلاش کنید.",
+      error: process.env.NODE_ENV === "development" ? err.message : undefined,
+    },
+    500
+  );
+});
 
 app.use(
   "*",

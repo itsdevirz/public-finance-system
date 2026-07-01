@@ -12,11 +12,21 @@ function serialize(doc: Record<string, unknown>) {
   ));
 }
 
-// GET /api/ledger/ — flatten all embedded lines with their parent doc info
+// GET /api/ledger/ — flatten all embedded lines with their parent doc info (paginated)
 router.get("/", async (c) => {
-  const docs = await getDb()
+  const page = parseInt(c.req.query("page") ?? "1", 10);
+  const limit = parseInt(c.req.query("limit") ?? "50", 10);
+  const skip = (page - 1) * limit;
+
+  const db = getDb();
+  const totalDocs = await db.collection("journal_documents").countDocuments();
+
+  const docs = await db
     .collection<JournalDocument>("journal_documents")
     .find()
+    .sort({ _id: -1 })
+    .skip(skip)
+    .limit(limit)
     .toArray();
 
   const data = docs.flatMap((doc) => {
@@ -31,7 +41,16 @@ router.get("/", async (c) => {
     }));
   });
 
-  return c.json({ data, message: "دفتر کل" });
+  return c.json({
+    data,
+    pagination: {
+      total: totalDocs,
+      page,
+      limit,
+      totalPages: Math.ceil(totalDocs / limit),
+    },
+    message: "دفتر کل",
+  });
 });
 
 // GET /api/ledger/balance — total debit vs credit
