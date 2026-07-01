@@ -196,6 +196,32 @@ export default function CurrentOperations() {
     };
   }, [postingTemplate, lineAmounts]);
 
+  // محاسبه پویای جمع مبالغ هر بخش (برای قالب‌هایی که چند بخشی هستند مانند ثبت ۱۵)
+  const sectionTotals = useMemo(() => {
+    if (!postingTemplate) return {};
+    const totalsMap = {};
+    postingTemplate.lines.forEach((line, idx) => {
+      const valStr = lineAmounts[idx] || "";
+      const val = parseFloat(valStr.replace(/,/g, "")) || 0;
+      const sec = line.section || "default";
+      if (!totalsMap[sec]) totalsMap[sec] = { debit: 0, credit: 0 };
+      if (line.type === "debit") totalsMap[sec].debit += val;
+      else totalsMap[sec].credit += val;
+    });
+    return totalsMap;
+  }, [postingTemplate, lineAmounts]);
+
+  // بررسی تراز بودن تمامی بخش‌ها به صورت تفکیک شده
+  const allSectionsBalanced = useMemo(() => {
+    if (!postingTemplate) return true;
+    for (const [secName, secTotal] of Object.entries(sectionTotals)) {
+      if (secName !== "default" && secTotal.debit !== secTotal.credit) {
+        return false;
+      }
+    }
+    return true;
+  }, [postingTemplate, sectionTotals]);
+
   // باز کردن مودال ثبت سند با الگو به صورت مرکزی (انتخاب الگو توسط کاربر)
   const openPostWizard = () => {
     setPostingTemplate(null);
@@ -240,6 +266,10 @@ export default function CurrentOperations() {
     }
     if (totals.diff !== 0) {
       setPostingMessage({ type: "error", text: "سند تراز نیست! اختلاف بدهکار و بستانکار باید صفر باشد." });
+      return;
+    }
+    if (!allSectionsBalanced) {
+      setPostingMessage({ type: "error", text: "سند تراز نیست! هر بخش از محل‌های اعتبار باید به صورت جداگانه تراز باشد." });
       return;
     }
 
@@ -793,59 +823,88 @@ export default function CurrentOperations() {
                               {postingTemplate.lines.map((line, idx) => {
                                 const isDebit = line.type === "debit";
                                 const value = lineAmounts[idx] || "";
+                                const prevLine = idx > 0 ? postingTemplate.lines[idx - 1] : null;
+                                const showSectionHeader = line.section && (!prevLine || prevLine.section !== line.section);
 
                                 return (
-                                  <tr key={idx} className="border-b last:border-0 hover:bg-muted/10 transition-colors">
-                                    {/* ماهیت */}
-                                    <td className="px-3 py-2.5">
-                                      <Badge
-                                        variant="outline"
-                                        className={
-                                          isDebit
-                                            ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/20 dark:text-blue-400"
-                                            : "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/20 dark:text-rose-400"
-                                        }
-                                      >
-                                        {isDebit ? "بدهکار" : "بستانکار"}
-                                      </Badge>
-                                    </td>
+                                  <>
+                                    {showSectionHeader && (() => {
+                                      const secTotal = sectionTotals[line.section] || { debit: 0, credit: 0 };
+                                      const secDiff = secTotal.debit - secTotal.credit;
+                                      const isSecBalanced = secDiff === 0;
+                                      return (
+                                        <tr className="bg-amber-500/10 border-y font-bold text-amber-900 dark:bg-amber-950/20 dark:text-amber-400">
+                                          <td colSpan={3} className="px-3 py-2 text-right text-xs">
+                                            {line.section}
+                                          </td>
+                                          <td colSpan={2} className="px-3 py-2 text-left text-[11px] font-mono">
+                                            {isSecBalanced ? (
+                                              <span className="text-green-600 dark:text-green-400 flex items-center gap-1 justify-end font-semibold">
+                                                <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                                                بخش تراز است
+                                              </span>
+                                            ) : (
+                                              <span className="text-rose-600 dark:text-rose-400 flex items-center gap-1 justify-end font-semibold">
+                                                <AlertCircle className="h-3.5 w-3.5 text-rose-500" />
+                                                ناتراز (اختلاف: {Math.abs(secDiff).toLocaleString("fa-IR")} ریال)
+                                              </span>
+                                            )}
+                                          </td>
+                                        </tr>
+                                      );
+                                    })()}
+                                    <tr key={idx} className="border-b last:border-0 hover:bg-muted/10 transition-colors">
+                                      {/* ماهیت */}
+                                      <td className="px-3 py-2.5">
+                                        <Badge
+                                          variant="outline"
+                                          className={
+                                            isDebit
+                                              ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/20 dark:text-blue-400"
+                                              : "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/20 dark:text-rose-400"
+                                          }
+                                        >
+                                          {isDebit ? "بدهکار" : "بستانکار"}
+                                        </Badge>
+                                      </td>
 
-                                    {/* کد معین */}
-                                    <td className="px-3 py-2.5 font-mono text-foreground font-semibold">{line.accountCode}</td>
+                                      {/* کد معین */}
+                                      <td className="px-3 py-2.5 font-mono text-foreground font-semibold">{line.accountCode}</td>
 
-                                    {/* نام حساب */}
-                                    <td className="px-3 py-2.5 text-foreground/80 font-medium">{line.accountName}</td>
+                                      {/* نام حساب */}
+                                      <td className="px-3 py-2.5 text-foreground/80 font-medium">{line.accountName}</td>
 
-                                    {/* بدهکار */}
-                                    <td className="px-3 py-2 text-right">
-                                      {isDebit ? (
-                                        <Input
-                                          value={value}
-                                          onChange={(e) => handleLineAmountChange(idx, e.target.value)}
-                                          placeholder="مبلغ بدهکار..."
-                                          className="h-8 text-xs font-semibold font-mono text-right text-blue-700 border-primary/20 w-full"
-                                          dir="ltr"
-                                        />
-                                      ) : (
-                                        <span className="text-muted-foreground/30 font-semibold px-2">—</span>
-                                      )}
-                                    </td>
+                                      {/* بدهکار */}
+                                      <td className="px-3 py-2 text-right">
+                                        {isDebit ? (
+                                          <Input
+                                            value={value}
+                                            onChange={(e) => handleLineAmountChange(idx, e.target.value)}
+                                            placeholder="مبلغ بدهکار..."
+                                            className="h-8 text-xs font-semibold font-mono text-right text-blue-700 border-primary/20 w-full"
+                                            dir="ltr"
+                                          />
+                                        ) : (
+                                          <span className="text-muted-foreground/30 font-semibold px-2">—</span>
+                                        )}
+                                      </td>
 
-                                    {/* بستانکار */}
-                                    <td className="px-3 py-2 text-right">
-                                      {!isDebit ? (
-                                        <Input
-                                          value={value}
-                                          onChange={(e) => handleLineAmountChange(idx, e.target.value)}
-                                          placeholder="مبلغ بستانکار..."
-                                          className="h-8 text-xs font-semibold font-mono text-right text-rose-700 border-primary/20 w-full"
-                                          dir="ltr"
-                                        />
-                                      ) : (
-                                        <span className="text-muted-foreground/30 font-semibold px-2">—</span>
-                                      )}
-                                    </td>
-                                  </tr>
+                                      {/* بستانکار */}
+                                      <td className="px-3 py-2 text-right">
+                                        {!isDebit ? (
+                                          <Input
+                                            value={value}
+                                            onChange={(e) => handleLineAmountChange(idx, e.target.value)}
+                                            placeholder="مبلغ بستانکار..."
+                                            className="h-8 text-xs font-semibold font-mono text-right text-rose-700 border-primary/20 w-full"
+                                            dir="ltr"
+                                          />
+                                        ) : (
+                                          <span className="text-muted-foreground/30 font-semibold px-2">—</span>
+                                        )}
+                                      </td>
+                                    </tr>
+                                  </>
                                 );
                               })}
                             </tbody>
@@ -862,14 +921,19 @@ export default function CurrentOperations() {
                               جمع بستانکار: <span className="font-bold text-rose-700">{(totals.credit).toLocaleString("fa-IR")} ریال</span>
                             </span>
                           </div>
-                          <span className={`font-bold ${totals.diff === 0 && totals.debit > 0 ? "text-green-600" : "text-rose-600"}`}>
-                            {totals.diff === 0 && totals.debit > 0 ? (
+                          <span className={`font-bold ${totals.diff === 0 && totals.debit > 0 && allSectionsBalanced ? "text-green-600" : "text-rose-600"}`}>
+                            {totals.diff === 0 && totals.debit > 0 && allSectionsBalanced ? (
                               <span className="flex items-center gap-1">
                                 <CheckCircle2 className="h-3.5 w-3.5" />
                                 سند تراز است
                               </span>
                             ) : (
-                              <span>اختلاف تراز: {(Math.abs(totals.diff)).toLocaleString("fa-IR")} ریال</span>
+                              <span>
+                                {!allSectionsBalanced
+                                  ? "برخی از بخش‌های سند ناتراز هستند"
+                                  : `اختلاف تراز: ${(Math.abs(totals.diff)).toLocaleString("fa-IR")} ریال`
+                                }
+                              </span>
                             )}
                           </span>
                         </div>
@@ -894,7 +958,7 @@ export default function CurrentOperations() {
                     type="submit"
                     size="sm"
                     className="text-xs bg-green-600 hover:bg-green-700 text-white font-bold"
-                    disabled={postingLoading || !postingTemplate || totals.debit <= 0 || totals.diff !== 0}
+                    disabled={postingLoading || !postingTemplate || totals.debit <= 0 || totals.diff !== 0 || !allSectionsBalanced}
                   >
                     <Save className="h-3.5 w-3.5 ml-1" />
                     {postingLoading ? "در حال ثبت..." : "ثبت و ارسال به دیتابیس"}

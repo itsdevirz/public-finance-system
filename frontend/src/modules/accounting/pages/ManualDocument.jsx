@@ -188,8 +188,8 @@ const DocRow = React.memo(({ row, idx, onChange, onDelete, isActive, onActivate 
             setDebitVal(formatted);
             onChange({ ...row, debit: formatted });
           }}
-          disabled={nature === "credit"}
-          placeholder={nature === "credit" ? "—" : ""}
+          disabled={nature === "credit" && !parseNumber(row.debit)}
+          placeholder={nature === "credit" && !parseNumber(row.debit) ? "—" : ""}
         />
       </td>
 
@@ -204,8 +204,8 @@ const DocRow = React.memo(({ row, idx, onChange, onDelete, isActive, onActivate 
             setCreditVal(formatted);
             onChange({ ...row, credit: formatted });
           }}
-          disabled={nature === "debit"}
-          placeholder={nature === "debit" ? "—" : ""}
+          disabled={nature === "debit" && !parseNumber(row.credit)}
+          placeholder={nature === "debit" && !parseNumber(row.credit) ? "—" : ""}
         />
       </td>
 
@@ -432,7 +432,7 @@ export default function ManualDocument() {
             const sanitizedRows = doc.rawRows.map(r => {
               const code = r.subAccount || "";
               const group = code.charAt(0) || "";
-              const account = group === "9" ? code.substring(0, 2) : code.substring(0, 3);
+              const account = code.substring(0, 3);
               return {
                 ...r,
                 group,
@@ -445,7 +445,7 @@ export default function ManualDocument() {
             const parsed = doc.lines.map((l, i) => {
               const code = l.account_code || "";
               const group = code.charAt(0) || "";
-              const account = group === "9" ? code.substring(0, 2) : code.substring(0, 3);
+              const account = code.substring(0, 3);
               return {
                 ...EMPTY_ROW,
                 id: i + 1,

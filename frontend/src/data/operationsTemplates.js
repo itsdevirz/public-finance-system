@@ -190,336 +190,644 @@ export const INITIAL_TEMPLATES = [
     category: "payments",
     status: "active",
     lines: [
-      { type: "debit", accountCode: "97001", accountName: "اعتبار هزینه تامین شده", ratio: "100%" },
-      { type: "credit", accountCode: "93001", accountName: "اعتبار هزینه تخصیص یافته", ratio: "100%" },
-      { type: "credit", accountCode: "92001", accountName: "اعتبار هزینه", ratio: "100%" },
-      { type: "credit", accountCode: "95001", accountName: "اعتبار هزینه ابلاغی", ratio: "100%" }
+      { type: "debit", accountCode: "97001", accountName: "اعتبار هزینه تامین شده", ratio: "100%", section: "از محل اعتبار تخصیص یافته" },
+      { type: "credit", accountCode: "93001", accountName: "اعتبار هزینه تخصیص یافته", ratio: "100%", section: "از محل اعتبار تخصیص یافته" },
+      { type: "debit", accountCode: "97001", accountName: "اعتبار هزینه تامین شده", ratio: "100%", section: "از محل اعتبار اختصاصی" },
+      { type: "credit", accountCode: "92001", accountName: "اعتبار هزینه", ratio: "100%", section: "از محل اعتبار اختصاصی" },
+      { type: "debit", accountCode: "97001", accountName: "اعتبار هزینه تامین شده", ratio: "100%", section: "از محل اعتبار ابلاغی" },
+      { type: "credit", accountCode: "95001", accountName: "اعتبار هزینه ابلاغی", ratio: "100%", section: "از محل اعتبار ابلاغی" }
     ]
   },
   {
     id: 16,
     title: "ثبت شماره ۱۶",
-    description: "پرداخت هزینه‌های پستی و پیک",
+    description: "در صورت واگذاری تنخواه‌گردان پرداخت به عاملین ذیحساب طبق قوانین و مقررات مربوط",
     code: "OP-16",
-    category: "expenses",
+    category: "payments",
     status: "active",
     lines: [
-      { type: "debit", accountCode: "61002", accountName: "هزینه استفاده از کالا و خدمات", ratio: "100%" },
-      { type: "credit", accountCode: "11001", accountName: "بانک پرداخت هزینه", ratio: "100%" }
+      { type: "debit", accountCode: "11021", accountName: "تنخواه گردان پرداخت بابت عملیات جاری", ratio: "100%" },
+      { type: "credit", accountCode: "11001", accountName: "بانک پرداخت هزینه", ratio: "100%" },
+      { type: "credit", accountCode: "11003", accountName: "بانک پرداخت اختصاصی", ratio: "100%" },
+      { type: "credit", accountCode: "11004", accountName: "بانک وجوه سایر منابع", ratio: "100%" },
+      { type: "debit", accountCode: "98001", accountName: "اعتبار هزینه بابت پرداخت های غیر قطعی", ratio: "100%" },
+      { type: "credit", accountCode: "97001", accountName: "اعتبار هزینه تامین شده", ratio: "100%" }
     ]
   },
   {
     id: 17,
-    title: "ثبت شماره ۱۷",
-    description: "پرداخت هزینه‌های پذیرایی و تشریفات",
-    code: "OP-17",
-    category: "expenses",
+    title: "ثبت شماره ۱۷-۱",
+    description: "دریافت تضمین در قبال واگذاری پیش‌پرداخت بابت عملیات جاری",
+    code: "OP-17-1",
+    category: "receipts",
     status: "active",
     lines: [
-      { type: "debit", accountCode: "61002", accountName: "هزینه استفاده از کالا و خدمات", ratio: "100%" },
-      { type: "credit", accountCode: "11001", accountName: "بانک پرداخت هزینه", ratio: "100%" }
+      { type: "debit", accountCode: "81001", accountName: "حساب انتظامی - تضمین های دریافتی", ratio: "100%" },
+      { type: "credit", accountCode: "82001", accountName: "طرف حساب انتظامی - تضمین‌های دریافتی", ratio: "100%" }
+    ]
+  },
+  {
+    id: 50,
+    title: "ثبت شماره ۱۷-۲",
+    description: "به هنگام واگذاری پیش‌پرداخت به اشخاص ذینفع با رعایت مقررات و ضوابط قانونی",
+    code: "OP-17-2",
+    category: "payments",
+    status: "active",
+    lines: [
+      { type: "debit", accountCode: "14001", accountName: "پیش پرداخت بابت عملیات جاری", ratio: "100%" },
+      { type: "credit", accountCode: "11001", accountName: "بانک پرداخت هزینه", ratio: "100%" },
+      { type: "credit", accountCode: "11003", accountName: "بانک پرداخت اختصاصی", ratio: "100%" },
+      { type: "credit", accountCode: "11004", accountName: "بانک وجوه سایر منابع", ratio: "100%" },
+      { type: "debit", accountCode: "98001", accountName: "اعتبار هزینه بابت پرداخت های غیر قطعی", ratio: "100%" },
+      { type: "credit", accountCode: "97001", accountName: "اعتبار هزینه تامین شده", ratio: "100%" }
     ]
   },
   {
     id: 18,
     title: "ثبت شماره ۱۸",
-    description: "ثبت هزینه تبلیغات و اطلاع‌رسانی",
+    description: "شناسایی موجودی‌ها",
     code: "OP-18",
-    category: "expenses",
+    category: "receipts",
     status: "active",
     lines: [
-      { type: "debit", accountCode: "61002", accountName: "هزینه استفاده از کالا و خدمات", ratio: "100%" },
-      { type: "credit", accountCode: "21001", accountName: "حساب‌ها و اسناد پرداختنی حاصل از عملیات مبادله ای", ratio: "100%" }
+      { type: "debit", accountCode: "13001", accountName: "موجودی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها", ratio: "100%" },
+      { type: "credit", accountCode: "14001", accountName: "پیش‌پرداخت بابت عملیات جاری", ratio: "100%" },
+      { type: "credit", accountCode: "21001", accountName: "حساب‌ها و اسناد پرداختنی", ratio: "100%" },
+      { type: "debit", accountCode: "99001", accountName: "اعتبار هزینه مصرف شده", ratio: "100%", section: "به میزان پیش‌پرداخت منقضی شده" },
+      { type: "credit", accountCode: "98001", accountName: "اعتبار هزینه بابت پرداخت‌های غیر قطعی", ratio: "100%", section: "به میزان پیش‌پرداخت منقضی شده" },
+      { type: "debit", accountCode: "82001", accountName: "طرف حساب انتظامی - تضمین‌های دریافتی", ratio: "100%", section: "به میزان کاهش تضمین‌های دریافتی" },
+      { type: "credit", accountCode: "81001", accountName: "حساب انتظامی - تضمین‌های دریافتی", ratio: "100%", section: "به میزان کاهش تضمین‌های دریافتی" }
     ]
   },
   {
     id: 19,
     title: "ثبت شماره ۱۹",
-    description: "پرداخت حق‌الزحمه کارشناسان و مشاوران",
+    description: "شناسایی هزینه‌ها",
     code: "OP-19",
     category: "expenses",
     status: "active",
     lines: [
-      { type: "debit", accountCode: "61002", accountName: "هزینه استفاده از کالا و خدمات", ratio: "100%" },
-      { type: "credit", accountCode: "11001", accountName: "بانک پرداخت هزینه", ratio: "100%" }
+      { type: "debit", accountCode: "61001", accountName: "هزینه‌ها به تفکیک طبقه‌بندی اقتصادی دولت", ratio: "100%" },
+      { type: "credit", accountCode: "14001", accountName: "پیش‌پرداخت بابت عملیات جاری", ratio: "100%" },
+      { type: "credit", accountCode: "21001", accountName: "حساب‌ها و اسناد پرداختنی", ratio: "100%" },
+      { type: "debit", accountCode: "99001", accountName: "اعتبار هزینه مصرف شده", ratio: "100%", section: "به میزان پیش‌پرداخت منقضی شده" },
+      { type: "credit", accountCode: "98001", accountName: "اعتبار هزینه بابت پرداخت‌های غیرقطعی", ratio: "100%", section: "به میزان پیش‌پرداخت منقضی شده" },
+      { type: "debit", accountCode: "82001", accountName: "طرف حساب انتظامی - تضمین‌های دریافتی", ratio: "100%", section: "به میزان کاهش تضمین‌های دریافتی" },
+      { type: "credit", accountCode: "81001", accountName: "حساب انتظامی - تضمین‌های دریافتی", ratio: "100%", section: "به میزان کاهش تضمین‌های دریافتی" }
     ]
   },
   {
-    id: 20,
-    title: "ثبت شماره ۲۰",
-    description: "ثبت هزینه آموزش و ارتقای کارکنان",
-    code: "OP-20",
+    id: "20-1",
+    title: "ثبت شماره ۲۰-۱",
+    description: "شناسایی کسور قانونی مربوط و تسویه خالص بدهی‌ها",
+    code: "OP-20-1",
     category: "expenses",
     status: "active",
     lines: [
-      { type: "debit", accountCode: "61002", accountName: "هزینه استفاده از کالا و خدمات", ratio: "100%" },
-      { type: "credit", accountCode: "11001", accountName: "بانک پرداخت هزینه", ratio: "100%" }
+      { type: "debit", accountCode: "21001", accountName: "حساب‌ها و اسناد پرداختنی", ratio: "100%" },
+      { type: "credit", accountCode: "24001", accountName: "بیمه پرداختنی", ratio: "100%" },
+      { type: "credit", accountCode: "24004", accountName: "مالیات پرداختنی", ratio: "100%" },
+      { type: "credit", accountCode: "21007", accountName: "سپرده‌های پرداختنی", ratio: "100%" },
+      { type: "credit", accountCode: "11001", accountName: "بانک پرداخت هزینه", ratio: "100%" },
+      { type: "credit", accountCode: "11003", accountName: "بانک پرداخت اختصاصی", ratio: "100%" },
+      { type: "credit", accountCode: "11004", accountName: "بانک وجوه سایر منابع", ratio: "100%" },
+      { type: "debit", accountCode: "99001", accountName: "اعتبار هزینه مصرف شده", ratio: "100%" },
+      { type: "credit", accountCode: "97001", accountName: "اعتبار هزینه تامین شده", ratio: "100%" }
+    ]
+  },
+  {
+    id: "20-2",
+    title: "ثبت شماره ۲۰-۲",
+    description: "به هنگام تسویه کسور قانونی مربوط",
+    code: "OP-20-2",
+    category: "expenses",
+    status: "active",
+    lines: [
+      { type: "debit", accountCode: "24001", accountName: "بیمه پرداختنی", ratio: "100%" },
+      { type: "debit", accountCode: "24004", accountName: "مالیات پرداختنی", ratio: "100%" },
+      { type: "credit", accountCode: "11001", accountName: "بانک پرداخت هزینه", ratio: "100%" },
+      { type: "credit", accountCode: "11003", accountName: "بانک پرداخت اختصاصی", ratio: "100%" },
+      { type: "credit", accountCode: "11004", accountName: "بانک وجوه سایر منابع", ratio: "100%" },
+      { type: "debit", accountCode: "99001", accountName: "اعتبار هزینه مصرف شده", ratio: "100%" },
+      { type: "credit", accountCode: "97001", accountName: "اعتبار هزینه تامین شده", ratio: "100%" }
     ]
   },
   {
     id: 21,
-    title: "ثبت شماره ۲۱",
-    description: "ثبت هزینه خرید کتاب، نشریات و نرم‌افزار",
-    code: "OP-21",
-    category: "expenses",
+    title: "ثبت شماره ۲۱-۱",
+    description: "در صورت پرداخت بخشی از بدهی‌ها به عنوان علی‌الحساب",
+    code: "OP-21-1",
+    category: "payments",
     status: "active",
     lines: [
-      { type: "debit", accountCode: "61002", accountName: "هزینه استفاده از کالا و خدمات", ratio: "100%" },
-      { type: "credit", accountCode: "11001", accountName: "بانک پرداخت هزینه", ratio: "100%" }
+      { type: "debit",  accountCode: "21001", accountName: "حساب‌ها و اسناد پرداختنی",                             ratio: "**" },
+      { type: "credit", accountCode: "24001", accountName: "بیمه پرداختنی",                                         ratio: "**" },
+      { type: "credit", accountCode: "24004", accountName: "مالیات پرداختنی",                                       ratio: "**" },
+      { type: "credit", accountCode: "21007", accountName: "سپرده‌های پرداختنی",                                    ratio: "**" },
+      { type: "credit", accountCode: "11001", accountName: "بانک پرداخت هزینه",                                     ratio: "**" },
+      { type: "credit", accountCode: "11003", accountName: "بانک پرداخت اختصاصی",                                   ratio: "**" },
+      { type: "credit", accountCode: "11004", accountName: "بانک وجوه سایر منابع",                                  ratio: "**" },
+      { type: "debit",  accountCode: "81003", accountName: "حساب انتظامی- علی‌الحساب بابت عملیات جاری",            ratio: "**" },
+      { type: "credit", accountCode: "82003", accountName: "طرف حساب انتظامی- علی‌الحساب بابت عملیات جاری",       ratio: "**" },
+      { type: "debit",  accountCode: "98001", accountName: "اعتبار هزینه بابت پرداخت‌های غیرقطعی",                 ratio: "**" },
+      { type: "credit", accountCode: "97001", accountName: "اعتبار هزینه تامین شده",                                ratio: "**" }
+    ]
+  },
+  {
+    id: 51,
+    title: "ثبت شماره ۲۱-۲",
+    description: "به هنگام پرداخت کسور قانونی مرتبط با علی‌الحساب",
+    code: "OP-21-2",
+    category: "payments",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "24001", accountName: "بیمه پرداختنی",              ratio: "**" },
+      { type: "debit",  accountCode: "24004", accountName: "مالیات پرداختنی",            ratio: "**" },
+      { type: "credit", accountCode: "11001", accountName: "بانک پرداخت هزینه",          ratio: "**" },
+      { type: "credit", accountCode: "11003", accountName: "بانک پرداخت اختصاصی",        ratio: "**" },
+      { type: "credit", accountCode: "11004", accountName: "بانک وجوه سایر منابع",       ratio: "**" },
+      { type: "debit",  accountCode: "98001", accountName: "اعتبار هزینه بابت پرداخت‌های غیرقطعی", ratio: "**" },
+      { type: "credit", accountCode: "97001", accountName: "اعتبار هزینه تامین شده",    ratio: "**" }
     ]
   },
   {
     id: 22,
-    title: "ثبت شماره ۲۲",
-    description: "پرداخت هزینه‌های قضایی و ثبتی",
-    code: "OP-22",
-    category: "expenses",
+    title: "ثبت شماره ۲۲-۱",
+    description: "در صورت پرداخت مابقی بدهی‌های مرتبط با علی‌الحساب و تسویه آن",
+    code: "OP-22-1",
+    category: "payments",
     status: "active",
     lines: [
-      { type: "debit", accountCode: "61002", accountName: "هزینه استفاده از کالا و خدمات", ratio: "100%" },
-      { type: "credit", accountCode: "11001", accountName: "بانک پرداخت هزینه", ratio: "100%" }
+      { type: "debit",  accountCode: "21001", accountName: "حساب‌ها و اسناد پرداختنی",                              ratio: "**" },
+      { type: "credit", accountCode: "24001", accountName: "بیمه پرداختنی",                                          ratio: "**" },
+      { type: "credit", accountCode: "24004", accountName: "مالیات پرداختنی",                                        ratio: "**" },
+      { type: "credit", accountCode: "21007", accountName: "سپرده‌های پرداختنی",                                     ratio: "**" },
+      { type: "credit", accountCode: "11001", accountName: "بانک پرداخت هزینه",                                      ratio: "**" },
+      { type: "credit", accountCode: "11003", accountName: "بانک پرداخت اختصاصی",                                    ratio: "**" },
+      { type: "credit", accountCode: "11004", accountName: "بانک وجوه سایر منابع",                                   ratio: "**" },
+      { type: "debit",  accountCode: "82003", accountName: "طرف حساب انتظامی- علی‌الحساب بابت عملیات جاری",        ratio: "**" },
+      { type: "credit", accountCode: "81003", accountName: "حساب انتظامی- علی‌الحساب بابت عملیات جاری",            ratio: "**" },
+      { type: "debit",  accountCode: "99001", accountName: "اعتبار هزینه مصرف شده",                                  ratio: "**" },
+      { type: "credit", accountCode: "98001", accountName: "اعتبار هزینه بابت پرداخت‌های غیرقطعی",                  ratio: "**" },
+      { type: "credit", accountCode: "97001", accountName: "اعتبار هزینه تامین شده",                                 ratio: "**" }
+    ]
+  },
+  {
+    id: 52,
+    title: "ثبت شماره ۲۲-۲",
+    description: "پرداخت کسور قانونی مرتبط با تسویه علی‌الحساب",
+    code: "OP-22-2",
+    category: "payments",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "24001", accountName: "بیمه پرداختنی",              ratio: "**" },
+      { type: "debit",  accountCode: "24004", accountName: "مالیات پرداختنی",            ratio: "**" },
+      { type: "credit", accountCode: "11001", accountName: "بانک پرداخت هزینه",          ratio: "**" },
+      { type: "credit", accountCode: "11003", accountName: "بانک پرداخت اختصاصی",        ratio: "**" },
+      { type: "credit", accountCode: "11004", accountName: "بانک وجوه سایر منابع",       ratio: "**" },
+      { type: "debit",  accountCode: "99001", accountName: "اعتبار هزینه مصرف شده",      ratio: "**" },
+      { type: "credit", accountCode: "97001", accountName: "اعتبار هزینه تامین شده",     ratio: "**" }
     ]
   },
   {
     id: 23,
     title: "ثبت شماره ۲۳",
-    description: "ثبت هزینه شارژ ساختمان و نظافت",
+    description: "به هنگام دریافت اسناد و مدارک مربوط به استفاده از تنخواه‌گردان پرداخت واگذار شده از عاملین ذیحساب",
     code: "OP-23",
-    category: "expenses",
+    category: "payments",
     status: "active",
     lines: [
-      { type: "debit", accountCode: "61002", accountName: "هزینه استفاده از کالا و خدمات", ratio: "100%" },
-      { type: "credit", accountCode: "11001", accountName: "بانک پرداخت هزینه", ratio: "100%" }
+      { type: "debit",  accountCode: "81006", accountName: "حساب انتظامی- اسناد وصولی از عاملین ذیحساب",      ratio: "**" },
+      { type: "credit", accountCode: "82006", accountName: "طرف حساب انتظامی- اسناد وصولی از عاملین ذیحساب", ratio: "**" }
     ]
   },
   {
     id: 24,
     title: "ثبت شماره ۲۴",
-    description: "پرداخت مساعده به کارکنان",
+    description: "پس از تایید اسناد و مدارک مربوط به استفاده از تنخواه‌گردان پرداخت واگذار شده",
     code: "OP-24",
-    category: "salaries",
+    category: "payments",
     status: "active",
     lines: [
-      { type: "debit", accountCode: "11501", accountName: "حساب‌ها و اسناد دریافتنی", ratio: "100%" },
-      { type: "credit", accountCode: "11001", accountName: "بانک پرداخت هزینه", ratio: "100%" }
+      { type: "debit",  accountCode: "61001", accountName: "هزینه‌ها - هزینه جبران خدمت کارکنان (به تفکیک طبقه‌بندی اقتصادی دولت)",    ratio: "**" },
+      { type: "debit",  accountCode: "61002", accountName: "هزینه‌ها - هزینه استفاده از کالا و خدمات (به تفکیک طبقه‌بندی اقتصادی دولت)", ratio: "**" },
+      { type: "debit",  accountCode: "13001", accountName: "موجودی‌ها - موجودی ملزومات (به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها)",        ratio: "**" },
+      { type: "debit",  accountCode: "14001", accountName: "پیش‌پرداخت بابت عملیات جاری",                                                  ratio: "**" },
+      { type: "credit", accountCode: "11021", accountName: "تنخواه‌گردان پرداخت بابت عملیات جاری",                                         ratio: "**" },
+      { type: "debit",  accountCode: "81003", accountName: "حساب انتظامی- علی‌الحساب بابت عملیات جاری",                                    ratio: "**" },
+      { type: "credit", accountCode: "82003", accountName: "طرف حساب انتظامی- علی‌الحساب بابت عملیات جاری",                               ratio: "**" },
+      { type: "debit",  accountCode: "81001", accountName: "حساب انتظامی- تضمین‌های دریافتی",                                               ratio: "**" },
+      { type: "credit", accountCode: "82001", accountName: "طرف حساب انتظامی- تضمین‌های دریافتی",                                          ratio: "**" },
+      { type: "debit",  accountCode: "99001", accountName: "اعتبار هزینه مصرف شده (به میزان پرداخت‌های قطعی از محل تنخواه‌گردان)",         ratio: "**" },
+      { type: "credit", accountCode: "98001", accountName: "اعتبار هزینه بابت پرداخت‌های غیرقطعی",                                         ratio: "**" }
     ]
   },
   {
     id: 25,
     title: "ثبت شماره ۲۵",
-    description: "تسویه مساعده از حقوق ماهانه",
+    description: "در صورت تایید اسناد و مدارک مربوط به تسویه تنخواه‌گردان واگذار شده به عاملین ذیحساب در موعد قانونی مقرر",
     code: "OP-25",
-    category: "salaries",
+    category: "payments",
     status: "active",
     lines: [
-      { type: "debit", accountCode: "21005", accountName: "حقوق و مزایای پرداختنی", ratio: "100%" },
-      { type: "credit", accountCode: "11501", accountName: "حساب‌ها و اسناد دریافتنی", ratio: "100%" }
+      { type: "debit",  accountCode: "21001", accountName: "حساب‌ها و اسناد پرداختنی",                                                      ratio: "**" },
+      { type: "credit", accountCode: "61001", accountName: "هزینه‌ها - به تفکیک طبقه‌بندی اقتصادی دولت",                                    ratio: "**" },
+      { type: "credit", accountCode: "13001", accountName: "موجودی‌ها - به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",                            ratio: "**" },
+      { type: "credit", accountCode: "14001", accountName: "پیش‌پرداخت بابت عملیات جاری",                                                    ratio: "**" },
+      { type: "credit", accountCode: "11004", accountName: "بانک وجوه سایر منابع",                                                           ratio: "**" },
+      { type: "debit",  accountCode: "82003", accountName: "طرف حساب انتظامی- علی‌الحساب بابت عملیات جاری",                                 ratio: "**" },
+      { type: "credit", accountCode: "81003", accountName: "حساب انتظامی- علی‌الحساب بابت عملیات جاری",                                     ratio: "**" },
+      { type: "debit",  accountCode: "82001", accountName: "طرف حساب انتظامی- تضمین‌های دریافتی",                                            ratio: "**" },
+      { type: "credit", accountCode: "81001", accountName: "حساب انتظامی- تضمین‌های دریافتی",                                                ratio: "**" }
     ]
   },
   {
     id: 26,
     title: "ثبت شماره ۲۶",
-    description: "ثبت وام پرداختی به پرسنل",
+    description: "شناسایی واریز نقدی تنخواه‌گردان پرداخت و پیش‌پرداخت سال‌جاری",
     code: "OP-26",
-    category: "salaries",
+    category: "payments",
     status: "active",
     lines: [
-      { type: "debit", accountCode: "11501", accountName: "حساب‌ها و اسناد دریافتنی", ratio: "100%" },
-      { type: "credit", accountCode: "11001", accountName: "بانک پرداخت هزینه", ratio: "100%" }
+      { type: "debit",  accountCode: "11001", accountName: "بانک پرداخت هزینه",                          ratio: "**" },
+      { type: "debit",  accountCode: "11003", accountName: "بانک پرداخت اختصاصی",                        ratio: "**" },
+      { type: "debit",  accountCode: "11004", accountName: "بانک وجوه سایر منابع",                       ratio: "**" },
+      { type: "credit", accountCode: "11021", accountName: "تنخواه‌گردان پرداخت بابت عملیات جاری",       ratio: "**" },
+      { type: "credit", accountCode: "14001", accountName: "پیش‌پرداخت بابت عملیات جاری",                ratio: "**" },
+      { type: "debit",  accountCode: "93001", accountName: "اعتبار هزینه تخصیص یافته", section: "به ميزان واريز نقدي پيشپرداخت و تنخواهگردانپرداخت از محل اعتبار تخصيصيافته، اعتبار اختصاصي و اعتبار ابالغي",                   ratio: "**" },
+      { type: "debit",  accountCode: "92001", accountName: "اعتبار هزینه", section: "به ميزان واريز نقدي پيشپرداخت و تنخواهگردانپرداخت از محل اعتبار تخصيصيافته، اعتبار اختصاصي و اعتبار ابالغي",                               ratio: "**" },
+      { type: "debit",  accountCode: "95001", accountName: "اعتبار هزینه ابلاغی", section: "به ميزان واريز نقدي پيشپرداخت و تنخواهگردانپرداخت از محل اعتبار تخصيصيافته، اعتبار اختصاصي و اعتبار ابالغي",                        ratio: "**" },
+      { type: "credit", accountCode: "98001", accountName: "اعتبار هزینه بابت پرداخت‌های غیرقطعی", section: "به ميزان واريز نقدي پيشپرداخت و تنخواهگردانپرداخت از محل اعتبار تخصيصيافته، اعتبار اختصاصي و اعتبار ابالغي",       ratio: "**" },
+      { type: "debit",  accountCode: "82001", accountName: "طرف حساب انتظامی- تضمین‌های دریافتی", section: "به ميزان كاهش تضمينهاي دريافتي",        ratio: "**" },
+      { type: "credit", accountCode: "81001", accountName: "حساب انتظامی- تضمین‌های دریافتی", section: "به ميزان كاهش تضمينهاي دريافتي",            ratio: "**" }
     ]
   },
   {
     id: 27,
     title: "ثبت شماره ۲۷",
-    description: "دریافت اقساط وام پرسنلی",
+    description: "در صورت واخواهی اسناد ارایه شده",
     code: "OP-27",
-    category: "salaries",
+    category: "payments",
     status: "active",
     lines: [
-      { type: "debit", accountCode: "11007", accountName: "بانک دریافت", ratio: "100%" },
-      { type: "credit", accountCode: "11501", accountName: "حساب‌ها و اسناد دریافتنی", ratio: "100%" }
+      { type: "debit",  accountCode: "11505", accountName: "حساب‌ها و اسناد دریافتنی- اسناد واخواهی هزینه", ratio: "**" },
+      { type: "credit", accountCode: "11021", accountName: "تنخواه‌گردان پرداخت بابت عملیات جاری",          ratio: "**" },
+      { type: "debit",  accountCode: "92501", accountName: "اسناد واخواهی بابت اعتبار هزینه",               ratio: "**" },
+      { type: "credit", accountCode: "98001", accountName: "اعتبار هزینه بابت پرداخت‌های غیرقطعی",          ratio: "**" }
     ]
   },
   {
     id: 28,
     title: "ثبت شماره ۲۸",
-    description: "ثبت حقوق و مزایای ناخالص کارکنان",
+    description: "در صورت رفع اسناد واخواهی در سال شناسایی آن",
     code: "OP-28",
-    category: "salaries",
+    category: "payments",
     status: "active",
     lines: [
-      { type: "debit", accountCode: "61001", accountName: "هزینه جبران خدمت کارکنان", ratio: "100%" },
-      { type: "credit", accountCode: "21005", accountName: "حقوق و مزایای پرداختنی", ratio: "100%" }
+      { type: "debit",  accountCode: "61001", accountName: "هزینه‌ها - به تفکیک طبقه‌بندی اقتصادی دولت",             ratio: "**" },
+      { type: "debit",  accountCode: "13001", accountName: "موجودی‌ها - به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",      ratio: "**" },
+      { type: "debit",  accountCode: "14001", accountName: "پیش‌پرداخت بابت عملیات جاری",                              ratio: "**" },
+      { type: "credit", accountCode: "11505", accountName: "حساب‌ها و اسناد دریافتنی- اسناد واخواهی هزینه",           ratio: "**" },
+      { type: "debit",  accountCode: "99001", accountName: "اعتبار هزینه مصرف شده",                                    ratio: "**" },
+      { type: "debit",  accountCode: "98001", accountName: "اعتبار هزینه بابت پرداخت‌های غیرقطعی",                    ratio: "**" },
+      { type: "credit", accountCode: "92501", accountName: "اسناد واخواهی بابت اعتبار هزینه",                          ratio: "**" }
     ]
   },
   {
     id: 29,
     title: "ثبت شماره ۲۹",
-    description: "ثبت کسر حق بیمه سهم کارمند و کارفرما",
+    description: "در صورت رفع اسناد واخواهی شده در سال بعد (پس از پایان آخرین مهلت درنظر گرفته شده برای ارائه صورت‌حساب دریافت و پرداخت نهایی)",
     code: "OP-29",
-    category: "salaries",
+    category: "payments",
     status: "active",
     lines: [
-      { type: "debit", accountCode: "61001", accountName: "هزینه جبران خدمت کارکنان", ratio: "23%" },
-      { type: "debit", accountCode: "21005", accountName: "حقوق و مزایای پرداختنی", ratio: "7%" },
-      { type: "credit", accountCode: "24001", accountName: "بیمه پرداختنی", ratio: "30%" }
+      { type: "debit",  accountCode: "31006", accountName: "تعدیلات سنواتی",                                                 ratio: "**" },
+      { type: "debit",  accountCode: "13001", accountName: "موجودی‌ها - به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",              ratio: "**" },
+      { type: "debit",  accountCode: "14001", accountName: "پیش‌پرداخت بابت عملیات جاری",                                     ratio: "**" },
+      { type: "credit", accountCode: "11505", accountName: "حساب‌ها و اسناد دریافتنی- اسناد واخواهی هزینه",                  ratio: "**" },
+      { type: "debit",  accountCode: "99003", accountName: "اعتبار هزینه انتقالی مصرف شده",                                   ratio: "**" },
+      { type: "debit",  accountCode: "98003", accountName: "اعتبار هزینه انتقالی بابت پرداخت‌های غیرقطعی",                   ratio: "**" },
+      { type: "credit", accountCode: "92503", accountName: "اسناد واخواهی بابت اعتبار هزینه انتقالی",                        ratio: "**" }
     ]
   },
   {
     id: 30,
     title: "ثبت شماره ۳۰",
-    description: "ثبت کسر مالیات حقوق و دستمزد",
+    description: "در صورت عدم رفع اسناد واخواهی شده تا موعد قانونی تهیه صورت‌حساب عملکرد بودجه سالانه کل کشور",
     code: "OP-30",
-    category: "salaries",
+    category: "payments",
     status: "active",
     lines: [
-      { type: "debit", accountCode: "21005", accountName: "حقوق و مزایای پرداختنی", ratio: "10%" },
-      { type: "credit", accountCode: "24004", accountName: "مالیات پرداختنی", ratio: "10%" }
+      { type: "debit",  accountCode: "11507", accountName: "حساب‌ها و اسناد دریافتنی- کسری ابواب‌جمعی هزینه",       ratio: "**" },
+      { type: "credit", accountCode: "11505", accountName: "حساب‌ها و اسناد دریافتنی- اسناد واخواهی هزینه",         ratio: "**" },
+      { type: "debit",  accountCode: "93503", accountName: "کسری ابواب‌جمعی بابت اعتبار هزینه انتقالی",             ratio: "**" },
+      { type: "credit", accountCode: "92503", accountName: "اسناد واخواهی بابت اعتبار هزینه انتقالی",               ratio: "**" }
     ]
   },
   {
     id: 31,
     title: "ثبت شماره ۳۱",
-    description: "ثبت سایر کسورات قانونی حقوق",
+    description: "در صورت ایجاد کسری در دارایی‌ها",
     code: "OP-31",
-    category: "salaries",
+    category: "payments",
     status: "active",
     lines: [
-      { type: "debit", accountCode: "21005", accountName: "حقوق و مزایای پرداختنی", ratio: "100%" },
-      { type: "credit", accountCode: "24003", accountName: "سایر کسورات پرداختنی", ratio: "100%" }
+      { type: "debit",  accountCode: "11507", accountName: "حساب‌ها و اسناد دریافتنی- کسری ابواب‌جمعی هزینه",       ratio: "**" },
+      { type: "credit", accountCode: "13001", accountName: "موجودی‌ها - به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",     ratio: "**" },
+      { type: "credit", accountCode: "11021", accountName: "تنخواه‌گردان پرداخت بابت عملیات جاری",                   ratio: "**" },
+      { type: "credit", accountCode: "14001", accountName: "پیش‌پرداخت بابت عملیات جاری",                            ratio: "**" },
+      { type: "credit", accountCode: "11001", accountName: "بانک پرداخت هزینه",                                      ratio: "**" },
+      { type: "credit", accountCode: "11003", accountName: "بانک پرداخت اختصاصی",                                    ratio: "**" },
+      { type: "credit", accountCode: "11004", accountName: "بانک وجوه سایر منابع",                                   ratio: "**" },
+      { type: "debit",  accountCode: "93501", accountName: "کسری ابواب‌جمعی بابت اعتبار هزینه",                      ratio: "**" },
+      { type: "credit", accountCode: "98001", accountName: "اعتبار هزینه بابت پرداخت‌های غیرقطعی",                   ratio: "**" },
+      { type: "credit", accountCode: "92001", accountName: "اعتبار هزینه",                                           ratio: "**" },
+      { type: "credit", accountCode: "93001", accountName: "اعتبار هزینه تخصیص یافته",                               ratio: "**" },
+      { type: "credit", accountCode: "95001", accountName: "اعتبار هزینه ابلاغی",                                    ratio: "**" }
     ]
   },
   {
     id: 32,
     title: "ثبت شماره ۳۲",
-    description: "پرداخت خالص حقوق و مزایای کارکنان",
+    description: "در صورت رفع کسری ابواب‌جمعی در سال شناسایی آن",
     code: "OP-32",
-    category: "salaries",
+    category: "payments",
     status: "active",
     lines: [
-      { type: "debit", accountCode: "21005", accountName: "حقوق و مزایای پرداختنی", ratio: "100%" },
-      { type: "credit", accountCode: "11001", accountName: "بانک پرداخت هزینه", ratio: "100%" }
+      { type: "debit",  accountCode: "61001", accountName: "هزینه‌ها - به تفکیک طبقه‌بندی اقتصادی دولت",            ratio: "**" },
+      { type: "debit",  accountCode: "13001", accountName: "موجودی‌ها - به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",     ratio: "**" },
+      { type: "credit", accountCode: "11507", accountName: "حساب‌ها و اسناد دریافتنی- کسری ابواب‌جمعی هزینه",        ratio: "**" },
+      { type: "debit",  accountCode: "99001", accountName: "اعتبار هزینه مصرف شده",                                   ratio: "**" },
+      { type: "credit", accountCode: "93501", accountName: "کسری ابواب‌جمعی بابت اعتبار هزینه",                      ratio: "**" }
     ]
   },
   {
     id: 33,
     title: "ثبت شماره ۳۳",
-    description: "ثبت ذخیره سنوات خدمت پرسنل (پایان کار)",
+    description: "در صورت رفع کسری ابواب‌جمعی پس از پایان آخرین مهلت درنظر گرفته شده برای ارائه صورت‌حساب دریافت و پرداخت نهایی",
     code: "OP-33",
-    category: "salaries",
+    category: "payments",
     status: "active",
     lines: [
-      { type: "debit", accountCode: "61001", accountName: "هزینه جبران خدمت کارکنان", ratio: "100%" },
-      { type: "credit", accountCode: "22001", accountName: "حساب‌ها و اسناد پرداختنی حاصل از عملیات غیر مبادله ای", ratio: "100%" }
+      { type: "debit",  accountCode: "31006", accountName: "تعدیلات سنواتی",                                              ratio: "**" },
+      { type: "debit",  accountCode: "13001", accountName: "موجودی‌ها - به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",           ratio: "**" },
+      { type: "credit", accountCode: "11507", accountName: "حساب‌ها و اسناد دریافتنی- کسری ابواب‌جمعی هزینه",             ratio: "**" },
+      { type: "debit",  accountCode: "99003", accountName: "اعتبار هزینه انتقالی مصرف شده",                                ratio: "**" },
+      { type: "credit", accountCode: "93503", accountName: "کسری ابواب‌جمعی بابت اعتبار هزینه انتقالی",                   ratio: "**" }
     ]
   },
   {
     id: 34,
     title: "ثبت شماره ۳۴",
-    description: "ثبت ذخیره مرخصی استفاده‌نشده کارکنان",
+    description: "در صورت واریز نقدی کسری ابواب‌جمعی یا اسناد واخواهی شده از سوی اشخاص در سال(های) پس از شناسایی آن",
     code: "OP-34",
-    category: "salaries",
+    category: "payments",
     status: "active",
     lines: [
-      { type: "debit", accountCode: "61001", accountName: "هزینه جبران خدمت کارکنان", ratio: "100%" },
-      { type: "credit", accountCode: "22001", accountName: "حساب‌ها و اسناد پرداختنی حاصل از عملیات غیر مبادله ای", ratio: "100%" }
+      { type: "debit",  accountCode: "11001", accountName: "بانک پرداخت هزینه",                                      ratio: "**" },
+      { type: "debit",  accountCode: "11003", accountName: "بانک پرداخت اختصاصی",                                    ratio: "**" },
+      { type: "debit",  accountCode: "11004", accountName: "بانک وجوه سایر منابع",                                   ratio: "**" },
+      { type: "credit", accountCode: "11505", accountName: "حساب‌ها و اسناد دریافتنی- اسناد واخواهی هزینه",         ratio: "**" },
+      { type: "credit", accountCode: "11507", accountName: "حساب‌ها و اسناد دریافتنی- کسری ابواب‌جمعی هزینه",       ratio: "**" },
+      { type: "debit",  accountCode: "91003", accountName: "بودجه اعتبار هزینه انتقالی",                             ratio: "**" },
+      { type: "credit", accountCode: "92503", accountName: "اسناد واخواهی بابت اعتبار هزینه انتقالی",               ratio: "**" },
+      { type: "credit", accountCode: "93503", accountName: "کسری ابواب‌جمعی بابت اعتبار هزینه انتقالی",             ratio: "**" }
     ]
   },
   {
     id: 35,
-    title: "ثبت شماره ۳۵",
-    description: "پرداخت علی‌الحساب عیدی و پاداش",
-    code: "OP-35",
-    category: "salaries",
+    title: "ثبت شماره ۳۵-۱",
+    description: "احکام تعهدآور صادره از مراجع ذی‌صلاح - به هنگام صدور حکم تعهدآور از سوی مراجع ذی‌صلاح به واحد محکوم",
+    code: "OP-35-1",
+    category: "expenses",
     status: "active",
     lines: [
-      { type: "debit", accountCode: "11501", accountName: "حساب‌ها و اسناد دریافتنی", ratio: "100%" },
-      { type: "credit", accountCode: "11001", accountName: "بانک پرداخت هزینه", ratio: "100%" }
+      { type: "debit",  accountCode: "61001", accountName: "هزینه‌ها - به تفکیک طبقه‌بندی اقتصادی دولت",  ratio: "**" },
+      { type: "credit", accountCode: "24005", accountName: "ذخیره احکام صادره از مراجع ذی‌صلاح",           ratio: "**" }
+    ]
+  },
+  {
+    id: 53,
+    title: "ثبت شماره ۳۵-۲",
+    description: "احکام تعهدآور صادره از مراجع ذی‌صلاح - برداشت از حساب‌های بانکی پس از تامین منابع (اعتبار مصوب یا وجوه سایر منابع)",
+    code: "OP-35-2",
+    category: "expenses",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "24005", accountName: "ذخیره احکام صادره از مراجع ذی‌صلاح",  ratio: "**" },
+      { type: "credit", accountCode: "11001", accountName: "بانک پرداخت هزینه",                    ratio: "**" },
+      { type: "credit", accountCode: "11003", accountName: "بانک پرداخت اختصاصی",                  ratio: "**" },
+      { type: "credit", accountCode: "11004", accountName: "بانک وجوه سایر منابع",                 ratio: "**" },
+      { type: "debit",  accountCode: "99001", accountName: "اعتبار هزینه مصرف شده",                ratio: "**" },
+      { type: "credit", accountCode: "97001", accountName: "اعتبار هزینه تامین شده",               ratio: "**" }
+    ]
+  },
+  {
+    id: 54,
+    title: "ثبت شماره ۳۵-۳-۱",
+    description: "موضوع بند (ج) ماده (۲۴) قانون تنظیم بخشی از مقررات مالی دولت - دفاتر واحد محکوم: پس از جابجایی و کاهش اعتبار واحد محکوم",
+    code: "OP-35-3-1",
+    category: "expenses",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "91001", accountName: "بودجه اعتبار هزینه",                          ratio: "**" },
+      { type: "credit", accountCode: "92001", accountName: "اعتبار هزینه / اعتبار هزینه تخصیص یافته",    ratio: "**" },
+      { type: "debit",  accountCode: "24005", accountName: "ذخیره احکام صادره از مراجع ذی‌صلاح",         ratio: "**" },
+      { type: "credit", accountCode: "46001", accountName: "درآمدها - انتقالات",                          ratio: "**" }
+    ]
+  },
+  {
+    id: 55,
+    title: "ثبت شماره ۳۵-۳-۲",
+    description: "موضوع بند (ج) ماده (۲۴) قانون تنظیم بخشی از مقررات مالی دولت - دفاتر سازمان مدیریت و برنامه‌ریزی استان: در صورت پرداخت احکام صادره واحدهای محکوم توسط سازمان مدیریت و برنامه‌ریزی استان",
+    code: "OP-35-3-2",
+    category: "expenses",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "97001", accountName: "اعتبار هزینه تامین شده",   ratio: "**" },
+      { type: "credit", accountCode: "95001", accountName: "اعتبار هزینه ابلاغی",      ratio: "**" },
+      { type: "debit",  accountCode: "62001", accountName: "هزینه‌ها - انتقالات",       ratio: "**" },
+      { type: "credit", accountCode: "11001", accountName: "بانک پرداخت ...",           ratio: "**" },
+      { type: "debit",  accountCode: "99001", accountName: "اعتبار هزینه مصرف شده",    ratio: "**" },
+      { type: "credit", accountCode: "97001", accountName: "اعتبار هزینه تامین شده",   ratio: "**" }
+    ]
+  },
+  {
+    id: 56,
+    title: "ثبت شماره ۳۵-۴",
+    description: "در صورتی که منابع لازم در مهلت قانونی تعیین شده برای پرداخت احکام صادره از مراجع ذی‌صلاح تامین نشود و برداشت وجه نقد از سوی اشخاص انجام شود - کسری وجوه ایجاد شده بر اساس اعلامیه بانکی",
+    code: "OP-35-4",
+    category: "expenses",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "24005", accountName: "ذخیره احکام صادره از مراجع ذی‌صلاح",         ratio: "**" },
+      { type: "credit", accountCode: "11001", accountName: "بانک پرداخت هزینه",                           ratio: "**" },
+      { type: "credit", accountCode: "11003", accountName: "بانک پرداخت اختصاصی",                         ratio: "**" },
+      { type: "credit", accountCode: "11004", accountName: "بانک وجوه سایر منابع",                        ratio: "**" },
+      { type: "debit",  accountCode: "81007", accountName: "حساب انتظامی- کسری ابواب‌جمعی برداشتی",       ratio: "**" },
+      { type: "credit", accountCode: "82007", accountName: "طرف حساب انتظامی- کسری ابواب‌جمعی برداشتی",  ratio: "**" }
+    ]
+  },
+  {
+    id: 57,
+    title: "ثبت شماره ۳۵-۵",
+    description: "چنانچه برداشت وجه نقد به موجب احکام صادره از مراجع ذی‌صلاح از حساب بانکی عامل ذیحساب انجام شود - به محض اطلاع از کسری ایجاد شده در تنخواه‌گردان پرداخت",
+    code: "OP-35-5",
+    category: "expenses",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "61001", accountName: "هزینه‌ها - به تفکیک طبقه‌بندی اقتصادی دولت",  ratio: "**" },
+      { type: "credit", accountCode: "11021", accountName: "تنخواه‌گردان پرداخت بابت عملیات جاری",         ratio: "**" },
+      { type: "debit",  accountCode: "93001", accountName: "اعتبار هزینه تخصیص یافته",                     ratio: "**" },
+      { type: "credit", accountCode: "98001", accountName: "اعتبار هزینه بابت پرداخت‌های غیرقطعی",         ratio: "**" },
+      { type: "debit",  accountCode: "81007", accountName: "حساب انتظامی- کسری ابواب‌جمعی برداشتی",        ratio: "**" },
+      { type: "credit", accountCode: "82007", accountName: "طرف حساب انتظامی- کسری ابواب‌جمعی برداشتی",   ratio: "**" }
+    ]
+  },
+  {
+    id: 58,
+    title: "ثبت شماره ۳۵-۶",
+    description: "چنانچه در سال شناسایی کسری ابواب‌جمعی برداشتی، منابع لازم تامین و کسری رفع گردد",
+    code: "OP-35-6",
+    category: "expenses",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "82007", accountName: "طرف حساب انتظامی- کسری ابواب‌جمعی برداشتی",  ratio: "**" },
+      { type: "credit", accountCode: "81007", accountName: "حساب انتظامی- کسری ابواب‌جمعی برداشتی",      ratio: "**" },
+      { type: "debit",  accountCode: "99001", accountName: "اعتبار هزینه مصرف شده",                       ratio: "**" },
+      { type: "credit", accountCode: "93001", accountName: "اعتبار هزینه تخصیص یافته",                    ratio: "**" }
+    ]
+  },
+  {
+    id: 59,
+    title: "ثبت شماره ۳۵-۷",
+    description: "چنانچه منابع لازم برای رفع کسری ابواب‌جمعی برداشتی، در دوره‌های مالی پس از شناسایی آن تامین شود",
+    code: "OP-35-7",
+    category: "expenses",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "82007", accountName: "طرف حساب انتظامی- کسری ابواب‌جمعی برداشتی",  ratio: "**" },
+      { type: "credit", accountCode: "81007", accountName: "حساب انتظامی- کسری ابواب‌جمعی برداشتی",      ratio: "**" }
+    ]
+  },
+  {
+    id: 60,
+    title: "ثبت شماره ۳۵-۸",
+    description: "در صورت واریز نقدی کسری ابواب‌جمعی برداشتی از سوی اشخاص در دوره‌های مالی پس از شناسایی آن",
+    code: "OP-35-8",
+    category: "expenses",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "11001", accountName: "بانک پرداخت هزینه",                           ratio: "**" },
+      { type: "debit",  accountCode: "11003", accountName: "بانک پرداخت اختصاصی",                         ratio: "**" },
+      { type: "debit",  accountCode: "11004", accountName: "بانک وجوه سایر منابع",                        ratio: "**" },
+      { type: "credit", accountCode: "31006", accountName: "تعدیلات سنواتی",                              ratio: "**" },
+      { type: "debit",  accountCode: "82007", accountName: "طرف حساب انتظامی- کسری ابواب‌جمعی برداشتی",  ratio: "**" },
+      { type: "credit", accountCode: "81007", accountName: "حساب انتظامی- کسری ابواب‌جمعی برداشتی",      ratio: "**" }
     ]
   },
   {
     id: 36,
     title: "ثبت شماره ۳۶",
-    description: "تسویه نهایی عیدی و سنوات پایان سال",
+    description: "پس از تامین اعتبار لازم و به هنگام خرید بن غیرنقدی کارکنان",
     code: "OP-36",
-    category: "salaries",
+    category: "expenses",
     status: "active",
     lines: [
-      { type: "debit", accountCode: "61001", accountName: "هزینه جبران خدمت کارکنان", ratio: "100%" },
-      { type: "credit", accountCode: "11501", accountName: "حساب‌ها و اسناد دریافتنی", ratio: "80%" },
-      { type: "credit", accountCode: "11001", accountName: "بانک پرداخت هزینه (مابه‌التفاوت)", ratio: "20%" }
+      { type: "debit",  accountCode: "11509", accountName: "حساب‌ها و اسناد دریافتنی- بن غیرنقدی",  ratio: "**" },
+      { type: "credit", accountCode: "11001", accountName: "بانک پرداخت هزینه",                      ratio: "**" },
+      { type: "credit", accountCode: "11003", accountName: "بانک پرداخت اختصاصی",                    ratio: "**" },
+      { type: "credit", accountCode: "11004", accountName: "بانک وجوه سایر منابع",                   ratio: "**" },
+      { type: "credit", accountCode: "21001", accountName: "حساب‌ها و اسناد پرداختنی",               ratio: "**" }
     ]
   },
   {
     id: 37,
     title: "ثبت شماره ۳۷",
-    description: "ثبت درآمد فروش خدمات آموزشی",
+    description: "به هنگام تحویل بن غیرنقدی به کارکنان",
     code: "OP-37",
-    category: "receipts",
+    category: "expenses",
     status: "active",
     lines: [
-      { type: "debit", accountCode: "11007", accountName: "بانک دریافت", ratio: "100%" },
-      { type: "credit", accountCode: "45004", accountName: "درآمدهای حاصل از فروش کالا و خدمات", ratio: "100%" }
+      { type: "debit",  accountCode: "61001", accountName: "هزینه‌ها - به تفکیک طبقه‌بندی اقتصادی دولت",  ratio: "**" },
+      { type: "credit", accountCode: "11509", accountName: "حساب‌ها و اسناد دریافتنی- بن غیرنقدی",        ratio: "**" },
+      { type: "debit",  accountCode: "99001", accountName: "اعتبار هزینه مصرف شده",                        ratio: "**" },
+      { type: "credit", accountCode: "97001", accountName: "اعتبار هزینه تامین شده",                       ratio: "**" }
     ]
   },
   {
     id: 38,
     title: "ثبت شماره ۳۸",
-    description: "ثبت درآمد فروش خدمات مشاوره‌ای",
+    description: "پس از تامین اعتبار لازم و به هنگام خرید کارت هدیه از بانک‌ها یا موسسات مالی مطابق قوانین و مقررات مربوط",
     code: "OP-38",
-    category: "receipts",
+    category: "expenses",
     status: "active",
     lines: [
-      { type: "debit", accountCode: "11007", accountName: "بانک دریافت", ratio: "100%" },
-      { type: "credit", accountCode: "45004", accountName: "درآمدهای حاصل از فروش کالا و خدمات", ratio: "100%" }
+      { type: "debit",  accountCode: "11020", accountName: "کارت هدیه",                          ratio: "**" },
+      { type: "credit", accountCode: "11001", accountName: "بانک پرداخت هزینه",                  ratio: "**" },
+      { type: "credit", accountCode: "11003", accountName: "بانک پرداخت اختصاصی",                ratio: "**" },
+      { type: "credit", accountCode: "11004", accountName: "بانک وجوه سایر منابع",               ratio: "**" },
+      { type: "credit", accountCode: "21001", accountName: "حساب‌ها و اسناد پرداختنی",           ratio: "**" }
     ]
   },
   {
     id: 39,
     title: "ثبت شماره ۳۹",
-    description: "ثبت درآمد اجاره اماکن و تجهیزات",
+    description: "به هنگام واگذاری کارت هدیه به اشخاص طبق قوانین و مقررات مربوط",
     code: "OP-39",
-    category: "receipts",
+    category: "expenses",
     status: "active",
     lines: [
-      { type: "debit", accountCode: "11007", accountName: "بانک دریافت", ratio: "100%" },
-      { type: "credit", accountCode: "45003", accountName: "درآمدهای حاصل از مالکیت", ratio: "100%" }
+      { type: "debit",  accountCode: "61001", accountName: "هزینه‌ها - به تفکیک طبقه‌بندی اقتصادی دولت",  ratio: "**" },
+      { type: "credit", accountCode: "11020", accountName: "کارت هدیه",                                    ratio: "**" },
+      { type: "debit",  accountCode: "99001", accountName: "اعتبار هزینه مصرف شده",                        ratio: "**" },
+      { type: "credit", accountCode: "97001", accountName: "اعتبار هزینه تامین شده",                       ratio: "**" }
     ]
   },
   {
     id: 40,
     title: "ثبت شماره ۴۰",
-    description: "دریافت سود سپرده‌های بانکی جاری",
+    description: "شناسایی بدهی‌ها بابت تعهدات مازاد بر اعتبار هزینه تخصیص یافته",
     code: "OP-40",
-    category: "receipts",
+    category: "expenses",
     status: "active",
     lines: [
-      { type: "debit", accountCode: "11007", accountName: "بانک دریافت", ratio: "100%" },
-      { type: "credit", accountCode: "45006", accountName: "سایر درآمدهای واحد", ratio: "100%" }
+      { type: "debit",  accountCode: "61001", accountName: "هزینه‌ها - به تفکیک طبقه‌بندی اقتصادی دولت",            ratio: "**" },
+      { type: "debit",  accountCode: "13001", accountName: "موجودی‌ها - به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",     ratio: "**" },
+      { type: "credit", accountCode: "24006", accountName: "ذخیره تعهدات هزینه‌ای",                                  ratio: "**" }
     ]
   },
   {
     id: 41,
     title: "ثبت شماره ۴۱",
-    description: "دریافت وجوه حاصل از بازیافت اسقاط",
+    description: "شناسایی مزایای پایان خدمت کارکنان و مرخصی استفاده نشده کارکنان در پایان سال مالی",
     code: "OP-41",
-    category: "receipts",
+    category: "expenses",
     status: "active",
     lines: [
-      { type: "debit", accountCode: "11007", accountName: "بانک دریافت", ratio: "100%" },
-      { type: "credit", accountCode: "45006", accountName: "سایر درآمدهای واحد", ratio: "100%" }
+      { type: "debit",  accountCode: "61001", accountName: "هزینه مزایای پایان خدمت - به تفکیک طبقه‌بندی اقتصادی دولت",        ratio: "**" },
+      { type: "credit", accountCode: "26001", accountName: "ذخیره مزایای پایان خدمت کارکنان",                                   ratio: "**" },
+      { type: "debit",  accountCode: "61001", accountName: "هزینه مرخصی استفاده نشده - به تفکیک طبقه‌بندی اقتصادی دولت",       ratio: "**" },
+      { type: "credit", accountCode: "27001", accountName: "ذخیره مرخصی استفاده نشده کارکنان",                                  ratio: "**" }
     ]
   },
   {
     id: 42,
     title: "ثبت شماره ۴۲",
-    description: "ثبت کسری یا فزونی صندوق",
+    description: "به هنگام پرداخت مزایای پایان خدمت و مرخصی استفاده نشده کارکنان",
     code: "OP-42",
-    category: "receipts",
+    category: "expenses",
     status: "active",
     lines: [
-      { type: "debit", accountCode: "61008", accountName: "سایر هزینه‌ها", ratio: "100%" },
-      { type: "credit", accountCode: "11024", accountName: "صندوق", ratio: "100%" }
+      { type: "debit",  accountCode: "97001", accountName: "اعتبار هزینه تامین شده",                    ratio: "**" },
+      { type: "credit", accountCode: "93001", accountName: "اعتبار هزینه تخصیص یافته",                  ratio: "**" },
+      { type: "credit", accountCode: "95001", accountName: "اعتبار هزینه ابلاغی",                       ratio: "**" },
+      { type: "debit",  accountCode: "26001", accountName: "ذخیره مزایای پایان خدمت کارکنان",           ratio: "**" },
+      { type: "debit",  accountCode: "27001", accountName: "ذخیره مرخصی استفاده نشده کارکنان",          ratio: "**" },
+      { type: "credit", accountCode: "11001", accountName: "بانک پرداخت هزینه",                         ratio: "**" },
+      { type: "credit", accountCode: "11003", accountName: "بانک پرداخت اختصاصی",                       ratio: "**" },
+      { type: "debit",  accountCode: "99001", accountName: "اعتبار هزینه مصرف شده",                     ratio: "**" },
+      { type: "credit", accountCode: "97001", accountName: "اعتبار هزینه تامین شده",                    ratio: "**" }
     ]
   },
   {
