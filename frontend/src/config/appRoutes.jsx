@@ -42,6 +42,7 @@ const PayrollDashboard = lazy(() => import("@/modules/payroll/pages/PayrollDashb
 const PayrollCalculate = lazy(() => import("@/modules/payroll/pages/PayrollCalculate"));
 const ManualDocument = lazy(() => import("@/modules/accounting/pages/ManualDocument"));
 const DocumentsList = lazy(() => import("@/modules/accounting/pages/DocumentsList"));
+const PayrollOperations = lazy(() => import("@/modules/accounting/pages/PayrollOperations"));
 const AiChat = lazy(() => import("@/pages/AiChat"));
 
 /** صفحاتی که پیاده‌سازی شده‌اند — بقیه خودکار Placeholder می‌شوند */
@@ -237,7 +238,7 @@ export const PAGE_COMPONENTS = {
   "/system-management/settings": SystemManagement,
   "/system-management/document-templates": SystemManagement,
   "/system-management/document-templates/current-operations": CurrentOperations,
-  "/system-management/document-templates/payroll": SystemManagement,
+  "/system-management/document-templates/payroll": PayrollOperations,
   "/system-management/document-templates/capital-operations": SystemManagement,
   "/system-management/document-templates/revenues": SystemManagement,
   "/system-management/document-templates/deposits": SystemManagement,

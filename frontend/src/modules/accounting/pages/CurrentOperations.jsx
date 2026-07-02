@@ -22,7 +22,7 @@ const STATUS_COLOR = {
   CANCELLED: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/20 dark:text-rose-400",
 };
 
-export default function CurrentOperations() {
+export default function CurrentOperations({ categoryFilter = null, pageTitle = "حسابداری عملیات جاری", pageDescription = "لیست اسناد مالی صادر شده با استفاده از الگوهای ثبت جاری سیستم" }) {
   const today = new Date().toLocaleDateString("fa-IR").replace(/\//g, "/");
 
   // لیست اسناد ثبت شده توسط کاربر از روی الگوها
@@ -68,7 +68,14 @@ export default function CurrentOperations() {
       const res = await api.get("/api/documents");
       if (res.data?.data) {
         // فیلتر کردن اسنادی که ویژگی is_template_derived دارند
-        const list = res.data.data.filter(doc => doc.is_template_derived === true);
+        let list = res.data.data.filter(doc => doc.is_template_derived === true);
+        // اگر categoryFilter مشخص شده، فقط اسناد مربوط به الگوهای آن دسته نمایش داده شوند
+        if (categoryFilter) {
+          const categoryTemplateIds = new Set(
+            INITIAL_TEMPLATES.filter(t => t.category === categoryFilter).map(t => String(t.id))
+          );
+          list = list.filter(doc => categoryTemplateIds.has(String(doc.template_id)));
+        }
         setPostedDocuments(list);
       }
     } catch (err) {
@@ -360,9 +367,9 @@ export default function CurrentOperations() {
         <div>
           <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
             <BookOpen className="h-5 w-5 text-primary" />
-            حسابداری عملیات جاری
+            {pageTitle}
           </h1>
-          <p className="text-xs text-muted-foreground mt-0.5">لیست اسناد مالی صادر شده با استفاده از الگوهای ثبت جاری سیستم</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{pageDescription}</p>
         </div>
         <div className="flex gap-2">
           <Button size="sm" onClick={openPostWizard} className="gap-1.5 h-9 text-xs bg-green-600 hover:bg-green-700 text-white font-bold">
@@ -705,6 +712,7 @@ export default function CurrentOperations() {
                               {/* لیست گزینه‌ها */}
                               {INITIAL_TEMPLATES
                                 .filter((t) => t.status === "active")
+                                .filter((t) => !categoryFilter || t.category === categoryFilter)
                                 .filter((t) => {
                                   if (!dropdownSearch.trim()) return true;
                                   const q = dropdownSearch.toLowerCase();
@@ -732,7 +740,7 @@ export default function CurrentOperations() {
                                   );
                                 })}
 
-                              {INITIAL_TEMPLATES.filter((t) => t.status === "active").filter((t) => {
+                              {INITIAL_TEMPLATES.filter((t) => t.status === "active").filter((t) => !categoryFilter || t.category === categoryFilter).filter((t) => {
                                 if (!dropdownSearch.trim()) return true;
                                 const q = dropdownSearch.toLowerCase();
                                 return (

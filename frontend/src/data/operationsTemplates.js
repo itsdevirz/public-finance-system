@@ -1072,5 +1072,118 @@ export const INITIAL_TEMPLATES = [
       { type: "debit",  accountCode: "91003", accountName: "بودجه اعتبار هزینه انتقالی",   ratio: "**" },
       { type: "credit", accountCode: "91501", accountName: "اعتبار هزینه انتقالی",         ratio: "**" }
     ]
+  },
+  {
+    id: 101,
+    title: "ثبت شماره ۱-۱",
+    description: "به میزان کسور بازنشستگی و حق بیمه سهم دولت بر اساس لیست تایید شده",
+    code: "PAY-1-1",
+    category: "payroll",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "92001", accountName: "اعتبار هزینه",        ratio: "**" },
+      { type: "credit", accountCode: "91001", accountName: "بودجه اعتبار هزینه",  ratio: "**" }
+    ]
+  },
+  {
+    id: 102,
+    title: "ثبت شماره ۱-۲",
+    description: "معادل ناخالص لیست تایید شده (با احتساب اعتبارات اضافه شده بابت کسور بازنشستگی و حق بیمه سهم دولت به کسر از غیبت و کسری کارکنان)",
+    code: "PAY-1-2",
+    category: "payroll",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "93001", accountName: "اعتبار هزینه تخصیص یافته",                           ratio: "**", section: "درصورت تامین اعتبار از محل اعتبار تخصیص یافته" },
+      { type: "credit", accountCode: "92001", accountName: "اعتبار هزینه",                                       ratio: "**", section: "درصورت تامین اعتبار از محل اعتبار تخصیص یافته" },
+      { type: "debit",  accountCode: "97001", accountName: "اعتبار هزینه تامین شده",                             ratio: "**", section: "درصورت تامین اعتبار از محل اعتبار تخصیص یافته" },
+      { type: "credit", accountCode: "93001", accountName: "اعتبار هزینه تخصیص یافته",                           ratio: "**", section: "درصورت تامین اعتبار از محل اعتبار تخصیص یافته" },
+      { type: "debit",  accountCode: "95001", accountName: "اعتبار هزینه ابلاغی",                                ratio: "**", section: "درصورت تامین اعتبار از محل اعتبار ابلاغی" },
+      { type: "credit", accountCode: "91001", accountName: "بودجه اعتبار هزینه",                                 ratio: "**", section: "درصورت تامین اعتبار از محل اعتبار ابلاغی" },
+      { type: "debit",  accountCode: "97001", accountName: "اعتبار هزینه تامین شده",                             ratio: "**", section: "درصورت تامین اعتبار از محل اعتبار ابلاغی" },
+      { type: "credit", accountCode: "95001", accountName: "اعتبار هزینه ابلاغی",                                ratio: "**", section: "درصورت تامین اعتبار از محل اعتبار ابلاغی" },
+      { type: "debit",  accountCode: "61001", accountName: "هزینه‌ها - به تفکیک طبقه‌بندی اقتصادی دولت",         ratio: "**" },
+      { type: "credit", accountCode: "24001", accountName: "بیمه پرداختنی",                                      ratio: "**" },
+      { type: "credit", accountCode: "24002", accountName: "حق بازنشستگی پرداختنی",                              ratio: "**" },
+      { type: "credit", accountCode: "24004", accountName: "مالیات پرداختنی",                                    ratio: "**" },
+      { type: "credit", accountCode: "24003", accountName: "سایر کسورات پرداختنی",                               ratio: "**" },
+      { type: "credit", accountCode: "21005", accountName: "حقوق و مزایای پرداختنی",                             ratio: "**" }
+    ]
+  },
+  {
+    id: 103,
+    title: "ثبت شماره ۲",
+    description: "به هنگام واریز مبلغ قابل پرداخت به حساب بانکی کارکنان، واحد گزارشگر و کسور متعلقه به حساب‌های ذیربط توسط خزانه",
+    code: "PAY-2",
+    category: "payroll",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "11001", accountName: "بانک پرداخت هزینه",                  ratio: "**" },
+      { type: "debit",  accountCode: "24001", accountName: "بیمه پرداختنی",                       ratio: "**" },
+      { type: "debit",  accountCode: "24002", accountName: "حق بازنشستگی پرداختنی",               ratio: "**" },
+      { type: "debit",  accountCode: "24004", accountName: "مالیات پرداختنی",                     ratio: "**" },
+      { type: "debit",  accountCode: "21005", accountName: "حقوق و مزایای پرداختنی",              ratio: "**" },
+      { type: "credit", accountCode: "41005", accountName: "دریافتی از خزانه بابت حقوق و مزایا", ratio: "**" },
+      { type: "debit",  accountCode: "99001", accountName: "اعتبار هزینه مصرف شده",               ratio: "**" },
+      { type: "credit", accountCode: "97001", accountName: "اعتبار هزینه تامین شده",              ratio: "**" }
+    ]
+  },
+  {
+    id: 104,
+    title: "ثبت شماره ۳",
+    description: "به هنگام پرداخت سایر کسور مرتبط با حقوق و مزایای مستمر",
+    code: "PAY-3",
+    category: "payroll",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "24003", accountName: "سایر کسورات پرداختنی",  ratio: "**" },
+      { type: "credit", accountCode: "11001", accountName: "بانک پرداخت هزینه",     ratio: "**" },
+      { type: "debit",  accountCode: "99001", accountName: "اعتبار هزینه مصرف شده", ratio: "**" },
+      { type: "credit", accountCode: "97001", accountName: "اعتبار هزینه تامین شده",ratio: "**" }
+    ]
+  },
+  {
+    id: 105,
+    title: "ثبت شماره ۴",
+    description: "بستن حساب‌های حقوق و مزایای مستمر",
+    code: "PAY-4",
+    category: "payroll",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "91001", accountName: "بودجه اعتبار هزینه",                                   ratio: "**" },
+      { type: "credit", accountCode: "92001", accountName: "اعتبار هزینه",                                         ratio: "**" },
+      { type: "credit", accountCode: "93001", accountName: "اعتبار هزینه تخصیص یافته",                             ratio: "**" },
+      { type: "credit", accountCode: "95001", accountName: "اعتبار هزینه ابلاغی",                                  ratio: "**" },
+      { type: "credit", accountCode: "97001", accountName: "اعتبار هزینه تامین شده",                               ratio: "**" },
+      { type: "credit", accountCode: "99001", accountName: "اعتبار هزینه مصرف شده",                                ratio: "**" },
+      { type: "debit",  accountCode: "41005", accountName: "دریافتی از خزانه بابت حقوق و مزایا",                   ratio: "**" },
+      { type: "credit", accountCode: "61001", accountName: "هزینه‌ها - به تفکیک طبقه‌بندی اقتصادی دولت",           ratio: "**" },
+      { type: "credit", accountCode: "31007", accountName: "خالص تغییر در وضعیت مالی",                             ratio: "**" },
+      { type: "debit",  accountCode: "31007", accountName: "خالص تغییر در وضعیت مالی",                             ratio: "**" },
+      { type: "credit", accountCode: "31001", accountName: "ارزش خالص انباشته",                                    ratio: "**" }
+    ]
+  },
+  {
+    id: 106,
+    title: "ثبت شماره ۵-۱",
+    description: "به میزان وجوه دریافتی از صندوق بازنشستگی مربوط",
+    code: "PAY-5-1",
+    category: "payroll",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "11001", accountName: "بانک ...",                          ratio: "**" },
+      { type: "credit", accountCode: "24008", accountName: "سایر حساب‌ها و اسناد پرداختنی",    ratio: "**" }
+    ]
+  },
+  {
+    id: 107,
+    title: "ثبت شماره ۵-۲",
+    description: "به هنگام پرداخت حقوق و مزایای بازنشستگی و موظفین",
+    code: "PAY-5-2",
+    category: "payroll",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "24008", accountName: "سایر حساب‌ها و اسناد پرداختنی",    ratio: "**" },
+      { type: "credit", accountCode: "11001", accountName: "بانک ...",                          ratio: "**" }
+    ]
   }
 ];
