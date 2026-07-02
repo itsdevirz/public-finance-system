@@ -919,31 +919,37 @@ export default function CurrentOperations({ categoryFilter = null, pageTitle = "
                           </table>
                         </div>
 
-                        {/* خلاصه تراز سند */}
-                        <div className="flex items-center justify-between border p-3 rounded-xl bg-muted/20 text-xs mt-3">
-                          <div className="flex gap-4">
+                        {/* خلاصه تراز سند — هم‌سبک با ManualDocument */}
+                        <div className="flex items-center justify-between border-t px-3 py-2 bg-muted/20 rounded-b-xl text-xs">
+                          <div className="flex items-center gap-6">
                             <span className="text-muted-foreground">
-                              جمع بدهکار: <span className="font-bold text-blue-700">{(totals.debit).toLocaleString("fa-IR")} ریال</span>
+                              جمع بدهکار: <span className="font-semibold text-blue-700">{totals.debit.toLocaleString("fa-IR")}</span>
                             </span>
                             <span className="text-muted-foreground">
-                              جمع بستانکار: <span className="font-bold text-rose-700">{(totals.credit).toLocaleString("fa-IR")} ریال</span>
+                              جمع بستانکار: <span className="font-semibold text-rose-700">{totals.credit.toLocaleString("fa-IR")}</span>
                             </span>
+                            <div className="flex items-center gap-2">
+                              <span className={`font-semibold ${
+                                totals.diff === 0 && totals.debit > 0 && allSectionsBalanced
+                                  ? "text-green-600"
+                                  : "text-rose-600 flex items-center gap-1.5 bg-rose-50 border border-rose-200 px-2.5 py-0.5 rounded-lg"
+                              }`}>
+                                {totals.diff === 0 && totals.debit > 0 && allSectionsBalanced ? (
+                                  "تراز (اختلاف: ۰)"
+                                ) : (
+                                  <>
+                                    <AlertCircle className="h-3.5 w-3.5 text-rose-600" />
+                                    <span>
+                                      {!allSectionsBalanced
+                                        ? "برخی بخش‌های سند ناتراز هستند"
+                                        : `سند ناتراز است! (اختلاف: ${Math.abs(totals.diff).toLocaleString("fa-IR")} ریال) - مبالغ را اصلاح کنید`
+                                      }
+                                    </span>
+                                  </>
+                                )}
+                              </span>
+                            </div>
                           </div>
-                          <span className={`font-bold ${totals.diff === 0 && totals.debit > 0 && allSectionsBalanced ? "text-green-600" : "text-rose-600"}`}>
-                            {totals.diff === 0 && totals.debit > 0 && allSectionsBalanced ? (
-                              <span className="flex items-center gap-1">
-                                <CheckCircle2 className="h-3.5 w-3.5" />
-                                سند تراز است
-                              </span>
-                            ) : (
-                              <span>
-                                {!allSectionsBalanced
-                                  ? "برخی از بخش‌های سند ناتراز هستند"
-                                  : `اختلاف تراز: ${(Math.abs(totals.diff)).toLocaleString("fa-IR")} ریال`
-                                }
-                              </span>
-                            )}
-                          </span>
                         </div>
                       </div>
                     </>

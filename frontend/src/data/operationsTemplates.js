@@ -1185,5 +1185,730 @@ export const INITIAL_TEMPLATES = [
       { type: "debit",  accountCode: "24008", accountName: "سایر حساب‌ها و اسناد پرداختنی",    ratio: "**" },
       { type: "credit", accountCode: "11001", accountName: "بانک ...",                          ratio: "**" }
     ]
+  },
+
+  // ─── عملیات سرمایه‌ای ─────────────────────────────────────────────────────
+  {
+    id: 108,
+    title: "ثبت شماره ۱",
+    description: "به هنگام ابلاغ بودجه (عمومی / اختصاصی) یا تبادل موافقتنامه",
+    code: "CAP-1",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "92002", accountName: "اعتبار سرمایه‌ای",        ratio: "**" },
+      { type: "credit", accountCode: "91002", accountName: "بودجه اعتبار سرمایه‌ای",  ratio: "**" }
+    ]
+  },
+  {
+    id: 109,
+    title: "ثبت شماره ۲",
+    description: "در صورت دریافت تنخواه‌گردان حسابداری از خزانه (شامل اعتبار بانکی)",
+    code: "CAP-2",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "11002", accountName: "بانک پرداخت سرمایه‌ای",         ratio: "**" },
+      { type: "credit", accountCode: "23002", accountName: "پیش‌دریافت اعتبار سرمایه‌ای",   ratio: "**" }
+    ]
+  },
+  {
+    id: 110,
+    title: "ثبت شماره ۳",
+    description: "در صورت پرداخت از محل تنخواه‌گردان حسابداری (ثبت قبل از پرداخت)",
+    code: "CAP-3",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "97002", accountName: "اعتبار سرمایه‌ای تامین شده",  ratio: "**" },
+      { type: "credit", accountCode: "96002", accountName: "کنترل اعتبار سرمایه‌ای",       ratio: "**" }
+    ]
+  },
+  {
+    id: 111,
+    title: "ثبت شماره ۴",
+    description: "به هنگام تخصیص اعتبار",
+    code: "CAP-4",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "93002", accountName: "اعتبار سرمایه‌ای تخصیص یافته", ratio: "**" },
+      { type: "credit", accountCode: "92002", accountName: "اعتبار سرمایه‌ای",              ratio: "**" }
+    ]
+  },
+  {
+    id: 112,
+    title: "ثبت شماره ۵",
+    description: "در صورت دریافت وجه نقد (شامل اعتبار بانکی) و تسویه و پا به پای تنخواه‌گردان حسابداری با اعتبار تخصیص یافته",
+    code: "CAP-5",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "96002", accountName: "کنترل اعتبار سرمایه‌ای",          ratio: "**", section: "بخش اول" },
+      { type: "credit", accountCode: "93002", accountName: "اعتبار سرمایه‌ای تخصیص یافته",    ratio: "**", section: "بخش اول" },
+      { type: "debit",  accountCode: "23002", accountName: "پیش‌دریافت اعتبار سرمایه‌ای",     ratio: "**", section: "بخش دوم" },
+      { type: "debit",  accountCode: "11002", accountName: "بانک پرداخت سرمایه‌ای",           ratio: "**", section: "بخش دوم" },
+      { type: "credit", accountCode: "41002", accountName: "دریافتی بابت عملیات سرمایه‌ای",   ratio: "**", section: "بخش دوم" }
+    ]
+  },
+  {
+    id: 113,
+    title: "ثبت شماره ۶",
+    description: "دریافت وجه نقد (شامل اعتبار بانکی) از محل اعتبار اختصاصی مصوب",
+    code: "CAP-6",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "11003", accountName: "بانک پرداخت اختصاصی",                           ratio: "**", section: "بخش اصلی" },
+      { type: "credit", accountCode: "21001", accountName: "مطالبات از خزانه",                               ratio: "**", section: "بخش اصلی" },
+      { type: "debit",  accountCode: "89001", accountName: "حساب انتظامی - کنترل دریافتی‌ها بابت اعتبار",   ratio: "**", section: "حساب‌های انتظامی" },
+      { type: "credit", accountCode: "99001", accountName: "طرف حساب انتظامی - کنترل دریافتی‌ها بابت اعتبار", ratio: "**", section: "حساب‌های انتظامی" }
+    ]
+  },
+  {
+    id: 114,
+    title: "ثبت شماره ۷",
+    description: "به هنگام دریافت هدایا و کمک‌های نقدی یا غیرنقدی یا محتمل شدن ورود جریان منافع اقتصادی یا توان خدمت‌رسانی آتی (در صورتی که نحوه مصرف وجوه تعیین نشده باشد)",
+    code: "CAP-7",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "11004", accountName: "بانک وجوه سایر منابع",                              ratio: "**" },
+      { type: "debit",  accountCode: "13001", accountName: "دارایی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها", ratio: "**" },
+      { type: "debit",  accountCode: "14001", accountName: "موجودی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها", ratio: "**" },
+      { type: "debit",  accountCode: "15001", accountName: "حساب‌ها و اسناد دریافتنی",                          ratio: "**" },
+      { type: "credit", accountCode: "51001", accountName: "هدایا و کمک‌ها",                                    ratio: "**" }
+    ]
+  },
+  {
+    id: 115,
+    title: "ثبت شماره ۸",
+    description: "به هنگام دریافت اعلامیه بانکی در خصوص واریز وجوه تنخواه‌گردان پرداخت (دریافتی از ذیحسابی سایر واحدها)",
+    code: "CAP-8",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "11004", accountName: "بانک وجوه سایر منابع",       ratio: "**" },
+      { type: "credit", accountCode: "24001", accountName: "حساب‌ها و اسناد پرداختنی",   ratio: "**" }
+    ]
+  },
+  {
+    id: 116,
+    title: "ثبت شماره ۹",
+    description: "به هنگام دریافت اعلامیه بانکی در خصوص واریز وجوه حاصل از هدایای نقدی و غیرنقدی مشروط که شرایط مصرف آن تعیین شده است",
+    code: "CAP-9",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "11004", accountName: "بانک وجوه سایر منابع",                              ratio: "**" },
+      { type: "debit",  accountCode: "13001", accountName: "دارایی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها", ratio: "**" },
+      { type: "debit",  accountCode: "14001", accountName: "موجودی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها", ratio: "**" },
+      { type: "credit", accountCode: "24001", accountName: "حساب‌ها و اسناد پرداختنی",                          ratio: "**" }
+    ]
+  },
+  {
+    id: 117,
+    title: "ثبت شماره ۱۰",
+    description: "زمانی که هدایای نقدی و غیرنقدی محدود شده برای هدف خاص مطابق با شرایط از پیش تعیین شده به مصرف برسند",
+    code: "CAP-10",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "24001", accountName: "حساب‌ها و اسناد پرداختنی", ratio: "**" },
+      { type: "credit", accountCode: "51001", accountName: "هدایا و کمک‌ها",           ratio: "**" }
+    ]
+  },
+  {
+    id: 118,
+    title: "ثبت شماره ۱۱",
+    description: "در صورتی که بخشی از منابع واحد گزارشگر به عنوان سایر منابع از خزانه تامین و دریافت گردد",
+    code: "CAP-11",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "11004", accountName: "بانک وجوه سایر منابع",      ratio: "**" },
+      { type: "credit", accountCode: "41003", accountName: "دریافتی از محل سایر منابع", ratio: "**" }
+    ]
+  },
+  {
+    id: 119,
+    title: "ثبت شماره ۱۲",
+    description: "به هنگام ابلاغ تمام یا بخشی از اعتبار تخصیص یافته به سایر واحدها",
+    code: "CAP-12",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "62001", accountName: "حواله اعتبار سرمایه‌ای",            ratio: "**" },
+      { type: "credit", accountCode: "93002", accountName: "اعتبار سرمایه‌ای تخصیص یافته",      ratio: "**" },
+      { type: "credit", accountCode: "92002", accountName: "اعتبار سرمایه‌ای",                  ratio: "**" }
+    ]
+  },
+  {
+    id: 120,
+    title: "ثبت شماره ۱۳",
+    description: "انتقال وجوه مربوط به ابلاغ اعتبار (عمومی / اختصاصی) به واحد دریافت‌کننده اعتبار ابلاغی",
+    code: "CAP-13",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "63001", accountName: "هزینه‌ها - انتقالات",                                        ratio: "**" },
+      { type: "credit", accountCode: "11002", accountName: "بانک پرداخت سرمایه‌ای / بانک پرداخت اختصاصی",               ratio: "**" }
+    ]
+  },
+  {
+    id: 121,
+    title: "ثبت شماره ۱۴",
+    description: "به هنگام دریافت اعلامیه ابلاغ اعتبار و واریز وجوه ابلاغی (عمومی / اختصاصی)",
+    code: "CAP-14",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "94001", accountName: "اعتبار سرمایه‌ای ابلاغی",                                      ratio: "**", section: "بخش اول - بودجه" },
+      { type: "credit", accountCode: "91002", accountName: "بودجه اعتبار سرمایه‌ای",                                       ratio: "**", section: "بخش اول - بودجه" },
+      { type: "debit",  accountCode: "11002", accountName: "بانک پرداخت سرمایه‌ای / بانک پرداخت اختصاصی",                 ratio: "**", section: "بخش دوم - وجوه" },
+      { type: "credit", accountCode: "41004", accountName: "درآمدها - انتقالات",                                            ratio: "**", section: "بخش دوم - وجوه" },
+      { type: "debit",  accountCode: "89001", accountName: "حساب انتظامی - کنترل دریافتی‌ها بابت اعتبار",                  ratio: "**", section: "حساب‌های انتظامی" },
+      { type: "credit", accountCode: "99001", accountName: "طرف حساب انتظامی - کنترل دریافتی‌ها بابت اعتبار",              ratio: "**", section: "حساب‌های انتظامی" }
+    ]
+  },
+  {
+    id: 122,
+    title: "ثبت شماره ۱۵",
+    description: "اخذ تضمین مربوط به شرکت در مناقصه",
+    code: "CAP-15",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "89002", accountName: "حساب انتظامی - تضمین‌های دریافتی",       ratio: "**" },
+      { type: "credit", accountCode: "99002", accountName: "طرف حساب انتظامی - تضمین‌های دریافتی",   ratio: "**" }
+    ]
+  },
+  {
+    id: 123,
+    title: "ثبت شماره ۱۶",
+    description: "به هنگام تامین اعتبار (عمومی / اختصاصی)",
+    code: "CAP-16",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "97002", accountName: "اعتبار سرمایه‌ای تامین شده",        ratio: "**", section: "از محل اعتبار تخصیص یافته" },
+      { type: "credit", accountCode: "93002", accountName: "اعتبار سرمایه‌ای تخصیص یافته",      ratio: "**", section: "از محل اعتبار تخصیص یافته" },
+      { type: "debit",  accountCode: "97002", accountName: "اعتبار سرمایه‌ای تامین شده",        ratio: "**", section: "از محل اعتبار اختصاصی" },
+      { type: "credit", accountCode: "92002", accountName: "اعتبار سرمایه‌ای",                  ratio: "**", section: "از محل اعتبار اختصاصی" },
+      { type: "debit",  accountCode: "97002", accountName: "اعتبار سرمایه‌ای تامین شده",        ratio: "**", section: "از محل اعتبار ابلاغی" },
+      { type: "credit", accountCode: "94001", accountName: "اعتبار سرمایه‌ای ابلاغی",           ratio: "**", section: "از محل اعتبار ابلاغی" }
+    ]
+  },
+  {
+    id: 124,
+    title: "ثبت شماره ۱۷",
+    description: "به هنگام انعقاد قرارداد",
+    code: "CAP-17",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "89003", accountName: "حساب انتظامی - کنترل قراردادها",       ratio: "**" },
+      { type: "credit", accountCode: "99003", accountName: "طرف حساب انتظامی - کنترل قراردادها",   ratio: "**" }
+    ]
+  },
+  {
+    id: 125,
+    title: "ثبت شماره ۱۸",
+    description: "در صورت واگذاری تنخواه‌گردان پرداخت به عاملین ذیحساب طبق قوانین و مقررات مربوط",
+    code: "CAP-18",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "16001", accountName: "تنخواه‌گردان پرداخت بابت عملیات سرمایه‌ای",  ratio: "**", section: "واگذاری تنخواه‌گردان" },
+      { type: "credit", accountCode: "11002", accountName: "بانک پرداخت سرمایه‌ای",                      ratio: "**", section: "واگذاری تنخواه‌گردان" },
+      { type: "credit", accountCode: "11003", accountName: "بانک پرداخت اختصاصی",                        ratio: "**", section: "واگذاری تنخواه‌گردان" },
+      { type: "credit", accountCode: "11004", accountName: "بانک وجوه سایر منابع",                       ratio: "**", section: "واگذاری تنخواه‌گردان" },
+      { type: "debit",  accountCode: "98002", accountName: "اعتبار سرمایه‌ای بابت پرداخت‌های غیرقطعی",  ratio: "**", section: "کنترل اعتبار غیرقطعی" },
+      { type: "credit", accountCode: "97002", accountName: "اعتبار سرمایه‌ای تامین شده",                ratio: "**", section: "کنترل اعتبار غیرقطعی" }
+    ]
+  },
+  {
+    id: 126,
+    title: "ثبت شماره ۱۹-۱",
+    description: "اخذ تضمین در قبال واگذاری پیش‌پرداخت بابت عملیات سرمایه‌ای و پیش‌پرداخت مواد و کالا",
+    code: "CAP-19-1",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "89002", accountName: "حساب انتظامی - تضمین‌های دریافتی",       ratio: "**" },
+      { type: "credit", accountCode: "99002", accountName: "طرف حساب انتظامی - تضمین‌های دریافتی",   ratio: "**" }
+    ]
+  },
+  {
+    id: 127,
+    title: "ثبت شماره ۱۹-۲",
+    description: "به هنگام واگذاری پیش‌پرداخت به اشخاص ذینفع با رعایت قوانین و مقررات مربوط",
+    code: "CAP-19-2",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "17001", accountName: "پیش‌پرداخت بابت عملیات سرمایه‌ای",         ratio: "**", section: "واگذاری پیش‌پرداخت" },
+      { type: "debit",  accountCode: "17002", accountName: "پیش‌پرداخت مواد و کالا",                    ratio: "**", section: "واگذاری پیش‌پرداخت" },
+      { type: "credit", accountCode: "11002", accountName: "بانک پرداخت سرمایه‌ای",                     ratio: "**", section: "واگذاری پیش‌پرداخت" },
+      { type: "credit", accountCode: "11003", accountName: "بانک پرداخت اختصاصی",                       ratio: "**", section: "واگذاری پیش‌پرداخت" },
+      { type: "credit", accountCode: "11004", accountName: "بانک وجوه سایر منابع",                      ratio: "**", section: "واگذاری پیش‌پرداخت" },
+      { type: "debit",  accountCode: "98002", accountName: "اعتبار سرمایه‌ای بابت پرداخت‌های غیرقطعی", ratio: "**", section: "کنترل اعتبار غیرقطعی" },
+      { type: "credit", accountCode: "97002", accountName: "اعتبار سرمایه‌ای تامین شده",               ratio: "**", section: "کنترل اعتبار غیرقطعی" }
+    ]
+  },
+  {
+    id: 128,
+    title: "ثبت شماره ۱۹-۳",
+    description: "پیش‌پرداخت از محل موجودی‌ها به اشخاص ذینفع با رعایت قوانین و مقررات مربوط",
+    code: "CAP-19-3",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "17002", accountName: "پیش‌پرداخت مواد و کالا",                               ratio: "**" },
+      { type: "credit", accountCode: "14001", accountName: "موجودی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",    ratio: "**" }
+    ]
+  },
+  {
+    id: 129,
+    title: "ثبت شماره ۲۰",
+    description: "شناسایی موجودی‌ها",
+    code: "CAP-20",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "14001", accountName: "موجودی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",  ratio: "**", section: "شناسایی موجودی‌ها" },
+      { type: "credit", accountCode: "17001", accountName: "پیش‌پرداخت بابت عملیات سرمایه‌ای",                   ratio: "**", section: "شناسایی موجودی‌ها" },
+      { type: "credit", accountCode: "24001", accountName: "حساب‌ها و اسناد پرداختنی",                            ratio: "**", section: "شناسایی موجودی‌ها" },
+      { type: "debit",  accountCode: "99002", accountName: "طرف حساب انتظامی - تضمین‌های دریافتی",               ratio: "**", section: "کاهش تضمین‌های دریافتی" },
+      { type: "credit", accountCode: "89002", accountName: "حساب انتظامی - تضمین‌های دریافتی",                   ratio: "**", section: "کاهش تضمین‌های دریافتی" }
+    ]
+  },
+  {
+    id: 130,
+    title: "ثبت شماره ۲۱",
+    description: "شناسایی دارایی در جریان تکمیل",
+    code: "CAP-21",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "13002", accountName: "دارایی در جریان تکمیل",                                ratio: "**", section: "شناسایی دارایی" },
+      { type: "credit", accountCode: "17001", accountName: "پیش‌پرداخت بابت عملیات سرمایه‌ای",                    ratio: "**", section: "شناسایی دارایی" },
+      { type: "credit", accountCode: "17002", accountName: "پیش‌پرداخت مواد و کالا",                               ratio: "**", section: "شناسایی دارایی" },
+      { type: "credit", accountCode: "14001", accountName: "موجودی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",   ratio: "**", section: "شناسایی دارایی" },
+      { type: "credit", accountCode: "24001", accountName: "حساب‌ها و اسناد پرداختنی",                             ratio: "**", section: "شناسایی دارایی" },
+      { type: "debit",  accountCode: "95002", accountName: "اعتبار سرمایه‌ای مصرف شده",                           ratio: "**", section: "قطعی شدن اعتبار" },
+      { type: "credit", accountCode: "98002", accountName: "اعتبار سرمایه‌ای بابت پرداخت‌های غیرقطعی",            ratio: "**", section: "قطعی شدن اعتبار" },
+      { type: "debit",  accountCode: "99002", accountName: "طرف حساب انتظامی - تضمین‌های دریافتی",                ratio: "**", section: "کاهش تضمین‌های دریافتی" },
+      { type: "credit", accountCode: "89002", accountName: "حساب انتظامی - تضمین‌های دریافتی",                    ratio: "**", section: "کاهش تضمین‌های دریافتی" }
+    ]
+  },
+  {
+    id: 131,
+    title: "ثبت شماره ۲۲",
+    description: "شناسایی دارایی‌های ثابت مشهود و دارایی‌های نامشهود",
+    code: "CAP-22",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "13001", accountName: "دارایی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",   ratio: "**", section: "شناسایی دارایی" },
+      { type: "credit", accountCode: "17001", accountName: "پیش‌پرداخت بابت عملیات سرمایه‌ای",                    ratio: "**", section: "شناسایی دارایی" },
+      { type: "credit", accountCode: "24001", accountName: "حساب‌ها و اسناد پرداختنی",                             ratio: "**", section: "شناسایی دارایی" },
+      { type: "debit",  accountCode: "95002", accountName: "اعتبار سرمایه‌ای مصرف شده",                           ratio: "**", section: "قطعی شدن اعتبار" },
+      { type: "credit", accountCode: "98002", accountName: "اعتبار سرمایه‌ای بابت پرداخت‌های غیرقطعی",            ratio: "**", section: "قطعی شدن اعتبار" },
+      { type: "debit",  accountCode: "99002", accountName: "طرف حساب انتظامی - تضمین‌های دریافتی",                ratio: "**", section: "کاهش تضمین‌های دریافتی" },
+      { type: "credit", accountCode: "89002", accountName: "حساب انتظامی - تضمین‌های دریافتی",                    ratio: "**", section: "کاهش تضمین‌های دریافتی" }
+    ]
+  },
+  {
+    id: 132,
+    title: "ثبت شماره ۲۳-۱",
+    description: "شناسایی کسور قانونی مربوط و تسویه خالص بدهی‌ها",
+    code: "CAP-23-1",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "24001", accountName: "حساب‌ها و اسناد پرداختنی",       ratio: "**", section: "شناسایی کسور و تسویه بدهی" },
+      { type: "credit", accountCode: "25001", accountName: "بیمه پرداختنی",                  ratio: "**", section: "شناسایی کسور و تسویه بدهی" },
+      { type: "credit", accountCode: "25002", accountName: "سپرده‌های پرداختنی",             ratio: "**", section: "شناسایی کسور و تسویه بدهی" },
+      { type: "credit", accountCode: "11002", accountName: "بانک پرداخت سرمایه‌ای",          ratio: "**", section: "شناسایی کسور و تسویه بدهی" },
+      { type: "credit", accountCode: "11003", accountName: "بانک پرداخت اختصاصی",            ratio: "**", section: "شناسایی کسور و تسویه بدهی" },
+      { type: "credit", accountCode: "11004", accountName: "بانک وجوه سایر منابع",           ratio: "**", section: "شناسایی کسور و تسویه بدهی" },
+      { type: "debit",  accountCode: "95002", accountName: "اعتبار سرمایه‌ای مصرف شده",     ratio: "**", section: "قطعی شدن اعتبار" },
+      { type: "credit", accountCode: "97002", accountName: "اعتبار سرمایه‌ای تامین شده",    ratio: "**", section: "قطعی شدن اعتبار" }
+    ]
+  },
+  {
+    id: 133,
+    title: "ثبت شماره ۲۳-۲",
+    description: "به هنگام تسویه کسور مربوط",
+    code: "CAP-23-2",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "25001", accountName: "بیمه پرداختنی",               ratio: "**", section: "تسویه کسور" },
+      { type: "credit", accountCode: "11002", accountName: "بانک پرداخت سرمایه‌ای",       ratio: "**", section: "تسویه کسور" },
+      { type: "credit", accountCode: "11003", accountName: "بانک پرداخت اختصاصی",         ratio: "**", section: "تسویه کسور" },
+      { type: "credit", accountCode: "11004", accountName: "بانک وجوه سایر منابع",        ratio: "**", section: "تسویه کسور" },
+      { type: "debit",  accountCode: "95002", accountName: "اعتبار سرمایه‌ای مصرف شده",  ratio: "**", section: "قطعی شدن اعتبار" },
+      { type: "credit", accountCode: "97002", accountName: "اعتبار سرمایه‌ای تامین شده", ratio: "**", section: "قطعی شدن اعتبار" }
+    ]
+  },
+  {
+    id: 134,
+    title: "ثبت شماره ۲۴-۱",
+    description: "در صورت پرداخت بخشی از بدهی‌ها به عنوان علی‌الحساب",
+    code: "CAP-24-1",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "24001", accountName: "حساب‌ها و اسناد پرداختنی",                          ratio: "**", section: "پرداخت علی‌الحساب" },
+      { type: "credit", accountCode: "25001", accountName: "بیمه پرداختنی",                                     ratio: "**", section: "پرداخت علی‌الحساب" },
+      { type: "credit", accountCode: "25002", accountName: "سپرده‌های پرداختنی",                                ratio: "**", section: "پرداخت علی‌الحساب" },
+      { type: "credit", accountCode: "11002", accountName: "بانک پرداخت سرمایه‌ای",                             ratio: "**", section: "پرداخت علی‌الحساب" },
+      { type: "credit", accountCode: "11003", accountName: "بانک پرداخت اختصاصی",                               ratio: "**", section: "پرداخت علی‌الحساب" },
+      { type: "credit", accountCode: "11004", accountName: "بانک وجوه سایر منابع",                              ratio: "**", section: "پرداخت علی‌الحساب" },
+      { type: "debit",  accountCode: "89004", accountName: "حساب انتظامی - علی‌الحساب بابت عملیات سرمایه‌ای",  ratio: "**", section: "کنترل انتظامی علی‌الحساب" },
+      { type: "credit", accountCode: "99004", accountName: "طرف حساب انتظامی - علی‌الحساب بابت عملیات سرمایه‌ای", ratio: "**", section: "کنترل انتظامی علی‌الحساب" },
+      { type: "debit",  accountCode: "98002", accountName: "اعتبار سرمایه‌ای بابت پرداخت‌های غیرقطعی",          ratio: "**", section: "کنترل اعتبار غیرقطعی" },
+      { type: "credit", accountCode: "97002", accountName: "اعتبار سرمایه‌ای تامین شده",                        ratio: "**", section: "کنترل اعتبار غیرقطعی" }
+    ]
+  },
+  {
+    id: 135,
+    title: "ثبت شماره ۲۴-۲",
+    description: "به هنگام پرداخت کسور قانونی مرتبط با علی‌الحساب",
+    code: "CAP-24-2",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "25001", accountName: "بیمه پرداختنی",               ratio: "**", section: "پرداخت کسور قانونی" },
+      { type: "credit", accountCode: "11002", accountName: "بانک پرداخت سرمایه‌ای",       ratio: "**", section: "پرداخت کسور قانونی" },
+      { type: "credit", accountCode: "11003", accountName: "بانک پرداخت اختصاصی",         ratio: "**", section: "پرداخت کسور قانونی" },
+      { type: "credit", accountCode: "11004", accountName: "بانک وجوه سایر منابع",        ratio: "**", section: "پرداخت کسور قانونی" },
+      { type: "debit",  accountCode: "98002", accountName: "اعتبار سرمایه‌ای بابت پرداخت‌های غیرقطعی", ratio: "**", section: "کنترل اعتبار غیرقطعی" },
+      { type: "credit", accountCode: "97002", accountName: "اعتبار سرمایه‌ای تامین شده", ratio: "**", section: "کنترل اعتبار غیرقطعی" }
+    ]
+  },
+  {
+    id: 136,
+    title: "ثبت شماره ۲۵-۱",
+    description: "در صورت پرداخت مابقی بدهی‌های مرتبط با علی‌الحساب و تسویه آن",
+    code: "CAP-25-1",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "24001", accountName: "حساب‌ها و اسناد پرداختنی",                              ratio: "**", section: "تسویه بدهی" },
+      { type: "credit", accountCode: "25001", accountName: "بیمه پرداختنی",                                         ratio: "**", section: "تسویه بدهی" },
+      { type: "credit", accountCode: "25002", accountName: "سپرده‌های پرداختنی",                                    ratio: "**", section: "تسویه بدهی" },
+      { type: "credit", accountCode: "11002", accountName: "بانک پرداخت سرمایه‌ای",                                 ratio: "**", section: "تسویه بدهی" },
+      { type: "credit", accountCode: "11003", accountName: "بانک پرداخت اختصاصی",                                   ratio: "**", section: "تسویه بدهی" },
+      { type: "credit", accountCode: "11004", accountName: "بانک وجوه سایر منابع",                                  ratio: "**", section: "تسویه بدهی" },
+      { type: "debit",  accountCode: "99004", accountName: "طرف حساب انتظامی - علی‌الحساب بابت عملیات سرمایه‌ای",  ratio: "**", section: "برگشت انتظامی علی‌الحساب" },
+      { type: "credit", accountCode: "89004", accountName: "حساب انتظامی - علی‌الحساب بابت عملیات سرمایه‌ای",      ratio: "**", section: "برگشت انتظامی علی‌الحساب" },
+      { type: "debit",  accountCode: "95002", accountName: "اعتبار سرمایه‌ای مصرف شده",                             ratio: "**", section: "قطعی شدن اعتبار" },
+      { type: "credit", accountCode: "98002", accountName: "اعتبار سرمایه‌ای بابت پرداخت‌های غیرقطعی",              ratio: "**", section: "قطعی شدن اعتبار" },
+      { type: "credit", accountCode: "97002", accountName: "اعتبار سرمایه‌ای تامین شده",                            ratio: "**", section: "قطعی شدن اعتبار" }
+    ]
+  },
+  {
+    id: 137,
+    title: "ثبت شماره ۲۵-۲",
+    description: "به هنگام پرداخت کسور قانونی مرتبط با علی‌الحساب",
+    code: "CAP-25-2",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "25001", accountName: "بیمه پرداختنی",               ratio: "**", section: "پرداخت کسور قانونی" },
+      { type: "credit", accountCode: "11002", accountName: "بانک پرداخت سرمایه‌ای",       ratio: "**", section: "پرداخت کسور قانونی" },
+      { type: "credit", accountCode: "11003", accountName: "بانک پرداخت اختصاصی",         ratio: "**", section: "پرداخت کسور قانونی" },
+      { type: "credit", accountCode: "11004", accountName: "بانک وجوه سایر منابع",        ratio: "**", section: "پرداخت کسور قانونی" },
+      { type: "debit",  accountCode: "95002", accountName: "اعتبار سرمایه‌ای مصرف شده",  ratio: "**", section: "قطعی شدن اعتبار" },
+      { type: "credit", accountCode: "97002", accountName: "اعتبار سرمایه‌ای تامین شده", ratio: "**", section: "قطعی شدن اعتبار" }
+    ]
+  },
+  {
+    id: 138,
+    title: "ثبت شماره ۲۶-۱",
+    description: "در صورت خرید اعتباری (نسیه) دارایی‌های ثابت مشهود",
+    code: "CAP-26-1",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "13001", accountName: "دارایی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها", ratio: "**" },
+      { type: "debit",  accountCode: "18001", accountName: "هزینه مالی آتی",                                    ratio: "**" },
+      { type: "credit", accountCode: "24001", accountName: "حساب‌ها و اسناد پرداختنی",                          ratio: "**" }
+    ]
+  },
+  {
+    id: 139,
+    title: "ثبت شماره ۲۶-۲",
+    description: "به میزان تحقق هزینه‌های مالی آتی در هر سال مالی",
+    code: "CAP-26-2",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "64001", accountName: "هزینه‌ها به تفکیک طبقه‌بندی اقتصادی دولت", ratio: "**" },
+      { type: "credit", accountCode: "18001", accountName: "هزینه مالی آتی",                            ratio: "**" }
+    ]
+  },
+  {
+    id: 140,
+    title: "ثبت شماره ۲۷",
+    description: "شناسایی دارایی‌های تکمیل شده",
+    code: "CAP-27",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "13001", accountName: "دارایی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها", ratio: "**" },
+      { type: "credit", accountCode: "13002", accountName: "دارایی در جریان تکمیل",                              ratio: "**" }
+    ]
+  },
+  {
+    id: 141,
+    title: "ثبت شماره ۲۸",
+    description: "احتساب مازاد موجودی‌ها پس از پایان طرح تملک دارایی‌های سرمایه‌ای",
+    code: "CAP-28",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "14001", accountName: "موجودی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها", ratio: "**", section: "شناسایی موجودی مازاد" },
+      { type: "credit", accountCode: "13002", accountName: "دارایی در جریان تکمیل",                              ratio: "**", section: "شناسایی موجودی مازاد" },
+      { type: "debit",  accountCode: "98002", accountName: "اعتبار سرمایه‌ای بابت پرداخت‌های غیرقطعی",           ratio: "**", section: "قطعی شدن اعتبار" },
+      { type: "credit", accountCode: "95002", accountName: "اعتبار سرمایه‌ای مصرف شده",                          ratio: "**", section: "قطعی شدن اعتبار" }
+    ]
+  },
+  {
+    id: 142,
+    title: "ثبت شماره ۲۹-۱",
+    description: "انتقال دارایی‌های واحد گزارشگر به سایر واحدها — واحد انتقال‌دهنده",
+    code: "CAP-29-1",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "19001", accountName: "دارایی‌های انتقالی",                                   ratio: "**" },
+      { type: "credit", accountCode: "13002", accountName: "دارایی در جریان تکمیل",                                ratio: "**" },
+      { type: "credit", accountCode: "13001", accountName: "دارایی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",    ratio: "**" },
+      { type: "credit", accountCode: "14001", accountName: "موجودی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",    ratio: "**" }
+    ]
+  },
+  {
+    id: 143,
+    title: "ثبت شماره ۲۹-۲",
+    description: "انتقال دارایی‌های واحد گزارشگر به سایر واحدها — واحد دریافت‌کننده",
+    code: "CAP-29-2",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "13002", accountName: "دارایی در جریان تکمیل",                                ratio: "**" },
+      { type: "debit",  accountCode: "13001", accountName: "دارایی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",    ratio: "**" },
+      { type: "debit",  accountCode: "14001", accountName: "موجودی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",    ratio: "**" },
+      { type: "credit", accountCode: "19002", accountName: "دارایی‌های دریافتی",                                   ratio: "**" }
+    ]
+  },
+  {
+    id: 144,
+    title: "ثبت شماره ۲۹-۳",
+    description: "انتقال دارایی به واحد دیگر — واحد انتقال‌دهنده (شناسایی هزینه انتقال)",
+    code: "CAP-29-3",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "63001", accountName: "هزینه‌ها - انتقالات",                                   ratio: "**" },
+      { type: "credit", accountCode: "13002", accountName: "دارایی در جریان تکمیل",                                 ratio: "**" },
+      { type: "credit", accountCode: "13001", accountName: "دارایی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",     ratio: "**" },
+      { type: "credit", accountCode: "14001", accountName: "موجودی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",     ratio: "**" }
+    ]
+  },
+  {
+    id: 145,
+    title: "ثبت شماره ۲۹-۴",
+    description: "انتقال دارایی به واحد دیگر — واحد دریافت‌کننده (شناسایی درآمد انتقال)",
+    code: "CAP-29-4",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "13002", accountName: "دارایی در جریان تکمیل",                                 ratio: "**" },
+      { type: "debit",  accountCode: "13001", accountName: "دارایی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",     ratio: "**" },
+      { type: "debit",  accountCode: "14001", accountName: "موجودی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",     ratio: "**" },
+      { type: "credit", accountCode: "41004", accountName: "درآمدها - انتقالات",                                    ratio: "**" }
+    ]
+  },
+  {
+    id: 146,
+    title: "ثبت شماره ۳۰-۱",
+    description: "انتقال دارایی‌های واحد گزارشگر به شرکت‌ها — به عنوان افزایش سرمایه دولت",
+    code: "CAP-30-1",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "13003", accountName: "سرمایه‌گذاری در شرکت‌ها",                               ratio: "**" },
+      { type: "credit", accountCode: "13001", accountName: "دارایی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",     ratio: "**" }
+    ]
+  },
+  {
+    id: 147,
+    title: "ثبت شماره ۳۰-۲",
+    description: "انتقال دارایی‌های واحد گزارشگر به خارج از واحدهای گزارشگر — به عنوان مطالبات بلندمدت دولت",
+    code: "CAP-30-2",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "15002", accountName: "مطالبات بلندمدت دولت",                                  ratio: "**" },
+      { type: "credit", accountCode: "13001", accountName: "دارایی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",     ratio: "**" }
+    ]
+  },
+  {
+    id: 148,
+    title: "ثبت شماره ۳۰-۳",
+    description: "انتقال دارایی‌های واحد گزارشگر به خارج از واحدهای گزارشگر — به عنوان کمک دولت",
+    code: "CAP-30-3",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "64001", accountName: "هزینه‌ها به تفکیک طبقه‌بندی اقتصادی دولت",             ratio: "**" },
+      { type: "credit", accountCode: "13001", accountName: "دارایی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",     ratio: "**" }
+    ]
+  },
+  {
+    id: 149,
+    title: "ثبت شماره ۳۱",
+    description: "به هنگام دریافت اسناد و مدارک مربوط به استفاده از تنخواه‌گردان پرداخت واگذار شده از عاملین ذیحساب",
+    code: "CAP-31",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "89005", accountName: "حساب انتظامی - اسناد وصولی از عاملین ذیحساب",       ratio: "**" },
+      { type: "credit", accountCode: "99005", accountName: "طرف حساب انتظامی - اسناد وصولی از عاملین ذیحساب",   ratio: "**" }
+    ]
+  },
+  {
+    id: 150,
+    title: "ثبت شماره ۳۲",
+    description: "پس از تایید اسناد و مدارک مربوط به استفاده از تنخواه‌گردان پرداخت واگذار شده",
+    code: "CAP-32",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "13002", accountName: "دارایی در جریان تکمیل",                                  ratio: "**", section: "شناسایی دارایی و موجودی" },
+      { type: "debit",  accountCode: "13001", accountName: "دارایی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",      ratio: "**", section: "شناسایی دارایی و موجودی" },
+      { type: "debit",  accountCode: "14001", accountName: "موجودی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",      ratio: "**", section: "شناسایی دارایی و موجودی" },
+      { type: "debit",  accountCode: "17001", accountName: "پیش‌پرداخت بابت عملیات سرمایه‌ای",                       ratio: "**", section: "شناسایی دارایی و موجودی" },
+      { type: "debit",  accountCode: "17002", accountName: "پیش‌پرداخت مواد و کالا",                                  ratio: "**", section: "شناسایی دارایی و موجودی" },
+      { type: "credit", accountCode: "16001", accountName: "تنخواه‌گردان پرداخت بابت عملیات سرمایه‌ای",              ratio: "**", section: "شناسایی دارایی و موجودی" },
+      { type: "debit",  accountCode: "89002", accountName: "حساب انتظامی - تضمین‌های دریافتی",                       ratio: "**", section: "برگشت تضمین‌های دریافتی" },
+      { type: "credit", accountCode: "99002", accountName: "طرف حساب انتظامی - تضمین‌های دریافتی",                   ratio: "**", section: "برگشت تضمین‌های دریافتی" },
+      { type: "debit",  accountCode: "89004", accountName: "حساب انتظامی - علی‌الحساب بابت عملیات سرمایه‌ای",        ratio: "**", section: "برگشت علی‌الحساب" },
+      { type: "credit", accountCode: "99004", accountName: "طرف حساب انتظامی - علی‌الحساب بابت عملیات سرمایه‌ای",    ratio: "**", section: "برگشت علی‌الحساب" },
+      { type: "debit",  accountCode: "95002", accountName: "اعتبار سرمایه‌ای مصرف شده",                               ratio: "**", section: "قطعی شدن اعتبار" },
+      { type: "credit", accountCode: "98002", accountName: "اعتبار سرمایه‌ای بابت پرداخت‌های غیرقطعی",                ratio: "**", section: "قطعی شدن اعتبار" }
+    ]
+  },
+  {
+    id: 151,
+    title: "ثبت شماره ۳۳",
+    description: "در صورت تایید اسناد و مدارک مربوط به تسویه تنخواه‌گردان واگذار شده به عاملین ذیحساب در موعد قانونی مقرر",
+    code: "CAP-33",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "24001", accountName: "حساب‌ها و اسناد پرداختنی",                               ratio: "**", section: "تسویه تنخواه‌گردان" },
+      { type: "credit", accountCode: "13002", accountName: "دارایی در جریان تکمیل",                                   ratio: "**", section: "تسویه تنخواه‌گردان" },
+      { type: "credit", accountCode: "13001", accountName: "دارایی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",       ratio: "**", section: "تسویه تنخواه‌گردان" },
+      { type: "credit", accountCode: "14001", accountName: "موجودی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",       ratio: "**", section: "تسویه تنخواه‌گردان" },
+      { type: "credit", accountCode: "17001", accountName: "پیش‌پرداخت بابت عملیات سرمایه‌ای",                        ratio: "**", section: "تسویه تنخواه‌گردان" },
+      { type: "credit", accountCode: "11004", accountName: "بانک وجوه سایر منابع",                                    ratio: "**", section: "تسویه تنخواه‌گردان" },
+      { type: "debit",  accountCode: "99004", accountName: "طرف حساب انتظامی - علی‌الحساب بابت عملیات سرمایه‌ای",    ratio: "**", section: "برگشت انتظامی علی‌الحساب" },
+      { type: "credit", accountCode: "89004", accountName: "حساب انتظامی - علی‌الحساب بابت عملیات سرمایه‌ای",        ratio: "**", section: "برگشت انتظامی علی‌الحساب" },
+      { type: "debit",  accountCode: "99002", accountName: "طرف حساب انتظامی - تضمین‌های دریافتی",                   ratio: "**", section: "برگشت انتظامی تضمین" },
+      { type: "credit", accountCode: "89002", accountName: "حساب انتظامی - تضمین‌های دریافتی",                       ratio: "**", section: "برگشت انتظامی تضمین" }
+    ]
+  },
+  {
+    id: 152,
+    title: "ثبت شماره ۳۴",
+    description: "شناسایی واریز نقدی تنخواه‌گردان پرداخت و پیش‌پرداخت سال‌جاری",
+    code: "CAP-34",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "11002", accountName: "بانک پرداخت سرمایه‌ای",                                   ratio: "**", section: "واریز نقدی" },
+      { type: "debit",  accountCode: "11003", accountName: "بانک پرداخت اختصاصی",                                     ratio: "**", section: "واریز نقدی" },
+      { type: "debit",  accountCode: "11004", accountName: "بانک وجوه سایر منابع",                                    ratio: "**", section: "واریز نقدی" },
+      { type: "credit", accountCode: "17001", accountName: "پیش‌پرداخت بابت عملیات سرمایه‌ای",                        ratio: "**", section: "واریز نقدی" },
+      { type: "credit", accountCode: "17002", accountName: "پیش‌پرداخت مواد و کالا",                                  ratio: "**", section: "واریز نقدی" },
+      { type: "credit", accountCode: "16001", accountName: "تنخواه‌گردان پرداخت بابت عملیات سرمایه‌ای",               ratio: "**", section: "واریز نقدی" },
+      { type: "debit",  accountCode: "93002", accountName: "اعتبار سرمایه‌ای تخصیص یافته",                            ratio: "**", section: "برگشت اعتبار غیرقطعی" },
+      { type: "debit",  accountCode: "92002", accountName: "اعتبار سرمایه‌ای",                                        ratio: "**", section: "برگشت اعتبار غیرقطعی" },
+      { type: "debit",  accountCode: "94001", accountName: "اعتبار سرمایه‌ای ابلاغی",                                 ratio: "**", section: "برگشت اعتبار غیرقطعی" },
+      { type: "credit", accountCode: "98002", accountName: "اعتبار سرمایه‌ای بابت پرداخت‌های غیرقطعی",                ratio: "**", section: "برگشت اعتبار غیرقطعی" },
+      { type: "debit",  accountCode: "99002", accountName: "طرف حساب انتظامی - تضمین‌های دریافتی",                   ratio: "**", section: "کاهش تضمین‌های دریافتی" },
+      { type: "credit", accountCode: "89002", accountName: "حساب انتظامی - تضمین‌های دریافتی",                       ratio: "**", section: "کاهش تضمین‌های دریافتی" }
+    ]
+  },
+  {
+    id: 153,
+    title: "ثبت شماره ۳۵",
+    description: "در صورت واخواهی اسناد ارایه شده",
+    code: "CAP-35",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "15003", accountName: "حساب‌ها و اسناد دریافتنی - اسناد واخواهی سرمایه‌ای",  ratio: "**", section: "ثبت واخواهی" },
+      { type: "credit", accountCode: "16001", accountName: "تنخواه‌گردان پرداخت بابت عملیات سرمایه‌ای",           ratio: "**", section: "ثبت واخواهی" },
+      { type: "debit",  accountCode: "96003", accountName: "اسناد واخواهی بابت اعتبار سرمایه‌ای",                 ratio: "**", section: "کنترل اعتبار" },
+      { type: "credit", accountCode: "98002", accountName: "اعتبار سرمایه‌ای بابت پرداخت‌های غیرقطعی",            ratio: "**", section: "کنترل اعتبار" }
+    ]
+  },
+  {
+    id: 154,
+    title: "ثبت شماره ۳۶",
+    description: "در صورت رفع اسناد واخواهی در سال شناسایی آن",
+    code: "CAP-36",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "13001", accountName: "دارایی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",    ratio: "**", section: "رفع واخواهی - شناسایی دارایی" },
+      { type: "debit",  accountCode: "13002", accountName: "دارایی در جریان تکمیل",                                 ratio: "**", section: "رفع واخواهی - شناسایی دارایی" },
+      { type: "debit",  accountCode: "14001", accountName: "موجودی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",    ratio: "**", section: "رفع واخواهی - شناسایی دارایی" },
+      { type: "debit",  accountCode: "17002", accountName: "پیش‌پرداخت مواد و کالا",                                ratio: "**", section: "رفع واخواهی - شناسایی دارایی" },
+      { type: "debit",  accountCode: "17001", accountName: "پیش‌پرداخت بابت عملیات سرمایه‌ای",                     ratio: "**", section: "رفع واخواهی - شناسایی دارایی" },
+      { type: "credit", accountCode: "15003", accountName: "حساب‌ها و اسناد دریافتنی - اسناد واخواهی سرمایه‌ای",  ratio: "**", section: "رفع واخواهی - شناسایی دارایی" },
+      { type: "debit",  accountCode: "95002", accountName: "اعتبار سرمایه‌ای مصرف شده",                            ratio: "**", section: "قطعی شدن اعتبار" },
+      { type: "debit",  accountCode: "98002", accountName: "اعتبار سرمایه‌ای بابت پرداخت‌های غیرقطعی",             ratio: "**", section: "قطعی شدن اعتبار" },
+      { type: "credit", accountCode: "96003", accountName: "اسناد واخواهی بابت اعتبار سرمایه‌ای",                  ratio: "**", section: "قطعی شدن اعتبار" }
+    ]
+  },
+  {
+    id: 155,
+    title: "ثبت شماره ۳۷",
+    description: "در صورت رفع اسناد واخواهی شده در سال بعد (پس از پایان آخرین مهلت درنظر گرفته شده)",
+    code: "CAP-37",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "13001", accountName: "دارایی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",    ratio: "**", section: "رفع واخواهی - شناسایی دارایی" },
+      { type: "debit",  accountCode: "13002", accountName: "دارایی در جریان تکمیل",                                 ratio: "**", section: "رفع واخواهی - شناسایی دارایی" },
+      { type: "debit",  accountCode: "14001", accountName: "موجودی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",    ratio: "**", section: "رفع واخواهی - شناسایی دارایی" },
+      { type: "debit",  accountCode: "17002", accountName: "پیش‌پرداخت مواد و کالا",                                ratio: "**", section: "رفع واخواهی - شناسایی دارایی" },
+      { type: "debit",  accountCode: "17001", accountName: "پیش‌پرداخت بابت عملیات سرمایه‌ای",                     ratio: "**", section: "رفع واخواهی - شناسایی دارایی" },
+      { type: "credit", accountCode: "15003", accountName: "حساب‌ها و اسناد دریافتنی - اسناد واخواهی سرمایه‌ای",  ratio: "**", section: "رفع واخواهی - شناسایی دارایی" },
+      { type: "debit",  accountCode: "95003", accountName: "اعتبار سرمایه‌ای انتقالی مصرف شده",                    ratio: "**", section: "قطعی شدن اعتبار انتقالی" },
+      { type: "debit",  accountCode: "98003", accountName: "اعتبار سرمایه‌ای انتقالی بابت پرداخت‌های غیرقطعی",     ratio: "**", section: "قطعی شدن اعتبار انتقالی" },
+      { type: "credit", accountCode: "96004", accountName: "اسناد واخواهی بابت اعتبار سرمایه‌ای انتقالی",          ratio: "**", section: "قطعی شدن اعتبار انتقالی" }
+    ]
+  },
+  {
+    id: 156,
+    title: "ثبت شماره ۳۸",
+    description: "در صورت عدم رفع اسناد واخواهی شده تا موعد قانونی تهیه صورت‌حساب عملکرد بودجه سالانه کل کشور",
+    code: "CAP-38",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "15004", accountName: "حساب‌ها و اسناد دریافتنی - کسری ابواب جمعی سرمایه‌ای", ratio: "**", section: "تبدیل به کسری ابواب جمعی" },
+      { type: "credit", accountCode: "15003", accountName: "حساب‌ها و اسناد دریافتنی - اسناد واخواهی سرمایه‌ای",   ratio: "**", section: "تبدیل به کسری ابواب جمعی" },
+      { type: "debit",  accountCode: "96005", accountName: "کسری ابواب جمعی بابت اعتبار سرمایه‌ای انتقالی",         ratio: "**", section: "کنترل اعتبار انتقالی" },
+      { type: "credit", accountCode: "96004", accountName: "اسناد واخواهی بابت اعتبار سرمایه‌ای انتقالی",           ratio: "**", section: "کنترل اعتبار انتقالی" }
+    ]
   }
 ];
