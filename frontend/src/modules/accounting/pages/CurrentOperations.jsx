@@ -660,7 +660,11 @@ export default function CurrentOperations({ categoryFilter = null, pageTitle = "
                   {/* دراپ‌داون سفارشی برای انتخاب الگو */}
                   <div className="space-y-1.5 border-b pb-4 relative">
                     <Label className="text-xs font-bold text-foreground">
-                      انتخاب الگوی ثبت حسابداری (ثبت‌های ۱ تا ۴۹)
+                      {(() => {
+                        const filtered = INITIAL_TEMPLATES.filter(t => t.status === "active" && (!categoryFilter || t.category === categoryFilter));
+                        const count = filtered.length;
+                        return `انتخاب الگوی ثبت حسابداری (${count.toLocaleString("fa-IR")} ثبت)`;
+                      })()}
                     </Label>
                     
                     <div className="relative">
