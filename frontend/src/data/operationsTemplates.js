@@ -2282,5 +2282,30 @@ export const INITIAL_TEMPLATES = [
       { type: "debit",  accountCode: "14001", accountName: "موجودی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",  ratio: "**" },
       { type: "credit", accountCode: "27001", accountName: "ذخیره تعهدات سرمایه‌ای",                             ratio: "**" }
     ]
+  },
+  {
+    id: 181,
+    title: "ثبت شماره ۵۲-۱",
+    description: "بستن حساب‌های مالی موقت",
+    code: "CAP-52-1",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "41002", accountName: "دریافتی بابت عملیات سرمایه‌ای",                        ratio: "**", section: "بستن درآمدها" },
+      { type: "debit",  accountCode: "51001", accountName: "هدایا و کمک‌ها",                                       ratio: "**", section: "بستن درآمدها" },
+      { type: "debit",  accountCode: "41003", accountName: "دریافتی از محل سایر منابع",                             ratio: "**", section: "بستن درآمدها" },
+      { type: "debit",  accountCode: "41004", accountName: "درآمدها - انتقالات",                                    ratio: "**", section: "بستن درآمدها" },
+      { type: "debit",  accountCode: "41005", accountName: "درآمدهای واحد به تفکیک طبقه‌بندی مربوط",               ratio: "**", section: "بستن درآمدها" },
+      { type: "credit", accountCode: "64001", accountName: "هزینه‌ها به تفکیک طبقه‌بندی اقتصادی دولت",             ratio: "**", section: "بستن هزینه‌ها" },
+      { type: "credit", accountCode: "63001", accountName: "هزینه‌ها - انتقالات",                                  ratio: "**", section: "بستن هزینه‌ها" },
+      { type: "credit", accountCode: "32001", accountName: "انتقال به خزانه",                                      ratio: "**", section: "بستن هزینه‌ها" },
+      { type: "credit", accountCode: "33001", accountName: "خالص تغییر در وضعیت مالی",                             ratio: "**", section: "بستن هزینه‌ها" },
+      { type: "debit",  accountCode: "33001", accountName: "خالص تغییر در وضعیت مالی",                             ratio: "**", section: "بستن ارزش خالص انباشته" },
+      { type: "debit",  accountCode: "31006", accountName: "تعدیلات سنواتی",                                       ratio: "**", section: "بستن ارزش خالص انباشته" },
+      { type: "debit",  accountCode: "19002", accountName: "دارایی‌های دریافتی",                                   ratio: "**", section: "بستن ارزش خالص انباشته" },
+      { type: "credit", accountCode: "31001", accountName: "ارزش خالص انباشته",                                    ratio: "**", section: "بستن ارزش خالص انباشته" },
+      { type: "debit",  accountCode: "31001", accountName: "ارزش خالص انباشته",                                    ratio: "**", section: "انتقال دارایی‌های انتقالی" },
+      { type: "credit", accountCode: "19001", accountName: "دارایی‌های انتقالی",                                   ratio: "**", section: "انتقال دارایی‌های انتقالی" }
+    ]
   }
 ];
