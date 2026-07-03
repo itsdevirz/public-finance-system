@@ -1910,5 +1910,377 @@ export const INITIAL_TEMPLATES = [
       { type: "debit",  accountCode: "96005", accountName: "کسری ابواب جمعی بابت اعتبار سرمایه‌ای انتقالی",         ratio: "**", section: "کنترل اعتبار انتقالی" },
       { type: "credit", accountCode: "96004", accountName: "اسناد واخواهی بابت اعتبار سرمایه‌ای انتقالی",           ratio: "**", section: "کنترل اعتبار انتقالی" }
     ]
+  },
+  {
+    id: 157,
+    title: "ثبت شماره ۳۹",
+    description: "در صورت ایجاد کسری در دارایی‌ها",
+    code: "CAP-39",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "15004", accountName: "حساب‌ها و اسناد دریافتنی - کسری ابواب جمعی سرمایه‌ای", ratio: "**", section: "شناسایی کسری در دارایی‌ها" },
+      { type: "credit", accountCode: "16001", accountName: "تنخواه‌گردان پرداخت بابت عملیات سرمایه‌ای",              ratio: "**", section: "شناسایی کسری در دارایی‌ها" },
+      { type: "credit", accountCode: "17001", accountName: "پیش‌پرداخت بابت عملیات سرمایه‌ای",                       ratio: "**", section: "شناسایی کسری در دارایی‌ها" },
+      { type: "credit", accountCode: "17002", accountName: "پیش‌پرداخت مواد و کالا",                                  ratio: "**", section: "شناسایی کسری در دارایی‌ها" },
+      { type: "credit", accountCode: "13001", accountName: "دارایی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",       ratio: "**", section: "شناسایی کسری در دارایی‌ها" },
+      { type: "credit", accountCode: "13002", accountName: "دارایی در جریان تکمیل",                                   ratio: "**", section: "شناسایی کسری در دارایی‌ها" },
+      { type: "credit", accountCode: "14001", accountName: "موجودی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",       ratio: "**", section: "شناسایی کسری در دارایی‌ها" },
+      { type: "credit", accountCode: "11002", accountName: "بانک پرداخت سرمایه‌ای",                                   ratio: "**", section: "شناسایی کسری در دارایی‌ها" },
+      { type: "credit", accountCode: "11003", accountName: "بانک پرداخت اختصاصی",                                     ratio: "**", section: "شناسایی کسری در دارایی‌ها" },
+      { type: "credit", accountCode: "11004", accountName: "بانک وجوه سایر منابع",                                    ratio: "**", section: "شناسایی کسری در دارایی‌ها" },
+      { type: "debit",  accountCode: "96005", accountName: "کسری ابواب جمعی بابت اعتبار سرمایه‌ای",                  ratio: "**", section: "کنترل اعتبار" },
+      { type: "credit", accountCode: "98002", accountName: "اعتبار سرمایه‌ای بابت پرداخت‌های غیرقطعی",                ratio: "**", section: "کنترل اعتبار" },
+      { type: "credit", accountCode: "92002", accountName: "اعتبار سرمایه‌ای",                                        ratio: "**", section: "کنترل اعتبار" },
+      { type: "credit", accountCode: "93002", accountName: "اعتبار سرمایه‌ای تخصیص یافته",                            ratio: "**", section: "کنترل اعتبار" },
+      { type: "credit", accountCode: "94001", accountName: "اعتبار سرمایه‌ای ابلاغی",                                 ratio: "**", section: "کنترل اعتبار" }
+    ]
+  },
+  {
+    id: 158,
+    title: "ثبت شماره ۴۰",
+    description: "در صورت رفع کسری ابواب جمعی در سال شناسایی آن",
+    code: "CAP-40",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "13001", accountName: "دارایی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",      ratio: "**", section: "رفع کسری - شناسایی دارایی" },
+      { type: "debit",  accountCode: "13002", accountName: "دارایی در جریان تکمیل",                                   ratio: "**", section: "رفع کسری - شناسایی دارایی" },
+      { type: "debit",  accountCode: "14001", accountName: "موجودی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",      ratio: "**", section: "رفع کسری - شناسایی دارایی" },
+      { type: "credit", accountCode: "15004", accountName: "حساب‌ها و اسناد دریافتنی - کسری ابواب جمعی سرمایه‌ای",  ratio: "**", section: "رفع کسری - شناسایی دارایی" },
+      { type: "debit",  accountCode: "95002", accountName: "اعتبار سرمایه‌ای مصرف شده",                               ratio: "**", section: "قطعی شدن اعتبار" },
+      { type: "debit",  accountCode: "98002", accountName: "اعتبار سرمایه‌ای بابت پرداخت‌های غیرقطعی",                ratio: "**", section: "قطعی شدن اعتبار" },
+      { type: "credit", accountCode: "96005", accountName: "کسری ابواب جمعی بابت اعتبار سرمایه‌ای",                  ratio: "**", section: "قطعی شدن اعتبار" }
+    ]
+  },
+  {
+    id: 159,
+    title: "ثبت شماره ۴۱",
+    description: "در صورت رفع کسری ابواب جمعی پس از پایان آخرین مهلت درنظر گرفته شده برای ارائه صورت‌حساب دریافت و پرداخت نهایی",
+    code: "CAP-41",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "13001", accountName: "دارایی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",      ratio: "**", section: "رفع کسری - شناسایی دارایی" },
+      { type: "debit",  accountCode: "13002", accountName: "دارایی در جریان تکمیل",                                   ratio: "**", section: "رفع کسری - شناسایی دارایی" },
+      { type: "debit",  accountCode: "14001", accountName: "موجودی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",      ratio: "**", section: "رفع کسری - شناسایی دارایی" },
+      { type: "credit", accountCode: "15004", accountName: "حساب‌ها و اسناد دریافتنی - کسری ابواب جمعی سرمایه‌ای",  ratio: "**", section: "رفع کسری - شناسایی دارایی" },
+      { type: "debit",  accountCode: "95003", accountName: "اعتبار سرمایه‌ای انتقالی مصرف شده",                      ratio: "**", section: "قطعی شدن اعتبار انتقالی" },
+      { type: "debit",  accountCode: "98003", accountName: "اعتبار سرمایه‌ای انتقالی بابت پرداخت‌های غیرقطعی",       ratio: "**", section: "قطعی شدن اعتبار انتقالی" },
+      { type: "credit", accountCode: "96006", accountName: "کسری ابواب جمعی بابت اعتبار سرمایه‌ای انتقالی",          ratio: "**", section: "قطعی شدن اعتبار انتقالی" }
+    ]
+  },
+  {
+    id: 160,
+    title: "ثبت شماره ۴۲",
+    description: "در صورت واریز نقدی کسری ابواب جمعی یا اسناد واخواهی شده از سوی اشخاص در سال(های) پس از شناسایی آن",
+    code: "CAP-42",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "11002", accountName: "بانک پرداخت سرمایه‌ای",                                   ratio: "**", section: "واریز نقدی از اشخاص" },
+      { type: "debit",  accountCode: "11003", accountName: "بانک پرداخت اختصاصی",                                     ratio: "**", section: "واریز نقدی از اشخاص" },
+      { type: "debit",  accountCode: "11004", accountName: "بانک وجوه سایر منابع",                                    ratio: "**", section: "واریز نقدی از اشخاص" },
+      { type: "credit", accountCode: "15003", accountName: "حساب‌ها و اسناد دریافتنی - اسناد واخواهی سرمایه‌ای",     ratio: "**", section: "واریز نقدی از اشخاص" },
+      { type: "credit", accountCode: "15004", accountName: "حساب‌ها و اسناد دریافتنی - کسری ابواب جمعی سرمایه‌ای",  ratio: "**", section: "واریز نقدی از اشخاص" },
+      { type: "debit",  accountCode: "91003", accountName: "بودجه اعتبار سرمایه‌ای انتقالی",                          ratio: "**", section: "کنترل اعتبار انتقالی" },
+      { type: "credit", accountCode: "96004", accountName: "اسناد واخواهی بابت اعتبار سرمایه‌ای انتقالی",             ratio: "**", section: "کنترل اعتبار انتقالی" },
+      { type: "credit", accountCode: "96006", accountName: "کسری ابواب جمعی بابت اعتبار سرمایه‌ای انتقالی",           ratio: "**", section: "کنترل اعتبار انتقالی" }
+    ]
+  },
+  {
+    id: 161,
+    title: "ثبت شماره ۴۳-۱",
+    description: "به هنگام صدور احکام تعهدآور از سوی مراجع ذی‌صلاح",
+    code: "CAP-43-1",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "13001", accountName: "دارایی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",    ratio: "**" },
+      { type: "debit",  accountCode: "13002", accountName: "دارایی در جریان تکمیل",                                 ratio: "**" },
+      { type: "credit", accountCode: "26001", accountName: "ذخیره احکام صادره از مراجع ذی‌صلاح",                    ratio: "**" }
+    ]
+  },
+  {
+    id: 162,
+    title: "ثبت شماره ۴۳-۲",
+    description: "برداشت از حساب‌های بانکی پس از تامین منابع (اعتبار مصوب یا وجوه سایر منابع)",
+    code: "CAP-43-2",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "26001", accountName: "ذخیره احکام صادره از مراجع ذی‌صلاح",                    ratio: "**", section: "پرداخت و تسویه" },
+      { type: "credit", accountCode: "11002", accountName: "بانک پرداخت سرمایه‌ای",                                  ratio: "**", section: "پرداخت و تسویه" },
+      { type: "credit", accountCode: "11003", accountName: "بانک پرداخت اختصاصی",                                    ratio: "**", section: "پرداخت و تسویه" },
+      { type: "credit", accountCode: "11004", accountName: "بانک وجوه سایر منابع",                                   ratio: "**", section: "پرداخت و تسویه" },
+      { type: "debit",  accountCode: "95002", accountName: "اعتبار سرمایه‌ای مصرف شده",                              ratio: "**", section: "قطعی شدن اعتبار" },
+      { type: "credit", accountCode: "97002", accountName: "اعتبار سرمایه‌ای تامین شده",                             ratio: "**", section: "قطعی شدن اعتبار" }
+    ]
+  },
+  {
+    id: 163,
+    title: "ثبت شماره ۴۳-۳-۱",
+    description: "دفاتر واحد محکوم: پس از جابجایی و کاهش اعتبار واحد محکوم",
+    code: "CAP-43-3-1",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "91002", accountName: "بودجه اعتبار سرمایه‌ای",                                 ratio: "**", section: "کاهش اعتبار واحد محکوم" },
+      { type: "credit", accountCode: "92002", accountName: "اعتبار سرمایه‌ای",                                       ratio: "**", section: "کاهش اعتبار واحد محکوم" },
+      { type: "credit", accountCode: "93002", accountName: "اعتبار سرمایه‌ای تخصیص یافته",                           ratio: "**", section: "کاهش اعتبار واحد محکوم" },
+      { type: "debit",  accountCode: "26001", accountName: "ذخیره احکام صادره از مراجع ذی‌صلاح",                    ratio: "**", section: "تسویه ذخیره" },
+      { type: "credit", accountCode: "41004", accountName: "درآمدها - انتقالات",                                     ratio: "**", section: "تسویه ذخیره" }
+    ]
+  },
+  {
+    id: 164,
+    title: "ثبت شماره ۴۳-۳-۲",
+    description: "دفاتر سازمان مدیریت و برنامه‌ریزی استان: پرداخت احکام صادره واحدهای محکوم",
+    code: "CAP-43-3-2",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "97002", accountName: "اعتبار سرمایه‌ای تامین شده",                             ratio: "**", section: "تامین و پرداخت" },
+      { type: "credit", accountCode: "94001", accountName: "اعتبار سرمایه‌ای ابلاغی",                                ratio: "**", section: "تامین و پرداخت" },
+      { type: "debit",  accountCode: "63001", accountName: "هزینه‌ها - انتقالات",                                    ratio: "**", section: "شناسایی هزینه" },
+      { type: "credit", accountCode: "11002", accountName: "بانک پرداخت ...",                                        ratio: "**", section: "شناسایی هزینه" },
+      { type: "debit",  accountCode: "95002", accountName: "اعتبار سرمایه‌ای مصرف شده",                              ratio: "**", section: "قطعی شدن اعتبار" },
+      { type: "credit", accountCode: "97002", accountName: "اعتبار سرمایه‌ای تامین شده",                             ratio: "**", section: "قطعی شدن اعتبار" }
+    ]
+  },
+  {
+    id: 165,
+    title: "ثبت شماره ۴۳-۴",
+    description: "کسری ابواب جمعی برداشتی — زمانی که منابع لازم تامین نشود و برداشت وجه نقد از سوی اشخاص انجام شود",
+    code: "CAP-43-4",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "26001", accountName: "ذخیره احکام صادره از مراجع ذی‌صلاح",                     ratio: "**", section: "شناسایی کسری برداشتی" },
+      { type: "credit", accountCode: "11002", accountName: "بانک پرداخت سرمایه‌ای",                                   ratio: "**", section: "شناسایی کسری برداشتی" },
+      { type: "credit", accountCode: "11003", accountName: "بانک پرداخت اختصاصی",                                     ratio: "**", section: "شناسایی کسری برداشتی" },
+      { type: "credit", accountCode: "11004", accountName: "بانک وجوه سایر منابع",                                    ratio: "**", section: "شناسایی کسری برداشتی" },
+      { type: "debit",  accountCode: "89006", accountName: "حساب انتظامی - کسری ابواب جمعی برداشتی",                  ratio: "**", section: "کنترل انتظامی" },
+      { type: "credit", accountCode: "99006", accountName: "طرف حساب انتظامی - کسری ابواب جمعی برداشتی",              ratio: "**", section: "کنترل انتظامی" }
+    ]
+  },
+  {
+    id: 166,
+    title: "ثبت شماره ۴۳-۵",
+    description: "برداشت وجه نقد از حساب بانکی عامل ذیحساب — کسری ایجاد شده در تنخواه‌گردان پرداخت",
+    code: "CAP-43-5",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "13001", accountName: "دارایی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",      ratio: "**", section: "شناسایی کسری تنخواه" },
+      { type: "debit",  accountCode: "13002", accountName: "دارایی در جریان تکمیل",                                   ratio: "**", section: "شناسایی کسری تنخواه" },
+      { type: "credit", accountCode: "16001", accountName: "تنخواه‌گردان پرداخت بابت عملیات سرمایه‌ای",               ratio: "**", section: "شناسایی کسری تنخواه" },
+      { type: "debit",  accountCode: "93002", accountName: "اعتبار سرمایه‌ای تخصیص یافته",                            ratio: "**", section: "تعدیل حساب‌های بودجه‌ای" },
+      { type: "credit", accountCode: "98002", accountName: "اعتبار سرمایه‌ای بابت پرداخت‌های غیرقطعی",                ratio: "**", section: "تعدیل حساب‌های بودجه‌ای" },
+      { type: "debit",  accountCode: "89006", accountName: "حساب انتظامی - کسری ابواب جمعی برداشتی",                  ratio: "**", section: "کنترل انتظامی" },
+      { type: "credit", accountCode: "99006", accountName: "طرف حساب انتظامی - کسری ابواب جمعی برداشتی",              ratio: "**", section: "کنترل انتظامی" }
+    ]
+  },
+  {
+    id: 167,
+    title: "ثبت شماره ۴۳-۶",
+    description: "چنانچه در سال شناسایی کسری ابواب جمعی برداشتی، منابع لازم تامین و کسری رفع گردد",
+    code: "CAP-43-6",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "99006", accountName: "طرف حساب انتظامی - کسری ابواب جمعی برداشتی",             ratio: "**", section: "رفع انتظامی" },
+      { type: "credit", accountCode: "89006", accountName: "حساب انتظامی - کسری ابواب جمعی برداشتی",                  ratio: "**", section: "رفع انتظامی" },
+      { type: "debit",  accountCode: "95002", accountName: "اعتبار سرمایه‌ای مصرف شده",                               ratio: "**", section: "قطعی شدن اعتبار" },
+      { type: "credit", accountCode: "93002", accountName: "اعتبار سرمایه‌ای تخصیص یافته",                            ratio: "**", section: "قطعی شدن اعتبار" }
+    ]
+  },
+  {
+    id: 168,
+    title: "ثبت شماره ۴۳-۷",
+    description: "چنانچه منابع لازم برای رفع کسری ابواب جمعی برداشتی، در دوره‌های مالی پس از شناسایی آن تامین شود",
+    code: "CAP-43-7",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "99006", accountName: "طرف حساب انتظامی - کسری ابواب جمعی برداشتی",             ratio: "**" },
+      { type: "credit", accountCode: "89006", accountName: "حساب انتظامی - کسری ابواب جمعی برداشتی",                  ratio: "**" }
+    ]
+  },
+  {
+    id: 169,
+    title: "ثبت شماره ۴۳-۸",
+    description: "در صورت واریز نقدی کسری ابواب جمعی برداشتی از سوی اشخاص در دوره‌های مالی پس از شناسایی آن",
+    code: "CAP-43-8",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "11002", accountName: "بانک پرداخت سرمایه‌ای",                                   ratio: "**", section: "واریز نقدی از اشخاص" },
+      { type: "debit",  accountCode: "11003", accountName: "بانک پرداخت اختصاصی",                                     ratio: "**", section: "واریز نقدی از اشخاص" },
+      { type: "debit",  accountCode: "11004", accountName: "بانک وجوه سایر منابع",                                    ratio: "**", section: "واریز نقدی از اشخاص" },
+      { type: "credit", accountCode: "13001", accountName: "دارایی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",       ratio: "**", section: "واریز نقدی از اشخاص" },
+      { type: "credit", accountCode: "13002", accountName: "دارایی در جریان تکمیل",                                   ratio: "**", section: "واریز نقدی از اشخاص" },
+      { type: "debit",  accountCode: "99006", accountName: "طرف حساب انتظامی - کسری ابواب جمعی برداشتی",              ratio: "**", section: "رفع انتظامی" },
+      { type: "credit", accountCode: "89006", accountName: "حساب انتظامی - کسری ابواب جمعی برداشتی",                  ratio: "**", section: "رفع انتظامی" }
+    ]
+  },
+  {
+    id: 170,
+    title: "ثبت شماره ۴۴",
+    description: "شناسایی هزینه استهلاک دارایی‌ها",
+    code: "CAP-44",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "64002", accountName: "هزینه‌ها به تفکیک طبقه‌بندی اقتصادی دولت - استهلاک", ratio: "**" },
+      { type: "credit", accountCode: "13004", accountName: "استهلاک انباشته ...",                                  ratio: "**" }
+    ]
+  },
+  {
+    id: 171,
+    title: "ثبت شماره ۴۵-۱",
+    description: "معاوضه دارایی‌های واحد گزارشگر با دارایی سایر واحدها — دارایی با ارزش منصفانه اندازه‌گیری شده",
+    code: "CAP-45-1",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "13001", accountName: "دارایی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها (جدید)", ratio: "**", section: "شناسایی دارایی جدید و خروج قدیم" },
+      { type: "debit",  accountCode: "13004", accountName: "استهلاک انباشته ...",                                       ratio: "**", section: "شناسایی دارایی جدید و خروج قدیم" },
+      { type: "debit",  accountCode: "13005", accountName: "ذخیره کاهش ارزش دارایی‌ها",                                ratio: "**", section: "شناسایی دارایی جدید و خروج قدیم" },
+      { type: "debit",  accountCode: "11002", accountName: "بانک ...",                                                   ratio: "**", section: "شناسایی دارایی جدید و خروج قدیم" },
+      { type: "debit",  accountCode: "15001", accountName: "حساب‌ها و اسناد دریافتنی",                                  ratio: "**", section: "شناسایی دارایی جدید و خروج قدیم" },
+      { type: "debit",  accountCode: "64001", accountName: "هزینه‌ها به تفکیک طبقه‌بندی اقتصادی دولت",                 ratio: "**", section: "شناسایی دارایی جدید و خروج قدیم" },
+      { type: "credit", accountCode: "13001", accountName: "دارایی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها (قدیم)", ratio: "**", section: "شناسایی دارایی جدید و خروج قدیم" },
+      { type: "credit", accountCode: "11002", accountName: "بانک ...",                                                   ratio: "**", section: "شناسایی دارایی جدید و خروج قدیم" },
+      { type: "credit", accountCode: "24001", accountName: "حساب‌ها و اسناد پرداختنی",                                  ratio: "**", section: "شناسایی دارایی جدید و خروج قدیم" },
+      { type: "credit", accountCode: "41005", accountName: "درآمدهای واحد به تفکیک طبقه‌بندی مربوط",                   ratio: "**", section: "شناسایی دارایی جدید و خروج قدیم" }
+    ]
+  },
+  {
+    id: 172,
+    title: "ثبت شماره ۴۵-۲",
+    description: "معاوضه فاقد محتوای تجاری یا دارایی تحصیل‌شده با ارزش منصفانه قابل اندازه‌گیری نباشد — بر اساس ارزش دفتری",
+    code: "CAP-45-2",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "13001", accountName: "دارایی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها (جدید)", ratio: "**" },
+      { type: "debit",  accountCode: "13004", accountName: "استهلاک انباشته ...",                                        ratio: "**" },
+      { type: "debit",  accountCode: "13005", accountName: "ذخیره کاهش ارزش دارایی‌ها",                                 ratio: "**" },
+      { type: "debit",  accountCode: "11002", accountName: "بانک ...",                                                    ratio: "**" },
+      { type: "debit",  accountCode: "15001", accountName: "حساب‌ها و اسناد دریافتنی",                                   ratio: "**" },
+      { type: "credit", accountCode: "13001", accountName: "دارایی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها (قدیم)", ratio: "**" },
+      { type: "credit", accountCode: "11002", accountName: "بانک ...",                                                    ratio: "**" },
+      { type: "credit", accountCode: "24001", accountName: "حساب‌ها و اسناد پرداختنی",                                   ratio: "**" }
+    ]
+  },
+  {
+    id: 173,
+    title: "ثبت شماره ۴۶-۱",
+    description: "شناسایی کاهش ارزش دارایی‌های ثابت مشهود و دارایی‌های نامشهود — روش بهای تمام شده",
+    code: "CAP-46-1",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "64003", accountName: "هزینه‌ها به تفکیک طبقه‌بندی اقتصادی دولت - کاهش ارزش", ratio: "**" },
+      { type: "credit", accountCode: "13005", accountName: "ذخیره کاهش ارزش دارایی‌ها",                               ratio: "**" }
+    ]
+  },
+  {
+    id: 174,
+    title: "ثبت شماره ۴۶-۲",
+    description: "شناسایی برگشت کاهش ارزش دارایی‌ها",
+    code: "CAP-46-2",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "13005", accountName: "ذخیره کاهش ارزش دارایی‌ها",                               ratio: "**" },
+      { type: "credit", accountCode: "41005", accountName: "درآمدهای واحد به تفکیک طبقه‌بندی مربوط",                  ratio: "**" }
+    ]
+  },
+  {
+    id: 175,
+    title: "ثبت شماره ۴۷-۱",
+    description: "شناسایی افزایش مبلغ دفتری دارایی‌های ثابت مشهود و دارایی‌های نامشهود در نتیجه تجدید ارزیابی",
+    code: "CAP-47-1",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "13001", accountName: "دارایی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",  ratio: "**" },
+      { type: "debit",  accountCode: "13004", accountName: "استهلاک انباشته ...",                                  ratio: "**" },
+      { type: "debit",  accountCode: "13005", accountName: "ذخیره کاهش ارزش دارایی‌ها",                           ratio: "**" },
+      { type: "credit", accountCode: "13001", accountName: "دارایی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",  ratio: "**" },
+      { type: "credit", accountCode: "41005", accountName: "درآمدهای واحد به تفکیک طبقه‌بندی مربوط",             ratio: "**" },
+      { type: "credit", accountCode: "31007", accountName: "مازاد تجدید ارزیابی",                                 ratio: "**" }
+    ]
+  },
+  {
+    id: 176,
+    title: "ثبت شماره ۴۷-۲",
+    description: "شناسایی کاهش ارزش دارایی‌ها در روش تجدید ارزیابی",
+    code: "CAP-47-2",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "31007", accountName: "مازاد تجدید ارزیابی",                                  ratio: "**" },
+      { type: "debit",  accountCode: "64003", accountName: "هزینه‌ها به تفکیک طبقه‌بندی اقتصادی دولت - کاهش ارزش", ratio: "**" },
+      { type: "debit",  accountCode: "13004", accountName: "استهلاک انباشته ...",                                   ratio: "**" },
+      { type: "credit", accountCode: "13001", accountName: "دارایی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",   ratio: "**" },
+      { type: "credit", accountCode: "13005", accountName: "ذخیره کاهش ارزش دارایی‌ها",                            ratio: "**" }
+    ]
+  },
+  {
+    id: 177,
+    title: "ثبت شماره ۴۸",
+    description: "در صورت برکناری دایمی دارایی‌های واحد گزارشگر طبق قوانین و مقررات مربوط",
+    code: "CAP-48",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "13004", accountName: "استهلاک انباشته ...",                                   ratio: "**", section: "خروج دارایی" },
+      { type: "debit",  accountCode: "13005", accountName: "ذخیره کاهش ارزش دارایی‌ها",                            ratio: "**", section: "خروج دارایی" },
+      { type: "debit",  accountCode: "64001", accountName: "هزینه‌ها به تفکیک طبقه‌بندی اقتصادی دولت",             ratio: "**", section: "خروج دارایی" },
+      { type: "credit", accountCode: "13001", accountName: "دارایی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",   ratio: "**", section: "خروج دارایی" },
+      { type: "debit",  accountCode: "31007", accountName: "مازاد تجدید ارزیابی",                                  ratio: "**", section: "انتقال مازاد تجدید ارزیابی" },
+      { type: "credit", accountCode: "31008", accountName: "انتقال از سایر اقلام ارزش خالص",                       ratio: "**", section: "انتقال مازاد تجدید ارزیابی" }
+    ]
+  },
+  {
+    id: 178,
+    title: "ثبت شماره ۴۹",
+    description: "شناسایی کاهش ارزش موجودی‌ها",
+    code: "CAP-49",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "64003", accountName: "هزینه‌ها به تفکیک طبقه‌بندی اقتصادی دولت - کاهش ارزش موجودی", ratio: "**" },
+      { type: "credit", accountCode: "14002", accountName: "ذخیره کاهش ارزش موجودی‌ها",                                    ratio: "**" }
+    ]
+  },
+  {
+    id: 179,
+    title: "ثبت شماره ۵۰",
+    description: "شناسایی درآمد حاصل از بازیافت کاهش ارزش موجودی‌ها",
+    code: "CAP-50",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "14002", accountName: "ذخیره کاهش ارزش موجودی‌ها",                          ratio: "**" },
+      { type: "credit", accountCode: "41005", accountName: "درآمدهای واحد به تفکیک طبقه‌بندی مربوط",             ratio: "**" }
+    ]
+  },
+  {
+    id: 180,
+    title: "ثبت شماره ۵۱",
+    description: "شناسایی بدهی‌ها بابت تعهدات مازاد بر اعتبار سرمایه‌ای تخصیص یافته",
+    code: "CAP-51",
+    category: "capital",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "13001", accountName: "دارایی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",  ratio: "**" },
+      { type: "debit",  accountCode: "13002", accountName: "دارایی در جریان تکمیل",                               ratio: "**" },
+      { type: "debit",  accountCode: "14001", accountName: "موجودی‌ها به تفکیک طبقه‌بندی شیوه‌نامه دارایی‌ها",  ratio: "**" },
+      { type: "credit", accountCode: "27001", accountName: "ذخیره تعهدات سرمایه‌ای",                             ratio: "**" }
+    ]
   }
 ];
