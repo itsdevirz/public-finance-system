@@ -44,6 +44,7 @@ const ManualDocument = lazy(() => import("@/modules/accounting/pages/ManualDocum
 const DocumentsList = lazy(() => import("@/modules/accounting/pages/DocumentsList"));
 const PayrollOperations = lazy(() => import("@/modules/accounting/pages/PayrollOperations"));
 const CapitalOperations = lazy(() => import("@/modules/accounting/pages/CapitalOperations"));
+const AutoDocument = lazy(() => import("@/modules/accounting/pages/AutoDocument"));
 const AiChat = lazy(() => import("@/pages/AiChat"));
 
 /** صفحاتی که پیاده‌سازی شده‌اند — بقیه خودکار Placeholder می‌شوند */
@@ -64,7 +65,7 @@ export const PAGE_COMPONENTS = {
   "/document-setup": DocumentSetup,
   "/document-setup/calc-form":  DocumentSetup,
   "/document-setup/manual-doc": ManualDocument,
-  "/document-setup/auto-doc":   DocumentSetup,
+  "/document-setup/auto-doc":   AutoDocument,
   "/document-setup/copy-doc":   DocumentSetup,
   "/document-setup/docs-list":  DocumentsList,
   "/review": Review,
