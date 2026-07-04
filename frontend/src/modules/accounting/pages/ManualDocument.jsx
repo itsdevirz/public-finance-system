@@ -236,14 +236,14 @@ function SanamaField({ rowDef, value, onChange, optional }) {
 
   // ردیف‌های با values (dropdown ساده)
   if (rowDef.values) {
-    const opts = rowDef.values.map((v) => ({ value: v.type, label: v.title }));
+    const opts = rowDef.values.map((v) => ({ value: String(v.type), label: v.title }));
     return (
       <div className="flex items-center gap-2">
         <Label className={labelCls}>{rowDef.title}</Label>
         <div className="flex-1">
           <SearchableSelect
-            value={value ?? ""}
-            onChange={(v) => onChange(v || (rowDef.default ?? ""))}
+            value={value !== undefined && value !== null ? String(value) : ""}
+            onChange={(v) => onChange(v || "")}
             options={opts}
             placeholder={placeholder}
             searchable={opts.length > 8}
@@ -256,15 +256,15 @@ function SanamaField({ rowDef, value, onChange, optional }) {
   // ردیف‌های با groups (dropdown گروه‌بندی‌شده)
   if (rowDef.groups) {
     const opts = rowDef.groups.flatMap((g) =>
-      g.values.map((v) => ({ value: v.type, label: v.title, group: g.title }))
+      g.values.map((v) => ({ value: String(v.type), label: v.title, group: g.title }))
     );
     return (
       <div className="flex items-center gap-2">
         <Label className={labelCls}>{rowDef.title}</Label>
         <div className="flex-1">
           <SearchableSelect
-            value={value ?? ""}
-            onChange={(v) => onChange(v || (rowDef.default ?? ""))}
+            value={value !== undefined && value !== null ? String(value) : ""}
+            onChange={(v) => onChange(v || "")}
             options={opts}
             placeholder={placeholder}
           />
@@ -322,12 +322,36 @@ function SanamaExtraFields({ row, onSanamaChange }) {
   const requiredRows = getRequiredRows(row.subAccount);
   if (!requiredRows.length) return null;
 
+  // تشخیص ماهیت ردیف
+  const isDebit = parseFloat(String(row.debit || "").replace(/,/g, "")) > 0;
+  const isCredit = parseFloat(String(row.credit || "").replace(/,/g, "")) > 0;
+  const natureLabel = isDebit ? "بدهکار" : isCredit ? "بستانکار" : "—";
+  const natureCls   = isDebit
+    ? "bg-blue-100 border-blue-300 text-blue-700"
+    : isCredit
+    ? "bg-rose-100 border-rose-300 text-rose-700"
+    : "bg-muted border-border text-muted-foreground";
+
+  // نام حساب
+  const accountName = row.desc || "";
+
   return (
-    <div className="border-t bg-amber-50/40 px-3 py-3">
-      <p className="text-xs font-medium text-amber-800 mb-3">
-        الزامات سناما — معین {row.subAccount}
-      </p>
-      <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+    <div className="border-t border-amber-200 bg-amber-50/40">
+      {/* هدر کد حساب */}
+      <div className={`flex items-center gap-2 px-3 py-2 border-b border-amber-200 ${isDebit ? "bg-blue-50/50" : isCredit ? "bg-rose-50/50" : "bg-muted/30"}`}>
+        <span className={`text-[10px] font-bold rounded px-2 py-0.5 border font-mono shrink-0 ${natureCls}`}>
+          {natureLabel}
+        </span>
+        <span className="font-mono font-bold text-sm text-foreground">{row.subAccount}</span>
+        {accountName && (
+          <>
+            <span className="text-muted-foreground text-xs">—</span>
+            <span className="text-xs font-semibold text-foreground/80 truncate">{accountName}</span>
+          </>
+        )}
+      </div>
+      {/* فیلدها */}
+      <div className="px-3 py-3 grid grid-cols-1 gap-2 md:grid-cols-2">
         {requiredRows.map((rowNum) => {
           const rowDef = getSubAccountTitle(rowNum);
           if (!rowDef) return null;
@@ -793,11 +817,21 @@ export default function ManualDocument() {
               </table>
             </div>
 
-            {showSanamaFields && (
-              <SanamaExtraFields
-                row={activeRow}
-                onSanamaChange={(fieldKey, val) => handleSanamaChange(activeRowId, fieldKey, val)}
-              />
+            {/* الزامات سناما — همه ردیف‌هایی که الزامات دارند */}
+            {rows.some(r => r.subAccount && getRequiredRows(r.subAccount).length > 0) && (
+              <div className="border-t">
+                {rows.map((row) => {
+                  const reqs = getRequiredRows(row.subAccount);
+                  if (!reqs.length) return null;
+                  return (
+                    <SanamaExtraFields
+                      key={row.id}
+                      row={row}
+                      onSanamaChange={(fieldKey, val) => handleSanamaChange(row.id, fieldKey, val)}
+                    />
+                  );
+                })}
+              </div>
             )}
 
             {/* جمع و دکمه اضافه */}
