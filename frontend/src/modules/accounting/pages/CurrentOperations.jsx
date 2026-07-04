@@ -22,6 +22,11 @@ const STATUS_COLOR = {
   CANCELLED: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/20 dark:text-rose-400",
 };
 
+// فیلتر ثبت‌های عملیات جاری (کدهای OP-): فقط ثبت‌های ۱ تا ۴۹
+function matchesCurrentOp(t) {
+  return typeof t.code === "string" && t.code.startsWith("OP-");
+}
+
 export default function CurrentOperations({ categoryFilter = null, pageTitle = "حسابداری عملیات جاری", pageDescription = "لیست اسناد مالی صادر شده با استفاده از الگوهای ثبت جاری سیستم" }) {
   const today = new Date().toLocaleDateString("fa-IR").replace(/\//g, "/");
 
@@ -76,6 +81,12 @@ export default function CurrentOperations({ categoryFilter = null, pageTitle = "
             INITIAL_TEMPLATES.filter(t => filters.includes(t.category)).map(t => String(t.id))
           );
           list = list.filter(doc => categoryTemplateIds.has(String(doc.template_id)));
+        } else {
+          // بدون فیلتر: فقط اسناد مربوط به ثبت‌های عملیات جاری (OP-) نمایش داده شود
+          const currentOpIds = new Set(
+            INITIAL_TEMPLATES.filter(matchesCurrentOp).map(t => String(t.id))
+          );
+          list = list.filter(doc => currentOpIds.has(String(doc.template_id)));
         }
         setPostedDocuments(list);
       }
@@ -663,7 +674,7 @@ export default function CurrentOperations({ categoryFilter = null, pageTitle = "
                     <Label className="text-xs font-bold text-foreground">
                       {(() => {
                         const filters = categoryFilter ? (Array.isArray(categoryFilter) ? categoryFilter : [categoryFilter]) : null;
-                        const filtered = INITIAL_TEMPLATES.filter(t => t.status === "active" && (!filters || filters.includes(t.category)));
+                        const filtered = INITIAL_TEMPLATES.filter(t => t.status === "active" && (filters ? filters.includes(t.category) : matchesCurrentOp(t)));
                         const count = filtered.length;
                         return `انتخاب الگوی ثبت حسابداری (${count.toLocaleString("fa-IR")} ثبت)`;
                       })()}
@@ -720,7 +731,7 @@ export default function CurrentOperations({ categoryFilter = null, pageTitle = "
                                 const filters = categoryFilter ? (Array.isArray(categoryFilter) ? categoryFilter : [categoryFilter]) : null;
                                 const items = INITIAL_TEMPLATES
                                   .filter((t) => t.status === "active")
-                                  .filter((t) => !filters || filters.includes(t.category))
+                                  .filter((t) => filters ? filters.includes(t.category) : matchesCurrentOp(t))
                                   .filter((t) => {
                                     if (!dropdownSearch.trim()) return true;
                                     const q = dropdownSearch.toLowerCase();
