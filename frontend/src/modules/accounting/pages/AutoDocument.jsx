@@ -116,6 +116,28 @@ function SanamaField({ rowDef, value, onChange }) {
   );
 }
 
+// ─── تعریف نوع حسابداری و mapping به category ─────────────────────────────────
+const ACCOUNTING_TYPES = [
+  {
+    value: "current",
+    label: "حسابداری عملیات جاری",
+    num: 1,
+    categories: ["payments", "receipts", "expenses"],
+  },
+  {
+    value: "payroll",
+    label: "حسابداری حقوق و مزایای مستمر کارکنان",
+    num: 2,
+    categories: ["payroll"],
+  },
+  {
+    value: "capital",
+    label: "حسابداری عملیات سرمایه‌ای",
+    num: 3,
+    categories: ["capital"],
+  },
+];
+
 // ─── صفحه اصلی ────────────────────────────────────────────────────────────────
 export default function AutoDocument() {
   const today = new Date().toLocaleDateString("fa-IR").replace(/\//g, "/");
@@ -124,6 +146,7 @@ export default function AutoDocument() {
   const [search, setSearch] = useState("");
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [selectedAccountingType, setSelectedAccountingType] = useState(null);
 
   // فیلدهای سند
   const [fiscalYears, setFiscalYears] = useState([]);
@@ -159,15 +182,24 @@ export default function AutoDocument() {
   // فیلتر الگوها
   const filteredTemplates = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return INITIAL_TEMPLATES.filter((t) => t.status === "active").filter((t) => {
-      if (!q) return true;
-      return (
-        t.title.toLowerCase().includes(q) ||
-        t.description.toLowerCase().includes(q) ||
-        t.code?.toLowerCase().includes(q)
-      );
-    });
-  }, [search]);
+    const allowedCategories = selectedAccountingType
+      ? ACCOUNTING_TYPES.find((t) => t.value === selectedAccountingType)?.categories ?? []
+      : null;
+
+    return INITIAL_TEMPLATES.filter((t) => t.status === "active")
+      .filter((t) => {
+        if (!allowedCategories) return true;
+        return allowedCategories.includes(t.category);
+      })
+      .filter((t) => {
+        if (!q) return true;
+        return (
+          t.title.toLowerCase().includes(q) ||
+          t.description.toLowerCase().includes(q) ||
+          t.code?.toLowerCase().includes(q)
+        );
+      });
+  }, [search, selectedAccountingType]);
 
   // الزامات سناما ثبت انتخاب‌شده
   const sanamaRows = useMemo(() => {
@@ -353,6 +385,47 @@ export default function AutoDocument() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* انتخاب نوع حسابداری */}
+        <Card className="mb-4">
+          <CardContent className="p-4 space-y-3">
+            <Label className="text-sm font-bold text-foreground flex items-center gap-1.5">
+              <Layers className="h-4 w-4 text-primary" />
+              نوع حسابداری
+            </Label>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              {ACCOUNTING_TYPES.map((type) => (
+                <button
+                  key={type.value}
+                  type="button"
+                  onClick={() => {
+                    setSelectedAccountingType(
+                      selectedAccountingType === type.value ? null : type.value
+                    );
+                    setSelectedTemplate(null);
+                    setLineAmounts({});
+                    setSanamaValues({});
+                    setSearch("");
+                  }}
+                  className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-right transition-all duration-200 ${
+                    selectedAccountingType === type.value
+                      ? "border-primary bg-primary/10 text-primary font-bold shadow-sm"
+                      : "border-border bg-background text-foreground/70 hover:border-primary/40 hover:bg-muted/50"
+                  }`}
+                >
+                  <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                    selectedAccountingType === type.value
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground"
+                  }`}>
+                    {type.num}
+                  </span>
+                  <span className="text-xs font-semibold leading-tight">{type.label}</span>
+                </button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* انتخاب ثبت */}
         <Card className="mb-4">

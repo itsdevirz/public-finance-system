@@ -71,8 +71,9 @@ export default function CurrentOperations({ categoryFilter = null, pageTitle = "
         let list = res.data.data.filter(doc => doc.is_template_derived === true);
         // اگر categoryFilter مشخص شده، فقط اسناد مربوط به الگوهای آن دسته نمایش داده شوند
         if (categoryFilter) {
+          const filters = Array.isArray(categoryFilter) ? categoryFilter : [categoryFilter];
           const categoryTemplateIds = new Set(
-            INITIAL_TEMPLATES.filter(t => t.category === categoryFilter).map(t => String(t.id))
+            INITIAL_TEMPLATES.filter(t => filters.includes(t.category)).map(t => String(t.id))
           );
           list = list.filter(doc => categoryTemplateIds.has(String(doc.template_id)));
         }
@@ -661,7 +662,8 @@ export default function CurrentOperations({ categoryFilter = null, pageTitle = "
                   <div className="space-y-1.5 border-b pb-4 relative">
                     <Label className="text-xs font-bold text-foreground">
                       {(() => {
-                        const filtered = INITIAL_TEMPLATES.filter(t => t.status === "active" && (!categoryFilter || t.category === categoryFilter));
+                        const filters = categoryFilter ? (Array.isArray(categoryFilter) ? categoryFilter : [categoryFilter]) : null;
+                        const filtered = INITIAL_TEMPLATES.filter(t => t.status === "active" && (!filters || filters.includes(t.category)));
                         const count = filtered.length;
                         return `انتخاب الگوی ثبت حسابداری (${count.toLocaleString("fa-IR")} ثبت)`;
                       })()}
@@ -714,18 +716,24 @@ export default function CurrentOperations({ categoryFilter = null, pageTitle = "
                               </div>
 
                               {/* لیست گزینه‌ها */}
-                              {INITIAL_TEMPLATES
-                                .filter((t) => t.status === "active")
-                                .filter((t) => !categoryFilter || t.category === categoryFilter)
-                                .filter((t) => {
-                                  if (!dropdownSearch.trim()) return true;
-                                  const q = dropdownSearch.toLowerCase();
-                                  return (
-                                    t.title.toLowerCase().includes(q) ||
-                                    t.description.toLowerCase().includes(q)
-                                  );
-                                })
-                                .map((t) => {
+                              {(() => {
+                                const filters = categoryFilter ? (Array.isArray(categoryFilter) ? categoryFilter : [categoryFilter]) : null;
+                                const items = INITIAL_TEMPLATES
+                                  .filter((t) => t.status === "active")
+                                  .filter((t) => !filters || filters.includes(t.category))
+                                  .filter((t) => {
+                                    if (!dropdownSearch.trim()) return true;
+                                    const q = dropdownSearch.toLowerCase();
+                                    return (
+                                      t.title.toLowerCase().includes(q) ||
+                                      t.description.toLowerCase().includes(q)
+                                    );
+                                  });
+                                return items.length === 0 ? (
+                                  <div className="py-8 text-center text-muted-foreground text-xs font-medium">
+                                    الگویی با این مشخصات یافت نشد.
+                                  </div>
+                                ) : items.map((t) => {
                                   const isSelected = String(t.id) === String(selectedWizardTemplateId);
                                   return (
                                     <button
@@ -733,8 +741,8 @@ export default function CurrentOperations({ categoryFilter = null, pageTitle = "
                                       type="button"
                                       onClick={() => handleWizardTemplateSelect(t)}
                                       className={`w-full text-right px-3 py-2 text-xs rounded-md transition-all flex items-center justify-between ${
-                                        isSelected 
-                                          ? "bg-primary text-primary-foreground font-bold" 
+                                        isSelected
+                                          ? "bg-primary text-primary-foreground font-bold"
                                           : "hover:bg-muted text-foreground/80 hover:text-foreground"
                                       }`}
                                     >
@@ -742,20 +750,8 @@ export default function CurrentOperations({ categoryFilter = null, pageTitle = "
                                       {isSelected && <CheckCircle2 className="h-3.5 w-3.5 text-primary-foreground" />}
                                     </button>
                                   );
-                                })}
-
-                              {INITIAL_TEMPLATES.filter((t) => t.status === "active").filter((t) => !categoryFilter || t.category === categoryFilter).filter((t) => {
-                                if (!dropdownSearch.trim()) return true;
-                                const q = dropdownSearch.toLowerCase();
-                                return (
-                                  t.title.toLowerCase().includes(q) ||
-                                  t.description.toLowerCase().includes(q)
-                                );
-                              }).length === 0 && (
-                                <div className="py-8 text-center text-muted-foreground text-xs font-medium">
-                                  الگویی با این مشخصات یافت نشد.
-                                </div>
-                              )}
+                                });
+                              })()}
                             </motion.div>
                           </>
                         )}
