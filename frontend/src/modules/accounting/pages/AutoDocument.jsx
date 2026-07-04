@@ -117,12 +117,19 @@ function SanamaField({ rowDef, value, onChange }) {
 }
 
 // ─── تعریف نوع حسابداری و mapping به category ─────────────────────────────────
+// برای عملیات جاری: همه ثبت‌های با کد OP- (شامل ثبت‌های ۱ تا ۴۹ و زیرثبت‌هایشان)
+function matchesType(t, type) {
+  if (type.codePrefix) return typeof t.code === "string" && t.code.startsWith(type.codePrefix);
+  if (type.categories) return type.categories.includes(t.category);
+  return true;
+}
+
 const ACCOUNTING_TYPES = [
   {
     value: "current",
     label: "حسابداری عملیات جاری",
     num: 1,
-    categories: ["payments", "receipts", "expenses"],
+    codePrefix: "OP-",   // همه ثبت‌های ۱ تا ۴۹ با کد OP-xx
   },
   {
     value: "payroll",
@@ -182,14 +189,14 @@ export default function AutoDocument() {
   // فیلتر الگوها
   const filteredTemplates = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const allowedCategories = selectedAccountingType
-      ? ACCOUNTING_TYPES.find((t) => t.value === selectedAccountingType)?.categories ?? []
+    const typeObj = selectedAccountingType
+      ? ACCOUNTING_TYPES.find((t) => t.value === selectedAccountingType)
       : null;
 
     return INITIAL_TEMPLATES.filter((t) => t.status === "active")
       .filter((t) => {
-        if (!allowedCategories) return true;
-        return allowedCategories.includes(t.category);
+        if (!typeObj) return true;
+        return matchesType(t, typeObj);
       })
       .filter((t) => {
         if (!q) return true;
