@@ -1,0 +1,230 @@
+[
+  {
+    "id": "1783268312170",
+    "timestamp": 1783268312170,
+    "request": {
+      "id": "1783268312081",
+      "name": "New Request",
+      "method": "GET",
+      "url": "http://localhost:8000/api/ledger/",
+      "params": [],
+      "headers": [
+        {
+          "key": "Accept",
+          "value": "application/json",
+          "enabled": true
+        },
+        {
+          "key": "Content-Type",
+          "value": "application/json",
+          "enabled": true
+        }
+      ],
+      "body": {
+        "type": "none"
+      },
+      "auth": {
+        "type": "none"
+      },
+      "inheritAuth": true
+    },
+    "response": {
+      "status": 401,
+      "statusText": "Unauthorized",
+      "headers": {
+        "access-control-allow-credentials": "true",
+        "access-control-allow-origin": "http://localhost:5173",
+        "connection": "keep-alive",
+        "content-encoding": "gzip",
+        "content-type": "application/json",
+        "date": "Sun, 05 Jul 2026 16:18:32 GMT",
+        "keep-alive": "timeout=5",
+        "transfer-encoding": "chunked",
+        "vary": "Origin"
+      },
+      "body": "{\"message\":\"احراز هویت الزامی است\"}",
+      "time": 76,
+      "size": 53,
+      "cookies": []
+    }
+  },
+  {
+    "id": "1783268324203",
+    "timestamp": 1783268324203,
+    "request": {
+      "id": "1783268324184",
+      "name": "New Request",
+      "method": "GET",
+      "url": "http://localhost:8000/api/ledger/",
+      "params": [],
+      "headers": [
+        {
+          "key": "Accept",
+          "value": "application/json",
+          "enabled": true
+        },
+        {
+          "key": "Content-Type",
+          "value": "application/json",
+          "enabled": true
+        }
+      ],
+      "body": {
+        "type": "none"
+      },
+      "auth": {
+        "type": "none"
+      },
+      "inheritAuth": true
+    },
+    "response": {
+      "status": 401,
+      "statusText": "Unauthorized",
+      "headers": {
+        "access-control-allow-credentials": "true",
+        "access-control-allow-origin": "http://localhost:5173",
+        "connection": "keep-alive",
+        "content-encoding": "gzip",
+        "content-type": "application/json",
+        "date": "Sun, 05 Jul 2026 16:18:44 GMT",
+        "keep-alive": "timeout=5",
+        "transfer-encoding": "chunked",
+        "vary": "Origin"
+      },
+      "body": "{\"message\":\"احراز هویت الزامی است\"}",
+      "time": 13,
+      "size": 53,
+      "cookies": []
+    }
+  },
+  {
+    "id": "1783269443932",
+    "timestamp": 1783269443932,
+    "request": {
+      "id": "1783269443927",
+      "name": "New Request",
+      "method": "GET",
+      "url": "http://localhost:8000/api/auth/register",
+      "params": [],
+      "headers": [
+        {
+          "key": "Accept",
+          "value": "application/json",
+          "enabled": true
+        },
+        {
+          "key": "Content-Type",
+          "value": "application/json",
+          "enabled": true
+        }
+      ],
+      "body": {
+        "type": "json",
+        "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"ali90\"\n}"
+      },
+      "auth": {
+        "type": "none"
+      },
+      "inheritAuth": true
+    },
+    "response": {
+      "status": 0,
+      "statusText": "Error",
+      "headers": {},
+      "body": "Request failed: Request with GET/HEAD method cannot have body.",
+      "time": 2,
+      "size": 0,
+      "cookies": []
+    }
+  },
+  {
+    "id": "1783269450874",
+    "timestamp": 1783269450874,
+    "request": {
+      "id": "1783269449886",
+      "name": "New Request",
+      "method": "POST",
+      "url": "http://localhost:8000/api/auth/register",
+      "params": [],
+      "headers": [
+        {
+          "key": "Accept",
+          "value": "application/json",
+          "enabled": true
+        },
+        {
+          "key": "Content-Type",
+          "value": "application/json",
+          "enabled": true
+        }
+      ],
+      "body": {
+        "type": "json",
+        "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"ali90\"\n}"
+      },
+      "auth": {
+        "type": "none"
+      },
+      "inheritAuth": true
+    },
+    "response": {
+      "status": 201,
+      "statusText": "Created",
+      "headers": {
+        "access-control-allow-credentials": "true",
+        "access-control-allow-origin": "http://localhost:5173",
+        "connection": "keep-alive",
+        "content-encoding": "gzip",
+        "content-type": "application/json",
+        "date": "Sun, 05 Jul 2026 16:37:30 GMT",
+        "keep-alive": "timeout=5",
+        "transfer-encoding": "chunked",
+        "vary": "Origin"
+      },
+      "body": "{\"message\":\"کاربر ثبت شد\",\"id\":\"6a4a884a7a8dd4628df7513c\"}",
+      "time": 979,
+      "size": 68,
+      "cookies": []
+    }
+  },
+  {
+    "id": "1783270267919",
+    "timestamp": 1783270267919,
+    "request": {
+      "id": "1783270267905",
+      "name": "New Request",
+      "method": "POST",
+      "url": "http://localhost:8000/api/auth/register",
+      "params": [],
+      "headers": [
+        {
+          "key": "Accept",
+          "value": "application/json",
+          "enabled": true
+        },
+        {
+          "key": "Content-Type",
+          "value": "application/json",
+          "enabled": true
+        }
+      ],
+      "body": {
+        "type": "json",
+        "raw": "{\n  \"username\": \"rez\",\n  \"password\": \"rez\"\n}"
+      },
+      "auth": {
+        "type": "none"
+      },
+      "inheritAuth": true
+    },
+    "response": {
+      "status": 0,
+      "statusText": "Error",
+      "headers": {},
+      "body": "Request failed: fetch failed",
+      "time": 7,
+      "size": 0,
+      "cookies": []
+    }
+  }
+]

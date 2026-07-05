@@ -125,11 +125,9 @@ export const TOP_NAV = [
   // ۴ — تراز عملیات
   {
     to: "/bookkeeping/operations-balance", label: "تراز عملیات", num: 4, subItems: [
-      { to: "/bookkeeping/operations-balance/different-states",   label: "تراز در حالت‌های مختلف" },
-      { to: "/bookkeeping/operations-balance/moein-chapters",     label: "تراز عملیات معین/فصول" },
-      { to: "/bookkeeping/operations-balance/moein-detail-link",  label: "ارتباط معین و تفصیلی" },
-      { to: "/bookkeeping/operations-balance/samad-system",       label: "سامانه سماد (الف-ب)" },
-      { to: "/bookkeeping/operations-balance/sanama-attachments", label: "ضمائم الصاقی سناما" },
+      { to: "/bookkeeping/operations-balance/4-column",  label: "تراز ۴ ستونی" },
+      { to: "/bookkeeping/operations-balance/6-column",  label: "تراز ۶ ستونی" },
+      { to: "/bookkeeping/operations-balance/8-column",  label: "تراز ۸ ستونی" },
     ],
   },
 

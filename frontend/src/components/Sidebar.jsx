@@ -1,4 +1,4 @@
-import { useState, useRef, createContext, useContext, memo } from "react";
+import { useState, useRef, createContext, useContext, memo, useCallback } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { ChevronLeft, LogOut, Landmark } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -7,9 +7,13 @@ import { cn } from "@/lib/utils";
 import { BASIC_INFO_SUB, TOP_NAV } from "@/config/navigation";
 
 const TimerCtx = createContext(null);
-const MENU_GAP = 12;
 
-// ─── بهینه‌سازی پرفورمنس: استفاده از memo برای منوهای شناور تو در تو ─────────
+// فاصله بین sidebar و منوی شناور (px)
+const MENU_GAP = 16;
+// تاخیر بستن منو — افزایش به 400ms برای اینکه موس راحت‌تر بتواند به منو برسد
+const CLOSE_DELAY = 400;
+
+// ─── FloatingMenu ────────────────────────────────────────────────────────────
 const FloatingMenu = memo(function FloatingMenu({ items, anchorRect, onClose, parentPanelLeft = null }) {
   const navigate = useNavigate();
   const { cancelClose, scheduleClose } = useContext(TimerCtx);
@@ -20,8 +24,8 @@ const FloatingMenu = memo(function FloatingMenu({ items, anchorRect, onClose, pa
 
   const horizontalAnchor = parentPanelLeft ?? anchorRect.left;
   const right = window.innerWidth - horizontalAnchor + MENU_GAP;
-  const maxH = window.innerHeight * 0.8;
-  const popupH = Math.min(items.length * 38 + 12, maxH);
+  const maxH = window.innerHeight * 0.85;
+  const popupH = Math.min(items.length * 38 + 16, maxH);
   const rawTop = anchorRect.top;
   const overflow = rawTop + popupH - window.innerHeight + 8;
   const top = overflow > 0 ? Math.max(8, rawTop - overflow) : rawTop;
@@ -39,6 +43,11 @@ const FloatingMenu = memo(function FloatingMenu({ items, anchorRect, onClose, pa
     }
   }
 
+  function handleItemLeave() {
+    // وقتی از یک ایتم خارج می‌شویم ولی هنوز داخل panel هستیم، چیزی نبندیم
+    // scheduleClose فقط از onMouseLeave panel صدا زده می‌شود
+  }
+
   function handleItemClick(item) {
     if (!item.children) {
       onClose();
@@ -48,14 +57,18 @@ const FloatingMenu = memo(function FloatingMenu({ items, anchorRect, onClose, pa
 
   return (
     <>
-      {/* bridge gap */}
+      {/*
+        Bridge: یک ناحیه شفاف بین trigger و panel که موس هنگام رفتن به منو
+        از روی آن رد می‌شود. عرض = MENU_GAP، ارتفاع = از بالای trigger
+        تا پایین panel تا کل مسیر diagonal cover شود.
+      */}
       <div
         className="fixed z-[9998]"
         style={{
           right: window.innerWidth - horizontalAnchor,
-          top: anchorRect.top,
+          top: Math.min(anchorRect.top, top),
           width: MENU_GAP,
-          height: anchorRect.height,
+          height: Math.max(anchorRect.bottom, top + popupH) - Math.min(anchorRect.top, top),
         }}
         onMouseEnter={cancelClose}
         onMouseLeave={scheduleClose}
@@ -76,6 +89,7 @@ const FloatingMenu = memo(function FloatingMenu({ items, anchorRect, onClose, pa
             <div
               key={item.to}
               onMouseEnter={(e) => handleItemEnter(item, e)}
+              onMouseLeave={handleItemLeave}
               onClick={() => handleItemClick(item)}
               className={cn(
                 "flex cursor-pointer select-none items-center gap-2 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-150",
@@ -104,17 +118,21 @@ const FloatingMenu = memo(function FloatingMenu({ items, anchorRect, onClose, pa
   );
 });
 
-// ─── بهینه‌سازی پرفورمنس: استفاده از memo برای آیتم‌های سایدبار ───────────────
+// ─── SidebarItem ─────────────────────────────────────────────────────────────
 const SidebarItem = memo(function SidebarItem({ label, num, to, subItems }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [anchorRect, setAnchorRect] = useState(null);
   const closeTimer = useRef(null);
   const hasChildren = subItems?.length > 0;
 
-  const cancelClose = () => clearTimeout(closeTimer.current);
-  const scheduleClose = () => {
-    closeTimer.current = setTimeout(() => setMenuOpen(false), 250);
-  };
+  const cancelClose = useCallback(() => {
+    clearTimeout(closeTimer.current);
+  }, []);
+
+  const scheduleClose = useCallback(() => {
+    clearTimeout(closeTimer.current);
+    closeTimer.current = setTimeout(() => setMenuOpen(false), CLOSE_DELAY);
+  }, []);
 
   function handleMouseEnter(e) {
     cancelClose();
@@ -124,9 +142,18 @@ const SidebarItem = memo(function SidebarItem({ label, num, to, subItems }) {
     }
   }
 
+  function handleMouseLeave() {
+    // فقط زمان‌بندی می‌کنیم — اگر موس وارد bridge یا panel شود cancelClose صدا زده می‌شود
+    scheduleClose();
+  }
+
   return (
     <TimerCtx.Provider value={{ cancelClose, scheduleClose }}>
-      <div onMouseEnter={handleMouseEnter} onMouseLeave={scheduleClose} className="px-2 py-0.5">
+      <div
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        className="px-2 py-0.5"
+      >
         <NavLink
           to={to}
           onClick={(e) => hasChildren && e.preventDefault()}
@@ -141,7 +168,9 @@ const SidebarItem = memo(function SidebarItem({ label, num, to, subItems }) {
         >
           <span className={cn(
             "flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[11px] font-mono transition-colors duration-200",
-            (menuOpen) ? "bg-sidebar-primary text-sidebar-background font-bold" : "bg-sidebar-foreground/10 text-sidebar-foreground/60 group-hover:bg-sidebar-foreground/20"
+            menuOpen
+              ? "bg-sidebar-primary text-sidebar-background font-bold"
+              : "bg-sidebar-foreground/10 text-sidebar-foreground/60 group-hover:bg-sidebar-foreground/20"
           )}>
             {num}
           </span>
@@ -161,13 +190,14 @@ const SidebarItem = memo(function SidebarItem({ label, num, to, subItems }) {
   );
 });
 
+// ─── Sidebar ─────────────────────────────────────────────────────────────────
 export default function Sidebar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   return (
     <nav className="relative z-[100] flex w-[240px] shrink-0 flex-col overflow-visible bg-sidebar text-sidebar-foreground border-l border-sidebar-border shadow-xl">
-      {/* لوگو و عنوان سامانه */}
+      {/* لوگو */}
       <button
         onClick={() => navigate("/")}
         className="border-b border-sidebar-border px-4 py-5 text-right transition-all duration-200 hover:bg-sidebar-accent/50 group"
@@ -183,7 +213,7 @@ export default function Sidebar() {
         </div>
       </button>
 
-      {/* لیست منوها */}
+      {/* منوها */}
       <div className="flex-1 overflow-y-auto py-3 scrollbar-sidebar space-y-1">
         <SidebarItem num={1} label="اطلاعات پایه" to="/basic-info" subItems={BASIC_INFO_SUB} />
         {TOP_NAV.map(({ to, label, num, subItems }) => (
@@ -191,7 +221,7 @@ export default function Sidebar() {
         ))}
       </div>
 
-      {/* بخش کاربری و خروج */}
+      {/* کاربر و خروج */}
       <div className="border-t border-sidebar-border p-3 bg-sidebar-accent/30 backdrop-blur-sm">
         <div className="mb-3 flex items-center gap-3 px-2 py-1.5 rounded-lg bg-sidebar-background/60 border border-sidebar-border/50">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sidebar-primary text-sidebar-background text-xs font-extrabold shadow-sm">

@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import api from "@/api";
 import { encrypt } from "@/lib/crypto";
+import { printTable } from "@/lib/printUtils";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import sanamaCodes from "@/data/sanamaCodes.json";
 import subAccountTitles from "@/data/subAccountTitles.json";
@@ -784,7 +785,7 @@ export default function ManualDocument() {
       <div>
         <Card className="mb-3">
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto" id="manual-doc-print-area">
               <table className="w-full text-sm border-collapse min-w-[1100px]" dir="rtl">
                 <thead>
                   <tr className="bg-muted/60 border-b text-muted-foreground text-xs">
@@ -947,7 +948,8 @@ export default function ManualDocument() {
                 <FileText className="h-3.5 w-3.5" />
                 بررسی سند
               </Button>
-              <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs">
+              <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs"
+                onClick={() => printTable("#manual-doc-print-area", `سند مالی ${header.docNo ? "شماره " + header.docNo : ""}`)}>
                 <Printer className="h-3.5 w-3.5" />
                 چاپ سند
               </Button>

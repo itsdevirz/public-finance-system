@@ -1,5 +1,8 @@
 import { useState, useMemo, useEffect } from "react";
-import { Search, Plus, Printer, FileDown, Trash2, Save } from "lucide-react";
+import {
+  Search, Plus, Printer, FileDown, Trash2, Save
+} from "lucide-react";
+import { printTable } from "@/lib/printUtils";
 import { PageShell, PageHeader } from "@/components/layout/PageShell";
 import api from "@/api";
 import { Card, CardContent } from "@/components/ui/card";
@@ -357,26 +360,9 @@ export default function PersonsForm() {
 
   return (
     <PageShell>
-      <PageHeader title="تعریف اشخاص" description="تعریف اشخاص حقیقی و حقوقی - کد NomineeCode (16 کاراکتر)">
+      <PageHeader title="تعریف اشخاص" description="تعریف اشخاص حقیقی و حقوقی">
         {saved && <span className="text-sm font-medium text-emerald-600 animate-in fade-in">✓ ثبت شد</span>}
       </PageHeader>
-
-      {/* نوار NomineeCode */}
-      <div className="mb-3 flex items-center gap-3 rounded-xl border bg-muted/30 px-4 py-2 flex-wrap">
-        <span className="text-xs text-muted-foreground">کد کامل اشخاص (NomineeCode):</span>
-        <span className="font-mono text-sm font-bold tracking-widest text-primary bg-primary/10 rounded px-3 py-1">
-          {nomineeCode}
-        </span>
-        <span className="text-xs text-muted-foreground">
-          [{form.personKind}] نوع &nbsp;|&nbsp;
-          [{form.detailClass || "----"}] جزءطبقه &nbsp;|&nbsp;
-          [{form.nationalId || "----"}] کد ملی کامل
-        </span>
-        <label className="mr-auto flex items-center gap-1.5 text-xs cursor-pointer">
-          <input type="checkbox" checked={form.inactive} onChange={set("inactive")} className="rounded" />
-          <span className={cn("font-medium", form.inactive && "text-destructive")}>غیرفعال</span>
-        </label>
-      </div>
 
       {/* تب‌ها */}
       <div className="flex border-b mb-0 gap-0">
@@ -680,7 +666,7 @@ export default function PersonsForm() {
               <Button variant="outline" size="sm" disabled={selected === null}>جایگزینی اشخاص</Button>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => window.print()}>
+              <Button variant="outline" size="sm" onClick={() => printTable("#persons-print-area", "لیست اشخاص")}>
                 <Printer className="h-4 w-4 ml-1" /> چاپ
               </Button>
               <Button variant="outline" size="sm">
@@ -718,7 +704,7 @@ export default function PersonsForm() {
             <span className="text-xs text-muted-foreground mr-auto">{filtered.length} رکورد</span>
           </div>
 
-          <div className="overflow-x-auto rounded-lg border">
+          <div className="overflow-x-auto rounded-lg border" id="persons-print-area">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">

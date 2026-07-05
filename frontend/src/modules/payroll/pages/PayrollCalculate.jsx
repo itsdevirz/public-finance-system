@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { Calculator, Save, Printer, ChevronDown, ChevronUp, AlertCircle } from "lucide-react";
 import { PageShell, PageHeader } from "@/components/layout/PageShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { printTable } from "@/lib/printUtils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -235,7 +236,7 @@ export default function PayrollCalculate() {
 
         {/* فیش حقوقی */}
         <div>
-          <Card className="sticky top-4">
+          <Card className="sticky top-4" id="payroll-print-area">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm flex items-center gap-2">
@@ -293,7 +294,8 @@ export default function PayrollCalculate() {
               </div>
 
               <div className="mt-4 flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1" onClick={() => window.print()}>
+                <Button variant="outline" size="sm" className="flex-1"
+                  onClick={() => printTable("#payroll-print-area", `فیش حقوقی — ${selectedEmp.name}`)}>
                   <Printer className="h-4 w-4" /> چاپ فیش
                 </Button>
                 <Button size="sm" className="flex-1" onClick={handleSave}>

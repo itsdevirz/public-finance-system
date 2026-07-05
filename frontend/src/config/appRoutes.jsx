@@ -45,6 +45,7 @@ const DocumentsList = lazy(() => import("@/modules/accounting/pages/DocumentsLis
 const PayrollOperations = lazy(() => import("@/modules/accounting/pages/PayrollOperations"));
 const CapitalOperations = lazy(() => import("@/modules/accounting/pages/CapitalOperations"));
 const AutoDocument = lazy(() => import("@/modules/accounting/pages/AutoDocument"));
+const BalanceSheet = lazy(() => import("@/modules/accounting/pages/BalanceSheet"));
 const AiChat = lazy(() => import("@/pages/AiChat"));
 
 /** صفحاتی که پیاده‌سازی شده‌اند — بقیه خودکار Placeholder می‌شوند */
@@ -182,11 +183,9 @@ export const PAGE_COMPONENTS = {
   "/check-issuance": CheckIssuance,
   "/bookkeeping": Bookkeeping,
   "/bookkeeping/operations-balance": Bookkeeping,
-  "/bookkeeping/operations-balance/different-states": Bookkeeping,
-  "/bookkeeping/operations-balance/moein-chapters": Bookkeeping,
-  "/bookkeeping/operations-balance/moein-detail-link": Bookkeeping,
-  "/bookkeeping/operations-balance/samad-system": Bookkeeping,
-  "/bookkeeping/operations-balance/sanama-attachments": Bookkeeping,
+  "/bookkeeping/operations-balance/4-column": BalanceSheet,
+  "/bookkeeping/operations-balance/6-column": BalanceSheet,
+  "/bookkeeping/operations-balance/8-column": BalanceSheet,
   "/bookkeeping/misc-accounts": Bookkeeping,
   "/bookkeeping/misc-accounts/account-groups": Bookkeeping,
   "/bookkeeping/misc-accounts/main-accounts": Bookkeeping,

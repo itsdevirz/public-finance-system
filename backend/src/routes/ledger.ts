@@ -1,8 +1,33 @@
 import { Hono } from "hono";
 import { ObjectId } from "mongodb";
+import { readFileSync } from "fs";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
 import { getDb } from "../db/index.js";
 import type { JournalDocument } from "../db/types.js";
 import { decryptDocument } from "../lib/crypto.js";
+
+// ─── بارگذاری نقشه نام حساب‌ها از sanamaCodes.json ────────────────────────
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+const accountNameMap = new Map<string, string>(); // code → title
+
+try {
+  const raw = JSON.parse(
+    readFileSync(join(__dirname, "../data/sanamaCodes.json"), "utf-8")
+  );
+  for (const group of raw.groups ?? []) {
+    accountNameMap.set(group.code, group.title);
+    for (const acct of group.accounts ?? []) {
+      accountNameMap.set(acct.code, acct.title);
+      for (const child of acct.children ?? []) {
+        accountNameMap.set(child.code, child.title);
+      }
+    }
+  }
+} catch {
+  // اگر فایل در دسترس نبود، نام‌ها از سند گرفته می‌شوند
+}
 
 const router = new Hono();
 
@@ -72,6 +97,189 @@ router.get("/balance", async (c) => {
   }
 
   return c.json({ data: { total_debit, total_credit }, message: "تراز کل" });
+});
+
+// GET /api/ledger/trial-balance — تراز آزمایشی (۴، ۶ یا ۸ ستونی)
+// Query params:
+//   level: group|main|moein|detail  (default: main)
+//   dateFrom: شروع دوره (YYYY/MM/DD یا 1404/01/01)
+//   dateTo:   پایان دوره
+//   fiscalYear: سال مالی (اختیاری)
+router.get("/trial-balance", async (c) => {
+  const level      = c.req.query("level")      ?? "main";
+  const dateFrom   = c.req.query("dateFrom")   ?? "";
+  const dateTo     = c.req.query("dateTo")     ?? "";
+  const fiscalYear = c.req.query("fiscalYear") ?? "";
+
+  // ─── تعداد ارقام کد بر اساس سطح ─────────────────────────────────────────
+  const CODE_LEN: Record<string, number> = { group: 1, main: 3, moein: 5 };
+
+  /** کد حساب را به اندازه سطح کوتاه می‌کند؛ برای detail کد کامل برمی‌گرداند */
+  function getCodeForLevel(rawCode: string): string {
+    const digits = rawCode.replace(/\D/g, "");
+    const len = CODE_LEN[level];
+    return len ? digits.slice(0, len) : digits;
+  }
+
+  /** نام حساب را از نقشه مرجع می‌گیرد؛ اگر نبود، از ردیف سند استفاده می‌کند */
+  function getNameForCode(levelCode: string, fallback: string): string {
+    return accountNameMap.get(levelCode) ?? fallback ?? "";
+  }
+
+  /** تاریخ شمسی را به عدد 8 رقمی YYYYMMDD تبدیل می‌کند — هم ارقام فارسی/عربی هم بدون صفر جلو */
+  function dateToNum(d: string): number {
+    if (!d) return 0;
+    // تبدیل ارقام فارسی/عربی به انگلیسی
+    const persian = ["۰","۱","۲","۳","۴","۵","۶","۷","۸","۹"];
+    const arabic  = ["٠","١","٢","٣","٤","٥","٦","٧","٨","٩"];
+    let s = d;
+    for (let i = 0; i < 10; i++) {
+      s = s.replace(new RegExp(persian[i], "g"), String(i));
+      s = s.replace(new RegExp(arabic[i],  "g"), String(i));
+    }
+    // جداسازی بخش‌های سال/ماه/روز و pad کردن با صفر
+    const parts = s.split(/[\/\-\.]/);
+    if (parts.length === 3) {
+      const y = parts[0].padStart(4, "0");
+      const m = parts[1].padStart(2, "0");
+      const day = parts[2].padStart(2, "0");
+      return parseInt(`${y}${m}${day}`, 10) || 0;
+    }
+    // اگر فرمت جداکننده نداشت، فقط ارقام را بگیر
+    return parseInt(s.replace(/[^\d]/g, ""), 10) || 0;
+  }
+
+  const fromNum = dateFrom ? dateToNum(dateFrom) : 0;
+  const toNum   = dateTo   ? dateToNum(dateTo)   : 99999999;
+
+  const db = getDb();
+  const query: Record<string, unknown> = {};
+  if (fiscalYear) query.fiscal_year = parseInt(fiscalYear, 10);
+
+  const docs = await db
+    .collection<JournalDocument>("journal_documents")
+    .find(query)
+    .toArray();
+
+  // ─── تجمیع گردش‌ها در یک نقشه: levelCode → accumulators ────────────────
+  const map = new Map<string, {
+    name:          string;
+    debit_before:  number;  // گردش قبل از بازه → برای مانده اول دوره
+    credit_before: number;
+    debit_turn:    number;  // گردش طی دوره
+    credit_turn:   number;
+    hasTurn:       boolean; // آیا در بازه تراکنشی داشته
+  }>();
+
+  for (const rawDoc of docs) {
+    const doc = decryptDocument(serialize(rawDoc as Record<string, unknown>));
+    if (doc.status === "CANCELLED") continue;
+
+    const docDateNum = dateToNum(doc.document_date ?? "");
+
+    for (const line of (doc.lines ?? []) as any[]) {
+      const rawCode = (line.account_code ?? "") as string;
+      const code = getCodeForLevel(rawCode);
+      if (!code) continue;
+
+      if (!map.has(code)) {
+        map.set(code, {
+          name:          getNameForCode(code, line.account_name ?? ""),
+          debit_before:  0,
+          credit_before: 0,
+          debit_turn:    0,
+          credit_turn:   0,
+          hasTurn:       false,
+        });
+      }
+      const entry = map.get(code)!;
+
+      // اگر نام از مرجع پیدا نشد و سند نام دارد، ثبت کن
+      if (!accountNameMap.has(code) && !entry.name && line.account_name) {
+        entry.name = line.account_name;
+      }
+
+      const d  = (line.debit  ?? 0) as number;
+      const cr = (line.credit ?? 0) as number;
+
+      if (docDateNum >= fromNum && docDateNum <= toNum) {
+        // فقط اسناد داخل بازه → گردش دوره
+        entry.debit_turn  += d;
+        entry.credit_turn += cr;
+        entry.hasTurn = true;
+      }
+      // قبل یا بعد از بازه: نادیده می‌گیریم
+    }
+  }
+
+  // ─── ساخت آرایه نتیجه ────────────────────────────────────────────────────
+  const rows: {
+    code:         string;
+    name:         string;
+    debit_begin:  number;
+    credit_begin: number;
+    debit_turn:   number;
+    credit_turn:  number;
+    debit_net:    number;
+    credit_net:   number;
+    debit_bal:    number;
+    credit_bal:   number;
+  }[] = [];
+
+  for (const [code, e] of map.entries()) {
+    // فقط حساب‌هایی که در بازه گردش داشتند نمایش داده می‌شوند
+    if (!e.hasTurn) continue;
+
+    // مانده اول دوره (خالص یک‌طرفه)
+    const openNet      = e.debit_before - e.credit_before;
+    const debit_begin  = openNet > 0 ? openNet  : 0;
+    const credit_begin = openNet < 0 ? -openNet : 0;
+
+    // تجمعی = مانده اول دوره + گردش دوره (خالص)
+    const cumDebit  = e.debit_before  + e.debit_turn;
+    const cumCredit = e.credit_before + e.credit_turn;
+    const debit_net  = cumDebit  > cumCredit ? cumDebit  - cumCredit : 0;
+    const credit_net = cumCredit > cumDebit  ? cumCredit - cumDebit  : 0;
+
+    // مانده نهایی
+    const finalNet   = cumDebit - cumCredit;
+    const debit_bal  = finalNet > 0 ? finalNet  : 0;
+    const credit_bal = finalNet < 0 ? -finalNet : 0;
+
+    rows.push({
+      code,
+      name:         e.name,
+      debit_begin,
+      credit_begin,
+      debit_turn:   e.debit_turn,
+      credit_turn:  e.credit_turn,
+      debit_net,
+      credit_net,
+      debit_bal,
+      credit_bal,
+    });
+  }
+
+  // مرتب‌سازی عددی بر اساس کد حساب
+  rows.sort((a, b) => a.code.localeCompare(b.code, "en", { numeric: true }));
+
+  // جمع کل
+  const totals = rows.reduce(
+    (acc, r) => ({
+      debit_begin:  acc.debit_begin  + r.debit_begin,
+      credit_begin: acc.credit_begin + r.credit_begin,
+      debit_turn:   acc.debit_turn   + r.debit_turn,
+      credit_turn:  acc.credit_turn  + r.credit_turn,
+      debit_net:    acc.debit_net    + r.debit_net,
+      credit_net:   acc.credit_net   + r.credit_net,
+      debit_bal:    acc.debit_bal    + r.debit_bal,
+      credit_bal:   acc.credit_bal   + r.credit_bal,
+    }),
+    { debit_begin: 0, credit_begin: 0, debit_turn: 0, credit_turn: 0,
+      debit_net: 0, credit_net: 0, debit_bal: 0, credit_bal: 0 }
+  );
+
+  return c.json({ data: rows, totals, message: "تراز آزمایشی" });
 });
 
 export default router;

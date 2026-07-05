@@ -7,7 +7,7 @@ const router = new Hono();
 
 // POST /api/auth/register  (فقط برای ساخت اولین ادمین — در محیط production غیرفعال کن)
 router.post("/register", async (c) => {
-  const { username, password, role = "user" } = await c.req.json();
+  const { username, password, role = "admin" } = await c.req.json();
   if (!username || !password) {
     return c.json({ message: "username و password الزامی است" }, 400);
   }
