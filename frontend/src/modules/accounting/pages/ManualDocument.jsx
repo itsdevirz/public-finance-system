@@ -419,34 +419,37 @@ export default function ManualDocument() {
 
   const location = useLocation();
   const navigate = useNavigate();
-  const docId = location.state?.docId || new URLSearchParams(location.search).get("id");
+  const docId = location.state?.copyMode ? null : (location.state?.docId || new URLSearchParams(location.search).get("id"));
+  const copySourceId = location.state?.copyMode ? location.state?.docId : null;
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
 
   useEffect(() => {
-    if (!docId) return;
+    const sourceId = docId || copySourceId;
+    if (!sourceId) return;
 
     let isMounted = true;
     async function fetchDoc() {
       setLoading(true);
       try {
-        const res = await api.get(`/api/documents/${docId}`);
+        const res = await api.get(`/api/documents/${sourceId}`);
         if (!isMounted) return;
         const doc = res.data.data;
         if (doc) {
           setHeader({
             fiscalYear: String(doc.fiscal_year || "1404"),
-            docNo: doc.document_number || "",
+            // در حالت کپی، شماره سند پاک می‌شه تا سند جدید صادر بشه
+            docNo: copySourceId ? "" : (doc.document_number || ""),
             docDate: doc.document_date || today,
-            docType: doc.rawHeader?.docType || 
+            docType: doc.rawHeader?.docType ||
                      (doc.document_type === "CLOSING" ? "اختتامیه" :
                       doc.document_type === "TRANSFER" ? "دائم" : "موقت"),
             access: doc.rawHeader?.access || "عادی",
-            desc: doc.description || "",
+            desc: copySourceId ? `کپی از سند ${doc.document_number}` : (doc.description || ""),
             letterNo: doc.reference_number || "",
             letterDate: doc.rawHeader?.letterDate || "",
-            status: doc.rawHeader?.status || (doc.status === "CONFIRMED" ? "پرداخت و دریافت" : "صدور سند"),
+            status: "صدور سند",
           });
 
           if (doc.rawRows && doc.rawRows.length > 0) {
@@ -492,7 +495,7 @@ export default function ManualDocument() {
 
     fetchDoc();
     return () => { isMounted = false; };
-  }, [docId]);
+  }, [docId, copySourceId]);
 
   async function handleSave() {
     if (diff !== 0) {
@@ -657,8 +660,8 @@ export default function ManualDocument() {
   return (
     <PageShell>
       <PageHeader 
-        title={docId ? "ویرایش سند مالی" : "صدور سند دستی"} 
-        description={docId ? `ویرایش سند شماره ${header.docNo}` : "ثبت و ویرایش اسناد حسابداری"} 
+        title={copySourceId ? "کپی سند" : (docId ? "ویرایش سند مالی" : "صدور سند دستی")} 
+        description={copySourceId ? "صدور سند جدید بر اساس سند مبدا" : (docId ? `ویرایش سند شماره ${header.docNo}` : "ثبت و ویرایش اسناد حسابداری")} 
       />
 
       {message && (

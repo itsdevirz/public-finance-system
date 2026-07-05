@@ -45,6 +45,7 @@ const DocumentsList = lazy(() => import("@/modules/accounting/pages/DocumentsLis
 const PayrollOperations = lazy(() => import("@/modules/accounting/pages/PayrollOperations"));
 const CapitalOperations = lazy(() => import("@/modules/accounting/pages/CapitalOperations"));
 const AutoDocument = lazy(() => import("@/modules/accounting/pages/AutoDocument"));
+const CopyDocument = lazy(() => import("@/modules/accounting/pages/CopyDocument"));
 const BalanceSheet = lazy(() => import("@/modules/accounting/pages/BalanceSheet"));
 const AiChat = lazy(() => import("@/pages/AiChat"));
 
@@ -67,7 +68,7 @@ export const PAGE_COMPONENTS = {
   "/document-setup/calc-form":  DocumentSetup,
   "/document-setup/manual-doc": ManualDocument,
   "/document-setup/auto-doc":   AutoDocument,
-  "/document-setup/copy-doc":   DocumentSetup,
+  "/document-setup/copy-doc":   CopyDocument,
   "/document-setup/docs-list":  DocumentsList,
   "/review": Review,
   "/credits": Credits,
