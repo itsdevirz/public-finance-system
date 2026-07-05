@@ -17,6 +17,7 @@ import {
 import { INITIAL_TEMPLATES } from "@/data/operationsTemplates";
 import sanamaRequirements from "@/data/sanamaRequirements.json";
 import subAccountTitles from "@/data/subAccountTitles.json";
+import { PersonSanamaField } from "@/components/ui/person-sanama-field";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 function getRequiredRows(code) {
@@ -79,15 +80,11 @@ function SanamaField({ rowDef, value, onChange }) {
       </div>
     );
   }
+  // ردیف ۲۱ — اشخاص: از PersonSanamaField استفاده می‌شود
   if (rowDef.types) {
-    return (
-      <div className="space-y-1">
-        {label}
-        <input type="text" className={cls} placeholder="کد اشخاص را وارد کنید" value={value ?? ""} onChange={(e) => onChange(e.target.value)} dir="ltr" />
-      </div>
-    );
+    return <PersonSanamaField value={value} onChange={onChange} required />;
   }
-  // عددی
+  // عددی (default)
   return (
     <div className="space-y-1">
       {label}

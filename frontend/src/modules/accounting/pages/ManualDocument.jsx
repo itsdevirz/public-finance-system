@@ -17,6 +17,7 @@ import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import sanamaCodes from "@/data/sanamaCodes.json";
 import subAccountTitles from "@/data/subAccountTitles.json";
 import sanamaRequirements from "@/data/sanamaRequirements.json";
+import { PersonSanamaField } from "@/components/ui/person-sanama-field";
 
 // ---- helpers ----
 const allGroups = sanamaCodes.groups.map((g) => ({ code: g.code, title: g.title, accounts: g.accounts }));
@@ -295,20 +296,15 @@ function SanamaField({ rowDef, value, onChange, optional }) {
     );
   }
 
-  // ردیف ۲۱ اشخاص — input متنی
+  // ردیف ۲۱ اشخاص — PersonSanamaField
   if (rowDef.types) {
     return (
-      <div className="flex items-center gap-2">
-        <Label className={labelCls}>{rowDef.title}{optional && <span className="text-[10px] text-muted-foreground/60 mr-1">(اختیاری)</span>}</Label>
-        <input
-          type="text"
-          className={inputCls}
-          placeholder="کد اشخاص را وارد کنید"
-          value={value ?? ""}
-          onChange={(e) => onChange(e.target.value)}
-          dir="ltr"
-        />
-      </div>
+      <PersonSanamaField
+        value={value}
+        onChange={onChange}
+        labelCls={labelCls}
+        required={!optional}
+      />
     );
   }
 
