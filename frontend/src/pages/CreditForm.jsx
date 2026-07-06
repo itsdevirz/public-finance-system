@@ -94,7 +94,7 @@ const ALL_SUB_CHAPTERS_GROUPED = [
 const SUB_CHAPTER_LABEL = Object.fromEntries(ALL_SUB_CHAPTERS_GROUPED.map(o => [o.value, o.label]));
 
 const INITIAL_EXPENSE = { expenseKind: "", programNumber: "", expenseChapter: "", expenseSubChapter: "" };
-const INITIAL_CAPITAL = { projectNumber: "", capitalChapter: "" };
+const INITIAL_CAPITAL = { projectNumber: "", projectTitle: "", projectPlanTitle: "", capitalChapter: "" };
 const INITIAL_FORM = {
   creditKind: "approved", creditType: "", notifierRow: "",
   expense: { ...INITIAL_EXPENSE },
@@ -152,6 +152,14 @@ function CapitalFields({ data, onChange }) {
       <Field label="فصول" required>
         <SearchableSelect value={data.capitalChapter} onChange={v => set("capitalChapter", v)}
           options={EXPENSE_CHAPTER_OPTIONS} placeholder="انتخاب فصل" />
+      </Field>
+      <Field label="عنوان طرح">
+        <Input value={data.projectTitle ?? ""} onChange={e => set("projectTitle", e.target.value)}
+          placeholder="عنوان طرح را وارد کنید" className="h-9 text-sm" />
+      </Field>
+      <Field label="عنوان پروژه">
+        <Input value={data.projectPlanTitle ?? ""} onChange={e => set("projectPlanTitle", e.target.value)}
+          placeholder="عنوان پروژه را وارد کنید" className="h-9 text-sm" />
       </Field>
     </div>
   );
@@ -338,6 +346,8 @@ function CreditModal({ mode, item, onClose, onSaved }) {
                 : <DetailGrid rows={[
                     { label: "شماره طرح", value: item?.capital?.projectNumber, mono: true           },
                     { label: "فصل",       value: EXPENSE_CHAPTER_LABEL[item?.capital?.capitalChapter]},
+                    { label: "عنوان طرح", value: item?.capital?.projectTitle                        },
+                    { label: "عنوان پروژه", value: item?.capital?.projectPlanTitle                  },
                   ]} />
               }
             </div>
@@ -386,8 +396,10 @@ function CreditModal({ mode, item, onClose, onSaved }) {
               )}
               {!isEditing && item?.otherHasCapital && (
                 <DetailGrid rows={[
-                  { label: "شماره طرح", value: item?.capital?.projectNumber, mono: true            },
-                  { label: "فصل",       value: EXPENSE_CHAPTER_LABEL[item?.capital?.capitalChapter] },
+                  { label: "شماره طرح",   value: item?.capital?.projectNumber, mono: true            },
+                  { label: "فصل",         value: EXPENSE_CHAPTER_LABEL[item?.capital?.capitalChapter] },
+                  { label: "عنوان طرح",   value: item?.capital?.projectTitle                         },
+                  { label: "عنوان پروژه", value: item?.capital?.projectPlanTitle                     },
                 ]} />
               )}
             </div>

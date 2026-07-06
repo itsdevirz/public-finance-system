@@ -11,127 +11,127 @@
             {
               "code": "11001",
               "title": "بانک پرداخت هزینه",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "11002",
               "title": "بانک پرداخت سرمایه‌ای",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "11003",
               "title": "بانک پرداخت اختصاصی",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "11004",
               "title": "بانک وجوه سایر منابع",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "11005",
               "title": "بانک دریافت وجوه سپرده",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "11006",
               "title": "بانک رد وجوه سپرده",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "11007",
               "title": "بانک دریافت",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "11009",
               "title": "بانک رد وجوه اضافه دریافتی",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "11010",
               "title": "بانک مالیات و عوارض ارزش افزوده",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "11011",
               "title": "بانک وجوه کارشناسی ثبت",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "11012",
               "title": "بانک وجوه خدمات ثبت",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "11013",
               "title": "بانک وجوه اموال سرقتی و اختلاسی",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "11014",
               "title": "بانک دریافت فروش اراضی",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "11015",
               "title": "بانک پرداخت فروش اراضی",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "11016",
               "title": "بانک دریافت درآمد خانه‌های سازمانی",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "11017",
               "title": "بانک پرداخت خانه‌های سازمانی",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "11018",
               "title": "بانک پرداخت وجوه یارانه",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "11019",
               "title": "بانک ارزی",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "11020",
               "title": "کارت هدیه",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "11021",
               "title": "تنخواه گردان پرداخت بابت عملیات جاری",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "11022",
               "title": "تنخواه گردان پرداخت بابت عملیات سرمایه‌ای",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "11023",
               "title": "تنخواه گردان رد وجوه سپرده عاملین ذیحساب",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "11024",
               "title": "صندوق",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "11025",
               "title": "بانک دریافت اجاره املاک و اراضی",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "11026",
               "title": "حواله ارزی",
-              "nature": "debit"
+              "nature": "both"
             }
           ]
         },
@@ -142,87 +142,87 @@
             {
               "code": "11501",
               "title": "حساب‌ها و اسناد دریافتنی",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "11502",
               "title": "حساب‌ها و اسناد دریافتنی ارزی",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "11503",
               "title": "مطالبات از سایر واحدها",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "11504",
               "title": "ذخیره مطالبات مشکوک‌الوصول",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "11505",
               "title": "حساب‌ها و اسناد دریافتنی - اسناد واخواهی هزینه",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "11506",
               "title": "حساب‌ها و اسناد دریافتنی - اسناد واخواهی سرمایه‌ای",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "11507",
               "title": "حساب‌ها و اسناد دریافتنی - کسری ابواب جمعی هزینه",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "11508",
               "title": "حساب‌ها و اسناد دریافتنی - کسری ابواب جمعی سرمایه‌ای",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "11509",
               "title": "حساب‌ها و اسناد دریافتنی - بن غیرنقدی",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "11510",
               "title": "ودایع",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "11511",
               "title": "حساب‌ها و اسناد دریافتنی - حواله قیر",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "11513",
               "title": "دریافتی بابت تنخواه رد وجوه سپرده",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "11517",
               "title": "دریافتی بابت رد وجوه اضافه دریافتی",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "11519",
               "title": "مالیات و عوارض ارزش افزوده خرید کالا و خدمات",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "11520",
               "title": "سایر حساب‌ها و اسناد دریافتنی",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "11521",
               "title": "حساب‌ها و اسناد دریافتنی - سهمیه وکیوم باتوم",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "11522",
               "title": "مطالبات و خزانه",
-              "nature": "debit"
+              "nature": "both"
             }
           ]
         },
@@ -233,22 +233,22 @@
             {
               "code": "12001",
               "title": "حساب ها و اسناد دریافتنی",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "12002",
               "title": "حساب ها و اسناد دریافتنی ارزی",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "12003",
               "title": "مطالبات از سایر واحدها",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "12004",
               "title": "دخیره مطالبات مشکوک الوصول",
-              "nature": "credit"
+              "nature": "both"
             }
           ]
         },
@@ -259,17 +259,17 @@
             {
               "code": "12501",
               "title": "سرمایه گذاری در شرکت ها",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "12502",
               "title": "سایر سرمایه گذاری ها",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "12503",
               "title": "درآمد دوره های آتی",
-              "nature": "credit"
+              "nature": "both"
             }
           ]
         },
@@ -280,57 +280,57 @@
             {
               "code": "13001",
               "title": "موجودی ملزومات",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "13002",
               "title": "موجودی مواد",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "13003",
               "title": "موجودی کالا",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "13004",
               "title": "سایر موجودی ها",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "13005",
               "title": "ذخیره کاهش ارزش موجودی ها",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "13006",
               "title": "موجودی های امانی نزد سایر اشخاص - موجودی ملزومات",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "13007",
               "title": "موجودی های امانی نزد سایر اشخاص - موجودی مواد",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "13008",
               "title": "موجودی های امانی نزد سایر اشخاص - موجودی کالا",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "13009",
               "title": "موجودی های امانی نزد سایر اشخاص - سایر موجودی ها",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "13010",
               "title": "سایر موجودی ها - اوراق بهادار",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "13011",
               "title": "سایر موجودی ها - تنخواه گردان اوراق بهادار",
-              "nature": "debit"
+              "nature": "both"
             }
           ]
         },
@@ -341,7 +341,7 @@
             {
               "code": "14001",
               "title": "پیش پرداخت بابت عملیات جاری",
-              "nature": "debit"
+              "nature": "both"
             }
           ]
         },
@@ -352,12 +352,12 @@
             {
               "code": "14523",
               "title": "دارایی‌های نگهداری شده برای فروش",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "14551",
               "title": "ذخیره کاهش ارزش دارایی‌ها",
-              "nature": "credit"
+              "nature": "both"
             }
           ]
         },
@@ -368,177 +368,177 @@
             {
               "code": "15001",
               "title": "دارایی در جریان تکمیل",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "15002",
               "title": "اثاثه و منصوبات",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "15003",
               "title": "وسایل نقلیه زمینی و زیرزمینی",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "15004",
               "title": "ماشین آلات و تجهیزات",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "15005",
               "title": "ساختمان و مستحدثات",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "15006",
               "title": "زمین",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "15007",
               "title": "اقلام گرانبها",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "15008",
               "title": "دارایی های زیستی",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "15009",
               "title": "وسایل و ادوات دریایی (مانند انواع کشتی، قایق و ...)",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "15010",
               "title": "وسایل و ادوات هوایی (مانند هواپیما، چرخبال و ...)",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "15011",
               "title": "جاده ها",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "15012",
               "title": "تاسیسات",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "15013",
               "title": "شبکه‌های توزیع و انتقال (برق، آب، مخابرات و ...)",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "15014",
               "title": "سدها",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "15015",
               "title": "میراث ملی",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "15016",
               "title": "سایر دارایی‌های ثابت مشهود",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "15020",
               "title": "دارایی‌های اجاره‌ای",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "15022",
               "title": "دارایی‌های امانی نزد سایر اشخاص - اثاثه و منصوبات",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "15023",
               "title": "دارایی‌های امانی نزد سایر اشخاص - وسایل نقلیه زمینی و زیرزمینی",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "15024",
               "title": "دارایی‌های امانی نزد سایر اشخاص - ماشین آلات و تجهیزات",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "15025",
               "title": "دارایی‌های امانی نزد سایر اشخاص - ساختمان و مستحدثات",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "15026",
               "title": "دارایی‌های امانی نزد سایر اشخاص - زمین",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "15027",
               "title": "دارایی‌های امانی نزد سایر اشخاص - اقلام گرانبها",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "15028",
               "title": "دارایی‌های امانی نزد سایر اشخاص - دارایی‌های زیستی",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "15029",
               "title": "دارایی‌های امانی نزد سایر اشخاص - وسایل و ادوات دریایی",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "15030",
               "title": "دارایی‌های امانی نزد سایر اشخاص - وسایل و ادوات هوایی",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "15032",
               "title": "دارایی‌های امانی نزد سایر اشخاص - تاسیسات",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "15036",
               "title": "دارایی‌های امانی نزد سایر اشخاص - سایر دارایی های ثابت",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "15040",
               "title": "استهلاک انباشته",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "15045",
               "title": "استهلاک انباشته دارایی اجاره‌ای",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "15050",
               "title": "ذخیره کاهش ارزش دارایی‌ها",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "15060",
               "title": "پیش پرداخت بابت عملیات سرمایه‌ای",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "15070",
               "title": "پیش پرداخت اعتبار اسنادی",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "15080",
               "title": "پیش پرداخت مواد و کالا",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "15090",
               "title": "پیش پرداخت دارایی های استیجاری",
-              "nature": "debit"
+              "nature": "both"
             }
           ]
         },
@@ -549,52 +549,52 @@
             {
               "code": "16001",
               "title": "نرم افزار رایانه‌ای",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "16002",
               "title": "سرقفلی",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "16003",
               "title": "بانک‌های اطلاعاتی",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "16004",
               "title": "حق تالیف و اختراع",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "16005",
               "title": "حق امتیاز و فرانشیز",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "16006",
               "title": "دارایی‌های نامشهود در جریان تکمیل",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "16007",
               "title": "سایر دارایی‌های نامشهود",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "16040",
               "title": "استهلاک انباشته",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "16050",
               "title": "ذخیره کاهش ارزش دارایی‌ها",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "16060",
               "title": "پیش‌پرداخت بابت عملیات سرمایه‌ای دارایی‌های نامشهود",
-              "nature": "debit"
+              "nature": "both"
             }
           ]
         },
@@ -605,22 +605,22 @@
             {
               "code": "17001",
               "title": "سرمایه گذاری در شرکت‌ها",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "17002",
               "title": "سایر سرمایه گذاری‌ها",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "17003",
               "title": "درآمد دوره‌های آتی",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "17004",
               "title": "ذخیره کاهش ارزش سرمایه گذاری‌ها",
-              "nature": "credit"
+              "nature": "both"
             }
           ]
         },
@@ -631,17 +631,17 @@
             {
               "code": "18001",
               "title": "مطالبات بلندمدت دولت",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "18002",
               "title": "تسهیلات مالی دریافتنی بلندمدت",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "18003",
               "title": "تسهیلات مالی دریافتنی ارزی بلندمدت",
-              "nature": "debit"
+              "nature": "both"
             }
           ]
         }
@@ -658,57 +658,57 @@
             {
               "code": "21001",
               "title": "حساب‌ها و اسناد پرداختنی",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "21002",
               "title": "حساب‌ها و اسناد پرداختنی ارزی",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "21003",
               "title": "حساب‌ها و اسناد پرداختنی-اعتبارات اسنادی",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "21004",
               "title": "هزینه مالی آتی",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "21005",
               "title": "حقوق و مزایای پرداختنی",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "21006",
               "title": "بدهی به سایر واحدها",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "21007",
               "title": "سپرده‌های پرداختنی",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "21008",
               "title": "سپرده‌های پرداختنی ارزی",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "21009",
               "title": "سود تضمین شده پرداختنی",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "21010",
               "title": "مالیات و عوارض ارزش افزوده فروش کالا و خدمات",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "21011",
               "title": "اسناد خزانه پرداختنی",
-              "nature": "credit"
+              "nature": "both"
             }
           ]
         },
@@ -719,12 +719,12 @@
             {
               "code": "22001",
               "title": "حساب‌ها و اسناد پرداختنی",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "22002",
               "title": "بدهی به سایر واحدها",
-              "nature": "credit"
+              "nature": "both"
             }
           ]
         },
@@ -735,17 +735,17 @@
             {
               "code": "23001",
               "title": "پیش دریافت اعتبار هزینه",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "23002",
               "title": "پیش دریافت اعتبار سرمایه‌ای",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "23003",
               "title": "پیش دریافت درآمد",
-              "nature": "credit"
+              "nature": "both"
             }
           ]
         },
@@ -756,67 +756,67 @@
             {
               "code": "24001",
               "title": "بیمه پرداختنی",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "24002",
               "title": "حق بازنشستگی پرداختنی",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "24003",
               "title": "سایر کسورات پرداختنی",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "24004",
               "title": "مالیات پرداختنی",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "24005",
               "title": "ذخیره احکام صادره از مراجع ذی صلاح",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "24006",
               "title": "ذخیره تعهدات هزینه‌ای",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "24007",
               "title": "ذخیره تعهدات سرمایه‌ای",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "24008",
               "title": "سایر حساب‌ها و اسناد پرداختنی",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "24009",
               "title": "بدهی بابت وجوه نامشخص",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "24010",
               "title": "بدهی بابت چک‌های بین راهی",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "24011",
               "title": "بدهی به اشخاص بابت وجوه اضافه دریافتی",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "24012",
               "title": "بدهی بابت اوراق بهادار",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "24013",
               "title": "بدهی بابت وجه الضمان",
-              "nature": "credit"
+              "nature": "both"
             }
           ]
         },
@@ -827,27 +827,27 @@
             {
               "code": "25001",
               "title": "اوراق مشارکت پرداختنی",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "25002",
               "title": "تسهیلات مالی دریافتنی بلندمدت",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "25003",
               "title": "تسهیلات مالی پرداختنی ارزی بلندمدت",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "25006",
               "title": "اوراق مرابحه پرداختنی",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "25007",
               "title": "سایر حساب‌ها و اسناد پرداختنی بلندمدت",
-              "nature": "credit"
+              "nature": "both"
             }
           ]
         },
@@ -858,7 +858,7 @@
             {
               "code": "26001",
               "title": "ذخیره مزایای پایان خدمت کارکنان",
-              "nature": "credit"
+              "nature": "both"
             }
           ]
         },
@@ -869,12 +869,12 @@
             {
               "code": "27001",
               "title": "ذخیره مرخصی استفاده نشده کارکنان",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "27002",
               "title": "سایر ذخایر",
-              "nature": "credit"
+              "nature": "both"
             }
           ]
         }
@@ -891,17 +891,17 @@
             {
               "code": "31001",
               "title": "ارزش خالص انباشته",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "31004",
               "title": "دارایی‌های انتقالی",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "31005",
               "title": "دارایی‌های دریافتنی",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "31006",
@@ -916,7 +916,7 @@
             {
               "code": "31010",
               "title": "انتقال از سایر اقلام ارزش خالص",
-              "nature": "credit"
+              "nature": "both"
             }
           ]
         },
@@ -927,7 +927,7 @@
             {
               "code": "32001",
               "title": "مازاد تجدید ارزیابی",
-              "nature": "credit"
+              "nature": "both"
             }
           ]
         },
@@ -938,12 +938,12 @@
             {
               "code": "33001",
               "title": "تفاوت تسعیر دارایی‌ها و بدهی‌های ارزی",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "33002",
               "title": "تفاوت تسعیر ارز عملیات خارجی",
-              "nature": "credit"
+              "nature": "both"
             }
           ]
         }
@@ -960,57 +960,57 @@
             {
               "code": "41001",
               "title": "دریافتی بابت عملیات جاری",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "41002",
               "title": "دریافتی بابت عملیات جاری در دوره متمم",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "41003",
               "title": "دریافتی بابت عملیات سرمایه‌ای",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "41004",
               "title": "دریافتی بابت عملیات سرمایه‌ای در دوره متمم",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "41005",
               "title": "دریافتی از خزانه بابت حقوق و مزایا",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "41006",
               "title": "دریافتی بابت وجوه یارانه",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "41007",
               "title": "دریافتی بابت عملیات جاری از محل اعتبار سال قبل",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "41008",
               "title": "دریافتی بابت عملیات سرمایه‌ای از محل اعتبار سال قبل",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "41009",
               "title": "قیر دریافتی بابت عملیات سرمایه‌ای",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "41010",
               "title": "دریافتی از محل سایر منابع",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "41011",
               "title": "قیر دریافتی از محل سایر منابع",
-              "nature": "credit"
+              "nature": "both"
             }
           ]
         },
@@ -1021,7 +1021,7 @@
             {
               "code": "43001",
               "title": "هدایا و کمک‌ها",
-              "nature": "credit"
+              "nature": "both"
             }
           ]
         },
@@ -1032,37 +1032,37 @@
             {
               "code": "45001",
               "title": "درآمدهای حاصل از مالیات و عوارض",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "45002",
               "title": "درآمدهای ناشی از کمک‌های اجتماعی",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "45003",
               "title": "درآمدهای حاصل از مالکیت",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "45004",
               "title": "درآمدهای حاصل از فروش کالا و خدمات",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "45005",
               "title": "درآمدهای حاصل از جرایم و خسارات",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "45006",
               "title": "سایر درآمدهای واحد",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "45007",
               "title": "تخفیفات و بخشودگی",
-              "nature": "debit"
+              "nature": "both"
             }
           ]
         },
@@ -1073,7 +1073,7 @@
             {
               "code": "46001",
               "title": "درآمدها - انتقالات",
-              "nature": "credit"
+              "nature": "both"
             }
           ]
         }
@@ -1090,37 +1090,37 @@
             {
               "code": "51001",
               "title": "درآمدهای حاصل از مالیات و عوارض",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "51002",
               "title": "درآمدهای حاصل از مالکیت دولت",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "51003",
               "title": "درآمدهای حاصل از فروش کالا و خدمات",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "51004",
               "title": "درآمدهای حاصل از جرایم و خسارات",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "51005",
               "title": "سایر درآمدهای دولت",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "51006",
               "title": "تخفیفات و بخشودگی",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "51007",
               "title": "درآمدهای ناشی از کمک های اجتماعی",
-              "nature": "credit"
+              "nature": "both"
             }
           ]
         }
@@ -1137,42 +1137,42 @@
             {
               "code": "61001",
               "title": "هزینه جبران خدمت کارکنان",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "61002",
               "title": "هزینه استفاده از کالا و خدمات",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "61003",
               "title": "هزینه مصرف سرمایه های ثابت",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "61004",
               "title": "هزینه سود",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "61005",
               "title": "هزینه یارانه",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "61006",
               "title": "هزینه کمک‌های بلاعوض",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "61007",
               "title": "هزینه مزایای اجتماعی",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "61008",
               "title": "سایر هزینه‌ها",
-              "nature": "debit"
+              "nature": "both"
             }
           ]
         },
@@ -1183,7 +1183,7 @@
             {
               "code": "62001",
               "title": "هزینه‌ها - انتقالات",
-              "nature": "debit"
+              "nature": "both"
             }
           ]
         },
@@ -1194,7 +1194,7 @@
             {
               "code": "63001",
               "title": "انتقال به خزانه",
-              "nature": "debit"
+              "nature": "both"
             }
           ]
         }
@@ -1211,7 +1211,7 @@
             {
               "code": "71001",
               "title": "وجوه ارسالی بابت درآمد عمومی",
-              "nature": "debit"
+              "nature": "both"
             }
           ]
         }
@@ -1228,92 +1228,92 @@
             {
               "code": "81001",
               "title": "حساب انتظامی - تضمین های دریافتی",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "81002",
               "title": "حساب انتظامی - تضمین های واگذار شده",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "81003",
               "title": "حساب انتظامی - علی‌الحساب بابت عملیات جاری",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "81004",
               "title": "حساب انتظامی - علی‌الحساب بابت عملیات سرمایه‌ای",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "81005",
               "title": "حساب انتظامی - کنترل قراردادها",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "81006",
               "title": "حساب انتظامی - اسناد وصولی از عاملین ذیحساب",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "81007",
               "title": "حساب انتظامی - کسری ابوابجمعی برداشتی",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "81008",
               "title": "حساب انتظامی - منابع پیش‌بینی شده",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "81010",
               "title": "حساب انتظامی - اسناد خزانه اسلامی",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "81011",
               "title": "حساب انتظامی - موجودی‌های امانی",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "81012",
               "title": "حساب انتظامی - دارایی‌های امانی",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "81013",
               "title": "حساب انتظامی - کنترل منابع بودجه‌ای",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "81014",
               "title": "حساب انتظامی - اوراق مرابحه",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "81015",
               "title": "حساب انتظامی - اوراق مشارکت",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "81016",
               "title": "حساب انتظامی - کنترل سفارش‌ها",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "81017",
               "title": "حساب انتظامی - کنترل دریافتی‌ها بابت اعتبار",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "81018",
               "title": "حساب انتظامی - بدهی‌های احتمالی",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "81019",
               "title": "حساب انتظامی - اسناد تسویه خزانه",
-              "nature": "debit"
+              "nature": "both"
             }
           ]
         },
@@ -1324,92 +1324,92 @@
             {
               "code": "82001",
               "title": "طرف حساب انتظامی - تضمین‌های دریافتی",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "82002",
               "title": "طرف حساب انتظامی - تضمین‌های واگذار شده",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "82003",
               "title": "طرف حساب انتظامی - علی‌الحساب بابت عملیات جاری",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "82004",
               "title": "طرف حساب انتظامی - علی‌الحساب بابت عملیات سرمایه‌ای",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "82005",
               "title": "طرف حساب انتظامی - کنترل قراردادها",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "82006",
               "title": "طرف حساب انتظامی - اسناد وصولی از عاملین ذیحساب",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "82007",
               "title": "طرف حساب انتظامی - کسری ابوابجمعی برداشتی",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "82008",
               "title": "طرف حساب انتظامی - منابع پیش‌بینی شده",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "82010",
               "title": "طرف حساب انتظامی - اسناد خزانه اسلامی",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "82011",
               "title": "طرف حساب انتظامی - موجودی‌های امانی",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "82012",
               "title": "طرف حساب انتظامی - دارایی‌های امانی",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "82013",
               "title": "طرف حساب انتظامی - کنترل منابع بودجه‌ای",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "82014",
               "title": "طرف حساب انتظامی - اوراق مرابحه",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "82015",
               "title": "طرف حساب انتظامی - اوراق مشارکت",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "82016",
               "title": "طرف حساب انتظامی - کنترل سفارش‌ها",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "82017",
               "title": "طرف حساب انتظامی - کنترل دریافتی‌ها بابت اعتبار",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "82018",
               "title": "طرف حساب انتظامی - بدهی‌های احتمالی",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "82019",
               "title": "طرف حساب انتظامی - اسناد تسویه خزانه",
-              "nature": "credit"
+              "nature": "both"
             }
           ]
         }
@@ -1426,22 +1426,22 @@
             {
               "code": "91001",
               "title": "بودجه اعتبار هزینه",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "91002",
               "title": "بودجه اعتبار سرمایه ای",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "91003",
               "title": "بودجه اعتبار هزینه انتقالی",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "91004",
               "title": "بودجه اعتبار سرمایه ای انتقالی",
-              "nature": "debit"
+              "nature": "both"
             }
           ]
         },
@@ -1452,12 +1452,12 @@
             {
               "code": "91501",
               "title": "اعتبار هزینه انتقالی",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "91502",
               "title": "اعتبار سرمایه ای انتقالی",
-              "nature": "debit"
+              "nature": "both"
             }
           ]
         },
@@ -1468,12 +1468,12 @@
             {
               "code": "92001",
               "title": "اعتبار هزینه",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "92002",
               "title": "اعتبار سرمایه ای",
-              "nature": "debit"
+              "nature": "both"
             }
           ]
         },
@@ -1484,22 +1484,22 @@
             {
               "code": "92501",
               "title": "اسناد واخواهی بابت اعتبار هزینه",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "92502",
               "title": "اسناد واخواهی بابت اعتبار سرمایه ای",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "92503",
               "title": "اسناد واخواهی بابت اعتبار هزینه انتقالی",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "92504",
               "title": "اسناد واخواهی بابت اعتبار سرمایه ای انتقالی",
-              "nature": "debit"
+              "nature": "both"
             }
           ]
         },
@@ -1510,12 +1510,12 @@
             {
               "code": "93001",
               "title": "اعتبار هزینه تخصیص یافته",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "93002",
               "title": "اعتبار سرمایه ای تخصیص یافته",
-              "nature": "credit"
+              "nature": "both"
             }
           ]
         },
@@ -1526,22 +1526,22 @@
             {
               "code": "93501",
               "title": "کسری ابواب جمعی بابت اعتبار هزینه",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "93502",
               "title": "کسری ابواب جمعی بابت اعتبار سرمایه ای",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "93503",
               "title": "کسری ابواب جمعی بابت اعتبار هزینه انتقالی",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "93504",
               "title": "کسری ابواب جمعی بابت اعتبار سرمایه ای انتقالی",
-              "nature": "debit"
+              "nature": "both"
             }
           ]
         },
@@ -1552,22 +1552,22 @@
             {
               "code": "94001",
               "title": "حواله اعتبار هزینه",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "94002",
               "title": "حواله اعتبار سرمایه ای",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "94003",
               "title": "حواله اعتبار هزینه انتقالی",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "94004",
               "title": "حواله اعتبار سرمایه ای انتقالی",
-              "nature": "debit"
+              "nature": "both"
             }
           ]
         },
@@ -1578,22 +1578,22 @@
             {
               "code": "95001",
               "title": "اعتبار هزینه ابلاغی",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "95002",
               "title": "اعتبار سرمایه ای ابلاغی",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "95003",
               "title": "اعتبار هزینه انتقالی ابلاغی",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "95004",
               "title": "اعتبار سرمایه ای انتقالی ابلاغی",
-              "nature": "credit"
+              "nature": "both"
             }
           ]
         },
@@ -1604,12 +1604,12 @@
             {
               "code": "96001",
               "title": "کنترل اعتبار هزینه",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "96002",
               "title": "کنترل اعتبار سرمایه ای",
-              "nature": "credit"
+              "nature": "both"
             }
           ]
         },
@@ -1620,22 +1620,22 @@
             {
               "code": "97001",
               "title": "اعتبار هزینه تامین شده",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "97002",
               "title": "اعتبار سرمایه ای تامین شده",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "97003",
               "title": "اعتبار هزینه انتقالی تامین شده",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "97004",
               "title": "اعتبار سرمایه ای انتقالی تامین شده",
-              "nature": "debit"
+              "nature": "both"
             }
           ]
         },
@@ -1646,22 +1646,22 @@
             {
               "code": "98001",
               "title": "اعتبار هزینه بابت پرداخت های غیر قطعی",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "98002",
               "title": "اعتبار سرمایه ای بابت پرداخت های غیر قطعی",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "98003",
               "title": "اعتبار هزینه انتقالی بابت پرداخت های غیر قطعی",
-              "nature": "debit"
+              "nature": "both"
             },
             {
               "code": "98004",
               "title": "اعتبار سرمایه ای انتقالی بابت پرداخت های غیر قطعی",
-              "nature": "debit"
+              "nature": "both"
             }
           ]
         },
@@ -1672,22 +1672,22 @@
             {
               "code": "99001",
               "title": "اعتبار هزینه مصرف شده",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "99002",
               "title": "اعتبار سرمایه ای مصرف شده",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "99003",
               "title": "اعتبار هزینه انتقالی مصرف شده",
-              "nature": "credit"
+              "nature": "both"
             },
             {
               "code": "99004",
               "title": "اعتبار سرمایه ای انتقالی مصرف شده",
-              "nature": "credit"
+              "nature": "both"
             }
           ]
         }

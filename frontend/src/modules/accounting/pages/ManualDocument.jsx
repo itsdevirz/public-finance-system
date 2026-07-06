@@ -23,6 +23,92 @@ import { PersonSanamaField } from "@/components/ui/person-sanama-field";
 // ---- helpers ----
 const allGroups = sanamaCodes.groups.map((g) => ({ code: g.code, title: g.title, accounts: g.accounts }));
 
+// ── کامپوننت انتخاب شماره برنامه/طرح از اعتبارهای تعریف‌شده ──────────────────
+function CreditCodeSanamaField({ value, onChange, labelCls, inputCls }) {
+  const [options, setOptions] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    api.get("/api/credits/definitions").then((res) => {
+      if (res.data?.data) {
+        const credits = res.data.data;
+        const opts = credits
+          .filter((c) => {
+            // فقط اعتبارهایی که شماره برنامه یا شماره طرح دارند
+            return (
+              c.expense?.programNumber ||
+              c.capital?.projectNumber
+            );
+          })
+          .map((c) => {
+            const num = c.capital?.projectNumber || c.expense?.programNumber || "";
+            const type = c.creditType === "capital" ? "تملک دارایی" : "هزینه";
+            const title = c.capital?.projectTitle || c.expense?.programNumber
+              ? `${num}${c.capital?.projectTitle ? ` — ${c.capital.projectTitle}` : ""}`
+              : num;
+            return {
+              value: num,
+              label: `${num}${c.capital?.projectTitle ? ` — ${c.capital.projectTitle}` : ""}${c.capital?.projectPlanTitle ? ` / ${c.capital.projectPlanTitle}` : ""} (${type})`,
+            };
+          })
+          .filter((o) => o.value);
+        setOptions(opts);
+      }
+    }).catch(() => {}).finally(() => setLoaded(true));
+  }, []);
+
+  if (!loaded) {
+    return (
+      <div className="flex items-center gap-2">
+        <Label className={labelCls}>شماره برنامه/طرح</Label>
+        <input
+          type="text"
+          inputMode="numeric"
+          className={inputCls}
+          placeholder="در حال بارگیری..."
+          value={value ?? ""}
+          onChange={(e) => onChange(e.target.value.replace(/\D/g, ""))}
+          dir="ltr"
+          disabled
+        />
+      </div>
+    );
+  }
+
+  if (options.length === 0) {
+    // هنوز اعتباری تعریف نشده — fallback به input عددی
+    return (
+      <div className="flex items-center gap-2">
+        <Label className={labelCls}>شماره برنامه/طرح</Label>
+        <input
+          type="text"
+          inputMode="numeric"
+          className={inputCls}
+          placeholder="عدد وارد کنید..."
+          value={value ?? ""}
+          onChange={(e) => onChange(e.target.value.replace(/\D/g, ""))}
+          dir="ltr"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <Label className={labelCls}>شماره برنامه/طرح</Label>
+      <div className="flex-1">
+        <SearchableSelect
+          value={value ?? ""}
+          onChange={(v) => onChange(v || "")}
+          options={options}
+          placeholder="انتخاب از اعتبارهای تعریف‌شده..."
+          searchable
+        />
+      </div>
+    </div>
+  );
+}
+
 function getSubAccountTitle(rowNum) {
   return subAccountTitles.find((t) => t.row === rowNum);
 }
@@ -277,6 +363,17 @@ function SanamaField({ rowDef, value, onChange, optional }) {
 
   // ردیف‌های با default (input عددی — اجباری)
   if ("default" in rowDef) {
+    // row 8 = شماره برنامه/طرح → از اعتبارهای تعریف‌شده بخوان
+    if (rowDef.row === 8) {
+      return (
+        <CreditCodeSanamaField
+          value={value}
+          onChange={onChange}
+          labelCls={labelCls}
+          inputCls={inputCls}
+        />
+      );
+    }
     return (
       <div className="flex items-center gap-2">
         <Label className={labelCls}>{rowDef.title}</Label>
