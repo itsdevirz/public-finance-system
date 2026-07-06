@@ -19,6 +19,7 @@ import sanamaCodes from "@/data/sanamaCodes.json";
 import subAccountTitles from "@/data/subAccountTitles.json";
 import sanamaRequirements from "@/data/sanamaRequirements.json";
 import { PersonSanamaField } from "@/components/ui/person-sanama-field";
+import { checkDebitNatureBalance, clearBalanceCache } from "@/lib/accountBalanceCheck";
 
 // ---- helpers ----
 const allGroups = sanamaCodes.groups.map((g) => ({ code: g.code, title: g.title, accounts: g.accounts }));
@@ -211,15 +212,10 @@ const DocRow = React.memo(({ row, idx, onChange, onDelete, isActive, onActivate 
   }
 
   function setSubAccount(val) {
-    const subs = getSubAccounts(row.group, row.account);
-    const sub = subs.find((s) => s.code === val);
-    const newNature = sub ? sub.nature : null;
     onChange({
       ...row,
       subAccount: val,
       sanamaFields: {},
-      debit: newNature === "credit" ? "" : row.debit,
-      credit: newNature === "debit" ? "" : row.credit,
     });
   }
 
@@ -268,7 +264,7 @@ const DocRow = React.memo(({ row, idx, onChange, onDelete, isActive, onActivate 
       {/* مبلغ بدهکار */}
       <td className={`${cellCls} w-36`}>
         <input
-          className={`${inputCls} text-blue-700 disabled:opacity-30 disabled:cursor-not-allowed`}
+          className={`${inputCls} text-blue-700`}
           value={debitVal}
           onChange={(e) => setDebitVal(e.target.value)}
           onBlur={(e) => {
@@ -276,15 +272,14 @@ const DocRow = React.memo(({ row, idx, onChange, onDelete, isActive, onActivate 
             setDebitVal(formatted);
             onChange({ ...row, debit: formatted });
           }}
-          disabled={nature === "credit" && !parseNumber(row.debit)}
-          placeholder={nature === "credit" && !parseNumber(row.debit) ? "—" : ""}
+          placeholder={nature === "credit" ? "(بستانکار)" : ""}
         />
       </td>
 
       {/* مبلغ بستانکار */}
       <td className={`${cellCls} w-36`}>
         <input
-          className={`${inputCls} text-rose-700 disabled:opacity-30 disabled:cursor-not-allowed`}
+          className={`${inputCls} text-rose-700`}
           value={creditVal}
           onChange={(e) => setCreditVal(e.target.value)}
           onBlur={(e) => {
@@ -292,8 +287,7 @@ const DocRow = React.memo(({ row, idx, onChange, onDelete, isActive, onActivate 
             setCreditVal(formatted);
             onChange({ ...row, credit: formatted });
           }}
-          disabled={nature === "debit" && !parseNumber(row.credit)}
-          placeholder={nature === "debit" && !parseNumber(row.credit) ? "—" : ""}
+          placeholder={nature === "debit" ? "(بدهکار)" : ""}
         />
       </td>
 
@@ -606,6 +600,20 @@ export default function ManualDocument() {
       return;
     }
 
+    // ─── بررسی قانون موجودی معین‌های بدهکار ───────────────────────────────
+    const balanceRows = rows
+      .filter(r => r.subAccount)
+      .map(r => ({
+        subAccount: r.subAccount,
+        debit:  parseNumber(r.debit),
+        credit: parseNumber(r.credit),
+      }));
+    const balanceError = await checkDebitNatureBalance(balanceRows, docId || null);
+    if (balanceError) {
+      setMessage({ type: "error", text: balanceError });
+      return;
+    }
+
     // بررسی الزامات سناما برای تمامی ردیف‌ها
     for (let i = 0; i < rows.length; i++) {
       const r = rows[i];
@@ -672,13 +680,22 @@ export default function ManualDocument() {
           ? `تغییرات سند شماره ${res.data.data.document_number} با موفقیت ذخیره شد.`
           : `سند با شماره ${res.data.data.document_number} با موفقیت ثبت شد و به صورت رمزنگاری‌شده ذخیره گردید.` 
       });
+      clearBalanceCache();
       
       if (!docId && res.data.data.document_number) {
         setH("docNo", res.data.data.document_number);
       }
     } catch (err) {
       console.error("Save error:", err);
-      setMessage({ type: "error", text: err.response?.data?.message || "خطا در ثبت سند در سرور. اتصال را بررسی کنید." });
+      const errData = err.response?.data;
+      if (errData?.error_code === "CREDIT_EXCEEDS_DEBIT") {
+        setMessage({
+          type: "error",
+          text: errData.message,
+        });
+      } else {
+        setMessage({ type: "error", text: errData?.message || "خطا در ثبت سند در سرور. اتصال را بررسی کنید." });
+      }
     } finally {
       setLoading(false);
     }

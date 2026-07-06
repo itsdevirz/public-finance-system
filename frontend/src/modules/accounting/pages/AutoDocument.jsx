@@ -17,6 +17,7 @@ import {
 import { INITIAL_TEMPLATES } from "@/data/operationsTemplates";
 import sanamaRequirements from "@/data/sanamaRequirements.json";
 import subAccountTitles from "@/data/subAccountTitles.json";
+import { checkDebitNatureBalance, clearBalanceCache } from "@/lib/accountBalanceCheck";
 import { PersonSanamaField } from "@/components/ui/person-sanama-field";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -249,6 +250,18 @@ export default function AutoDocument() {
           return;
         }
       }
+    }
+
+    // ─── بررسی قانون موجودی معین‌های بدهکار ───────────────────────────────
+    const balanceRows = selectedTemplate.lines.map((line, idx) => ({
+      subAccount: line.accountCode,
+      debit:  line.type === "debit"  ? (parseFloat((lineAmounts[idx] || "").replace(/,/g, "")) || 0) : 0,
+      credit: line.type === "credit" ? (parseFloat((lineAmounts[idx] || "").replace(/,/g, "")) || 0) : 0,
+    }));
+    const balanceError = await checkDebitNatureBalance(balanceRows, null);
+    if (balanceError) {
+      setMessage({ type: "error", text: balanceError });
+      return;
     }
 
     setLoading(true);
