@@ -351,13 +351,13 @@ export default function BalanceSheet() {
                         <td className="px-3 py-2 font-mono font-semibold text-foreground whitespace-nowrap">
                           {row.code}
                         </td>
-                        <td className="px-3 py-2 text-foreground">
+                        <td className="px-3 py-2 text-foreground max-w-[260px] truncate" title={row.name || ""}>
                           {row.name || <span className="text-muted-foreground/50 italic">—</span>}
                         </td>
                         {config.colDefs.map((col) => (
                           <td
                             key={col.key}
-                            className={`px-3 py-2 text-left font-mono tabular-nums ${col.cls}`}
+                            className={`px-3 py-2 text-left font-mono tabular-nums whitespace-nowrap ${col.cls}`}
                           >
                             {fmtNum(row[col.key])}
                           </td>

@@ -219,7 +219,7 @@ const DocRow = React.memo(({ row, idx, onChange, onDelete, isActive, onActivate 
     });
   }
 
-  const cellCls = "border-l last:border-l-0 px-2 py-1";
+  const cellCls = "border-l last:border-l-0 px-2 py-1 overflow-hidden";
   const inputCls = "h-8 text-sm rounded border-0 bg-transparent focus:bg-white focus:border focus:border-primary w-full px-1.5";
 
   return (
@@ -312,26 +312,31 @@ const DocRow = React.memo(({ row, idx, onChange, onDelete, isActive, onActivate 
 // ---- SanamaField: رندر یک فیلد سناما بر اساس نوع ردیف ----
 function SanamaField({ rowDef, value, onChange, optional }) {
   const inputCls = "h-9 text-xs rounded-lg border border-input bg-background/60 px-2.5 focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/30 w-full transition-all";
-  const labelCls = "text-[11px] text-muted-foreground shrink-0 w-44";
+  const labelCls = "text-[11px] text-muted-foreground font-medium leading-snug";
 
   const placeholder = optional ? `${rowDef.default ?? "0"}` : "انتخاب کنید...";
+
+  // wrapper مشترک: label بالا، input پایین — جلوی overflow را می‌گیرد
+  const Wrap = ({ children }) => (
+    <div className="flex flex-col gap-1 min-w-0">
+      <Label className={labelCls} title={rowDef.title}>{rowDef.title}</Label>
+      {children}
+    </div>
+  );
 
   // ردیف‌های با values (dropdown ساده)
   if (rowDef.values) {
     const opts = rowDef.values.map((v) => ({ value: String(v.type), label: v.title }));
     return (
-      <div className="flex items-center gap-2">
-        <Label className={labelCls}>{rowDef.title}</Label>
-        <div className="flex-1">
-          <SearchableSelect
-            value={value !== undefined && value !== null ? String(value) : ""}
-            onChange={(v) => onChange(v || "")}
-            options={opts}
-            placeholder={placeholder}
-            searchable={opts.length > 8}
-          />
-        </div>
-      </div>
+      <Wrap>
+        <SearchableSelect
+          value={value !== undefined && value !== null ? String(value) : ""}
+          onChange={(v) => onChange(v || "")}
+          options={opts}
+          placeholder={placeholder}
+          searchable={opts.length > 8}
+        />
+      </Wrap>
     );
   }
 
@@ -341,17 +346,14 @@ function SanamaField({ rowDef, value, onChange, optional }) {
       g.values.map((v) => ({ value: String(v.type), label: v.title, group: g.title }))
     );
     return (
-      <div className="flex items-center gap-2">
-        <Label className={labelCls}>{rowDef.title}</Label>
-        <div className="flex-1">
-          <SearchableSelect
-            value={value !== undefined && value !== null ? String(value) : ""}
-            onChange={(v) => onChange(v || "")}
-            options={opts}
-            placeholder={placeholder}
-          />
-        </div>
-      </div>
+      <Wrap>
+        <SearchableSelect
+          value={value !== undefined && value !== null ? String(value) : ""}
+          onChange={(v) => onChange(v || "")}
+          options={opts}
+          placeholder={placeholder}
+        />
+      </Wrap>
     );
   }
 
@@ -360,17 +362,18 @@ function SanamaField({ rowDef, value, onChange, optional }) {
     // row 8 = شماره برنامه/طرح → از اعتبارهای تعریف‌شده بخوان
     if (rowDef.row === 8) {
       return (
-        <CreditCodeSanamaField
-          value={value}
-          onChange={onChange}
-          labelCls={labelCls}
-          inputCls={inputCls}
-        />
+        <Wrap>
+          <CreditCodeSanamaField
+            value={value}
+            onChange={onChange}
+            labelCls=""
+            inputCls={inputCls}
+          />
+        </Wrap>
       );
     }
     return (
-      <div className="flex items-center gap-2">
-        <Label className={labelCls}>{rowDef.title}</Label>
+      <Wrap>
         <input
           type="text"
           inputMode="numeric"
@@ -384,19 +387,21 @@ function SanamaField({ rowDef, value, onChange, optional }) {
           }}
           dir="ltr"
         />
-      </div>
+      </Wrap>
     );
   }
 
   // ردیف ۲۱ اشخاص — PersonSanamaField
   if (rowDef.types) {
     return (
-      <PersonSanamaField
-        value={value}
-        onChange={onChange}
-        labelCls={labelCls}
-        required={!optional}
-      />
+      <Wrap>
+        <PersonSanamaField
+          value={value}
+          onChange={onChange}
+          labelCls=""
+          required={!optional}
+        />
+      </Wrap>
     );
   }
 
@@ -439,10 +444,15 @@ function SanamaExtraFields({ row, onSanamaChange }) {
         )}
       </div>
       {/* فیلدها */}
-      <div className="px-3 py-3 grid grid-cols-1 gap-2 md:grid-cols-2">
+      <div className="px-3 py-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {requiredRows.map((rowNum) => {
           const rowDef = getSubAccountTitle(rowNum);
           if (!rowDef) return null;
+
+          // اگر نوع اعتبار "مصوب" (type=1) انتخاب شده، ردیف ۱۵ (ابلاغ دهنده) را حذف کن
+          const creditTypeValue = row.sanamaFields?.["sanama_5"];
+          if (rowNum === 15 && creditTypeValue === "1") return null;
+
           const optional = OPTIONAL_ROWS.has(rowNum);
           const fieldKey = `sanama_${rowNum}`;
           const value = row.sanamaFields?.[fieldKey];

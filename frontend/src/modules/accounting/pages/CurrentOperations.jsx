@@ -488,7 +488,7 @@ export default function CurrentOperations({ categoryFilter = null, pageTitle = "
                         </td>
 
                         {/* الگوی مرجع */}
-                        <td className="px-4 py-3 font-semibold text-primary">
+                        <td className="px-4 py-3 font-semibold text-primary max-w-[180px] truncate" title={doc.template_title || "الگوی سیستمی"}>
                           {doc.template_title || "الگوی سیستمی"}
                         </td>
 

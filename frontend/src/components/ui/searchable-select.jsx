@@ -30,6 +30,7 @@ export function SearchableSelect({
 
   const showSearch  = searchable !== undefined ? searchable : options.length > 8;
   const MIN_W       = 240;
+  const MAX_W       = 400;
   const MAX_H       = 288;
   const SEARCH_H    = 44;
   const ITEM_H      = 36;
@@ -41,7 +42,7 @@ export function SearchableSelect({
     const vw  = window.innerWidth;
     const vh  = window.innerHeight;
 
-    const panelW = Math.max(r.width, MIN_W);
+    const panelW = Math.min(Math.max(r.width, MIN_W), MAX_W);
     const listCount = options.filter(o => !o.disabled).length;
     const panelH = Math.min(
       listCount * ITEM_H + (showSearch ? SEARCH_H : 0) + 8,
@@ -283,7 +284,7 @@ function OptionRow({ opt, selected, onSelect }) {
       {selected && (
         <span className="absolute right-0 top-1 bottom-1 w-[3px] rounded-full bg-primary" />
       )}
-      <span className="flex-1 text-right">{opt.label}</span>
+      <span className="flex-1 truncate text-right" title={opt.label}>{opt.label}</span>
       {selected && <Check className="h-3 w-3 shrink-0 text-primary" />}
     </button>
   );

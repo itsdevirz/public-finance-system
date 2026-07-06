@@ -737,7 +737,7 @@ export default function PersonsForm() {
                         : "hover:bg-muted/40"
                     )}
                   >
-                    <TableCell className="font-mono text-xs tracking-wider">{row.nomineeCode}</TableCell>
+                    <TableCell className="font-mono text-xs whitespace-nowrap">{row.nomineeCode}</TableCell>
                     <TableCell>
                       <Badge
                         variant={row.personKind === "A" ? "default" : "secondary"}
@@ -752,11 +752,11 @@ export default function PersonsForm() {
                     </TableCell>
                     <TableCell className="font-mono text-xs">{row.detailClass}</TableCell>
                     <TableCell className="text-sm font-medium max-w-[200px] truncate">{row.title}</TableCell>
-                    <TableCell className="font-mono text-xs">{row.nationalId || "—"}</TableCell>
-                    <TableCell className="font-mono text-xs">{row.economicCode || "—"}</TableCell>
-                    <TableCell className="font-mono text-xs">{row.sheba ? `IR${row.sheba}` : "—"}</TableCell>
-                    <TableCell className="text-xs">{row.province || "—"}</TableCell>
-                    <TableCell className="text-xs">{row.city || "—"}</TableCell>
+                    <TableCell className="font-mono text-xs whitespace-nowrap">{row.nationalId || "—"}</TableCell>
+                    <TableCell className="font-mono text-xs whitespace-nowrap">{row.economicCode || "—"}</TableCell>
+                    <TableCell className="font-mono text-xs max-w-[140px] truncate" title={row.sheba ? `IR${row.sheba}` : ""}>{row.sheba ? `IR${row.sheba}` : "—"}</TableCell>
+                    <TableCell className="text-xs whitespace-nowrap">{row.province || "—"}</TableCell>
+                    <TableCell className="text-xs whitespace-nowrap">{row.city || "—"}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
