@@ -47,6 +47,7 @@ const CapitalOperations = lazy(() => import("@/modules/accounting/pages/CapitalO
 const AutoDocument = lazy(() => import("@/modules/accounting/pages/AutoDocument"));
 const CopyDocument = lazy(() => import("@/modules/accounting/pages/CopyDocument"));
 const BalanceSheet = lazy(() => import("@/modules/accounting/pages/BalanceSheet"));
+const AccountReview = lazy(() => import("@/modules/accounting/pages/AccountReview"));
 const AiChat = lazy(() => import("@/pages/AiChat"));
 
 /** صفحاتی که پیاده‌سازی شده‌اند — بقیه خودکار Placeholder می‌شوند */
@@ -198,6 +199,8 @@ export const PAGE_COMPONENTS = {
   "/bookkeeping/bank-reconciliation/account-info-read": Bookkeeping,
   "/bookkeeping/bank-reconciliation/account-reconciliation": Bookkeeping,
   "/bookkeeping/ledger-reports": Bookkeeping,
+  "/bookkeeping/ledger-reports/account-review":        AccountReview,
+  "/bookkeeping/ledger-reports/general-ledger":        Bookkeeping,
   "/bookkeeping/final-documents/finalize-doc": Bookkeeping,
   "/bookkeeping/final-documents/unfinalize-doc": Bookkeeping,
   "/bookkeeping/budget-execution": Bookkeeping,

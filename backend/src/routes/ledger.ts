@@ -282,4 +282,114 @@ router.get("/trial-balance", async (c) => {
   return c.json({ data: rows, totals, message: "تراز آزمایشی" });
 });
 
+// GET /api/ledger/account-lines — اسناد بر اساس نوع حساب (sanama xmlCode)
+// Query params:
+//   xmlCode: کد XML فیلد سناما (مثلاً CreditType, ExpenseArticle, ...)
+//   dateFrom, dateTo: بازه تاریخی
+//   fiscalYear: سال مالی (اختیاری)
+router.get("/account-lines", async (c) => {
+  const xmlCode    = c.req.query("xmlCode")    ?? "";
+  const dateFrom   = c.req.query("dateFrom")   ?? "";
+  const dateTo     = c.req.query("dateTo")     ?? "";
+  const fiscalYear = c.req.query("fiscalYear") ?? "";
+
+  function dateToNum(d: string): number {
+    if (!d) return 0;
+    const persian = ["۰","۱","۲","۳","۴","۵","۶","۷","۸","۹"];
+    const arabic  = ["٠","١","٢","٣","٤","٥","٦","٧","٨","٩"];
+    let s = d;
+    for (let i = 0; i < 10; i++) {
+      s = s.replace(new RegExp(persian[i], "g"), String(i));
+      s = s.replace(new RegExp(arabic[i],  "g"), String(i));
+    }
+    const parts = s.split(/[\/\-\.]/);
+    if (parts.length === 3) {
+      return parseInt(`${parts[0].padStart(4,"0")}${parts[1].padStart(2,"0")}${parts[2].padStart(2,"0")}`, 10) || 0;
+    }
+    return parseInt(s.replace(/[^\d]/g, ""), 10) || 0;
+  }
+
+  const fromNum = dateFrom ? dateToNum(dateFrom) : 0;
+  const toNum   = dateTo   ? dateToNum(dateTo)   : 99999999;
+
+  const db = getDb();
+  const query: Record<string, unknown> = {};
+  if (fiscalYear) query.fiscal_year = parseInt(fiscalYear, 10);
+
+  const docs = await db
+    .collection<JournalDocument>("journal_documents")
+    .find(query)
+    .toArray();
+
+  // نتیجه: هر ردیف = یک line از یک سند که در بازه تاریخی قرار دارد
+  const rows: {
+    doc_id:       string;
+    doc_number:   string;
+    doc_date:     string;
+    account_code: string;
+    account_name: string;
+    debit:        number;
+    credit:       number;
+    balance:      number;  // مانده = debit - credit
+    nature:       string;  // بدهکار / بستانکار / تراز
+    description:  string;
+  }[] = [];
+
+  for (const rawDoc of docs) {
+    const doc = decryptDocument(serialize(rawDoc as Record<string, unknown>));
+    if (doc.status === "CANCELLED") continue;
+
+    const docDateNum = dateToNum(doc.document_date ?? "");
+    if (docDateNum < fromNum || docDateNum > toNum) continue;
+
+    for (const line of (doc.lines ?? []) as any[]) {
+      const code = (line.account_code ?? "") as string;
+      if (!code) continue;
+
+      const codeDigits = code.replace(/\D/g, "");
+
+      // فیلتر بر اساس نوع حساب:
+      // کدها همیشه به شکل کامل (معین = ۵ رقم) ذخیره می‌شوند
+      // → گروه: رقم اول کد
+      // → کل: ۳ رقم اول کد
+      // → معین: ۵ رقم اول کد
+      // → تفصیلی: بیشتر از ۵ رقم
+      if (xmlCode && xmlCode !== "ALL") {
+        if (xmlCode === "group"  && codeDigits.length !== 1)  continue;
+        if (xmlCode === "main"   && codeDigits.length !== 3)  continue;
+        if (xmlCode === "moein"  && codeDigits.length !== 5)  continue;
+        if (xmlCode === "detail" && codeDigits.length <= 5)   continue;
+        // برای NomineeCode و سایر xmlCode‌های سناما — فعلاً همه را برمی‌گردانیم
+        // (این فیلدها در metadata سند هستند نه در account_code)
+      }
+
+      const d  = (line.debit  ?? 0) as number;
+      const cr = (line.credit ?? 0) as number;
+      const bal = d - cr;
+
+      rows.push({
+        doc_id:       String(doc._id ?? ""),
+        doc_number:   doc.document_number ?? "",
+        doc_date:     doc.document_date   ?? "",
+        account_code: code,
+        account_name: accountNameMap.get(code) || (line.account_name ?? ""),
+        debit:        d,
+        credit:       cr,
+        balance:      bal,
+        nature:       bal > 0 ? "بدهکار" : bal < 0 ? "بستانکار" : "تراز",
+        description:  line.description ?? "",
+      });
+    }
+  }
+
+  rows.sort((a, b) => a.account_code.localeCompare(b.account_code, "en", { numeric: true }));
+
+  const totals = rows.reduce(
+    (acc, r) => ({ debit: acc.debit + r.debit, credit: acc.credit + r.credit, balance: acc.balance + r.balance }),
+    { debit: 0, credit: 0, balance: 0 }
+  );
+
+  return c.json({ data: rows, totals, message: "مرور حساب‌ها" });
+});
+
 export default router;

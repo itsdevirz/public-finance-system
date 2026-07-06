@@ -311,20 +311,24 @@ const DocRow = React.memo(({ row, idx, onChange, onDelete, isActive, onActivate 
 
 // ---- SanamaField: رندر یک فیلد سناما بر اساس نوع ردیف ----
 function SanamaField({ rowDef, value, onChange, optional }) {
-  const inputCls = "h-9 text-xs rounded-lg border border-input bg-background/60 px-2.5 focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/30 w-full transition-all";
-  const labelCls = "text-[11px] text-muted-foreground font-medium leading-snug";
+  const inputCls = "h-8 text-xs rounded-md border border-input bg-white px-2.5 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/20 w-full transition-all placeholder:text-muted-foreground/40";
 
   const placeholder = optional ? `${rowDef.default ?? "0"}` : "انتخاب کنید...";
 
-  // wrapper مشترک: label بالا، input پایین — جلوی overflow را می‌گیرد
-  const Wrap = ({ children }) => (
-    <div className="flex flex-col gap-1 min-w-0">
-      <Label className={labelCls} title={rowDef.title}>{rowDef.title}</Label>
+  // wrapper: label کوچک خاکستری بالا، input پایین
+  const Wrap = ({ children, wide = false }) => (
+    <div className={`flex flex-col gap-1 min-w-0 ${wide ? "sm:col-span-2" : ""}`}>
+      <span
+        className="text-[10px] font-medium text-muted-foreground/80 leading-none truncate"
+        title={rowDef.title}
+      >
+        {rowDef.title}
+      </span>
       {children}
     </div>
   );
 
-  // ردیف‌های با values (dropdown ساده)
+  // dropdown ساده
   if (rowDef.values) {
     const opts = rowDef.values.map((v) => ({ value: String(v.type), label: v.title }));
     return (
@@ -340,7 +344,7 @@ function SanamaField({ rowDef, value, onChange, optional }) {
     );
   }
 
-  // ردیف‌های با groups (dropdown گروه‌بندی‌شده)
+  // dropdown گروه‌بندی‌شده
   if (rowDef.groups) {
     const opts = rowDef.groups.flatMap((g) =>
       g.values.map((v) => ({ value: String(v.type), label: v.title, group: g.title }))
@@ -357,18 +361,12 @@ function SanamaField({ rowDef, value, onChange, optional }) {
     );
   }
 
-  // ردیف‌های با default (input عددی — اجباری)
+  // input عددی
   if ("default" in rowDef) {
-    // row 8 = شماره برنامه/طرح → از اعتبارهای تعریف‌شده بخوان
     if (rowDef.row === 8) {
       return (
         <Wrap>
-          <CreditCodeSanamaField
-            value={value}
-            onChange={onChange}
-            labelCls=""
-            inputCls={inputCls}
-          />
+          <CreditCodeSanamaField value={value} onChange={onChange} labelCls="" inputCls={inputCls} />
         </Wrap>
       );
     }
@@ -381,26 +379,18 @@ function SanamaField({ rowDef, value, onChange, optional }) {
           className={inputCls}
           placeholder="عدد وارد کنید..."
           value={value ?? ""}
-          onChange={(e) => {
-            const val = e.target.value.replace(/\D/g, "");
-            onChange(val);
-          }}
+          onChange={(e) => onChange(e.target.value.replace(/\D/g, ""))}
           dir="ltr"
         />
       </Wrap>
     );
   }
 
-  // ردیف ۲۱ اشخاص — PersonSanamaField
+  // ردیف اشخاص
   if (rowDef.types) {
     return (
-      <Wrap>
-        <PersonSanamaField
-          value={value}
-          onChange={onChange}
-          labelCls=""
-          required={!optional}
-        />
+      <Wrap wide>
+        <PersonSanamaField value={value} onChange={onChange} labelCls="" required={!optional} />
       </Wrap>
     );
   }
@@ -408,59 +398,88 @@ function SanamaField({ rowDef, value, onChange, optional }) {
   return null;
 }
 
-// فیلدهایی که اختیاری‌اند (default دارند)
+// فیلدهایی که اختیاری‌اند
 const OPTIONAL_ROWS = new Set();
 
 function SanamaExtraFields({ row, onSanamaChange }) {
   const requiredRows = getRequiredRows(row.subAccount);
   if (!requiredRows.length) return null;
 
-  // تشخیص ماهیت ردیف
-  const isDebit = parseFloat(String(row.debit || "").replace(/,/g, "")) > 0;
+  const isDebit  = parseFloat(String(row.debit  || "").replace(/,/g, "")) > 0;
   const isCredit = parseFloat(String(row.credit || "").replace(/,/g, "")) > 0;
-  const natureLabel = isDebit ? "بدهکار" : isCredit ? "بستانکار" : "—";
-  const natureCls   = isDebit
-    ? "bg-blue-100 border-blue-300 text-blue-700"
-    : isCredit
-    ? "bg-rose-100 border-rose-300 text-rose-700"
-    : "bg-muted border-border text-muted-foreground";
 
-  // نام حساب
-  const accountName = row.desc || "";
+  const acctCode  = row.subAccount || "";
+  const acctTitle = (() => {
+    if (!row.group || !row.account || !row.subAccount) return row.desc || "";
+    const subs = getSubAccounts(row.group, row.account);
+    return subs.find((s) => s.code === row.subAccount)?.title || row.desc || "";
+  })();
+
+  const amount = isDebit
+    ? parseFloat(String(row.debit || "").replace(/,/g, ""))
+    : isCredit
+    ? parseFloat(String(row.credit || "").replace(/,/g, ""))
+    : 0;
+
+  const amountStr = amount > 0 ? amount.toLocaleString("fa-IR") : null;
+
+  // رنگ‌بندی بر اساس ماهیت
+  const theme = isDebit
+    ? { bar: "bg-blue-500",  header: "bg-blue-50/70  border-blue-100",  badge: "bg-blue-100 text-blue-700 border-blue-200",  label: "بدهکار",  amount: "text-blue-700" }
+    : isCredit
+    ? { bar: "bg-rose-500",  header: "bg-rose-50/70  border-rose-100",  badge: "bg-rose-100 text-rose-700 border-rose-200",  label: "بستانکار", amount: "text-rose-700" }
+    : { bar: "bg-muted",     header: "bg-muted/30    border-border",     badge: "bg-muted text-muted-foreground border-border", label: "—",       amount: "text-muted-foreground" };
+
+  const creditTypeValue = row.sanamaFields?.["sanama_5"];
 
   return (
-    <div className="border-t border-amber-200 bg-amber-50/40">
-      {/* هدر کد حساب */}
-      <div className={`flex items-center gap-2 px-3 py-2 border-b border-amber-200 ${isDebit ? "bg-blue-50/50" : isCredit ? "bg-rose-50/50" : "bg-muted/30"}`}>
-        <span className={`text-[10px] font-bold rounded px-2 py-0.5 border font-mono shrink-0 ${natureCls}`}>
-          {natureLabel}
+    <div className="border-t border-border/60 bg-background overflow-hidden">
+      {/* ── نوار رنگی کنار + هدر ── */}
+      <div className={`flex items-center gap-3 px-4 py-2.5 border-b ${theme.header}`}>
+        {/* نوار رنگی عمودی */}
+        <div className={`w-1 h-8 rounded-full shrink-0 ${theme.bar}`} />
+
+        {/* badge ماهیت */}
+        <span className={`text-[10px] font-bold px-2 py-0.5 rounded border shrink-0 ${theme.badge}`}>
+          {theme.label}
         </span>
-        <span className="font-mono font-bold text-sm text-foreground">{row.subAccount}</span>
-        {accountName && (
-          <>
-            <span className="text-muted-foreground text-xs">—</span>
-            <span className="text-xs font-semibold text-foreground/80 truncate">{accountName}</span>
-          </>
+
+        {/* کد حساب */}
+        <code className="text-xs font-bold font-mono text-foreground shrink-0">{acctCode}</code>
+
+        {/* جداکننده */}
+        {acctTitle && <span className="text-border/80 shrink-0">|</span>}
+
+        {/* نام حساب */}
+        {acctTitle && (
+          <span className="text-xs text-foreground/70 truncate flex-1 font-medium">{acctTitle}</span>
+        )}
+
+        {/* مبلغ */}
+        {amountStr && (
+          <span className={`text-xs font-mono font-bold shrink-0 mr-auto ${theme.amount}`}>
+            {amountStr} ریال
+          </span>
         )}
       </div>
-      {/* فیلدها */}
-      <div className="px-3 py-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+
+      {/* ── فیلدهای الزامات ── */}
+      <div className="px-4 py-3 grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-3 bg-muted/10">
         {requiredRows.map((rowNum) => {
           const rowDef = getSubAccountTitle(rowNum);
           if (!rowDef) return null;
 
-          // اگر نوع اعتبار "مصوب" (type=1) انتخاب شده، ردیف ۱۵ (ابلاغ دهنده) را حذف کن
-          const creditTypeValue = row.sanamaFields?.["sanama_5"];
+          // اگر نوع اعتبار "مصوب" انتخاب شده، ردیف ۱۵ (ابلاغ دهنده) را نشان نده
           if (rowNum === 15 && creditTypeValue === "1") return null;
 
-          const optional = OPTIONAL_ROWS.has(rowNum);
-          const fieldKey = `sanama_${rowNum}`;
-          const value = row.sanamaFields?.[fieldKey];
+          const optional  = OPTIONAL_ROWS.has(rowNum);
+          const fieldKey  = `sanama_${rowNum}`;
+          const fieldVal  = row.sanamaFields?.[fieldKey];
           return (
             <SanamaField
               key={rowNum}
               rowDef={rowDef}
-              value={value}
+              value={fieldVal}
               optional={optional}
               onChange={(val) => onSanamaChange(fieldKey, val)}
             />
