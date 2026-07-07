@@ -392,4 +392,135 @@ router.get("/account-lines", async (c) => {
   return c.json({ data: rows, totals, message: "مرور حساب‌ها" });
 });
 
+// GET /api/ledger/grouped-lines — خلاصه حساب بر اساس سطح (group | main | person)
+// برای هر کد، مجموع بدهکار و بستانکار ردیف‌های آن گروه‌بندی می‌شود
+// Query params:
+//   level: group | main | person
+//   dateFrom, dateTo: بازه تاریخی (اختیاری)
+//   fiscalYear: سال مالی (اختیاری)
+router.get("/grouped-lines", async (c) => {
+  const level      = (c.req.query("level")      ?? "main") as "group" | "main" | "person";
+  const dateFrom   = c.req.query("dateFrom")   ?? "";
+  const dateTo     = c.req.query("dateTo")     ?? "";
+  const fiscalYear = c.req.query("fiscalYear") ?? "";
+
+  function dateToNum(d: string): number {
+    if (!d) return 0;
+    const persian = ["۰","۱","۲","۳","۴","۵","۶","۷","۸","۹"];
+    const arabic  = ["٠","١","٢","٣","٤","٥","٦","٧","٨","٩"];
+    let s = d;
+    for (let i = 0; i < 10; i++) {
+      s = s.replace(new RegExp(persian[i], "g"), String(i));
+      s = s.replace(new RegExp(arabic[i],  "g"), String(i));
+    }
+    const parts = s.split(/[\/\-\.]/);
+    if (parts.length === 3) {
+      return parseInt(`${parts[0].padStart(4,"0")}${parts[1].padStart(2,"0")}${parts[2].padStart(2,"0")}`, 10) || 0;
+    }
+    return parseInt(s.replace(/[^\d]/g, ""), 10) || 0;
+  }
+
+  const fromNum = dateFrom ? dateToNum(dateFrom) : 0;
+  const toNum   = dateTo   ? dateToNum(dateTo)   : 99999999;
+
+  const db = getDb();
+  const query: Record<string, unknown> = {};
+  if (fiscalYear) query.fiscal_year = parseInt(fiscalYear, 10);
+
+  const docs = await db
+    .collection<JournalDocument>("journal_documents")
+    .find(query)
+    .toArray();
+
+  // بارگذاری اشخاص برای سطح person
+  const personMap = new Map<string, string>(); // nomineeCode → title
+  if (level === "person") {
+    const persons = await db.collection("persons").find().toArray();
+    for (const p of persons as any[]) {
+      if (p.nomineeCode) personMap.set(String(p.nomineeCode), p.title ?? p.firstName + " " + p.lastName ?? "");
+    }
+  }
+
+  // نقشه تجمیع: key → { debit, credit, name, code }
+  const map = new Map<string, { code: string; name: string; debit: number; credit: number }>();
+
+  for (const rawDoc of docs) {
+    const doc = decryptDocument(serialize(rawDoc as Record<string, unknown>));
+    if (doc.status === "CANCELLED") continue;
+
+    const docDateNum = dateToNum(doc.document_date ?? "");
+    if (docDateNum < fromNum || docDateNum > toNum) continue;
+
+    for (const line of (doc.lines ?? []) as any[]) {
+      const rawCode = (line.account_code ?? "") as string;
+      const digits  = rawCode.replace(/\D/g, "");
+      if (!digits) continue;
+
+      let key  = "";
+      let name = "";
+
+      if (level === "group") {
+        // رقم اول = گروه حساب
+        key  = digits.slice(0, 1);
+        name = accountNameMap.get(key) ?? (line.account_name ?? "").slice(0, 20);
+      } else if (level === "main") {
+        // ۳ رقم اول = حساب کل
+        key  = digits.slice(0, 3);
+        name = accountNameMap.get(key) ?? (line.account_name ?? "").slice(0, 30);
+      } else if (level === "person") {
+        // برای اشخاص: کد NomineeCode از ردیف سند می‌آید
+        // در اسناد دستی NomineeCode به عنوان یک فیلد روی line یا metadata سند ثبت می‌شود
+        // فعلاً کدهای تفصیلی (بیش از ۵ رقم) را به عنوان شناسه شخص در نظر می‌گیریم
+        if (digits.length <= 5) continue; // فقط تفصیلی
+        key  = digits;
+        name = personMap.get(digits) ?? accountNameMap.get(rawCode) ?? (line.account_name ?? "");
+      }
+
+      if (!key) continue;
+
+      if (!map.has(key)) {
+        map.set(key, { code: key, name, debit: 0, credit: 0 });
+      }
+      const entry = map.get(key)!;
+      // اگر نام بهتری پیدا شد، به‌روز کن
+      if (!entry.name && name) entry.name = name;
+      entry.debit  += (line.debit  ?? 0) as number;
+      entry.credit += (line.credit ?? 0) as number;
+    }
+  }
+
+  // ساخت آرایه نتیجه
+  type GroupedRow = {
+    account_code: string;
+    account_name: string;
+    debit:        number;
+    credit:       number;
+    balance:      number;
+    nature:       string;
+  };
+
+  const rows: GroupedRow[] = [];
+
+  for (const [, e] of map.entries()) {
+    const bal = e.debit - e.credit;
+    rows.push({
+      account_code: e.code,
+      account_name: e.name,
+      debit:        e.debit,
+      credit:       e.credit,
+      balance:      bal,
+      nature:       bal > 0 ? "بدهکار" : bal < 0 ? "بستانکار" : "تراز",
+    });
+  }
+
+  rows.sort((a, b) => a.account_code.localeCompare(b.account_code, "en", { numeric: true }));
+
+  const totals = rows.reduce(
+    (acc, r) => ({ debit: acc.debit + r.debit, credit: acc.credit + r.credit, balance: acc.balance + r.balance }),
+    { debit: 0, credit: 0, balance: 0 }
+  );
+
+  return c.json({ data: rows, totals, message: `مرور حساب — سطح ${level}` });
+});
+
 export default router;

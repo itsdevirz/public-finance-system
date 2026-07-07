@@ -81,7 +81,16 @@ export const TOP_NAV = [
   // ۳ — گزارشات
   {
     to: "/bookkeeping", label: "گزارشات", num: 3, subItems: [
-      { to: "/bookkeeping/ledger-reports/account-review", label: "مرور حساب‌ها" },
+      {
+        to: "/bookkeeping/ledger-reports/account-review",
+        label: "مرور حساب",
+        children: [
+          { to: "/bookkeeping/ledger-reports/account-review",        label: "حساب معین" },
+          { to: "/bookkeeping/ledger-reports/account-review-main",   label: "حساب کل" },
+          { to: "/bookkeeping/ledger-reports/account-review-group",  label: "گروه حساب" },
+          { to: "/bookkeeping/ledger-reports/account-review-person", label: "اشخاص" },
+        ],
+      },
       { to: "/bookkeeping/ledger-reports", label: "گزارش دفاتر", children: [
         { to: "/bookkeeping/ledger-reports/general-ledger",        label: "دفتر کل" },
         { to: "/bookkeeping/ledger-reports/moein-ledger",          label: "دفتر معین" },
@@ -89,7 +98,6 @@ export const TOP_NAV = [
         { to: "/bookkeeping/ledger-reports/model-13",              label: "مدل ۱۳" },
         { to: "/bookkeeping/ledger-reports/moein-program-chapter", label: "دفتر معین (معین-برنامه-فصل)" },
         { to: "/bookkeeping/ledger-reports/detail-ledger",         label: "دفتر تفصیلی" },
-        { to: "/bookkeeping/ledger-reports/account-review",        label: "مرور حساب‌ها" },
         { to: "/bookkeeping/ledger-reports/securities",            label: "گزارش اوراق بهادار" },
       ]},
       { to: "/bookkeeping/misc-accounts", label: "لیست حساب‌ها", children: [
