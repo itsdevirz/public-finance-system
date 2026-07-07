@@ -392,6 +392,180 @@ router.get("/account-lines", async (c) => {
   return c.json({ data: rows, totals, message: "مرور حساب‌ها" });
 });
 
+// GET /api/ledger/persons-debug — بررسی ساختار واقعی اسناد برای عیب‌یابی
+router.get("/persons-debug", async (c) => {
+  const db = getDb();
+  const docs = await db.collection<JournalDocument>("journal_documents").find().limit(5).toArray();
+  const result = docs.map((rawDoc) => {
+    const doc = decryptDocument(serialize(rawDoc as Record<string, unknown>));
+    return {
+      id:      doc._id,
+      status:  doc.status,
+      rowCount: (doc.rawRows ?? []).length,
+      sampleRows: (doc.rawRows ?? []).slice(0, 3).map((r: any) => ({
+        subAccount:    r.subAccount,
+        debit:         r.debit,
+        credit:        r.credit,
+        sanamaFields:  r.sanamaFields,
+      })),
+    };
+  });
+  return c.json({ data: result });
+});
+
+// GET /api/ledger/persons-balance — مانده هر شخص بر اساس sanamaFields.sanama_21
+// برای هر شخص ثبت‌شده در collection persons،
+// تمام ردیف‌های اسناد که sanama_21 آن‌ها با nomineeCode شخص تطابق دارد را
+// جمع‌آوری و به صورت خلاصه بدهکار/بستانکار/مانده برمی‌گرداند.
+router.get("/persons-balance", async (c) => {
+  const dateFrom   = c.req.query("dateFrom")   ?? "";
+  const dateTo     = c.req.query("dateTo")     ?? "";
+  const fiscalYear = c.req.query("fiscalYear") ?? "";
+
+  function dateToNum(d: string): number {
+    if (!d) return 0;
+    const persian = ["۰","۱","۲","۳","۴","۵","۶","۷","۸","۹"];
+    const arabic  = ["٠","١","٢","٣","٤","٥","٦","٧","٨","٩"];
+    let s = d;
+    for (let i = 0; i < 10; i++) {
+      s = s.replace(new RegExp(persian[i], "g"), String(i));
+      s = s.replace(new RegExp(arabic[i],  "g"), String(i));
+    }
+    const parts = s.split(/[\/\-\.]/);
+    if (parts.length === 3) {
+      return parseInt(`${parts[0].padStart(4,"0")}${parts[1].padStart(2,"0")}${parts[2].padStart(2,"0")}`, 10) || 0;
+    }
+    return parseInt(s.replace(/[^\d]/g, ""), 10) || 0;
+  }
+
+  const fromNum = dateFrom ? dateToNum(dateFrom) : 0;
+  const toNum   = dateTo   ? dateToNum(dateTo)   : 99999999;
+
+  const db = getDb();
+
+  // ── بارگذاری همه اشخاص ──────────────────────────────────────────────────
+  const persons = await db.collection("persons").find().toArray() as any[];
+
+  // ساخت نقشه nomineeCode → نام شخص
+  const personNameMap = new Map<string, string>();
+  for (const p of persons) {
+    if (!p.nomineeCode) continue;
+    // نام شخص: title برای حقوقی، firstName+lastName برای حقیقی
+    const name = p.title || [p.firstName, p.lastName].filter(Boolean).join(" ") || p.nomineeCode;
+    personNameMap.set(String(p.nomineeCode), name);
+  }
+
+  // ── بارگذاری اسناد ──────────────────────────────────────────────────────
+  const query: Record<string, unknown> = {};
+  if (fiscalYear) query.fiscal_year = parseInt(fiscalYear, 10);
+
+  const docs = await db
+    .collection<JournalDocument>("journal_documents")
+    .find(query)
+    .toArray();
+
+  // ── تبدیل رشته فارسی/عربی/کاما‌دار به عدد ─────────────────────────────
+  function parseFaNum(v: unknown): number {
+    if (!v) return 0;
+    const persian = ["۰","۱","۲","۳","۴","۵","۶","۷","۸","۹"];
+    const arabic  = ["٠","١","٢","٣","٤","٥","٦","٧","٨","٩"];
+    let s = String(v).replace(/,|،/g, "");
+    for (let i = 0; i < 10; i++) {
+      s = s.replace(new RegExp(persian[i], "g"), String(i));
+      s = s.replace(new RegExp(arabic[i],  "g"), String(i));
+    }
+    return parseInt(s.replace(/[^0-9]/g, ""), 10) || 0;
+  }
+
+  // نقشه تجمیع: nomineeCode → { debit, credit }
+  const map = new Map<string, { debit: number; credit: number }>();
+
+  for (const rawDoc of docs) {
+    const doc = decryptDocument(serialize(rawDoc as Record<string, unknown>));
+    if (doc.status === "CANCELLED") continue;
+
+    const docDateNum = dateToNum(doc.document_date ?? "");
+    if (docDateNum < fromNum || docDateNum > toNum) continue;
+
+    // rawRows: آرایه ردیف‌های سند به شکل رابط کاربری (شامل sanamaFields)
+    const rawRows: any[] = doc.rawRows ?? [];
+
+    for (const row of rawRows) {
+      // NomineeCode در sanamaFields.sanama_21 ذخیره شده
+      // مقدار: رشته ساده برابر nomineeCode (از SearchableSelect)
+      const rawNominee = row.sanamaFields?.sanama_21;
+      if (!rawNominee) continue;
+
+      let nomineeCode: string;
+      if (typeof rawNominee === "object" && rawNominee !== null) {
+        nomineeCode = String(rawNominee.nomineeCode ?? rawNominee.code ?? rawNominee.id ?? rawNominee.value ?? "");
+      } else {
+        nomineeCode = String(rawNominee).trim();
+      }
+
+      if (!nomineeCode) continue;
+
+      const d  = parseFaNum(row.debit);
+      const cr = parseFaNum(row.credit);
+      if (d === 0 && cr === 0) continue;
+
+      if (!map.has(nomineeCode)) map.set(nomineeCode, { debit: 0, credit: 0 });
+      const entry = map.get(nomineeCode)!;
+      entry.debit  += d;
+      entry.credit += cr;
+    }
+  }
+
+  // ── ساخت پاسخ ────────────────────────────────────────────────────────────
+  const rows: {
+    nominee_code:  string;
+    person_name:   string;
+    debit:         number;
+    credit:        number;
+    balance:       number;
+    nature:        string;
+  }[] = [];
+
+  // اشخاصی که در اسناد ظاهر شدند
+  for (const [nomineeCode, e] of map.entries()) {
+    const bal = e.debit - e.credit;
+    rows.push({
+      nominee_code: nomineeCode,
+      person_name:  personNameMap.get(nomineeCode) ?? nomineeCode,
+      debit:        e.debit,
+      credit:       e.credit,
+      balance:      bal,
+      nature:       bal > 0 ? "بدهکار" : bal < 0 ? "بستانکار" : "تراز",
+    });
+  }
+
+  // اشخاص ثبت‌شده که در هیچ سندی نیستند (مانده صفر)
+  for (const p of persons) {
+    if (!p.nomineeCode) continue;
+    const code = String(p.nomineeCode);
+    if (!map.has(code)) {
+      const name = p.title || [p.firstName, p.lastName].filter(Boolean).join(" ") || code;
+      rows.push({
+        nominee_code: code,
+        person_name:  name,
+        debit:        0,
+        credit:       0,
+        balance:      0,
+        nature:       "تراز",
+      });
+    }
+  }
+
+  rows.sort((a, b) => a.nominee_code.localeCompare(b.nominee_code, "en", { numeric: true }));
+
+  const totals = rows.reduce(
+    (acc, r) => ({ debit: acc.debit + r.debit, credit: acc.credit + r.credit, balance: acc.balance + r.balance }),
+    { debit: 0, credit: 0, balance: 0 }
+  );
+
+  return c.json({ data: rows, totals, message: "مانده اشخاص" });
+});
+
 // GET /api/ledger/grouped-lines — خلاصه حساب بر اساس سطح (group | main | person)
 // برای هر کد، مجموع بدهکار و بستانکار ردیف‌های آن گروه‌بندی می‌شود
 // Query params:
@@ -437,7 +611,7 @@ router.get("/grouped-lines", async (c) => {
   if (level === "person") {
     const persons = await db.collection("persons").find().toArray();
     for (const p of persons as any[]) {
-      if (p.nomineeCode) personMap.set(String(p.nomineeCode), p.title ?? p.firstName + " " + p.lastName ?? "");
+      if (p.nomineeCode) personMap.set(String(p.nomineeCode), p.title ?? ([p.firstName, p.lastName].filter(Boolean).join(" ")) ?? "");
     }
   }
 
