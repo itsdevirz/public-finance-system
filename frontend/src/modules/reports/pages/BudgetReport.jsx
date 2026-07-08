@@ -3,7 +3,6 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { PageShell, PageHeader } from "@/components/layout/PageShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { SearchableSelect } from "@/components/ui/searchable-select";
@@ -51,8 +50,12 @@ export default function BudgetReport() {
   const [program, setProgram] = useState("");
   const [project, setProject] = useState("");
 
-  // ── داده‌های گزارش ──
+  // ── داده‌های گزارش و لیست فیلترهای پویا ──
   const [fiscalYears, setFiscalYears] = useState([]);
+  const [orgUnits, setOrgUnits] = useState([]);
+  const [programs, setPrograms] = useState([]);
+  const [projects, setProjects] = useState([]);
+
   const [rows, setRows] = useState(null);
   const [totals, setTotals] = useState({});
   const [loading, setLoading] = useState(false);
@@ -71,6 +74,29 @@ export default function BudgetReport() {
       })
       .catch(() => {});
   }, []);
+
+  // بارگذاری فیلترهای پویا با تغییر سال مالی
+  useEffect(() => {
+    if (!fiscalYear) return;
+    api.get(`/api/credits/filters?fiscalYear=${fiscalYear}`)
+      .then((res) => {
+        if (res.data?.success) {
+          setOrgUnits([
+            { value: "", label: "— همه واحدها —" },
+            ...(res.data.orgUnits ?? [])
+          ]);
+          setPrograms([
+            { value: "", label: "— همه برنامه‌ها —" },
+            ...(res.data.programs ?? [])
+          ]);
+          setProjects([
+            { value: "", label: "— همه طرح‌ها/پروژه‌ها —" },
+            ...(res.data.projects ?? [])
+          ]);
+        }
+      })
+      .catch(() => {});
+  }, [fiscalYear]);
 
   function handleSelect(id) {
     setActive(id);
@@ -213,31 +239,32 @@ export default function BudgetReport() {
                     </div>
                     <div className="flex flex-col gap-1.5 text-right">
                       <Label className="text-xs font-semibold">واحد سازمانی</Label>
-                      <Input
+                      <SearchableSelect
                         value={orgUnit}
-                        onChange={(e) => setOrgUnit(e.target.value)}
-                        placeholder="نام واحد..."
-                        className="h-8 text-sm"
+                        onChange={setOrgUnit}
+                        options={orgUnits}
+                        placeholder="انتخاب واحد..."
+                        searchable={true}
                       />
                     </div>
                     <div className="flex flex-col gap-1.5 text-right">
                       <Label className="text-xs font-semibold">برنامه</Label>
-                      <Input
+                      <SearchableSelect
                         value={program}
-                        onChange={(e) => setProgram(e.target.value)}
-                        placeholder="کد برنامه..."
-                        className="h-8 text-sm font-mono"
-                        dir="ltr"
+                        onChange={setProgram}
+                        options={programs}
+                        placeholder="انتخاب برنامه..."
+                        searchable={true}
                       />
                     </div>
                     <div className="flex flex-col gap-1.5 text-right">
                       <Label className="text-xs font-semibold">پروژه (طرح)</Label>
-                      <Input
+                      <SearchableSelect
                         value={project}
-                        onChange={(e) => setProject(e.target.value)}
-                        placeholder="کد طرح..."
-                        className="h-8 text-sm font-mono"
-                        dir="ltr"
+                        onChange={setProject}
+                        options={projects}
+                        placeholder="انتخاب طرح..."
+                        searchable={true}
                       />
                     </div>
                     <div className="flex gap-2">

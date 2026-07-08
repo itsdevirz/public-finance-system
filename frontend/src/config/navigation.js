@@ -377,6 +377,20 @@ export const TOP_NAV = [
       ]},
     ],
   },
+
+  // ۱۱ — مدیریت اعتبارات
+  {
+    to: "/credits",
+    label: "مدیریت اعتبارات",
+    num: 11,
+    subItems: [
+      { to: "/credits", label: "داشبورد اعتبارات" },
+      { to: "/credits/agreements", label: "ثبت موافقت‌نامه" },
+      { to: "/credits/requests", label: "درخواست بودجه" },
+      { to: "/credits/allocation-no-doc", label: "تخصیص اعتبار" },
+      { to: "/credits/notification/request", label: "ابلاغ و انتقال اعتبار" },
+    ]
+  },
 ];
 
 // ─── helper functions ────────────────────────────────────────────────────────

@@ -126,6 +126,7 @@ export const PAGE_COMPONENTS = {
   "/review": Review,
   "/credits": Credits,
   "/credits/agreements": Credits,
+  "/credits/requests": Credits,
   "/credits/allocation-no-doc": Credits,
   "/credits/search": Credits,
   "/credits/receipt-no-doc": Credits,
