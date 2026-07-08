@@ -65,16 +65,28 @@ const SEED_ACCOUNTS = [
 function buildTree(accounts) {
   const map = {};
   const roots = [];
+
+  const getId = (id) => {
+    if (!id) return "";
+    if (typeof id === "object") {
+      return id.$oid ?? id.toHexString?.() ?? id.toString() ?? "";
+    }
+    return String(id);
+  };
+
   for (const acc of accounts) {
-    map[acc._id ?? acc.code] = { ...acc, children: [] };
+    const id = getId(acc._id) || acc.code;
+    map[id] = { ...acc, children: [] };
   }
+
   for (const acc of accounts) {
-    const node = map[acc._id ?? acc.code];
-    const parentKey = acc.parentId ?? acc.parentCode ?? null;
+    const id = getId(acc._id) || acc.code;
+    const node = map[id];
+    if (!node) continue;
+
+    const parentKey = getId(acc.parentId) || acc.parentCode || null;
     if (parentKey && map[parentKey]) {
       map[parentKey].children.push(node);
-    } else if (!parentKey) {
-      roots.push(node);
     } else {
       roots.push(node);
     }
@@ -179,9 +191,77 @@ function TreeNode({ node, depth = 0, onEdit, onDelete, onToggleActive, onViewBal
   );
 }
 
-// ─── مدال فرم ──────────────────────────────────────────────────────────────────
+// ─── مولد خودکار کد حساب ──────────────────────────────────────────────────────
+function generateNextCode(parentCode, parentId, level, allAccounts, codeLength = 4) {
+  if (!parentCode && !parentId) {
+    const roots = allAccounts.filter(a => !a.parentId && !a.parentCode);
+    if (roots.length === 0) return "1";
+    const maxVal = Math.max(...roots.map(r => parseInt(r.code, 10)).filter(Number.isInteger), 0);
+    return String(maxVal + 1);
+  }
+
+  const siblings = allAccounts.filter(a => 
+    (parentId && a.parentId === parentId) || 
+    (parentCode && a.parentCode === parentCode)
+  );
+
+  if (siblings.length === 0) {
+    const suffixLen = codeLength - parentCode.length;
+    if (suffixLen <= 0) {
+      return parentCode + "1";
+    }
+    return parentCode + "1".padStart(suffixLen, "0");
+  }
+
+  const siblingCodes = siblings.map(s => s.code).filter(c => c.startsWith(parentCode) && c.length === codeLength);
+  if (siblingCodes.length === 0) {
+    const suffixLen = codeLength - parentCode.length;
+    if (suffixLen <= 0) {
+      return parentCode + "1";
+    }
+    return parentCode + "1".padStart(suffixLen, "0");
+  }
+
+  const numericSuffixes = siblingCodes.map(c => parseInt(c.slice(parentCode.length), 10)).filter(Number.isInteger);
+  const nextNum = Math.max(...numericSuffixes, 0) + 1;
+  const suffixLen = codeLength - parentCode.length;
+  if (suffixLen <= 0) {
+    return parentCode + String(nextNum);
+  }
+  return parentCode + String(nextNum).padStart(suffixLen, "0");
+}
+
+// ─── مدال فرم سرفصل حساب (مدرن و کامل) ──────────────────────────────────────────
 function AccountFormModal({ open, onClose, onSave, editData, allAccounts }) {
-  const empty = { code: "", title: "", accountType: "دارایی", level: "کل", nature: "بدهکار", parentId: "", isActive: true, description: "" };
+  const empty = {
+    code: "",
+    title: "",
+    accountType: "دارایی",
+    level: "کل",
+    nature: "بدهکار",
+    parentId: "",
+    isActive: true,
+    description: "",
+    // فیلدهای جدید ساختار و کنترل
+    codeLength: 4,
+    autoCodeGen: false,
+    accountCategory: "",
+    canPost: true,
+    hasMoein: false,
+    hasDetail: false,
+    // الزامات کنترلی
+    costCenterReq: false,
+    projectReq: false,
+    personReq: false,
+    budgetReq: false,
+    financialSourceReq: false,
+    // تنظیمات ارزی و بودجه‌ای
+    isForeignCurrency: false,
+    defaultCurrency: "",
+    isBudgetary: false,
+    fiscalYearLimitation: "",
+  };
+
   const [form, setForm] = useState(empty);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -197,6 +277,22 @@ function AccountFormModal({ open, onClose, onSave, editData, allAccounts }) {
         parentId: editData.parentId ?? editData.parentCode ?? "",
         isActive: editData.isActive !== false,
         description: editData.description ?? "",
+        // بارگذاری فیلدهای جدید
+        codeLength: editData.codeLength ?? 4,
+        autoCodeGen: editData.autoCodeGen === true,
+        accountCategory: editData.accountCategory ?? "",
+        canPost: editData.canPost !== false,
+        hasMoein: editData.hasMoein === true,
+        hasDetail: editData.hasDetail === true,
+        costCenterReq: editData.costCenterReq === true,
+        projectReq: editData.projectReq === true,
+        personReq: editData.personReq === true,
+        budgetReq: editData.budgetReq === true,
+        financialSourceReq: editData.financialSourceReq === true,
+        isForeignCurrency: editData.isForeignCurrency === true,
+        defaultCurrency: editData.defaultCurrency ?? "",
+        isBudgetary: editData.isBudgetary === true,
+        fiscalYearLimitation: editData.fiscalYearLimitation ?? "",
       });
     } else {
       setForm(empty);
@@ -205,6 +301,17 @@ function AccountFormModal({ open, onClose, onSave, editData, allAccounts }) {
   }, [editData, open]);
 
   const set = (field, val) => setForm((f) => ({ ...f, [field]: val }));
+
+  // اثر تولید خودکار کد
+  useEffect(() => {
+    if (form.autoCodeGen) {
+      const parentObj = allAccounts.find(a => (a._id === form.parentId || a.code === form.parentId));
+      const pCode = parentObj ? parentObj.code : "";
+      const pId = parentObj ? (parentObj._id ?? parentObj.code) : null;
+      const generated = generateNextCode(pCode, pId, form.level, allAccounts, form.codeLength);
+      set("code", generated);
+    }
+  }, [form.autoCodeGen, form.parentId, form.codeLength, form.level]);
 
   const handleSave = async () => {
     if (!form.code.trim() || !form.title.trim()) {
@@ -235,74 +342,181 @@ function AccountFormModal({ open, onClose, onSave, editData, allAccounts }) {
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="bg-background rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden"
+        className="bg-background rounded-xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden"
       >
         <div className="flex items-center justify-between px-5 py-4 border-b">
           <h2 className="font-bold text-base">{editData ? "ویرایش سرفصل حساب" : "ایجاد سرفصل جدید"}</h2>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-1 rounded"><X className="h-4 w-4" /></button>
         </div>
-        <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
-          {error && <div className="text-xs text-destructive bg-destructive/10 rounded px-3 py-2">{error}</div>}
+        
+        <div className="p-5 space-y-4 max-h-[75vh] overflow-y-auto" dir="rtl">
+          {error && <div className="text-xs text-destructive bg-destructive/10 rounded px-3 py-2 text-right">⚠ {error}</div>}
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label className="text-xs">کد حساب *</Label>
-              <Input value={form.code} onChange={(e) => set("code", e.target.value)} placeholder="مثال: 112" className="h-9 font-mono" />
+          {/* بخش ۱: اطلاعات اصلی */}
+          <div className="border border-border/80 rounded-xl p-3.5 bg-muted/10 space-y-3">
+            <h3 className="text-xs font-bold text-primary border-b pb-1.5 text-right">اطلاعات اصلی</h3>
+            
+            <div className="grid grid-cols-2 gap-3 text-right">
+              <div className="space-y-1">
+                <Label className="text-xs">عنوان حساب (سرفصل) *</Label>
+                <Input value={form.title} onChange={(e) => set("title", e.target.value)} placeholder="مثال: بانک ملی" className="h-9 text-xs" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">کد حساب *</Label>
+                <Input value={form.code} onChange={(e) => set("code", e.target.value)} disabled={form.autoCodeGen} placeholder="مثال: 112" className="h-9 font-mono text-xs" />
+              </div>
             </div>
-            <div className="space-y-1">
-              <Label className="text-xs">نام حساب *</Label>
-              <Input value={form.title} onChange={(e) => set("title", e.target.value)} placeholder="مثال: بانک ملی" className="h-9" />
+
+            <div className="grid grid-cols-2 gap-3 text-right">
+              <div className="space-y-1">
+                <Label className="text-xs">گروه حساب *</Label>
+                <select value={form.accountType} onChange={(e) => set("accountType", e.target.value)}
+                  className="w-full h-9 text-xs rounded-md border bg-background px-2.5 focus:outline-none focus:ring-1 focus:ring-primary">
+                  {ACCOUNT_TYPES.map((t) => <option key={t}>{t}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">ماهیت حساب *</Label>
+                <select value={form.nature} onChange={(e) => set("nature", e.target.value)}
+                  className="w-full h-9 text-xs rounded-md border bg-background px-2.5 focus:outline-none focus:ring-1 focus:ring-primary">
+                  {ACCOUNT_NATURES.map((n) => <option key={n}>{n}</option>)}
+                </select>
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-1">
-              <Label className="text-xs">گروه حساب</Label>
-              <select value={form.accountType} onChange={(e) => set("accountType", e.target.value)}
-                className="w-full h-9 text-sm rounded-md border bg-background px-2">
-                {ACCOUNT_TYPES.map((t) => <option key={t}>{t}</option>)}
-              </select>
+          {/* بخش ۲: ساختار حساب */}
+          <div className="border border-border/80 rounded-xl p-3.5 bg-muted/10 space-y-3">
+            <h3 className="text-xs font-bold text-primary border-b pb-1.5 text-right">ساختار حساب</h3>
+            <div className="grid grid-cols-2 gap-3 text-right">
+              <div className="space-y-1">
+                <Label className="text-xs">حساب والد</Label>
+                <select value={form.parentId} onChange={(e) => set("parentId", e.target.value)}
+                  className="w-full h-9 text-xs rounded-md border bg-background px-2.5 focus:outline-none focus:ring-1 focus:ring-primary">
+                  <option value="">— بدون والد (سطح اول) —</option>
+                  {eligibleParents.map((a) => (
+                    <option key={a._id ?? a.code} value={a._id ?? a.code}>{a.code} — {a.title}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">سطح حساب</Label>
+                <select value={form.level} onChange={(e) => set("level", e.target.value)}
+                  className="w-full h-9 text-xs rounded-md border bg-background px-2.5 focus:outline-none focus:ring-1 focus:ring-primary">
+                  {ACCOUNT_LEVELS.map((l) => <option key={l}>{l}</option>)}
+                </select>
+              </div>
             </div>
-            <div className="space-y-1">
-              <Label className="text-xs">سطح حساب</Label>
-              <select value={form.level} onChange={(e) => set("level", e.target.value)}
-                className="w-full h-9 text-sm rounded-md border bg-background px-2">
-                {ACCOUNT_LEVELS.map((l) => <option key={l}>{l}</option>)}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">ماهیت</Label>
-              <select value={form.nature} onChange={(e) => set("nature", e.target.value)}
-                className="w-full h-9 text-sm rounded-md border bg-background px-2">
-                {ACCOUNT_NATURES.map((n) => <option key={n}>{n}</option>)}
-              </select>
+            <div className="space-y-1 text-right">
+              <Label className="text-xs">نوع حساب سناما (یا طبقه حساب)</Label>
+              <Input value={form.accountCategory} onChange={(e) => set("accountCategory", e.target.value)} placeholder="مثال: NomineeCode, CostCenter, ..." className="h-9 text-xs" />
             </div>
           </div>
 
-          <div className="space-y-1">
-            <Label className="text-xs">حساب والد</Label>
-            <select value={form.parentId} onChange={(e) => set("parentId", e.target.value)}
-              className="w-full h-9 text-sm rounded-md border bg-background px-2">
-              <option value="">— بدون والد (سطح اول) —</option>
-              {eligibleParents.map((a) => (
-                <option key={a._id ?? a.code} value={a._id ?? a.code}>{a.code} — {a.title}</option>
-              ))}
-            </select>
+          {/* بخش ۳: تنظیمات اصلی و ویژگی‌های کنترلی */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-right">
+            {/* تنظیمات اصلی */}
+            <div className="border border-border/80 rounded-xl p-3.5 bg-muted/10 space-y-2">
+              <h3 className="text-xs font-bold text-primary border-b pb-1.5 mb-2">تنظیمات اصلی</h3>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="flex items-center gap-2 cursor-pointer py-1">
+                  <input type="checkbox" checked={form.isActive} onChange={(e) => set("isActive", e.target.checked)} className="rounded text-primary h-3.5 w-3.5" />
+                  <span className="text-xs">فعال</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer py-1">
+                  <input type="checkbox" checked={form.canPost} onChange={(e) => set("canPost", e.target.checked)} className="rounded text-primary h-3.5 w-3.5" />
+                  <span className="text-xs">امکان ثبت سند</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer py-1">
+                  <input type="checkbox" checked={form.hasMoein} onChange={(e) => set("hasMoein", e.target.checked)} className="rounded text-primary h-3.5 w-3.5" />
+                  <span className="text-xs">دارای معین</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer py-1">
+                  <input type="checkbox" checked={form.hasDetail} onChange={(e) => set("hasDetail", e.target.checked)} className="rounded text-primary h-3.5 w-3.5" />
+                  <span className="text-xs">دارای تفصیلی</span>
+                </label>
+              </div>
+            </div>
+
+            {/* ویژگی‌های کنترلی */}
+            <div className="border border-border/80 rounded-xl p-3.5 bg-muted/10 space-y-2">
+              <h3 className="text-xs font-bold text-primary border-b pb-1.5 mb-2">ویژگی‌های کنترلی</h3>
+              <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+                <label className="flex items-center gap-2 cursor-pointer py-0.5">
+                  <input type="checkbox" checked={form.costCenterReq} onChange={(e) => set("costCenterReq", e.target.checked)} className="rounded text-primary h-3.5 w-3.5" />
+                  <span className="text-xs">مرکز هزینه اجباری</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer py-0.5">
+                  <input type="checkbox" checked={form.projectReq} onChange={(e) => set("projectReq", e.target.checked)} className="rounded text-primary h-3.5 w-3.5" />
+                  <span className="text-xs">پروژه اجباری</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer py-0.5">
+                  <input type="checkbox" checked={form.personReq} onChange={(e) => set("personReq", e.target.checked)} className="rounded text-primary h-3.5 w-3.5" />
+                  <span className="text-xs">شخص اجباری</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer py-0.5">
+                  <input type="checkbox" checked={form.budgetReq} onChange={(e) => set("budgetReq", e.target.checked)} className="rounded text-primary h-3.5 w-3.5" />
+                  <span className="text-xs">بودجه اجباری</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer py-0.5 col-span-2">
+                  <input type="checkbox" checked={form.financialSourceReq} onChange={(e) => set("financialSourceReq", e.target.checked)} className="rounded text-primary h-3.5 w-3.5" />
+                  <span className="text-xs">منبع مالی اجباری</span>
+                </label>
+              </div>
+            </div>
           </div>
 
-          <div className="space-y-1">
-            <Label className="text-xs">توضیحات</Label>
-            <Input value={form.description} onChange={(e) => set("description", e.target.value)} className="h-9" />
-          </div>
+          {/* بخش ۴: تنظیمات پیشرفته */}
+          <div className="border border-border/80 rounded-xl p-3.5 bg-muted/10 space-y-3 text-right">
+            <h3 className="text-xs font-bold text-primary border-b pb-1.5">تنظیمات پیشرفته حساب</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-3">
+                <label className="flex items-center gap-2 cursor-pointer py-0.5">
+                  <input type="checkbox" checked={form.autoCodeGen} onChange={(e) => set("autoCodeGen", e.target.checked)} className="rounded text-primary h-3.5 w-3.5" />
+                  <span className="text-xs font-semibold">تعریف کد به صورت خودکار</span>
+                </label>
+                <div className="space-y-1">
+                  <Label className="text-xs">طول کد حساب (ارقام)</Label>
+                  <Input type="number" min={1} max={15} value={form.codeLength} onChange={(e) => set("codeLength", parseInt(e.target.value, 10) || 4)} className="h-9 text-xs font-mono" />
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer py-0.5">
+                  <input type="checkbox" checked={form.isForeignCurrency} onChange={(e) => set("isForeignCurrency", e.target.checked)} className="rounded text-primary h-3.5 w-3.5" />
+                  <span className="text-xs">حساب ارزی است</span>
+                </label>
+                <div className="space-y-1">
+                  <Label className="text-xs">ارز پیش‌فرض</Label>
+                  <select value={form.defaultCurrency} onChange={(e) => set("defaultCurrency", e.target.value)} disabled={!form.isForeignCurrency}
+                    className="w-full h-9 text-xs rounded-md border bg-background px-2.5 focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50">
+                    <option value="">ریال ایران (IRR)</option>
+                    <option value="USD">دلار آمریکا (USD)</option>
+                    <option value="EUR">یورو (EUR)</option>
+                    <option value="AED">درهم امارات (AED)</option>
+                  </select>
+                </div>
+              </div>
 
-          <div className="flex items-center gap-2">
-            <input type="checkbox" id="isActive" checked={form.isActive} onChange={(e) => set("isActive", e.target.checked)} className="rounded" />
-            <Label htmlFor="isActive" className="text-sm cursor-pointer">حساب فعال است</Label>
+              <div className="space-y-3">
+                <label className="flex items-center gap-2 cursor-pointer py-0.5">
+                  <input type="checkbox" checked={form.isBudgetary} onChange={(e) => set("isBudgetary", e.target.checked)} className="rounded text-primary h-3.5 w-3.5" />
+                  <span className="text-xs">حساب بودجه‌ای است</span>
+                </label>
+                <div className="space-y-1">
+                  <Label className="text-xs">محدود به سال مالی خاص</Label>
+                  <Input type="number" placeholder="مثال: ۱۴۰۵ (خالی برای همه)" value={form.fiscalYearLimitation} onChange={(e) => set("fiscalYearLimitation", e.target.value)} className="h-9 text-xs font-mono" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">توضیحات و شرح</Label>
+                  <textarea value={form.description} onChange={(e) => set("description", e.target.value)} placeholder="شرح اختیاری سرفصل حساب..."
+                    className="w-full h-20 text-xs rounded-md border bg-background p-2 focus:outline-none focus:ring-1 focus:ring-primary resize-none" />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
+
         <div className="flex justify-end gap-2 px-5 py-4 border-t">
           <Button variant="outline" size="sm" onClick={onClose} disabled={saving}>انصراف</Button>
-          <Button size="sm" onClick={handleSave} disabled={saving}>
+          <Button size="sm" onClick={handleSave} disabled={saving} className="min-w-[80px]">
             {saving ? <RefreshCw className="h-3.5 w-3.5 animate-spin ml-1.5" /> : null}
             {editData ? "ذخیره تغییرات" : "ایجاد حساب"}
           </Button>

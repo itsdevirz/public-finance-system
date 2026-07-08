@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { getDb } from "../db/index.js";
 import { ObjectId } from "mongodb";
+import { serialize } from "../lib/helpers.js";
 
 const router = new Hono();
 
@@ -63,11 +64,13 @@ router.get("/", async (c) => {
       .sort({ code: 1 })
       .toArray();
 
+    const serialized = accounts.map(a => serialize(a as any));
+
     if (flat === "true") {
-      return c.json({ success: true, data: accounts });
+      return c.json({ success: true, data: serialized });
     }
 
-    return c.json({ success: true, data: buildTree(accounts) });
+    return c.json({ success: true, data: buildTree(serialized) });
   } catch (error: any) {
     return c.json({ success: false, message: error.message }, 500);
   }
@@ -85,7 +88,7 @@ router.get("/:id", async (c) => {
     if (!account) {
       return c.json({ success: false, message: "سرفصل حساب یافت نشد" }, 404);
     }
-    return c.json({ success: true, data: account });
+    return c.json({ success: true, data: serialize(account as any) });
   } catch (error: any) {
     return c.json({ success: false, message: error.message }, 500);
   }
@@ -131,12 +134,34 @@ router.post("/", async (c) => {
       parentId: body.parentId ? new ObjectId(body.parentId) : null,
       isActive: body.isActive !== false,
       description: body.description ?? "",
+      
+      // ساختار و تنظیمات جدید
+      codeLength: body.codeLength ?? null,
+      autoCodeGen: body.autoCodeGen === true,
+      accountCategory: body.accountCategory ?? "",
+      canPost: body.canPost !== false,
+      hasMoein: body.hasMoein === true,
+      hasDetail: body.hasDetail === true,
+      
+      // ویژگی‌های کنترلی
+      costCenterReq: body.costCenterReq === true,
+      projectReq: body.projectReq === true,
+      personReq: body.personReq === true,
+      budgetReq: body.budgetReq === true,
+      financialSourceReq: body.financialSourceReq === true,
+      
+      // ویژگی‌های پیشرفته
+      isForeignCurrency: body.isForeignCurrency === true,
+      defaultCurrency: body.defaultCurrency ?? "",
+      isBudgetary: body.isBudgetary === true,
+      fiscalYearLimitation: body.fiscalYearLimitation ?? null,
+
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
     const result = await db.collection("account_heads").insertOne(doc);
-    return c.json({ success: true, data: { ...doc, _id: result.insertedId } }, 201);
+    return c.json({ success: true, data: serialize({ ...doc, _id: result.insertedId } as any) }, 201);
   } catch (error: any) {
     return c.json({ success: false, message: error.message }, 500);
   }
@@ -186,7 +211,7 @@ router.put("/:id", async (c) => {
       return c.json({ success: false, message: "سرفصل حساب یافت نشد" }, 404);
     }
 
-    return c.json({ success: true, data: result });
+    return c.json({ success: true, data: serialize(result as any) });
   } catch (error: any) {
     return c.json({ success: false, message: error.message }, 500);
   }
@@ -211,7 +236,7 @@ router.patch("/:id/toggle-active", async (c) => {
       { returnDocument: "after" }
     );
 
-    return c.json({ success: true, data: result });
+    return c.json({ success: true, data: serialize(result as any) });
   } catch (error: any) {
     return c.json({ success: false, message: error.message }, 500);
   }

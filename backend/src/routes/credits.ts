@@ -138,6 +138,113 @@ router.delete("/definitions/:id", async (c) => {
   return c.json({ message: "اعتبار با موفقیت حذف شد" });
 });
 
+// ─── GET /api/credits/performance — گزارش عملکرد بودجه ───────────────────────
+router.get("/performance", async (c) => {
+  try {
+    const db = getDb();
+    const fiscalYear = c.req.query("fiscalYear");
+    const orgUnit = c.req.query("orgUnit")?.trim();
+    const program = c.req.query("program")?.trim();
+    const project = c.req.query("project")?.trim();
+
+    if (!fiscalYear) {
+      return c.json({ success: false, message: "سال مالی الزامی است" }, 400);
+    }
+
+    const yearNum = Number(fiscalYear);
+
+    // ۱. موافقت‌نامه‌ها (بودجه مصوب)
+    const agrFilter: any = { fiscal_year: yearNum };
+    if (program) {
+      agrFilter.program_code = program;
+    }
+    if (project) {
+      agrFilter.activity_code = project;
+    }
+
+    const agreements = await db.collection<Agreement>("agreements").find(agrFilter).toArray();
+
+    // ۲. تخصیص‌ها
+    const allocations = await db.collection<CreditAllocation>("credit_allocations").find({
+      fiscal_year: yearNum
+    }).toArray();
+
+    const allocMap = new Map<string, number>();
+    for (const alloc of allocations) {
+      if (alloc.agreement_id) {
+        const key = String(alloc.agreement_id);
+        allocMap.set(key, (allocMap.get(key) ?? 0) + (alloc.amount ?? 0));
+      }
+    }
+
+    // ۳. هزینه‌ها (اسناد غیر ابطال شده)
+    const docs = await db.collection("journal_documents").find({
+      status: { $ne: "CANCELLED" },
+      fiscal_year: yearNum
+    }).toArray();
+
+    // ۴. تجمیع و محاسبه مقادیر گزارش
+    const data = agreements.map((agr) => {
+      const agrId = String(agr._id);
+      const approved = agr.total_amount ?? 0;
+      const allocation = allocMap.get(agrId) ?? 0;
+
+      let expense = 0;
+      const matchPrefix = agr.chapter_code || agr.program_code || "";
+
+      if (matchPrefix) {
+        for (const doc of docs) {
+          if (orgUnit) {
+            const docDesc = (doc.description ?? "").toLowerCase();
+            const hasUnit = docDesc.includes(orgUnit.toLowerCase()) || 
+                            doc.lines.some((l: any) => (l.description ?? "").toLowerCase().includes(orgUnit.toLowerCase()));
+            if (!hasUnit) continue;
+          }
+
+          for (const line of doc.lines) {
+            if (line.account_code && line.account_code.startsWith(matchPrefix)) {
+              expense += (line.debit ?? 0) - (line.credit ?? 0);
+            }
+          }
+        }
+      }
+
+      const finalExpense = Math.max(0, expense);
+      const balance = Math.max(0, allocation - finalExpense);
+
+      return {
+        _id: agrId,
+        code: agr.program_code || agr.agreement_number || agrId,
+        title: agr.title || "بدون عنوان",
+        approved,
+        allocation,
+        expense: finalExpense,
+        balance,
+      };
+    });
+
+    const totals = data.reduce(
+      (acc, curr) => {
+        acc.approved += curr.approved;
+        acc.allocation += curr.allocation;
+        acc.expense += curr.expense;
+        acc.balance += curr.balance;
+        return acc;
+      },
+      { approved: 0, allocation: 0, expense: 0, balance: 0 }
+    );
+
+    return c.json({
+      success: true,
+      data,
+      totals,
+      message: "گزارش عملکرد بودجه با موفقیت محاسبه شد"
+    });
+  } catch (error: any) {
+    return c.json({ success: false, message: error.message }, 500);
+  }
+});
+
 router.get("/", (_c) => _c.json({ message: "اعتبارات" }));
 
 export default router;
