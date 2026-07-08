@@ -80,7 +80,8 @@ export const TOP_NAV = [
 
   // ۳ — گزارشات
   {
-    to: "/bookkeeping", label: "گزارشات", num: 3, subItems: [
+    to: "/reports", label: "گزارشات", num: 3, subItems: [
+      // ۱. مرور حساب — دست نخورده
       {
         to: "/bookkeeping/ledger-reports/account-review",
         label: "مرور حساب",
@@ -91,43 +92,77 @@ export const TOP_NAV = [
           { to: "/bookkeeping/ledger-reports/account-review-person", label: "اشخاص" },
         ],
       },
-      { to: "/bookkeeping/ledger-reports", label: "گزارش دفاتر", children: [
-        { to: "/bookkeeping/ledger-reports/general-ledger",        label: "دفتر کل" },
-        { to: "/bookkeeping/ledger-reports/moein-ledger",          label: "دفتر معین" },
-        { to: "/bookkeeping/ledger-reports/journal",               label: "دفتر روزنامه" },
-        { to: "/bookkeeping/ledger-reports/model-13",              label: "مدل ۱۳" },
-        { to: "/bookkeeping/ledger-reports/moein-program-chapter", label: "دفتر معین (معین-برنامه-فصل)" },
-        { to: "/bookkeeping/ledger-reports/detail-ledger",         label: "دفتر تفصیلی" },
-        { to: "/bookkeeping/ledger-reports/securities",            label: "گزارش اوراق بهادار" },
-      ]},
-      { to: "/bookkeeping/misc-accounts", label: "لیست حساب‌ها", children: [
-        { to: "/bookkeeping/misc-accounts/account-groups",  label: "لیست گروه حساب‌ها" },
-        { to: "/bookkeeping/misc-accounts/main-accounts",   label: "لیست حساب‌های کل" },
-        { to: "/bookkeeping/misc-accounts/moein-accounts",  label: "لیست حساب‌های معین" },
-        { to: "/bookkeeping/misc-accounts/detail-accounts", label: "لیست حساب‌های تفصیلی" },
-        { to: "/bookkeeping/misc-accounts/detailed-report", label: "گزارش تفصیلی" },
-      ]},
-      { to: "/bookkeeping/financial-statements", label: "صورت‌های مالی", children: [
-        { to: "/bookkeeping/financial-statements/balance-sheet",                 label: "صورت وضعیت مالی" },
-        { to: "/bookkeeping/financial-statements/change-in-financial-position",  label: "صورت تغییرات در وضعیت مالی" },
-        { to: "/bookkeeping/financial-statements/comparison-budget-performance", label: "مقایسه بودجه و عملکرد" },
-        { to: "/bookkeeping/financial-statements/parametric-balance-sheet",      label: "صورت وضعیت مالی پارامتریک" },
-        { to: "/bookkeeping/financial-statements/notes",                         label: "یادداشت توضیحی" },
-        { to: "/bookkeeping/financial-statements/reports-settings",              label: "تنظیمات گزارش" },
-      ]},
-      { to: "/bookkeeping/summary-status",       label: "گزارش خلاصه وضعیت" },
-      { to: "/bookkeeping/misc-persons", label: "گزارش‌های اشخاص", children: [
-        { to: "/bookkeeping/misc-persons/persons-report",  label: "گزارش اشخاص" },
-        { to: "/bookkeeping/misc-persons/persons-balance", label: "گزارش مانده اشخاص" },
-      ]},
-      { to: "/bookkeeping/budget-execution", label: "تفریغ بودجه", children: [
-        { to: "/bookkeeping/budget-execution/budget-allocation-setup",      label: "تنظیمات تفریغ بودجه" },
-        { to: "/bookkeeping/budget-execution/budget-allocation",            label: "تفریغ بودجه" },
-        { to: "/bookkeeping/budget-execution/aggregate-budget-allocation",  label: "تفریغ بودجه تجمیعی" },
-      ]},
-      { to: "/bookkeeping/accountant-agents",     label: "گزارش عاملین ذیحساب" },
-      { to: "/bookkeeping/document-notification", label: "گزارش ابلاغ سند" },
-      { to: "/bookkeeping/petty-cash",            label: "گزارش تنخواه" },
+      // ۲. گزارش‌های اسناد حسابداری
+      {
+        to: "/reports/documents",
+        label: "گزارش‌های اسناد حسابداری",
+        children: [
+          { to: "/reports/documents/list",        label: "فهرست اسناد حسابداری" },
+          { to: "/reports/documents/journal",     label: "دفتر روزنامه" },
+          { to: "/reports/documents/general-ledger", label: "دفتر کل" },
+          { to: "/reports/documents/moein-ledger",   label: "دفتر معین" },
+          { to: "/reports/documents/turnover",    label: "گردش اسناد" },
+          { to: "/reports/documents/status",      label: "وضعیت اسناد (موقت، تأییدشده، قطعی)" },
+        ],
+      },
+      // ۳. گزارش‌های حساب‌ها
+      {
+        to: "/reports/accounts",
+        label: "گزارش‌های حساب‌ها",
+        children: [
+          { to: "/reports/accounts/trial-balance",     label: "تراز آزمایشی" },
+          { to: "/reports/accounts/turnover",          label: "گردش حساب‌ها" },
+          { to: "/reports/accounts/balance",           label: "مانده حساب‌ها" },
+          { to: "/reports/accounts/detail-turnover",   label: "ریز گردش حساب" },
+          { to: "/reports/accounts/no-turnover",       label: "گزارش حساب‌های فاقد گردش" },
+        ],
+      },
+      // ۴. گزارش‌های بودجه
+      {
+        to: "/reports/budget",
+        label: "گزارش‌های بودجه",
+        children: [
+          { to: "/reports/budget/performance",     label: "عملکرد بودجه" },
+          { to: "/reports/budget/comparison",      label: "مقایسه بودجه مصوب با عملکرد" },
+          { to: "/reports/budget/remaining",       label: "مانده اعتبارات" },
+          { to: "/reports/budget/allocation",      label: "گزارش تخصیص و مصرف اعتبارات" },
+        ],
+      },
+      // ۵. گزارش‌های دریافت و پرداخت
+      {
+        to: "/reports/payments",
+        label: "گزارش‌های دریافت و پرداخت",
+        children: [
+          { to: "/reports/payments/receipts",         label: "گزارش دریافت‌ها" },
+          { to: "/reports/payments/payments",         label: "گزارش پرداخت‌ها" },
+          { to: "/reports/payments/cash-turnover",    label: "گردش صندوق" },
+          { to: "/reports/payments/bank-turnover",    label: "گردش بانک" },
+          { to: "/reports/payments/bank-reconcile",   label: "مغایرت بانکی" },
+          { to: "/reports/payments/checks",           label: "وضعیت چک‌ها" },
+        ],
+      },
+      // ۶. گزارش‌های مالی
+      {
+        to: "/reports/financial",
+        label: "گزارش‌های مالی",
+        children: [
+          { to: "/reports/financial/balance-sheet",     label: "ترازنامه" },
+          { to: "/reports/financial/income-statement",  label: "صورت عملکرد مالی" },
+          { to: "/reports/financial/revenue-expense",   label: "صورت درآمد و هزینه" },
+          { to: "/reports/financial/cash-flow",         label: "صورت جریان وجوه نقد" },
+        ],
+      },
+      // ۷. گزارش‌های مدیریتی
+      {
+        to: "/reports/management",
+        label: "گزارش‌های مدیریتی",
+        children: [
+          { to: "/reports/management/dashboard",        label: "داشبورد مدیریتی" },
+          { to: "/reports/management/analytical",       label: "گزارش‌های تحلیلی" },
+          { to: "/reports/management/period-compare",   label: "مقایسه دوره‌های مالی" },
+          { to: "/reports/management/cost-analysis",    label: "تحلیل درآمد، هزینه و اعتبارات" },
+        ],
+      },
     ],
   },
 

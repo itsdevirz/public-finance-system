@@ -49,10 +49,60 @@ const CopyDocument = lazy(() => import("@/modules/accounting/pages/CopyDocument"
 const BalanceSheet = lazy(() => import("@/modules/accounting/pages/BalanceSheet"));
 const AccountReview = lazy(() => import("@/modules/accounting/pages/AccountReview"));
 const AiChat = lazy(() => import("@/pages/AiChat"));
+// ─── گزارشات ──────────────────────────────────────────────────────────────
+const DocumentsReport  = lazy(() => import("@/modules/reports/pages/DocumentsReport"));
+const AccountsReport   = lazy(() => import("@/modules/reports/pages/AccountsReport"));
+const BudgetReport     = lazy(() => import("@/modules/reports/pages/BudgetReport"));
+const PaymentsReport   = lazy(() => import("@/modules/reports/pages/PaymentsReport"));
+const FinancialReport  = lazy(() => import("@/modules/reports/pages/FinancialReport"));
+const ManagementReport = lazy(() => import("@/modules/reports/pages/ManagementReport"));
 
 /** صفحاتی که پیاده‌سازی شده‌اند — بقیه خودکار Placeholder می‌شوند */
 export const PAGE_COMPONENTS = {
   "/ai/chat": AiChat,
+  // ─── گزارشات ─────────────────────────────────────────────────────────────
+  "/reports": DocumentsReport,
+  // گزارش‌های اسناد حسابداری
+  "/reports/documents":                DocumentsReport,
+  "/reports/documents/list":           DocumentsReport,
+  "/reports/documents/journal":        DocumentsReport,
+  "/reports/documents/general-ledger": DocumentsReport,
+  "/reports/documents/moein-ledger":   DocumentsReport,
+  "/reports/documents/turnover":       DocumentsReport,
+  "/reports/documents/status":         DocumentsReport,
+  // گزارش‌های حساب‌ها
+  "/reports/accounts":                 AccountsReport,
+  "/reports/accounts/trial-balance":   AccountsReport,
+  "/reports/accounts/turnover":        AccountsReport,
+  "/reports/accounts/balance":         AccountsReport,
+  "/reports/accounts/detail-turnover": AccountsReport,
+  "/reports/accounts/no-turnover":     AccountsReport,
+  // گزارش‌های بودجه
+  "/reports/budget":                   BudgetReport,
+  "/reports/budget/performance":       BudgetReport,
+  "/reports/budget/comparison":        BudgetReport,
+  "/reports/budget/remaining":         BudgetReport,
+  "/reports/budget/allocation":        BudgetReport,
+  // گزارش‌های دریافت و پرداخت
+  "/reports/payments":                 PaymentsReport,
+  "/reports/payments/receipts":        PaymentsReport,
+  "/reports/payments/payments":        PaymentsReport,
+  "/reports/payments/cash-turnover":   PaymentsReport,
+  "/reports/payments/bank-turnover":   PaymentsReport,
+  "/reports/payments/bank-reconcile":  PaymentsReport,
+  "/reports/payments/checks":          PaymentsReport,
+  // گزارش‌های مالی
+  "/reports/financial":                        FinancialReport,
+  "/reports/financial/balance-sheet":          FinancialReport,
+  "/reports/financial/income-statement":       FinancialReport,
+  "/reports/financial/revenue-expense":        FinancialReport,
+  "/reports/financial/cash-flow":              FinancialReport,
+  // گزارش‌های مدیریتی
+  "/reports/management":                       ManagementReport,
+  "/reports/management/dashboard":             ManagementReport,
+  "/reports/management/analytical":            ManagementReport,
+  "/reports/management/period-compare":        ManagementReport,
+  "/reports/management/cost-analysis":         ManagementReport,
   "/basic-info": BasicInfo,
   "/basic-info/account-heads": AccountHeads,
   "/basic-info/credits": Credits,
