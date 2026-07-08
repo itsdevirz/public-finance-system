@@ -187,13 +187,19 @@ function subAccountOptions(groupCode, accountCode) {
 const DocRow = React.memo(({ row, idx, onChange, onDelete, isActive, onActivate }) => {
   const [debitVal, setDebitVal] = useState(row.debit || "");
   const [creditVal, setCreditVal] = useState(row.credit || "");
+  const debitFocused = React.useRef(false);
+  const creditFocused = React.useRef(false);
 
   useEffect(() => {
-    setDebitVal(row.debit || "");
+    if (!debitFocused.current) {
+      setDebitVal(row.debit || "");
+    }
   }, [row.debit]);
 
   useEffect(() => {
-    setCreditVal(row.credit || "");
+    if (!creditFocused.current) {
+      setCreditVal(row.credit || "");
+    }
   }, [row.credit]);
 
   const nature = useMemo(() => {
@@ -266,8 +272,11 @@ const DocRow = React.memo(({ row, idx, onChange, onDelete, isActive, onActivate 
         <input
           className={`${inputCls} text-blue-700`}
           value={debitVal}
+          onClick={(e) => e.stopPropagation()}
+          onFocus={() => { debitFocused.current = true; }}
           onChange={(e) => setDebitVal(e.target.value)}
           onBlur={(e) => {
+            debitFocused.current = false;
             const formatted = formatNumber(e.target.value);
             setDebitVal(formatted);
             onChange({ ...row, debit: formatted });
@@ -281,8 +290,11 @@ const DocRow = React.memo(({ row, idx, onChange, onDelete, isActive, onActivate 
         <input
           className={`${inputCls} text-rose-700`}
           value={creditVal}
+          onClick={(e) => e.stopPropagation()}
+          onFocus={() => { creditFocused.current = true; }}
           onChange={(e) => setCreditVal(e.target.value)}
           onBlur={(e) => {
+            creditFocused.current = false;
             const formatted = formatNumber(e.target.value);
             setCreditVal(formatted);
             onChange({ ...row, credit: formatted });
@@ -308,6 +320,36 @@ const DocRow = React.memo(({ row, idx, onChange, onDelete, isActive, onActivate 
          prev.isActive === next.isActive &&
          prev.row === next.row;
 });
+
+// ---- SanamaNumericInput: input عددی با local state برای جلوگیری از از دست دادن focus ----
+function SanamaNumericInput({ value, onChange, inputCls }) {
+  const [localVal, setLocalVal] = React.useState(value ?? "");
+  const isFocused = React.useRef(false);
+
+  React.useEffect(() => {
+    if (!isFocused.current) {
+      setLocalVal(value ?? "");
+    }
+  }, [value]);
+
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      className={inputCls}
+      placeholder="عدد وارد کنید..."
+      value={localVal}
+      dir="ltr"
+      onFocus={() => { isFocused.current = true; }}
+      onChange={(e) => setLocalVal(e.target.value.replace(/\D/g, ""))}
+      onBlur={() => {
+        isFocused.current = false;
+        onChange(localVal.replace(/\D/g, ""));
+      }}
+    />
+  );
+}
 
 // ---- SanamaField: رندر یک فیلد سناما بر اساس نوع ردیف ----
 function SanamaField({ rowDef, value, onChange, optional }) {
@@ -372,19 +414,11 @@ function SanamaField({ rowDef, value, onChange, optional }) {
     }
     return (
       <Wrap>
-        <input
-          type="text"
-          inputMode="numeric"
-          pattern="[0-9]*"
-          className={inputCls}
-          placeholder="عدد وارد کنید..."
-          value={value ?? ""}
-          onChange={(e) => onChange(e.target.value.replace(/\D/g, ""))}
-          dir="ltr"
-        />
+        <SanamaNumericInput value={value} onChange={onChange} inputCls={inputCls} />
       </Wrap>
     );
   }
+
 
   // ردیف اشخاص
   if (rowDef.types) {
