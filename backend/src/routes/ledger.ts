@@ -103,7 +103,7 @@ router.get("/general-ledger", async (c) => {
         rows.push({
           date:        doc.document_date   ?? "",
           doc_number:  doc.document_number ?? "",
-          description: line.description   ?? doc.description ?? "",
+          description: line.description   || doc.description || "",
           debit:       d,
           credit:      cr,
           balance:     0, // بعداً محاسبه می‌شود
@@ -153,6 +153,121 @@ router.get("/general-ledger", async (c) => {
     accountCode,
     accountName,
     message:      "دفتر کل",
+  });
+});
+
+// GET /api/ledger/account-turnover — گردش یک حساب در بازه زمانی
+router.get("/account-turnover", async (c) => {
+  const accountCode = (c.req.query("accountCode") ?? "").trim();
+  const dateFrom    = c.req.query("dateFrom")   ?? "";
+  const dateTo      = c.req.query("dateTo")     ?? "";
+  const fiscalYear  = c.req.query("fiscalYear") ?? "";
+
+  if (!accountCode) {
+    return c.json({ success: false, message: "کد حساب الزامی است" }, 400);
+  }
+
+  const fromNum = dateFrom ? dateToNum(dateFrom) : 0;
+  const toNum   = dateTo   ? dateToNum(dateTo)   : 99999999;
+
+  const db    = getDb();
+  const query: Record<string, unknown> = {};
+  if (fiscalYear) query.fiscal_year = parseInt(fiscalYear, 10);
+
+  const docs = await db
+    .collection<JournalDocument>("journal_documents")
+    .find(query)
+    .toArray();
+
+  let openDebit  = 0;
+  let openCredit = 0;
+
+  const rows: {
+    date:         string;
+    doc_number:   string;
+    description:  string;
+    debit:        number;
+    credit:       number;
+    balance:      number;
+    nature:       string;
+  }[] = [];
+
+  for (const rawDoc of docs) {
+    const doc = decryptDocument(serialize(rawDoc as Record<string, unknown>));
+    if (doc.status === "CANCELLED") continue;
+
+    const docDateNum = dateToNum(doc.document_date ?? "");
+
+    for (const line of (doc.lines ?? []) as any[]) {
+      const rawCode  = (line.account_code ?? "") as string;
+      const digits   = rawCode.replace(/\D/g, "");
+      
+      // تطبیق کد حساب: باید با کد انتخابی شروع شود یا برابر باشد
+      if (!digits.startsWith(accountCode)) continue;
+
+      const d  = (line.debit  ?? 0) as number;
+      const cr = (line.credit ?? 0) as number;
+
+      if (docDateNum < fromNum) {
+        openDebit  += d;
+        openCredit += cr;
+      } else if (docDateNum <= toNum) {
+        rows.push({
+          date:        doc.document_date   ?? "",
+          doc_number:  doc.document_number ?? "",
+          description: line.description   || doc.description || "",
+          debit:       d,
+          credit:      cr,
+          balance:     0,
+          nature:      "",
+        });
+      }
+    }
+  }
+
+  // مرتب‌سازی بر اساس تاریخ و شماره سند
+  rows.sort((a, b) => {
+    const da = dateToNum(a.date);
+    const db_ = dateToNum(b.date);
+    if (da !== db_) return da - db_;
+    return a.doc_number.localeCompare(b.doc_number, "en", { numeric: true });
+  });
+
+  let runningBalance = openDebit - openCredit;
+  for (const row of rows) {
+    runningBalance += row.debit - row.credit;
+    row.balance = runningBalance;
+    row.nature  = runningBalance > 0 ? "بدهکار" : runningBalance < 0 ? "بستانکار" : "تراز";
+  }
+
+  const openNet     = openDebit - openCredit;
+  const openBalance = {
+    debit:   openDebit,
+    credit:  openCredit,
+    balance: openNet,
+    nature:  openNet > 0 ? "بدهکار" : openNet < 0 ? "بستانکار" : "تراز",
+  };
+
+  const totals = rows.reduce(
+    (acc, r) => ({ debit: acc.debit + r.debit, credit: acc.credit + r.credit }),
+    { debit: 0, credit: 0 }
+  );
+
+  let accountName = accountNameMap.get(accountCode) ?? "";
+  if (!accountName) {
+    const head = await db.collection("account_heads").findOne({ code: accountCode });
+    if (head) {
+      accountName = (head as any).title ?? "";
+    }
+  }
+
+  return c.json({
+    data:         rows,
+    openBalance,
+    totals,
+    accountCode,
+    accountName,
+    message:      "گردش حساب",
   });
 });
 
@@ -457,7 +572,7 @@ router.get("/account-lines", async (c) => {
         credit:       cr,
         balance:      bal,
         nature:       bal > 0 ? "بدهکار" : bal < 0 ? "بستانکار" : "تراز",
-        description:  line.description ?? "",
+        description:  line.description || doc.description || "",
       });
     }
   }
