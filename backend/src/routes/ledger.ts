@@ -32,6 +32,130 @@ try {
 const router = new Hono();
 
 
+// GET /api/ledger/general-ledger — دفتر کل یک حساب در بازه زمانی
+// Query params:
+//   accountCode: کد حساب کل (3 رقم) — اجباری
+//   dateFrom:    تاریخ شروع
+//   dateTo:      تاریخ پایان
+//   fiscalYear:  سال مالی (اختیاری)
+router.get("/general-ledger", async (c) => {
+  const accountCode = (c.req.query("accountCode") ?? "").trim();
+  const dateFrom    = c.req.query("dateFrom")   ?? "";
+  const dateTo      = c.req.query("dateTo")     ?? "";
+  const fiscalYear  = c.req.query("fiscalYear") ?? "";
+
+  if (!accountCode) {
+    return c.json({ success: false, message: "کد حساب کل الزامی است" }, 400);
+  }
+
+  const fromNum = dateFrom ? dateToNum(dateFrom) : 0;
+  const toNum   = dateTo   ? dateToNum(dateTo)   : 99999999;
+
+  const db    = getDb();
+  const query: Record<string, unknown> = {};
+  if (fiscalYear) query.fiscal_year = parseInt(fiscalYear, 10);
+
+  const docs = await db
+    .collection<JournalDocument>("journal_documents")
+    .find(query)
+    .toArray();
+
+  // نقشه نام حساب از sanamaCodes و account_heads
+  const getAccountName = (code: string, fallback: string) =>
+    accountNameMap.get(code) ?? fallback ?? "";
+
+  // ─── گردش قبل از بازه (برای مانده اول دوره) ─────────────────────────
+  let openDebit  = 0;
+  let openCredit = 0;
+
+  // ─── ردیف‌های داخل بازه ──────────────────────────────────────────────
+  const rows: {
+    date:         string;
+    doc_number:   string;
+    description:  string;
+    debit:        number;
+    credit:       number;
+    balance:      number;
+    nature:       string;
+  }[] = [];
+
+  for (const rawDoc of docs) {
+    const doc = decryptDocument(serialize(rawDoc as Record<string, unknown>));
+    if (doc.status === "CANCELLED") continue;
+
+    const docDateNum = dateToNum(doc.document_date ?? "");
+
+    for (const line of (doc.lines ?? []) as any[]) {
+      const rawCode  = (line.account_code ?? "") as string;
+      const digits   = rawCode.replace(/\D/g, "");
+      // تطبیق کد: ۳ رقم اول کد باید با accountCode یکسان باشد
+      if (!digits.startsWith(accountCode)) continue;
+
+      const d  = (line.debit  ?? 0) as number;
+      const cr = (line.credit ?? 0) as number;
+
+      if (docDateNum < fromNum) {
+        // قبل از بازه → مانده افتتاحیه
+        openDebit  += d;
+        openCredit += cr;
+      } else if (docDateNum <= toNum) {
+        // داخل بازه → ردیف دفتر کل
+        rows.push({
+          date:        doc.document_date   ?? "",
+          doc_number:  doc.document_number ?? "",
+          description: line.description   ?? doc.description ?? "",
+          debit:       d,
+          credit:      cr,
+          balance:     0, // بعداً محاسبه می‌شود
+          nature:      "",
+        });
+      }
+    }
+  }
+
+  // مرتب‌سازی بر اساس تاریخ و شماره سند
+  rows.sort((a, b) => {
+    const da = dateToNum(a.date);
+    const db_ = dateToNum(b.date);
+    if (da !== db_) return da - db_;
+    return a.doc_number.localeCompare(b.doc_number, "en", { numeric: true });
+  });
+
+  // ─── محاسبه مانده تجمیعی ──────────────────────────────────────────────
+  let runningBalance = openDebit - openCredit;
+  for (const row of rows) {
+    runningBalance += row.debit - row.credit;
+    row.balance = runningBalance;
+    row.nature  = runningBalance > 0 ? "بدهکار" : runningBalance < 0 ? "بستانکار" : "تراز";
+  }
+
+  // مانده اول دوره
+  const openNet     = openDebit - openCredit;
+  const openBalance = {
+    debit:   openDebit,
+    credit:  openCredit,
+    balance: openNet,
+    nature:  openNet > 0 ? "بدهکار" : openNet < 0 ? "بستانکار" : "تراز",
+  };
+
+  // جمع گردش دوره
+  const totals = rows.reduce(
+    (acc, r) => ({ debit: acc.debit + r.debit, credit: acc.credit + r.credit }),
+    { debit: 0, credit: 0 }
+  );
+
+  const accountName = getAccountName(accountCode, "");
+
+  return c.json({
+    data:         rows,
+    openBalance,
+    totals,
+    accountCode,
+    accountName,
+    message:      "دفتر کل",
+  });
+});
+
 // GET /api/ledger/ — flatten all embedded lines with their parent doc info (paginated)
 router.get("/", async (c) => {
   const page = parseInt(c.req.query("page") ?? "1", 10);

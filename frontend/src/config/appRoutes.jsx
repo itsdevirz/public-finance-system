@@ -56,6 +56,8 @@ const BudgetReport     = lazy(() => import("@/modules/reports/pages/BudgetReport
 const PaymentsReport   = lazy(() => import("@/modules/reports/pages/PaymentsReport"));
 const FinancialReport  = lazy(() => import("@/modules/reports/pages/FinancialReport"));
 const ManagementReport = lazy(() => import("@/modules/reports/pages/ManagementReport"));
+const TrialBalance     = lazy(() => import("@/modules/reports/pages/TrialBalance"));
+const GeneralLedger    = lazy(() => import("@/modules/reports/pages/GeneralLedger"));
 
 /** صفحاتی که پیاده‌سازی شده‌اند — بقیه خودکار Placeholder می‌شوند */
 export const PAGE_COMPONENTS = {
@@ -66,13 +68,13 @@ export const PAGE_COMPONENTS = {
   "/reports/documents":                DocumentsReport,
   "/reports/documents/list":           DocumentsReport,
   "/reports/documents/journal":        DocumentsReport,
-  "/reports/documents/general-ledger": DocumentsReport,
+  "/reports/documents/general-ledger": GeneralLedger,
   "/reports/documents/moein-ledger":   DocumentsReport,
   "/reports/documents/turnover":       DocumentsReport,
   "/reports/documents/status":         DocumentsReport,
   // گزارش‌های حساب‌ها
   "/reports/accounts":                 AccountsReport,
-  "/reports/accounts/trial-balance":   AccountsReport,
+  "/reports/accounts/trial-balance":   TrialBalance,
   "/reports/accounts/turnover":        AccountsReport,
   "/reports/accounts/balance":         AccountsReport,
   "/reports/accounts/detail-turnover": AccountsReport,
