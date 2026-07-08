@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { PageShell, PageHeader } from "@/components/layout/PageShell";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,6 +12,7 @@ import {
   FileText, CheckCircle2, Ban, X, AlertCircle
 } from "lucide-react";
 import api from "@/api";
+import { useApiCache } from "@/hooks/useApiCache";
 import { encrypt } from "@/lib/crypto";
 import { printTable } from "@/lib/printUtils";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
@@ -24,69 +25,46 @@ import { checkDebitNatureBalance, clearBalanceCache } from "@/lib/accountBalance
 // ---- helpers ----
 const allGroups = sanamaCodes.groups.map((g) => ({ code: g.code, title: g.title, accounts: g.accounts }));
 
-// ── کامپوننت انتخاب شماره برنامه/طرح از اعتبارهای تعریف‌شده ──────────────────
+// ── کامپوننت انتخاب شماره برنامه/طرح — با caching ──────────────────────────
 function CreditCodeSanamaField({ value, onChange, labelCls, inputCls }) {
-  const [options, setOptions] = useState([]);
-  const [loaded, setLoaded] = useState(false);
+  const { data, loading } = useApiCache("/api/credits/definitions");
 
-  useEffect(() => {
-    api.get("/api/credits/definitions").then((res) => {
-      if (res.data?.data) {
-        const credits = res.data.data;
-        const opts = credits
-          .filter((c) => {
-            // فقط اعتبارهایی که شماره برنامه یا شماره طرح دارند
-            return (
-              c.expense?.programNumber ||
-              c.capital?.projectNumber
-            );
-          })
-          .map((c) => {
-            const num = c.capital?.projectNumber || c.expense?.programNumber || "";
-            const type = c.creditType === "capital" ? "تملک دارایی" : "هزینه";
-            const title = c.capital?.projectTitle || c.expense?.programNumber
-              ? `${num}${c.capital?.projectTitle ? ` — ${c.capital.projectTitle}` : ""}`
-              : num;
-            return {
-              value: num,
-              label: `${num}${c.capital?.projectTitle ? ` — ${c.capital.projectTitle}` : ""}${c.capital?.projectPlanTitle ? ` / ${c.capital.projectPlanTitle}` : ""} (${type})`,
-            };
-          })
-          .filter((o) => o.value);
-        setOptions(opts);
-      }
-    }).catch(() => {}).finally(() => setLoaded(true));
-  }, []);
+  const options = useMemo(() => {
+    if (!data?.data) return [];
+    return data.data
+      .filter((c) => c.expense?.programNumber || c.capital?.projectNumber)
+      .map((c) => {
+        const num  = c.capital?.projectNumber || c.expense?.programNumber || "";
+        const type = c.creditType === "capital" ? "تملک دارایی" : "هزینه";
+        return {
+          value: num,
+          label: `${num}${c.capital?.projectTitle ? ` — ${c.capital.projectTitle}` : ""}${c.capital?.projectPlanTitle ? ` / ${c.capital.projectPlanTitle}` : ""} (${type})`,
+        };
+      })
+      .filter((o) => o.value);
+  }, [data]);
 
-  if (!loaded) {
+  if (loading) {
     return (
       <div className="flex items-center gap-2">
         <Label className={labelCls}>شماره برنامه/طرح</Label>
         <input
-          type="text"
-          inputMode="numeric"
-          className={inputCls}
-          placeholder="در حال بارگیری..."
-          value={value ?? ""}
+          type="text" inputMode="numeric" className={inputCls}
+          placeholder="در حال بارگیری..." value={value ?? ""}
           onChange={(e) => onChange(e.target.value.replace(/\D/g, ""))}
-          dir="ltr"
-          disabled
+          dir="ltr" disabled
         />
       </div>
     );
   }
 
   if (options.length === 0) {
-    // هنوز اعتباری تعریف نشده — fallback به input عددی
     return (
       <div className="flex items-center gap-2">
         <Label className={labelCls}>شماره برنامه/طرح</Label>
         <input
-          type="text"
-          inputMode="numeric"
-          className={inputCls}
-          placeholder="عدد وارد کنید..."
-          value={value ?? ""}
+          type="text" inputMode="numeric" className={inputCls}
+          placeholder="عدد وارد کنید..." value={value ?? ""}
           onChange={(e) => onChange(e.target.value.replace(/\D/g, ""))}
           dir="ltr"
         />
@@ -109,6 +87,7 @@ function CreditCodeSanamaField({ value, onChange, labelCls, inputCls }) {
     </div>
   );
 }
+
 
 function getSubAccountTitle(rowNum) {
   return subAccountTitles.find((t) => t.row === rowNum);
@@ -786,27 +765,27 @@ export default function ManualDocument() {
     }
   }
 
-  function setH(k, v) { setHeader((p) => ({ ...p, [k]: v })); }
+  const setH = useCallback((k, v) => setHeader((p) => ({ ...p, [k]: v })), []);
 
-  function addRow() {
+  const addRow = useCallback(() => {
     const id = Date.now();
     setRows((prev) => [...prev, { ...EMPTY_ROW, id }]);
     setActiveRowId(id);
-  }
+  }, []);
 
-  function updateRow(id, updated) {
+  const updateRow = useCallback((id, updated) => {
     setRows((prev) => prev.map((r) => (r.id === id ? updated : r)));
-  }
+  }, []);
 
-  function deleteRow(id) {
+  const deleteRow = useCallback((id) => {
     setRows((prev) => {
       const next = prev.filter((r) => r.id !== id);
       if (activeRowId === id && next.length) setActiveRowId(next[0].id);
       return next.length ? next : [{ ...EMPTY_ROW, id: Date.now() }];
     });
-  }
+  }, [activeRowId]);
 
-  function handleSanamaChange(rowId, fieldKey, val) {
+  const handleSanamaChange = useCallback((rowId, fieldKey, val) => {
     setRows((prev) =>
       prev.map((r) =>
         r.id === rowId
@@ -814,10 +793,10 @@ export default function ManualDocument() {
           : r
       )
     );
-  }
+  }, []);
 
-  const totalDebit = rows.reduce((s, r) => s + parseNumber(r.debit), 0);
-  const totalCredit = rows.reduce((s, r) => s + parseNumber(r.credit), 0);
+  const totalDebit  = useMemo(() => rows.reduce((s, r) => s + parseNumber(r.debit),  0), [rows]);
+  const totalCredit = useMemo(() => rows.reduce((s, r) => s + parseNumber(r.credit), 0), [rows]);
   const diff = totalDebit - totalCredit;
 
   const statusColors = {

@@ -1,20 +1,20 @@
 import { Hono } from "hono";
-import { ObjectId } from "mongodb";
 import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import { getDb } from "../db/index.js";
 import type { JournalDocument } from "../db/types.js";
 import { decryptDocument } from "../lib/crypto.js";
+import { serialize, dateToNum, parseFaNum } from "../lib/helpers.js";
 
-// ─── بارگذاری نقشه نام حساب‌ها از sanamaCodes.json ────────────────────────
-const __dirname = dirname(fileURLToPath(import.meta.url));
+// ─── بارگذاری نقشه نام حساب‌ها از sanamaCodes.json —————————————————
+const __dirname_ledger = dirname(fileURLToPath(import.meta.url));
 
 const accountNameMap = new Map<string, string>(); // code → title
 
 try {
   const raw = JSON.parse(
-    readFileSync(join(__dirname, "../data/sanamaCodes.json"), "utf-8")
+    readFileSync(join(__dirname_ledger, "../data/sanamaCodes.json"), "utf-8")
   );
   for (const group of raw.groups ?? []) {
     accountNameMap.set(group.code, group.title);
@@ -31,11 +31,6 @@ try {
 
 const router = new Hono();
 
-function serialize(doc: Record<string, unknown>) {
-  return JSON.parse(JSON.stringify(doc, (_k, v) =>
-    v instanceof ObjectId ? v.toHexString() : v
-  ));
-}
 
 // GET /api/ledger/ — flatten all embedded lines with their parent doc info (paginated)
 router.get("/", async (c) => {
@@ -124,29 +119,6 @@ router.get("/trial-balance", async (c) => {
   /** نام حساب را از نقشه مرجع می‌گیرد؛ اگر نبود، از ردیف سند استفاده می‌کند */
   function getNameForCode(levelCode: string, fallback: string): string {
     return accountNameMap.get(levelCode) ?? fallback ?? "";
-  }
-
-  /** تاریخ شمسی را به عدد 8 رقمی YYYYMMDD تبدیل می‌کند — هم ارقام فارسی/عربی هم بدون صفر جلو */
-  function dateToNum(d: string): number {
-    if (!d) return 0;
-    // تبدیل ارقام فارسی/عربی به انگلیسی
-    const persian = ["۰","۱","۲","۳","۴","۵","۶","۷","۸","۹"];
-    const arabic  = ["٠","١","٢","٣","٤","٥","٦","٧","٨","٩"];
-    let s = d;
-    for (let i = 0; i < 10; i++) {
-      s = s.replace(new RegExp(persian[i], "g"), String(i));
-      s = s.replace(new RegExp(arabic[i],  "g"), String(i));
-    }
-    // جداسازی بخش‌های سال/ماه/روز و pad کردن با صفر
-    const parts = s.split(/[\/\-\.]/);
-    if (parts.length === 3) {
-      const y = parts[0].padStart(4, "0");
-      const m = parts[1].padStart(2, "0");
-      const day = parts[2].padStart(2, "0");
-      return parseInt(`${y}${m}${day}`, 10) || 0;
-    }
-    // اگر فرمت جداکننده نداشت، فقط ارقام را بگیر
-    return parseInt(s.replace(/[^\d]/g, ""), 10) || 0;
   }
 
   const fromNum = dateFrom ? dateToNum(dateFrom) : 0;
@@ -292,22 +264,6 @@ router.get("/account-lines", async (c) => {
   const dateFrom   = c.req.query("dateFrom")   ?? "";
   const dateTo     = c.req.query("dateTo")     ?? "";
   const fiscalYear = c.req.query("fiscalYear") ?? "";
-
-  function dateToNum(d: string): number {
-    if (!d) return 0;
-    const persian = ["۰","۱","۲","۳","۴","۵","۶","۷","۸","۹"];
-    const arabic  = ["٠","١","٢","٣","٤","٥","٦","٧","٨","٩"];
-    let s = d;
-    for (let i = 0; i < 10; i++) {
-      s = s.replace(new RegExp(persian[i], "g"), String(i));
-      s = s.replace(new RegExp(arabic[i],  "g"), String(i));
-    }
-    const parts = s.split(/[\/\-\.]/);
-    if (parts.length === 3) {
-      return parseInt(`${parts[0].padStart(4,"0")}${parts[1].padStart(2,"0")}${parts[2].padStart(2,"0")}`, 10) || 0;
-    }
-    return parseInt(s.replace(/[^\d]/g, ""), 10) || 0;
-  }
 
   const fromNum = dateFrom ? dateToNum(dateFrom) : 0;
   const toNum   = dateTo   ? dateToNum(dateTo)   : 99999999;
@@ -698,3 +654,5 @@ router.get("/grouped-lines", async (c) => {
 });
 
 export default router;
+
+

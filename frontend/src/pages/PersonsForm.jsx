@@ -19,9 +19,8 @@ import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 
 // ─── ساختار سلسله‌مراتبی از sanamaTypes.json ───────────────────────────────
 // personTypesData.personTypes => آرایه‌ای از بخش‌های اصلی (A,B,C,D,E)
-// هر بخش children => طبقه اشخاص (۲ رقم: ۳۱، ۳۲، ۳۳، ۳۴، ۳۵)
-// هر طبقه children => ریزطبقه (۳ رقم: ۳۱۱، ۳۱۲، ...)
-// هر ریزطبقه children => جزءطبقه (۴ رقم: ۳۱۱۱، ۳۱۱۲، ...)
+// نوع A و B: طبقه (2رقم) → ریزطبقه (3رقم) → جزءطبقه (4رقم)
+// نوع C و D: طبقه (2/3رقم) → جزءطبقه (4رقم) — بدون ریزطبقه
 
 // نوع شخص (بخش اول NomineeCode) - طبق استاندارد سناما
 const PERSON_KIND_OPTIONS = [
@@ -33,6 +32,8 @@ const PERSON_KIND_OPTIONS = [
 
 // نوع‌هایی که حقیقی هستند
 const NATURAL_PERSON_KINDS = ["B", "C", "D"];
+// نوع‌هایی که ساختار دو سطحی دارند (طبقه ← جزءطبقه، بدون ریزطبقه)
+const TWO_LEVEL_KINDS = ["C", "D"];
 // نوع‌هایی که نیاز به کد ملی ندارند (از کد پیشنهادی استفاده می‌کنند)
 const NO_NATIONAL_ID_KINDS = ["C", "D"];
 
@@ -41,7 +42,9 @@ function getSectionByKind(personKind) {
   return personTypesData.personTypes.find((s) => s.type === personKind) ?? null;
 }
 
-// استخراج طبقات (۲ رقم) بر اساس نوع شخص
+// استخراج طبقات بر اساس نوع شخص
+// برای A/B: کدهای 2رقمی (31، 32، ...)
+// برای C/D: کدهای مستقیم از children اول
 function getClasses(personKind) {
   const section = getSectionByKind(personKind);
   if (!section) return [];
@@ -51,9 +54,11 @@ function getClasses(personKind) {
   }));
 }
 
-// استخراج ریزطبقه‌ها (۳ رقم) بر اساس نوع شخص و کد طبقه
+// استخراج ریزطبقه‌ها (3 رقم) — فقط برای A و B
+// برای C و D این تابع آرایه خالی برمی‌گرداند (ریزطبقه ندارند)
 function getSubClasses(personKind, classCode) {
   if (!classCode) return [];
+  if (TWO_LEVEL_KINDS.includes(personKind)) return []; // C و D ریزطبقه ندارند
   const section = getSectionByKind(personKind);
   if (!section) return [];
   for (const cls of section.children || []) {
@@ -64,11 +69,26 @@ function getSubClasses(personKind, classCode) {
   return [];
 }
 
-// استخراج جزءطبقه‌ها (۴ رقم) بر اساس نوع شخص، کد طبقه و کد ریزطبقه
+// استخراج جزءطبقه‌ها (4 رقم)
+// برای A/B: سه سطح (طبقه → ریزطبقه → جزءطبقه)
+// برای C/D: دو سطح (طبقه → جزءطبقه مستقیم)
 function getDetailClasses(personKind, classCode, subCode) {
-  if (!classCode || !subCode) return [];
+  if (!classCode) return [];
   const section = getSectionByKind(personKind);
   if (!section) return [];
+
+  if (TWO_LEVEL_KINDS.includes(personKind)) {
+    // C و D: children مستقیم طبقه = جزءطبقه‌ها
+    for (const cls of section.children || []) {
+      if (cls.code === classCode) {
+        return (cls.children || []).map((d) => ({ value: d.code, label: `${d.code} - ${d.title}` }));
+      }
+    }
+    return [];
+  }
+
+  // A و B: سه سطح
+  if (!subCode) return [];
   for (const cls of section.children || []) {
     if (cls.code !== classCode) continue;
     for (const sub of cls.children || []) {
@@ -86,11 +106,11 @@ const INITIAL_FORM = {
   personKind: "A",         // A=حقوقی، B=حقیقی ایرانی باهمیت، C=حقیقی ایرانی سایر، D=حقیقی خارجی سایر
   // طبقه‌بندی (بخش دوم NomineeCode - ۴ رقم)
   personClass: "31",       // طبقه اشخاص (2 رقم): اولین طبقه موجود برای نوع A
-  subClass: "311",         // ریزطبقه (3 رقم)
+  subClass: "311",         // ریزطبقه (3 رقم) — فقط برای A و B
   detailClass: "3111",     // جزءطبقه (4 رقم)
   // کدهای شناسایی
   exclusiveCode: "",       // کد شناسایی انحصاری (5 رقم) - برای A و B
-  suggestedCode: "",     // کد پیشنهادی (2 رقم) - برای C و D
+  suggestedCode: "",       // کد پیشنهادی (2 رقم) - برای C و D
   inactive: false,
   // اطلاعات اصلی
   title: "",               // نام / عنوان (حقوقی)
@@ -213,9 +233,18 @@ export default function PersonsForm() {
   }, []);
 
   // گزینه‌های وابسته — فیلتر شده بر اساس نوع شخص انتخاب‌شده
+  const isTwoLevel     = TWO_LEVEL_KINDS.includes(form.personKind);
   const classOptions    = useMemo(() => getClasses(form.personKind), [form.personKind]);
-  const subClassOptions = useMemo(() => getSubClasses(form.personKind, form.personClass), [form.personKind, form.personClass]);
-  const detailOptions   = useMemo(() => getDetailClasses(form.personKind, form.personClass, form.subClass), [form.personKind, form.personClass, form.subClass]);
+  const subClassOptions = useMemo(
+    () => isTwoLevel ? [] : getSubClasses(form.personKind, form.personClass),
+    [form.personKind, form.personClass, isTwoLevel]
+  );
+  const detailOptions   = useMemo(
+    () => isTwoLevel
+      ? getDetailClasses(form.personKind, form.personClass, "")
+      : getDetailClasses(form.personKind, form.personClass, form.subClass),
+    [form.personKind, form.personClass, form.subClass, isTwoLevel]
+  );
 
   // NomineeCode پیش‌نمایش
   const nomineeCode = buildNomineeCode(form.personKind, form.detailClass, form.nationalId);
@@ -233,19 +262,34 @@ export default function PersonsForm() {
         if (field === "personKind") {
           const classes = getClasses(val);
           next.personClass = classes[0]?.value ?? "";
-          const subs = getSubClasses(val, next.personClass);
-          next.subClass = subs[0]?.value ?? "";
-          const details = getDetailClasses(val, next.personClass, next.subClass);
-          next.detailClass = details[0]?.value ?? "";
+          const isTwoLevel = TWO_LEVEL_KINDS.includes(val);
+          if (isTwoLevel) {
+            // C و D: ریزطبقه ندارند، جزءطبقه مستقیم از طبقه
+            next.subClass = "";
+            const details = getDetailClasses(val, next.personClass, "");
+            next.detailClass = details[0]?.value ?? "";
+          } else {
+            const subs = getSubClasses(val, next.personClass);
+            next.subClass = subs[0]?.value ?? "";
+            const details = getDetailClasses(val, next.personClass, next.subClass);
+            next.detailClass = details[0]?.value ?? "";
+          }
         }
         // ریست ریزطبقه و جزءطبقه وقتی طبقه عوض شد
         if (field === "personClass") {
-          const subs = getSubClasses(f.personKind, val);
-          next.subClass    = subs[0]?.value ?? "";
-          const details    = getDetailClasses(f.personKind, val, subs[0]?.value ?? "");
-          next.detailClass = details[0]?.value ?? "";
+          const isTwoLevel = TWO_LEVEL_KINDS.includes(f.personKind);
+          if (isTwoLevel) {
+            next.subClass = "";
+            const details = getDetailClasses(f.personKind, val, "");
+            next.detailClass = details[0]?.value ?? "";
+          } else {
+            const subs = getSubClasses(f.personKind, val);
+            next.subClass    = subs[0]?.value ?? "";
+            const details    = getDetailClasses(f.personKind, val, subs[0]?.value ?? "");
+            next.detailClass = details[0]?.value ?? "";
+          }
         }
-        // ریست جزءطبقه وقتی ریزطبقه عوض شد
+        // ریست جزءطبقه وقتی ریزطبقه عوض شد (فقط برای A و B)
         if (field === "subClass") {
           const details    = getDetailClasses(f.personKind, f.personClass, val);
           next.detailClass = details[0]?.value ?? "";
@@ -311,10 +355,12 @@ export default function PersonsForm() {
 
   function handleRowClick(row) {
     setSelected(row._id);
+    const kind = row.personKind ?? "A";
+    const isTwoLevelRow = TWO_LEVEL_KINDS.includes(kind);
     setForm({
-      personKind: row.personKind ?? "A",
+      personKind: kind,
       personClass: row.personClass ?? "31",
-      subClass: row.subClass ?? "311",
+      subClass: isTwoLevelRow ? "" : (row.subClass ?? "311"),
       detailClass: row.detailClass ?? "3111",
       exclusiveCode: row.exclusiveCode ?? "",
       suggestedCode: row.suggestedCode ?? "",
@@ -407,16 +453,18 @@ export default function PersonsForm() {
                     />
                   </Field>
 
-                  <Field label="ریزطبقه" required>
-                    <StyledSelect
-                      value={form.subClass}
-                      onChange={set("subClass")}
-                      options={subClassOptions}
-                      disabled={!subClassOptions.length}
-                    />
-                  </Field>
+                  {!isTwoLevel && (
+                    <Field label="ریزطبقه" required>
+                      <StyledSelect
+                        value={form.subClass}
+                        onChange={set("subClass")}
+                        options={subClassOptions}
+                        disabled={!subClassOptions.length}
+                      />
+                    </Field>
+                  )}
 
-                  <Field label="جزءطبقه" required>
+                  <Field label="جزءطبقه" required={!isTwoLevel}>
                     <StyledSelect
                       value={form.detailClass}
                       onChange={set("detailClass")}

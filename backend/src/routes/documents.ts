@@ -3,76 +3,92 @@ import { ObjectId } from "mongodb";
 import { getDb } from "../db/index.js";
 import type { JournalDocument, JournalLine } from "../db/types.js";
 import { decryptDocument } from "../lib/crypto.js";
+import { serialize } from "../lib/helpers.js";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
 const sanamaCodes = require("../data/sanamaCodes.json");
 
-// ── ماهیت یک کد معین از sanamaCodes ─────────────────────────────────────────
-function getAccountNature(code: string): "debit" | "credit" | "both" | null {
-  for (const group of sanamaCodes.groups) {
-    for (const account of group.accounts) {
-      const found = account.children?.find((c: { code: string; nature: string }) => c.code === code);
-      if (found) return found.nature ?? null;
+// ── نقشه ماهیت کدها — یک‌بار در startup ساخته می‌شود ─────────────────────────
+const natureMap = new Map<string, "debit" | "credit" | "both">();
+for (const group of sanamaCodes.groups ?? []) {
+  for (const account of group.accounts ?? []) {
+    for (const child of account.children ?? []) {
+      if (child.code && child.nature) {
+        natureMap.set(String(child.code), child.nature);
+      }
     }
   }
-  return null;
+}
+
+function getAccountNature(code: string): "debit" | "credit" | "both" | null {
+  return natureMap.get(code) ?? null;
 }
 
 const router = new Hono();
 
-function serialize(doc: Record<string, unknown>) {
-  return JSON.parse(JSON.stringify(doc, (_k, v) =>
-    v instanceof ObjectId ? v.toHexString() : v
-  ));
-}
-
-// ── تابع مشترک اعتبارسنجی مانده حساب ─────────────────────────────────────────
+// ── تابع مشترک اعتبارسنجی مانده حساب — با MongoDB Aggregation ─────────────────
 async function validateAccountBalances(
   newLines: JournalLine[],
   excludeId?: string
 ): Promise<{ valid: false; message: string; error_code: string; account_code: string; total_debit: number; total_credit: number; excess: number } | { valid: true }> {
   if (!newLines.length) return { valid: true };
 
-  // کدهایی که در سند جدید بستانکار یا بدهکار می‌شن
+  // فقط کدهایی که ماهیت محدود (debit یا credit) دارند بررسی می‌شوند
   const codesInDoc = [...new Set(newLines.map(l => String(l.account_code)))];
+  const restrictedCodes = codesInDoc.filter(c => {
+    const n = getAccountNature(c);
+    return n === "debit" || n === "credit";
+  });
+
+  if (!restrictedCodes.length) return { valid: true };
 
   const db = getDb();
-  const allDocs = await db.collection<JournalDocument>("journal_documents")
-    .find({ status: { $ne: "CANCELLED" } })
+
+  // یک Aggregation Pipeline برای همه کدها — یک query به MongoDB
+  const matchStage: Record<string, unknown> = {
+    status: { $ne: "CANCELLED" },
+    "lines.account_code": { $in: restrictedCodes },
+  };
+  if (excludeId && ObjectId.isValid(excludeId)) {
+    matchStage["_id"] = { $ne: new ObjectId(excludeId) };
+  }
+
+  const pipeline = [
+    { $match: matchStage },
+    { $unwind: "$lines" },
+    { $match: { "lines.account_code": { $in: restrictedCodes } } },
+    {
+      $group: {
+        _id: "$lines.account_code",
+        histDebit:  { $sum: "$lines.debit" },
+        histCredit: { $sum: "$lines.credit" },
+      },
+    },
+  ];
+
+  const historyResult = await db
+    .collection<JournalDocument>("journal_documents")
+    .aggregate(pipeline)
     .toArray();
 
-  for (const code of codesInDoc) {
+  // ساخت نقشه موجودی تاریخی
+  const histMap = new Map<string, { debit: number; credit: number }>();
+  for (const row of historyResult) {
+    histMap.set(String(row._id), { debit: row.histDebit ?? 0, credit: row.histCredit ?? 0 });
+  }
+
+  for (const code of restrictedCodes) {
     const nature = getAccountNature(code);
-    if (!nature || nature === "both") continue; // "both" = بدون محدودیت
+    const hist = histMap.get(code) ?? { debit: 0, credit: 0 };
 
-    // تاریخچه موجود (بدون سند جاری)
-    let histDebit = 0, histCredit = 0;
-    for (const rawDoc of allDocs) {
-      const doc = serialize(rawDoc as Record<string, unknown>);
-      if (excludeId && doc._id === excludeId) continue;
-      let docLines = doc.lines as JournalLine[] | undefined;
-      if ((!docLines || docLines.length === 0) && doc.ciphertext) {
-        try { docLines = (decryptDocument(doc as any)).lines ?? []; } catch { continue; }
-      }
-      if (!docLines) continue;
-      for (const line of docLines) {
-        if (String(line.account_code) === code) {
-          histDebit  += Number(line.debit)  || 0;
-          histCredit += Number(line.credit) || 0;
-        }
-      }
-    }
-
-    // مقادیر در سند جدید
     const newDebit  = newLines.filter(l => String(l.account_code) === code).reduce((s, l) => s + (Number(l.debit)  || 0), 0);
     const newCredit = newLines.filter(l => String(l.account_code) === code).reduce((s, l) => s + (Number(l.credit) || 0), 0);
 
-    const totalDebit  = histDebit  + newDebit;
-    const totalCredit = histCredit + newCredit;
+    const totalDebit  = hist.debit  + newDebit;
+    const totalCredit = hist.credit + newCredit;
 
     if (nature === "debit" && totalDebit > 0 && totalCredit > totalDebit) {
-      // ماهیت بدهکار: بستانکار نباید از بدهکار بیشتر بشه
       const excess = totalCredit - totalDebit;
       return {
         valid: false,
@@ -86,7 +102,6 @@ async function validateAccountBalances(
     }
 
     if (nature === "credit" && totalCredit > 0 && totalDebit > totalCredit) {
-      // ماهیت بستانکار: بدهکار نباید از بستانکار بیشتر بشه
       const excess = totalDebit - totalCredit;
       return {
         valid: false,
@@ -103,7 +118,7 @@ async function validateAccountBalances(
   return { valid: true };
 }
 
-// POST /api/documents/migrate — اسناد قدیمی که document_date یا lines ندارند را اصلاح کن
+// POST /api/documents/migrate
 router.post("/migrate", async (c) => {
   const db = getDb();
   const docs = await db.collection<JournalDocument>("journal_documents").find().toArray();
@@ -138,61 +153,65 @@ router.post("/migrate", async (c) => {
   return c.json({ message: `${updated} سند به‌روزرسانی شد`, updated, total: docs.length });
 });
 
+// GET /api/documents — با projection برای کاهش داده منتقله
 router.get("/", async (c) => {
-  const data = await getDb().collection<JournalDocument>("journal_documents").find().toArray();
+  const data = await getDb()
+    .collection<JournalDocument>("journal_documents")
+    .find()
+    .sort({ _id: -1 })
+    .toArray();
   const decrypted = data.map((d) => decryptDocument(serialize(d as Record<string, unknown>)));
   return c.json({ data: decrypted, message: "لیست اسناد" });
 });
 
-// GET /api/documents/account-balance/:accountCode — موجودی یک معین از همه اسناد
+// GET /api/documents/account-balance/:accountCode — با MongoDB Aggregation
 router.get("/account-balance/:accountCode", async (c) => {
   const accountCode = c.req.param("accountCode");
-  const excludeId = c.req.query("excludeId"); // برای ویرایش سند — سند جاری رو حذف کن
+  const excludeId   = c.req.query("excludeId");
 
-  const docs = await getDb()
+  const matchStage: Record<string, unknown> = {
+    status: { $ne: "CANCELLED" },
+    "lines.account_code": accountCode,
+  };
+  if (excludeId && ObjectId.isValid(excludeId)) {
+    matchStage["_id"] = { $ne: new ObjectId(excludeId) };
+  }
+
+  const pipeline = [
+    { $match: matchStage },
+    { $unwind: "$lines" },
+    { $match: { "lines.account_code": accountCode } },
+    {
+      $group: {
+        _id: null,
+        totalDebit:  { $sum: "$lines.debit" },
+        totalCredit: { $sum: "$lines.credit" },
+      },
+    },
+  ];
+
+  const result = await getDb()
     .collection<JournalDocument>("journal_documents")
-    .find({ status: { $ne: "CANCELLED" } })
+    .aggregate(pipeline)
     .toArray();
 
-  let totalDebit = 0;
-  let totalCredit = 0;
-
-  for (const rawDoc of docs) {
-    const doc = serialize(rawDoc as Record<string, unknown>);
-    if (excludeId && doc._id === excludeId) continue;
-
-    let lines = doc.lines as JournalLine[] | undefined;
-
-    // اگر lines خالیه، از ciphertext استخراج کن
-    if ((!lines || lines.length === 0) && doc.ciphertext) {
-      try {
-        const decrypted = decryptDocument(doc as any);
-        lines = decrypted.lines ?? [];
-      } catch { continue; }
-    }
-
-    if (!lines) continue;
-
-    for (const line of lines) {
-      if (String(line.account_code) === String(accountCode)) {
-        totalDebit  += Number(line.debit)  || 0;
-        totalCredit += Number(line.credit) || 0;
-      }
-    }
-  }
+  const totalDebit  = result[0]?.totalDebit  ?? 0;
+  const totalCredit = result[0]?.totalCredit ?? 0;
 
   return c.json({
     accountCode,
     totalDebit,
     totalCredit,
-    balance: totalDebit - totalCredit, // موجودی: مثبت = بدهکار، منفی = بستانکار
+    balance: totalDebit - totalCredit,
   });
 });
 
 router.get("/:id", async (c) => {
   const id = c.req.param("id");
   if (!ObjectId.isValid(id)) return c.json({ message: "شناسه نامعتبر" }, 400);
-  const doc = await getDb().collection<JournalDocument>("journal_documents").findOne({ _id: new ObjectId(id) });
+  const doc = await getDb()
+    .collection<JournalDocument>("journal_documents")
+    .findOne({ _id: new ObjectId(id) });
   if (!doc) return c.json({ message: "سند یافت نشد" }, 404);
   const decrypted = decryptDocument(serialize(doc as Record<string, unknown>));
   return c.json({ data: decrypted });
@@ -205,7 +224,6 @@ router.post("/", async (c) => {
     return c.json({ message: "document_type و fiscal_year الزامی است" }, 400);
   }
 
-  // تاریخ و ردیف‌ها را از ciphertext استخراج کن تا در دیتابیس ذخیره شوند
   let resolvedDate: string | undefined = body.document_date;
   let resolvedLines: unknown[] = ciphertext ? [] : lines;
   if (ciphertext) {
@@ -216,22 +234,25 @@ router.post("/", async (c) => {
     } catch { /* ادامه بده */ }
   }
 
-  // ── اعتبارسنجی قانون مانده ──────────────────────────────────────────────────
-  const balanceCheckPost = await validateAccountBalances(resolvedLines as JournalLine[]);
-  if (!balanceCheckPost.valid) {
-    return c.json(balanceCheckPost, 422);
+  const balanceCheck = await validateAccountBalances(resolvedLines as JournalLine[]);
+  if (!balanceCheck.valid) {
+    return c.json(balanceCheck, 422);
   }
 
   const document_number = `DOC-${fiscal_year}-${Date.now()}`;
-  const result = await getDb().collection<JournalDocument>("journal_documents").insertOne({
-    ...body,
-    document_number,
-    document_date: resolvedDate,
-    status: body.status ?? "DRAFT",
-    lines: resolvedLines,
-  } as JournalDocument);
+  const result = await getDb()
+    .collection<JournalDocument>("journal_documents")
+    .insertOne({
+      ...body,
+      document_number,
+      document_date: resolvedDate,
+      status: body.status ?? "DRAFT",
+      lines: resolvedLines,
+    } as JournalDocument);
 
-  const inserted = await getDb().collection<JournalDocument>("journal_documents").findOne({ _id: result.insertedId });
+  const inserted = await getDb()
+    .collection<JournalDocument>("journal_documents")
+    .findOne({ _id: result.insertedId });
   const decrypted = decryptDocument(serialize(inserted as Record<string, unknown>));
   return c.json({ message: "سند ثبت شد", data: decrypted }, 201);
 });
@@ -239,11 +260,13 @@ router.post("/", async (c) => {
 router.patch("/:id/confirm", async (c) => {
   const id = c.req.param("id");
   if (!ObjectId.isValid(id)) return c.json({ message: "شناسه نامعتبر" }, 400);
-  const res = await getDb().collection<JournalDocument>("journal_documents").findOneAndUpdate(
-    { _id: new ObjectId(id) },
-    { $set: { status: "CONFIRMED" } },
-    { returnDocument: "after" }
-  );
+  const res = await getDb()
+    .collection<JournalDocument>("journal_documents")
+    .findOneAndUpdate(
+      { _id: new ObjectId(id) },
+      { $set: { status: "CONFIRMED" } },
+      { returnDocument: "after" }
+    );
   if (!res) return c.json({ message: "سند یافت نشد" }, 404);
   return c.json({ message: "سند تایید شد", data: serialize(res as Record<string, unknown>) });
 });
@@ -267,27 +290,27 @@ router.put("/:id", async (c) => {
     ...(ciphertext ? { ciphertext } : {}),
   };
 
-  // تاریخ و ردیف‌ها را از ciphertext استخراج کن
   if (ciphertext) {
     try {
       const preview = decryptDocument({ ciphertext } as any);
       if (preview.document_date) updateData.document_date = preview.document_date;
-      if (preview.lines?.length) updateData.lines = preview.lines;
+      if (preview.lines?.length)  updateData.lines = preview.lines;
     } catch { /* ادامه بده */ }
   }
 
-  // ── اعتبارسنجی قانون مانده (با حذف سند جاری از تاریخچه) ──────────────────
   const newLines = (updateData.lines ?? []) as JournalLine[];
-  const balanceCheckPut = await validateAccountBalances(newLines, id);
-  if (!balanceCheckPut.valid) {
-    return c.json(balanceCheckPut, 422);
+  const balanceCheck = await validateAccountBalances(newLines, id);
+  if (!balanceCheck.valid) {
+    return c.json(balanceCheck, 422);
   }
 
-  const res = await getDb().collection<JournalDocument>("journal_documents").findOneAndUpdate(
-    { _id: new ObjectId(id) },
-    { $set: updateData },
-    { returnDocument: "after" }
-  );
+  const res = await getDb()
+    .collection<JournalDocument>("journal_documents")
+    .findOneAndUpdate(
+      { _id: new ObjectId(id) },
+      { $set: updateData },
+      { returnDocument: "after" }
+    );
 
   if (!res) return c.json({ message: "سند یافت نشد" }, 404);
   const decrypted = decryptDocument(serialize(res as Record<string, unknown>));
@@ -298,9 +321,9 @@ router.delete("/:id", async (c) => {
   const id = c.req.param("id");
   if (!ObjectId.isValid(id)) return c.json({ message: "شناسه نامعتبر" }, 400);
 
-  const res = await getDb().collection<JournalDocument>("journal_documents").deleteOne({
-    _id: new ObjectId(id),
-  });
+  const res = await getDb()
+    .collection<JournalDocument>("journal_documents")
+    .deleteOne({ _id: new ObjectId(id) });
 
   if (res.deletedCount === 0) return c.json({ message: "سند یافت نشد" }, 404);
   return c.json({ message: "سند با موفقیت حذف شد" });

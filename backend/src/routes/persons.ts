@@ -6,17 +6,22 @@ import sanamaTypes from "../data/sanamaTypes.json";
 const router = new Hono();
 
 // Helper to validate detailClass matches the personKind hierarchy in sanamaTypes.json
+// Supports both 3-level (class → subclass → detail) and 2-level (class → detail) structures
 function isValidSanamaCode(personKind: string, detailClass: string): boolean {
   const typesData = sanamaTypes as any;
   const section = typesData.personTypes.find((s: any) => s.type === personKind);
   if (!section) return false;
-  
+
   for (const cls of section.children || []) {
     for (const sub of cls.children || []) {
+      // 2-level: class → detail (no sub-children), sub itself is the leaf
+      if (!sub.children || sub.children.length === 0) {
+        if (sub.code === detailClass) return true;
+        continue;
+      }
+      // 3-level: class → subclass → detail
       for (const det of sub.children || []) {
-        if (det.code === detailClass) {
-          return true;
-        }
+        if (det.code === detailClass) return true;
       }
     }
   }
@@ -27,7 +32,18 @@ function isValidSanamaCode(personKind: string, detailClass: string): boolean {
 router.get("/", async (c) => {
   try {
     const db = getDb();
-    const persons = await db.collection("persons").find().toArray();
+    // projection: فیلدهای مورد نیاز برای لیست
+    const persons = await db.collection("persons")
+      .find({}, {
+        projection: {
+          _id: 1, nomineeCode: 1, personKind: 1, title: 1,
+          firstName: 1, lastName: 1, nationalId: 1, inactive: 1,
+          personClass: 1, subClass: 1, detailClass: 1,
+          economicCode: 1, sheba: 1, province: 1, city: 1,
+        }
+      })
+      .sort({ nomineeCode: 1 })
+      .toArray();
     return c.json({ success: true, data: persons });
   } catch (error: any) {
     return c.json({ success: false, message: error.message }, 500);
