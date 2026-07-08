@@ -1,6 +1,6 @@
 // ─── اطلاعات پایه ────────────────────────────────────────────────────────────
 export const BASIC_INFO_SUB = [
-  { to: "/basic-info/account-heads", label: "تعریف سرفصل حساب‌ها" },
+  { to: "/basic-info/account-heads", label: "سرفصل حساب‌ها" },
   {
     to: "/basic-info/definitions",
     label: "تعاریف",
