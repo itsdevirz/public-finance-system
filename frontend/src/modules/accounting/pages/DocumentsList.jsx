@@ -47,7 +47,7 @@ function fmt(n) {
 }
 
 // ─── Modal جزئیات سند ─────────────────────────────────────────────────────────
-function DocDetailModal({ doc, onClose }) {
+function DocDetailModal({ doc, onClose, onDelete }) {
   const totalDebit  = doc.lines?.reduce((s, l) => s + (l.debit  ?? 0), 0) ?? 0;
   const totalCredit = doc.lines?.reduce((s, l) => s + (l.credit ?? 0), 0) ?? 0;
   const balanced    = totalDebit === totalCredit;
@@ -168,7 +168,10 @@ function DocDetailModal({ doc, onClose }) {
         </div>
 
         {/* footer */}
-        <div className="border-t px-6 py-3 bg-muted/20 rounded-b-2xl shrink-0 flex justify-end">
+        <div className="border-t px-6 py-3 bg-muted/20 rounded-b-2xl shrink-0 flex justify-between items-center">
+          <Button variant="destructive" size="sm" onClick={() => onDelete(doc._id, doc.document_number)} className="gap-1.5 text-xs font-bold">
+            <Trash2 className="h-3.5 w-3.5" />حذف سند
+          </Button>
           <Button variant="outline" size="sm" onClick={onClose} className="gap-1.5 text-xs">
             <X className="h-3.5 w-3.5" />بستن
           </Button>
@@ -234,6 +237,7 @@ export default function DocumentsList() {
     try {
       await api.delete(`/api/documents/${id}`);
       setDocs(prev => prev.filter(d => d._id !== id));
+      setSelected(null);
     } catch (err) {
       console.error("Delete error:", err);
       setError("خطا در حذف سند. مجددا تلاش کنید.");
@@ -555,17 +559,17 @@ export default function DocumentsList() {
                         <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                           <div className="flex items-center gap-1">
                             <button onClick={() => setSelected(doc)}
-                              className="opacity-0 group-hover:opacity-100 rounded-lg p-1 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-all"
+                              className="rounded-lg p-1 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-all"
                               title="مشاهده جزئیات">
                               <Eye className="h-3.5 w-3.5" />
                             </button>
                             <button onClick={() => navigate("/document-setup/manual-doc", { state: { docId: doc._id } })}
-                              className="opacity-0 group-hover:opacity-100 rounded-lg p-1 text-muted-foreground hover:bg-amber-100 hover:text-amber-700 transition-all"
+                              className="rounded-lg p-1 text-muted-foreground hover:bg-amber-100 hover:text-amber-700 transition-all"
                               title="ویرایش">
                               <Edit3 className="h-3.5 w-3.5" />
                             </button>
                             <button onClick={() => handleDelete(doc._id, doc.document_number)}
-                              className="opacity-0 group-hover:opacity-100 rounded-lg p-1 text-muted-foreground hover:bg-rose-100 hover:text-rose-600 transition-all"
+                              className="rounded-lg p-1 text-muted-foreground hover:bg-rose-100 hover:text-rose-600 transition-all"
                               title="حذف">
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
@@ -582,7 +586,13 @@ export default function DocumentsList() {
       </Card>
 
       {/* Modal جزئیات */}
-      {selected && <DocDetailModal doc={selected} onClose={() => setSelected(null)} />}
+      {selected && (
+        <DocDetailModal
+          doc={selected}
+          onClose={() => setSelected(null)}
+          onDelete={handleDelete}
+        />
+      )}
     </PageShell>
   );
 }

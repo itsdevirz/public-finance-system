@@ -17,47 +17,45 @@ import { cn } from "@/lib/utils";
 // وارد کردن اطلاعات سرفصل‌ها مستقیماً از فایل JSON فرانت‌اند
 import sanamaCodes from "@/data/sanamaCodes.json";
 
-// ─── استخراج سرفصل‌ها از فایل sanamaCodes ─────────────────────────────────────
-const ALL_ACCTS = [];
+// ─── استخراج سرفصل‌های معین از فایل sanamaCodes ──────────────────────────────
+const ALL_MOEIN_ACCTS = [];
+const MOEIN_MAP = {}; // code -> title
+
 sanamaCodes.groups.forEach((group) => {
-  ALL_ACCTS.push({ value: group.code, label: `${group.code} — ${group.title}` });
   (group.accounts ?? []).forEach((acc) => {
-    ALL_ACCTS.push({ value: acc.code, label: `${acc.code} — ${acc.title}` });
     (acc.children ?? []).forEach((child) => {
-      ALL_ACCTS.push({ value: child.code, label: `${child.code} — ${child.title}` });
+      const item = { value: child.code, label: `${child.code} — ${child.title}`, title: child.title };
+      ALL_MOEIN_ACCTS.push(item);
+      MOEIN_MAP[child.code] = child.title;
     });
   });
 });
 
 // ─── ثوابت فیلترها ───────────────────────────────────────────────────────────
-const LEVEL_OPTIONS = [
-  { value: "ALL", label: "همه" },
-  { value: "group", label: "گروه حساب" },
-  { value: "general", label: "حساب کل" },
-  { value: "moein", label: "حساب معین" },
+const TEMPORARY_DOC_OPTIONS = [
+  { value: "خیر", label: "خیر" },
+  { value: "بله", label: "بله" },
 ];
 
-const FISCAL_YEAR_OPTIONS = [
-  { value: "1403", label: "1403" },
-  { value: "1402", label: "1402" },
+const ZERO_DOC_OPTIONS = [
+  { value: "خیر", label: "خیر" },
+  { value: "با جزئیات", label: "با جزئیات" },
+  { value: "بله", label: "بله" },
 ];
 
 const COST_CENTER_OPTIONS = [
   { value: "ALL", label: "همه" },
   { value: "اداری", label: "اداری" },
   { value: "بازرگانی", label: "بازرگانی" },
+  { value: "فروش", label: "فروش" },
+  { value: "تولید", label: "تولید" },
 ];
 
 const PROJECT_OPTIONS = [
   { value: "ALL", label: "همه" },
 ];
 
-const YES_NO_OPTIONS = [
-  { value: "خیر", label: "خیر" },
-  { value: "بله", label: "بله" },
-];
-
-// MOCK_ROWS removed for clean database-only rendering
+// MOCK_ROWS removed for clean database-only data loading
 
 function fmtNum(n) {
   if (n === 0 || n == null) return "—";
@@ -69,17 +67,24 @@ function dateToNum(d) {
   return parseInt(d.replace(/\D/g, ""), 10) || 0;
 }
 
-export default function TrialBalance() {
+export default function MoeinLedger() {
   // ── فیلترها ──
-  const [level, setLevel] = useState("ALL");
+  const [moeinAcc, setMoeinAcc] = useState("112"); // به طور پیش‌فرض حساب معین روی 112 تصویر ست شده
+  const [detailAcc, setDetailAcc] = useState("ALL");
   const [costCenter, setCostCenter] = useState("ALL");
   const [project, setProject] = useState("ALL");
+  const [dateFrom, setDateFrom] = useState("۱۴۰۳/۰۱/۰۱");
   const [dateTo, setDateTo] = useState("۱۴۰۳/۱۲/۲۹");
-  const [codeFrom, setCodeFrom] = useState("ALL");
-  const [showHead, setShowHead] = useState("همه");
-  const [fiscalYear, setFiscalYear] = useState("1403");
-  const [fiscalPeriod, setFiscalPeriod] = useState("ALL");
-  const [showZeroBalance, setShowZeroBalance] = useState("خیر");
+  const [docNumTo, setDocNumTo] = useState("");
+  const [showTemporary, setShowTemporary] = useState("خیر");
+  const [showZeroDocs, setShowZeroDocs] = useState("خیر");
+
+  // ── گزینه‌ها ──
+  const moeinAccOpts = useMemo(() => {
+    return [{ value: "ALL", label: "همه" }, ...ALL_MOEIN_ACCTS];
+  }, []);
+
+  const [detailAccOpts, setDetailAccOpts] = useState([{ value: "ALL", label: "همه" }]);
 
   // ── داده‌ها ──
   const [documents, setDocuments] = useState([]);
@@ -88,9 +93,15 @@ export default function TrialBalance() {
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
 
-  // گزینه‌ها
-  const accountOpts = useMemo(() => {
-    return [{ value: "ALL", label: "همه" }, ...ALL_ACCTS];
+  // بارگذاری حساب‌های تفصیلی (اشخاص)
+  useEffect(() => {
+    api.get("/api/persons").then((res) => {
+      const list = (res.data?.data ?? res.data ?? []).map((p) => ({
+        value: p.nomineeCode,
+        label: `${p.nomineeCode} — ${p.title || [p.firstName, p.lastName].filter(Boolean).join(" ")}`,
+      }));
+      setDetailAccOpts([{ value: "ALL", label: "همه" }, ...list]);
+    }).catch(() => {});
   }, []);
 
   // بارگذاری اسناد
@@ -110,7 +121,7 @@ export default function TrialBalance() {
     loadDocuments();
   }, [loadDocuments]);
 
-  // فیلتر و محاسبه تراز آزمایشی
+  // انجام جستجو و فیلتر
   const handleSearch = useCallback(() => {
     if (documents.length === 0) {
       setFilteredRows([]);
@@ -118,119 +129,61 @@ export default function TrialBalance() {
       return;
     }
 
+    const fromNum = dateFrom ? dateToNum(dateFrom) : 0;
     const toNum = dateTo ? dateToNum(dateTo) : 99999999;
 
-    const accum = {}; // code -> { code, title, debitBefore, creditBefore, debitTurn, creditTurn }
+    const rows = [];
+    let runningBalance = 0;
 
     documents.forEach((doc) => {
       if (doc.status === "CANCELLED") return;
-      const docDateNum = dateToNum(doc.document_date);
-      if (docDateNum > toNum) return;
+      if (showTemporary === "خیر" && doc.status === "DRAFT") return;
+
+      const docDateVal = dateToNum(doc.document_date);
+      if (docDateVal < fromNum || docDateVal > toVal) return;
+
+      const docNumVal = parseInt(doc.document_number?.replace(/\D/g, ""), 10) || 0;
+      if (docNumTo && docNumVal > parseInt(docNumTo, 10)) return;
 
       (doc.lines ?? []).forEach((line) => {
-        const rawCode = line.account_code ?? "";
-        const digits = rawCode.replace(/\D/g, "");
-        if (!digits) return;
+        const accCode = line.account_code ?? "";
+        if (moeinAcc !== "ALL" && !accCode.startsWith(moeinAcc)) return;
 
-        let code = "";
-        if (level === "group") {
-          code = digits.substring(0, 1);
-        } else if (level === "general") {
-          code = digits.substring(0, 3);
-        } else if (level === "moein") {
-          code = digits.substring(0, 5);
-        } else {
-          code = digits;
-        }
+        // فیلتر تفصیلی
+        if (detailAcc !== "ALL" && !accCode.includes(detailAcc)) return;
 
-        if (!code) return;
+        const debit = line.debit ?? 0;
+        const credit = line.credit ?? 0;
+        runningBalance += debit - credit;
 
-        let title = line.account_name ?? "";
-        if (level === "group") {
-          const groupOpt = sanamaCodes.groups.find(g => g.code === code);
-          title = groupOpt ? groupOpt.title : "دارایی‌ها";
-        } else {
-          for (const group of sanamaCodes.groups ?? []) {
-            for (const acc of group.accounts ?? []) {
-              if (acc.code === code) title = acc.title;
-              for (const child of acc.children ?? []) {
-                if (child.code === code) title = child.title;
-              }
-            }
-          }
-        }
-
-        if (!accum[code]) {
-          accum[code] = {
-            code,
-            title: title || `حساب ${code}`,
-            debitBefore: 0,
-            creditBefore: 0,
-            debitTurn: 0,
-            creditTurn: 0,
-          };
-        }
-
-        const debit = Number(line.debit) || 0;
-        const credit = Number(line.credit) || 0;
-
-        // تراز آزمایشی مانده دوره قبل و گردش دوره را محاسبه می‌کند
-        // برای سادگی، اسناد سال مالی جاری به عنوان گردش و اسناد سال‌های قبل به عنوان مانده اول دوره فرض می‌شوند
-        const isCurrentYear = doc.fiscal_year === fiscalYear;
-        if (!isCurrentYear) {
-          accum[code].debitBefore += debit;
-          accum[code].creditBefore += credit;
-        } else {
-          accum[code].debitTurn += debit;
-          accum[code].creditTurn += credit;
-        }
+        rows.push({
+          id: `${doc._id}-${accCode}-${debit}-${credit}`,
+          docDate: doc.document_date || "—",
+          docNumber: doc.document_number,
+          docDesc: line.description || doc.description || "—",
+          detailCode: accCode,
+          detailDesc: line.account_name ?? "—",
+          debit,
+          credit,
+          balance: Math.abs(runningBalance),
+        });
       });
     });
 
-    const rows = [];
-    Object.values(accum).forEach((acc) => {
-      const openNet = acc.debitBefore - acc.creditBefore;
-      const openDebit = openNet > 0 ? openNet : 0;
-      const openCredit = openNet < 0 ? -openNet : 0;
-
-      const finalNet = openNet + acc.debitTurn - acc.creditTurn;
-      const endingDebit = finalNet > 0 ? finalNet : 0;
-      const endingCredit = finalNet < 0 ? -finalNet : 0;
-
-      if (showZeroBalance === "خیر" && acc.debitTurn === 0 && acc.creditTurn === 0 && openNet === 0) {
-        return;
-      }
-
-      if (codeFrom !== "ALL" && !acc.code.startsWith(codeFrom)) return;
-
-      rows.push({
-        id: acc.code,
-        accountCode: acc.code,
-        accountTitle: acc.title,
-        openDebit,
-        openCredit,
-        debitTurn: acc.debitTurn,
-        creditTurn: acc.creditTurn,
-        debitBalance: endingDebit,
-        creditBalance: endingCredit,
-      });
-    });
-
-    rows.sort((a, b) => a.accountCode.localeCompare(b.accountCode, "en", { numeric: true }));
     setFilteredRows(rows);
     setCurrentPage(1);
-  }, [documents, dateTo, level, showZeroBalance, codeFrom, fiscalYear]);
+  }, [documents, dateFrom, dateTo, moeinAcc, detailAcc, docNumTo, showTemporary]);
 
   const handleReset = () => {
-    setLevel("ALL");
+    setMoeinAcc("112");
+    setDetailAcc("ALL");
     setCostCenter("ALL");
     setProject("ALL");
+    setDateFrom("۱۴۰۳/۰۱/۰۱");
     setDateTo("۱۴۰۳/۱۲/۲۹");
-    setCodeFrom("ALL");
-    setShowHead("همه");
-    setFiscalYear("1403");
-    setFiscalPeriod("ALL");
-    setShowZeroBalance("خیر");
+    setDocNumTo("");
+    setShowTemporary("خیر");
+    setShowZeroDocs("خیر");
     setFilteredRows([]);
     setCurrentPage(1);
   };
@@ -239,14 +192,10 @@ export default function TrialBalance() {
   const totals = useMemo(() => {
     return filteredRows.reduce(
       (acc, r) => ({
-        openDebit: acc.openDebit + (r.openDebit ?? 0),
-        openCredit: acc.openCredit + (r.openCredit ?? 0),
-        debitTurn: acc.debitTurn + (r.debitTurn ?? 0),
-        creditTurn: acc.creditTurn + (r.creditTurn ?? 0),
-        debitBalance: acc.debitBalance + (r.debitBalance ?? 0),
-        creditBalance: acc.creditBalance + (r.creditBalance ?? 0),
+        debit: acc.debit + (r.debit ?? 0),
+        credit: acc.credit + (r.credit ?? 0),
       }),
-      { openDebit: 0, openCredit: 0, debitTurn: 0, creditTurn: 0, debitBalance: 0, creditBalance: 0 }
+      { debit: 0, credit: 0 }
     );
   }, [filteredRows]);
 
@@ -257,18 +206,20 @@ export default function TrialBalance() {
 
   const totalPages = Math.ceil(filteredRows.length / pageSize) || 1;
 
+  const selectedMoeinTitle = MOEIN_MAP[moeinAcc] || "حسابهای دریافتنی تجاری";
+
   const exportExcel = () => {
     const csvContent = "data:text/csv;charset=utf-8,\uFEFF"
       + [
-        ["کد حساب", "عنوان حساب", "مانده ابتدا بدهکار", "مانده ابتدا بستانکار", "گردش بدهکار", "گردش بستانکار", "مانده پایان بدهکار", "مانده پایان بستانکار"].join(","),
+        ["تاریخ سند", "شماره سند", "شرح سند", "کد حساب تفصیلی", "شرح تفصیلی", "بدهکار", "بستانکار", "مانده"].join(","),
         ...filteredRows.map(r => [
-          r.accountCode, r.accountTitle, r.openDebit, r.openCredit, r.debitTurn, r.creditTurn, r.debitBalance, r.creditBalance
+          r.docDate, r.docNumber, r.docDesc, r.detailCode, r.detailDesc, r.debit, r.credit, r.balance
         ].join(","))
       ].join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "تراز_آزمایشی.csv");
+    link.setAttribute("download", "دفتر_معین.csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -280,14 +231,14 @@ export default function TrialBalance() {
       <div className="mb-3 flex items-center gap-1.5 text-xs text-muted-foreground" dir="rtl">
         <span>گزارش‌ها</span>
         <ChevronLeft className="h-3 w-3 shrink-0" />
-        <span>گزارش‌های حسابداری</span>
+        <span>گزارش‌های اسناد حسابداری</span>
         <ChevronLeft className="h-3 w-3 shrink-0" />
-        <span className="text-primary font-semibold">تراز آزمایشی</span>
+        <span className="text-primary font-semibold">دفتر معین</span>
       </div>
 
       <div className="mb-4 flex items-center justify-between" dir="rtl">
         <div>
-          <h1 className="text-xl font-bold text-foreground">تراز آزمایشی</h1>
+          <h1 className="text-xl font-bold text-foreground">دفتر معین</h1>
         </div>
       </div>
 
@@ -296,7 +247,7 @@ export default function TrialBalance() {
         <CardContent className="p-4" dir="rtl">
           <div className="flex flex-col lg:flex-row gap-6 items-stretch">
             
-            {/* دکمه‌های فیلتر در سمت چپ */}
+            {/* دکمه‌های سمت چپ فیلتر */}
             <div className="flex flex-col gap-2 w-full lg:w-44 shrink-0 justify-start">
               <Button onClick={handleSearch} className="w-full bg-[#004b93] hover:bg-[#003d79] text-white flex items-center justify-center gap-2 h-9 text-xs font-semibold rounded-lg shadow-sm">
                 <Search className="h-4 w-4" />
@@ -318,15 +269,19 @@ export default function TrialBalance() {
             {/* بخش گرید ورودی‌ها */}
             <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-3">
               
-              {/* ستون اول: سطح حساب، مرکز هزینه، پروژه */}
+              {/* ستون اول: حساب معین، تفصیلی، مرکز هزینه، پروژه */}
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <Label className="w-24 text-right text-xs font-semibold text-foreground/80 shrink-0">سطح حساب :</Label>
+                  <Label className="w-24 text-right text-xs font-semibold text-foreground/80 shrink-0">حساب معین :</Label>
                   <div className="flex-1">
-                    <select value={level} onChange={(e) => setLevel(e.target.value)}
-                      className="w-full h-9 text-xs rounded-lg border border-input bg-background px-3 focus:outline-none focus:ring-1 focus:ring-ring">
-                      {LEVEL_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
+                    <SearchableSelect value={moeinAcc} onChange={setMoeinAcc} options={moeinAccOpts} placeholder="همه" className="h-9" />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Label className="w-24 text-right text-xs font-semibold text-foreground/80 shrink-0">حساب تفصیلی :</Label>
+                  <div className="flex-1">
+                    <SearchableSelect value={detailAcc} onChange={setDetailAcc} options={detailAccOpts} placeholder="همه" className="h-9" />
                   </div>
                 </div>
 
@@ -351,62 +306,49 @@ export default function TrialBalance() {
                 </div>
               </div>
 
-              {/* ستون دوم: تا تاریخ، شماره حساب از، نمایش سرفصل */}
+              {/* ستون دوم: تاریخ شروع، تا سند، نمایش موقت، نمایش صفر */}
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <Label className="w-32 text-right text-xs font-semibold text-foreground/80 shrink-0">تا تاریخ :</Label>
+                  <Label className="w-36 text-right text-xs font-semibold text-foreground/80 shrink-0">از تاریخ :</Label>
                   <div className="flex-1">
-                    <PersianDatePicker value={dateTo} onChange={(e) => setDateTo(e.target.value)} placeholder="۱۴۰۳/۱۲/۲۹" className="h-9" />
+                    <PersianDatePicker value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} placeholder="۱۴۰۳/۰۱/۰۱" className="h-9" />
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <Label className="w-32 text-right text-xs font-semibold text-foreground/80 shrink-0">شماره حساب از :</Label>
+                  <Label className="w-36 text-right text-xs font-semibold text-foreground/80 shrink-0">تا سند :</Label>
                   <div className="flex-1">
-                    <SearchableSelect value={codeFrom} onChange={setCodeFrom} options={accountOpts} placeholder="همه" className="h-9" />
+                    <Input value={docNumTo} onChange={(e) => setDocNumTo(e.target.value)} placeholder="شماره سند..." className="h-9 text-xs" dir="ltr" />
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <Label className="w-32 text-right text-xs font-semibold text-foreground/80 shrink-0">نمایش سرفصل :</Label>
+                  <Label className="w-36 text-right text-xs font-semibold text-foreground/80 shrink-0">نمایش اسناد موقت :</Label>
                   <div className="flex-1">
-                    <select value={showHead} onChange={(e) => setShowHead(e.target.value)}
+                    <select value={showTemporary} onChange={(e) => setShowTemporary(e.target.value)}
                       className="w-full h-9 text-xs rounded-lg border border-input bg-background px-3 focus:outline-none focus:ring-1 focus:ring-ring">
-                      <option value="همه">همه</option>
+                      {TEMPORARY_DOC_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Label className="w-36 text-right text-xs font-semibold text-foreground/80 shrink-0">نمایش اسناد صفر :</Label>
+                  <div className="flex-1">
+                    <select value={showZeroDocs} onChange={(e) => setShowZeroDocs(e.target.value)}
+                      className="w-full h-9 text-xs rounded-lg border border-input bg-background px-3 focus:outline-none focus:ring-1 focus:ring-ring">
+                      {ZERO_DOC_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
                   </div>
                 </div>
               </div>
 
-              {/* ستون سوم: سال مالی، دوره مالی، نمایش مانده صفر */}
+              {/* ستون سوم: تا تاریخ در بالا */}
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <Label className="w-28 text-right text-xs font-semibold text-foreground/80 shrink-0">سال مالی :</Label>
+                  <Label className="w-24 text-right text-xs font-semibold text-foreground/80 shrink-0">تا تاریخ :</Label>
                   <div className="flex-1">
-                    <select value={fiscalYear} onChange={(e) => setFiscalYear(e.target.value)}
-                      className="w-full h-9 text-xs rounded-lg border border-input bg-background px-3 focus:outline-none focus:ring-1 focus:ring-ring">
-                      {FISCAL_YEAR_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Label className="w-28 text-right text-xs font-semibold text-foreground/80 shrink-0">دوره مالی :</Label>
-                  <div className="flex-1">
-                    <select value={fiscalPeriod} onChange={(e) => setFiscalPeriod(e.target.value)}
-                      className="w-full h-9 text-xs rounded-lg border border-input bg-background px-3 focus:outline-none focus:ring-1 focus:ring-ring">
-                      <option value="ALL">همه</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Label className="w-28 text-right text-xs font-semibold text-foreground/80 shrink-0">نمایش مانده صفر :</Label>
-                  <div className="flex-1">
-                    <select value={showZeroBalance} onChange={(e) => setShowZeroBalance(e.target.value)}
-                      className="w-full h-9 text-xs rounded-lg border border-input bg-background px-3 focus:outline-none focus:ring-1 focus:ring-ring">
-                      {YES_NO_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
+                    <PersianDatePicker value={dateTo} onChange={(e) => setDateTo(e.target.value)} placeholder="۱۴۰۳/۱۲/۲۹" className="h-9" />
                   </div>
                 </div>
               </div>
@@ -432,9 +374,9 @@ export default function TrialBalance() {
           </Button>
           <Button onClick={exportExcel} variant="outline" size="sm" className="gap-1.5 text-[11px] font-semibold h-8 rounded-lg bg-white border border-border shadow-sm text-foreground/80">
             <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
-            خروجی اکسل
+            اکسل
           </Button>
-          <Button onClick={() => printTable("#trial-table", "تراز آزمایشی")} variant="outline" size="sm" className="gap-1.5 text-[11px] font-semibold h-8 rounded-lg bg-white border border-border shadow-sm text-foreground/80">
+          <Button onClick={() => printTable("#moein-table", "دفتر معین")} variant="outline" size="sm" className="gap-1.5 text-[11px] font-semibold h-8 rounded-lg bg-white border border-border shadow-sm text-foreground/80">
             <Printer className="h-3.5 w-3.5" />
             چاپ
           </Button>
@@ -446,28 +388,28 @@ export default function TrialBalance() {
         </div>
       </div>
 
+      {/* ─── هدر کد و عنوان معین بالای جدول ─── */}
+      <div className="bg-[#eef5fc] border border-blue-200/50 p-2.5 rounded-xl flex items-center justify-start gap-4 text-xs font-semibold mb-3 text-[#0e305d]" dir="rtl">
+        <span className="text-muted-foreground">کد حساب عنوان معین :</span>
+        <span className="font-mono font-bold text-foreground bg-white border px-2 py-0.5 rounded shadow-sm">{moeinAcc}</span>
+        <span className="font-bold text-foreground bg-white border px-3 py-0.5 rounded shadow-sm">{selectedMoeinTitle}</span>
+      </div>
+
       {/* ─── جدول داده‌ها ─── */}
       <Card className="border border-border/80 overflow-hidden shadow-sm">
         <CardContent className="p-0">
-          <div className="overflow-x-auto" id="trial-table">
+          <div className="overflow-x-auto" id="moein-table">
             <table className="w-full text-xs text-right" dir="rtl">
               <thead>
-                {/* هدر لایه اول */}
                 <tr className="bg-[#0e305d] text-white border-b border-border">
-                  <th rowSpan={2} className="px-3 py-4 font-bold text-center w-20 border-l border-white/10 whitespace-nowrap">کد حساب</th>
-                  <th rowSpan={2} className="px-3 py-4 font-bold text-right border-l border-white/10 min-w-[200px]">عنوان حساب</th>
-                  <th colSpan={2} className="px-3 py-2 font-bold text-center border-l border-white/10">مانده دوره قبل</th>
-                  <th colSpan={2} className="px-3 py-2 font-bold text-center border-l border-white/10">گردش دوره</th>
-                  <th colSpan={2} className="px-3 py-2 font-bold text-center">مانده فعلی</th>
-                </tr>
-                {/* هدر لایه دوم */}
-                <tr className="bg-[#0b284e] text-white/95 border-b border-border">
-                  <th className="px-3 py-2 font-semibold text-center w-32 border-l border-white/10">بدهکار</th>
-                  <th className="px-3 py-2 font-semibold text-center w-32 border-l border-white/10">بستانکار</th>
-                  <th className="px-3 py-2 font-semibold text-center w-32 border-l border-white/10">بدهکار</th>
-                  <th className="px-3 py-2 font-semibold text-center w-32 border-l border-white/10">بستانکار</th>
-                  <th className="px-3 py-2 font-semibold text-center w-32 border-l border-white/10">بدهکار</th>
-                  <th className="px-3 py-2 font-semibold text-center w-32">بستانکار</th>
+                  <th className="px-3 py-2.5 font-bold text-center w-24 border-l border-white/10 whitespace-nowrap">تاریخ سند</th>
+                  <th className="px-3 py-2.5 font-bold text-center w-32 border-l border-white/10 whitespace-nowrap">شماره سند</th>
+                  <th className="px-3 py-2.5 font-bold text-right border-l border-white/10 min-w-[200px]">شرح سند</th>
+                  <th className="px-3 py-2.5 font-bold text-center w-28 border-l border-white/10 whitespace-nowrap">کد حساب تفصیلی</th>
+                  <th className="px-3 py-2.5 font-bold text-center w-36 border-l border-white/10 whitespace-nowrap">شرح تفصیلی</th>
+                  <th className="px-3 py-2.5 font-bold text-center w-28 border-l border-white/10 whitespace-nowrap">بدهکار</th>
+                  <th className="px-3 py-2.5 font-bold text-center w-28 border-l border-white/10 whitespace-nowrap">بستانکار</th>
+                  <th className="px-3 py-2.5 font-bold text-center w-28 whitespace-nowrap">مانده</th>
                 </tr>
               </thead>
               <tbody>
@@ -486,29 +428,29 @@ export default function TrialBalance() {
                 ) : (
                   paginatedRows.map((row, idx) => (
                     <tr key={row.id ?? idx} className={cn("border-b hover:bg-primary/[0.04] transition-colors", idx % 2 === 1 && "bg-muted/10")}>
-                      <td className="px-3 py-2.5 text-center font-mono font-bold text-foreground/80 border-l">
-                        {row.accountCode}
+                      <td className="px-3 py-2.5 text-center font-mono font-medium text-muted-foreground/80 border-l">
+                        {row.docDate}
+                      </td>
+                      <td className="px-3 py-2.5 text-center font-mono font-semibold text-blue-600 hover:underline cursor-pointer border-l">
+                        {row.docNumber}
                       </td>
                       <td className="px-3 py-2.5 text-right font-medium text-foreground border-l">
-                        {row.accountTitle}
+                        {row.docDesc}
+                      </td>
+                      <td className="px-3 py-2.5 text-center font-mono font-semibold text-foreground/80 border-l">
+                        {row.detailCode}
+                      </td>
+                      <td className="px-3 py-2.5 text-center text-foreground/90 font-medium border-l">
+                        {row.detailDesc}
                       </td>
                       <td className="px-3 py-2.5 text-center font-mono font-semibold text-blue-700 tabular-nums border-l">
-                        {fmtNum(row.openDebit)}
+                        {fmtNum(row.debit)}
                       </td>
                       <td className="px-3 py-2.5 text-center font-mono font-semibold text-rose-700 tabular-nums border-l">
-                        {fmtNum(row.openCredit)}
+                        {fmtNum(row.credit)}
                       </td>
-                      <td className="px-3 py-2.5 text-center font-mono font-medium text-foreground/90 tabular-nums border-l">
-                        {fmtNum(row.debitTurn)}
-                      </td>
-                      <td className="px-3 py-2.5 text-center font-mono font-medium text-foreground/90 tabular-nums border-l">
-                        {fmtNum(row.creditTurn)}
-                      </td>
-                      <td className="px-3 py-2.5 text-center font-mono font-semibold text-blue-700 tabular-nums border-l">
-                        {fmtNum(row.debitBalance)}
-                      </td>
-                      <td className="px-3 py-2.5 text-center font-mono font-semibold text-rose-700 tabular-nums">
-                        {fmtNum(row.creditBalance)}
+                      <td className="px-3 py-2.5 text-center font-mono font-semibold text-foreground/90 tabular-nums">
+                        {fmtNum(row.balance)}
                       </td>
                     </tr>
                   ))
@@ -519,26 +461,17 @@ export default function TrialBalance() {
               {filteredRows.length > 0 && (
                 <tfoot>
                   <tr className="bg-[#e9f2fb] border-t border-border font-bold text-foreground">
-                    <td className="px-3 py-2.5 text-center font-bold" colSpan={2}>
+                    <td className="px-3 py-2.5 text-center font-bold" colSpan={5}>
                       جمع کل
                     </td>
                     <td className="px-3 py-2.5 text-center font-mono font-bold text-blue-700 tabular-nums border-l">
-                      {fmtNum(totals.openDebit)}
+                      {fmtNum(totals.debit)}
                     </td>
                     <td className="px-3 py-2.5 text-center font-mono font-bold text-rose-700 tabular-nums border-l">
-                      {fmtNum(totals.openCredit)}
+                      {fmtNum(totals.credit)}
                     </td>
-                    <td className="px-3 py-2.5 text-center font-mono font-bold text-blue-700 tabular-nums border-l">
-                      {fmtNum(totals.debitTurn)}
-                    </td>
-                    <td className="px-3 py-2.5 text-center font-mono font-bold text-rose-700 tabular-nums border-l">
-                      {fmtNum(totals.creditTurn)}
-                    </td>
-                    <td className="px-3 py-2.5 text-center font-mono font-bold text-blue-700 tabular-nums border-l">
-                      {fmtNum(totals.debitBalance)}
-                    </td>
-                    <td className="px-3 py-2.5 text-center font-mono font-bold text-rose-700 tabular-nums">
-                      {fmtNum(totals.creditBalance)}
+                    <td className="px-3 py-2.5 text-center font-mono font-bold text-foreground tabular-nums">
+                      {fmtNum(filteredRows[filteredRows.length - 1]?.balance ?? 0)}
                     </td>
                   </tr>
                 </tfoot>

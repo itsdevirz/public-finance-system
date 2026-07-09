@@ -440,8 +440,8 @@ router.get("/filters", async (c) => {
     }
     const yearNum = Number(fiscalYear);
 
-    // بررسی و تزریق داده‌های فرضی در صورت خالی بودن دیتابیس
-    await seedMockBudgetData(db);
+    // بررسی و تزریق داده‌های فرضی در صورت خالی بودن دیتابیس (غیرفعال شد)
+    // await seedMockBudgetData(db);
 
     const agreements = await db.collection<Agreement>("agreements").find({ fiscal_year: yearNum }).toArray();
     
@@ -501,8 +501,8 @@ router.get("/performance", async (c) => {
 
     const yearNum = Number(fiscalYear);
 
-    // بررسی و تزریق داده‌های فرضی در صورت خالی بودن دیتابیس
-    await seedMockBudgetData(db);
+    // بررسی و تزریق داده‌های فرضی در صورت خالی بودن دیتابیس (غیرفعال شد)
+    // await seedMockBudgetData(db);
 
     // ۱. موافقت‌نامه‌ها (بودجه مصوب)
     const agrFilter: any = { fiscal_year: yearNum };

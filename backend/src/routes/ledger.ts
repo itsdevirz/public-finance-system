@@ -29,6 +29,15 @@ try {
   // اگر فایل در دسترس نبود، نام‌ها از سند گرفته می‌شوند
 }
 
+let subAccountTitles: any[] = [];
+try {
+  subAccountTitles = JSON.parse(
+    readFileSync(join(__dirname_ledger, "../data/subAccountTitles.json"), "utf-8")
+  );
+} catch (e) {
+  console.error("Failed to load subAccountTitles.json in backend", e);
+}
+
 const router = new Hono();
 
 
@@ -516,6 +525,107 @@ router.get("/account-lines", async (c) => {
     .find(query)
     .toArray();
 
+  const isSanama = xmlCode && xmlCode !== "ALL" && !["group", "main", "moein", "detail"].includes(xmlCode);
+
+  if (isSanama) {
+    const config = subAccountTitles.find((x: any) => x.xmlCode === xmlCode);
+    const rowNum = config ? config.row : null;
+    const sanamaKey = rowNum ? `sanama_${rowNum}` : "";
+
+    const personMap = new Map<string, string>();
+    if (xmlCode === "NomineeCode" || (config && config.types)) {
+      const persons = await db.collection("persons").find().toArray();
+      for (const p of persons as any[]) {
+        if (p.nomineeCode) {
+          personMap.set(
+            String(p.nomineeCode),
+            p.title ?? ([p.firstName, p.lastName].filter(Boolean).join(" ")) ?? ""
+          );
+        }
+      }
+    }
+
+    const map = new Map<string, { code: string; name: string; debit: number; credit: number }>();
+
+    for (const rawDoc of docs) {
+      const doc = decryptDocument(serialize(rawDoc as Record<string, unknown>));
+      if (doc.status === "CANCELLED") continue;
+
+      const docDateNum = dateToNum(doc.document_date ?? "");
+      if (docDateNum < fromNum || docDateNum > toNum) continue;
+
+      for (const line of (doc.lines ?? []) as any[]) {
+        if (!line.sanamaFields) continue;
+        const val = line.sanamaFields[sanamaKey];
+        if (val === undefined || val === null || String(val).trim() === "") continue;
+
+        const key = String(val).trim();
+        if (!map.has(key)) {
+          let resolvedName = "";
+          if (config) {
+            if (config.values) {
+              const foundVal = config.values.find((v: any) => String(v.type) === key);
+              if (foundVal) resolvedName = foundVal.title;
+            } else if (config.groups) {
+              for (const g of config.groups) {
+                const foundVal = g.values.find((v: any) => String(v.type) === key);
+                if (foundVal) {
+                  resolvedName = foundVal.title;
+                  break;
+                }
+              }
+            } else if (xmlCode === "NomineeCode" || config.types) {
+              resolvedName = personMap.get(key) || "";
+              if (!resolvedName && config.types) {
+                const foundType = config.types.find((v: any) => String(v.code) === key);
+                if (foundType) resolvedName = foundType.title;
+              }
+            }
+          }
+          if (!resolvedName) {
+            resolvedName = `${config?.title ?? "تفصیلی"} ${key}`;
+          }
+
+          map.set(key, { code: key, name: resolvedName, debit: 0, credit: 0 });
+        }
+
+        const entry = map.get(key)!;
+        entry.debit  += (line.debit  ?? 0) as number;
+        entry.credit += (line.credit ?? 0) as number;
+      }
+    }
+
+    const rows: {
+      account_code: string;
+      account_name: string;
+      debit:        number;
+      credit:       number;
+      balance:      number;
+      nature:       string;
+    }[] = [];
+
+    for (const [, e] of map.entries()) {
+      const bal = e.debit - e.credit;
+      rows.push({
+        account_code: e.code,
+        account_name: e.name,
+        debit:        e.debit,
+        credit:       e.credit,
+        balance:      bal,
+        nature:       bal > 0 ? "بدهکار" : bal < 0 ? "بستانکار" : "تراز",
+      });
+    }
+
+    rows.sort((a, b) => a.account_code.localeCompare(b.account_code, "en", { numeric: true }));
+
+    const totals = rows.reduce(
+      (acc, r) => ({ debit: acc.debit + r.debit, credit: acc.credit + r.credit, balance: acc.balance + r.balance }),
+      { debit: 0, credit: 0, balance: 0 }
+    );
+
+    return c.json({ data: rows, totals, message: `مرور حساب — ${config?.title ?? "سناما"}` });
+  }
+
   // نتیجه: هر ردیف = یک line از یک سند که در بازه تاریخی قرار دارد
   const rows: {
     doc_id:       string;
@@ -554,8 +664,6 @@ router.get("/account-lines", async (c) => {
         if (xmlCode === "main"   && codeDigits.length !== 3)  continue;
         if (xmlCode === "moein"  && codeDigits.length !== 5)  continue;
         if (xmlCode === "detail" && codeDigits.length <= 5)   continue;
-        // برای NomineeCode و سایر xmlCode‌های سناما — فعلاً همه را برمی‌گردانیم
-        // (این فیلدها در metadata سند هستند نه در account_code)
       }
 
       const d  = (line.debit  ?? 0) as number;

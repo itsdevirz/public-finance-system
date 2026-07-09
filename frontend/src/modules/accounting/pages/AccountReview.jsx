@@ -87,6 +87,30 @@ function getColumns(item) {
     { key: "doc_number", label: "شماره سند", align: "right" },
     { key: "doc_date",   label: "تاریخ",     align: "right" },
   ];
+  if (item.id && item.id.startsWith("sanama_")) {
+    let codeLabel = item.label;
+    let nameLabel = `عنوان ${item.label}`;
+
+    if (item.xmlCode === "DebitSubject") {
+      codeLabel = "کد موضوع";
+      nameLabel = "عنوان موضوع بدهی";
+    } else if (item.label.startsWith("شماره ")) {
+      codeLabel = item.label;
+      nameLabel = `عنوان ${item.label.substring(6)}`;
+    } else if (item.label.startsWith("مشخصات ")) {
+      codeLabel = item.label.replace("مشخصات", "کد");
+      nameLabel = `عنوان ${item.label.substring(7)}`;
+    } else if (item.label.startsWith("مشحصات ")) { // handle potential typo in data
+      codeLabel = item.label.replace("مشحصات", "کد");
+      nameLabel = `عنوان ${item.label.substring(7)}`;
+    }
+
+    return [
+      { key: "account_code", label: codeLabel, align: "right" },
+      { key: "account_name", label: nameLabel, align: "right" },
+      ...fixedCols,
+    ];
+  }
   if (item.mode === "persons") {
     return [
       { key: "nominee_code", label: "شناسه شخص", align: "right" },
@@ -277,13 +301,19 @@ export default function AccountReview() {
   const columns = getColumns(activeItem);
   const isPersonMode = activeItem?.mode === "persons";
 
-  // فیلتر جستجو — فقط برای حالت اشخاص
+  // فیلتر جستجو — برای همه حالت‌ها (اشخاص و حساب‌ها و سناما)
   const displayRows = (rows ?? []).filter((r) => {
-    if (!searchText || !isPersonMode) return true;
+    if (!searchText) return true;
     const q = searchText.toLowerCase();
+    if (isPersonMode) {
+      return (
+        (r.nominee_code ?? "").toLowerCase().includes(q) ||
+        (r.person_name  ?? "").toLowerCase().includes(q)
+      );
+    }
     return (
-      (r.nominee_code ?? "").toLowerCase().includes(q) ||
-      (r.person_name  ?? "").toLowerCase().includes(q)
+      (r.account_code ?? "").toLowerCase().includes(q) ||
+      (r.account_name ?? "").toLowerCase().includes(q)
     );
   });
 
@@ -363,20 +393,20 @@ export default function AccountReview() {
                             {meta.label}
                           </span>
                           <span className="text-xs text-muted-foreground border rounded px-2 py-0.5 bg-muted/50">
-                            {isPersonMode && searchText
-                              ? `${displayRows.length} از ${meta.count} نفر`
+                            {searchText
+                              ? `${displayRows.length} از ${meta.count} مورد`
                               : `${meta.count} ردیف`}
                           </span>
                         </>
                       )}
                     </div>
                     <div className="flex gap-2 items-center">
-                      {isPersonMode && (
+                      {rows && rows.length > 0 && (
                         <input
                           type="text" dir="rtl"
                           value={searchText}
                           onChange={(e) => setSearchText(e.target.value)}
-                          placeholder="جستجو نام یا شناسه..."
+                          placeholder="جستجو..."
                           className="h-8 text-xs border rounded-md px-2.5 bg-white focus:outline-none focus:border-primary w-44"
                         />
                       )}

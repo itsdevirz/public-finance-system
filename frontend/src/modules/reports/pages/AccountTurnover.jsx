@@ -17,35 +17,84 @@ import { cn } from "@/lib/utils";
 // وارد کردن اطلاعات سرفصل‌ها مستقیماً از فایل JSON فرانت‌اند
 import sanamaCodes from "@/data/sanamaCodes.json";
 
-// ─── استخراج سرفصل‌ها از فایل sanamaCodes ─────────────────────────────────────
-const ALL_ACCTS = [];
+// ─── استخراج سرفصل‌های معین از فایل sanamaCodes ──────────────────────────────
+const ALL_GENERAL_ACCTS = [];
+const MOEIN_BY_GENERAL = {}; // code کل -> لیست معین‌ها
+const ALL_MOEIN_ACCTS = [];
+
 sanamaCodes.groups.forEach((group) => {
-  ALL_ACCTS.push({ value: group.code, label: `${group.code} — ${group.title}` });
   (group.accounts ?? []).forEach((acc) => {
-    ALL_ACCTS.push({ value: acc.code, label: `${acc.code} — ${acc.title}` });
-    (acc.children ?? []).forEach((child) => {
-      ALL_ACCTS.push({ value: child.code, label: `${child.code} — ${child.title}` });
+    const genCode = acc.code;
+    ALL_GENERAL_ACCTS.push({ value: genCode, label: `${genCode} — ${acc.title}` });
+    
+    const children = (acc.children ?? []).map((child) => {
+      const item = { value: child.code, label: `${child.code} — ${child.title}`, parentCode: genCode };
+      ALL_MOEIN_ACCTS.push(item);
+      return item;
     });
+    
+    MOEIN_BY_GENERAL[genCode] = children;
   });
 });
 
+// تابع کمکی برای پیدا کردن نام حساب کل و معین از روی کد
+const getAccountNamesFromCode = (code) => {
+  if (!code) return { generalName: "—", moeinName: "—" };
+  const genCode = code.substring(0, 3);
+  const moeCode = code.substring(0, 5);
+
+  let generalName = "—";
+  let moeinName = "—";
+
+  for (const group of sanamaCodes.groups ?? []) {
+    for (const acc of group.accounts ?? []) {
+      if (acc.code === genCode) {
+        generalName = acc.title;
+      }
+      for (const child of acc.children ?? []) {
+        if (child.code === moeCode) {
+          moeinName = child.title;
+        }
+      }
+    }
+  }
+
+  return { generalName, moeinName };
+};
+
 // ─── ثوابت فیلترها ───────────────────────────────────────────────────────────
 const LEVEL_OPTIONS = [
-  { value: "ALL", label: "همه" },
-  { value: "group", label: "گروه حساب" },
+  { value: "moein", label: "معین" },
   { value: "general", label: "حساب کل" },
-  { value: "moein", label: "حساب معین" },
+  { value: "group", label: "گروه حساب" },
 ];
 
-const FISCAL_YEAR_OPTIONS = [
-  { value: "1403", label: "1403" },
-  { value: "1402", label: "1402" },
+const CURRENCY_OPTIONS = [
+  { value: "ریال", label: "ریال" },
+  { value: "دلار", label: "دلار" },
+  { value: "یورو", label: "یورو" },
+];
+
+const REPORT_TYPE_OPTIONS = [
+  { value: "کلی", label: "کلی" },
+  { value: "تحلیلی", label: "تحلیلی" },
+];
+
+const DOC_SHOW_OPTIONS = [
+  { value: "همه", label: "همه" },
+  { value: "روزانه", label: "روزانه" },
+];
+
+const STATUS_OPTIONS = [
+  { value: "ALL", label: "همه" },
 ];
 
 const COST_CENTER_OPTIONS = [
   { value: "ALL", label: "همه" },
   { value: "اداری", label: "اداری" },
   { value: "بازرگانی", label: "بازرگانی" },
+  { value: "فروش", label: "فروش" },
+  { value: "تولید", label: "تولید" },
 ];
 
 const PROJECT_OPTIONS = [
@@ -57,7 +106,7 @@ const YES_NO_OPTIONS = [
   { value: "بله", label: "بله" },
 ];
 
-// MOCK_ROWS removed for clean database-only rendering
+// MOCK_ROWS removed for clean database-only data loading
 
 function fmtNum(n) {
   if (n === 0 || n == null) return "—";
@@ -69,17 +118,34 @@ function dateToNum(d) {
   return parseInt(d.replace(/\D/g, ""), 10) || 0;
 }
 
-export default function TrialBalance() {
+export default function AccountTurnover() {
   // ── فیلترها ──
-  const [level, setLevel] = useState("ALL");
+  const [generalAcc, setGeneralAcc] = useState("ALL");
+  const [moeinAcc, setMoeinAcc] = useState("ALL");
   const [costCenter, setCostCenter] = useState("ALL");
   const [project, setProject] = useState("ALL");
+  const [dateFrom, setDateFrom] = useState("۱۴۰۳/۰۱/۰۱");
   const [dateTo, setDateTo] = useState("۱۴۰۳/۱۲/۲۹");
-  const [codeFrom, setCodeFrom] = useState("ALL");
-  const [showHead, setShowHead] = useState("همه");
-  const [fiscalYear, setFiscalYear] = useState("1403");
-  const [fiscalPeriod, setFiscalPeriod] = useState("ALL");
+  const [displayLevel, setDisplayLevel] = useState("moein");
+  const [showDetailTurnover, setShowDetailTurnover] = useState("خیر");
+  const [docShowType, setDocShowType] = useState("همه");
+  const [docShowLevel, setDocShowLevel] = useState("کلی");
   const [showZeroBalance, setShowZeroBalance] = useState("خیر");
+  const [showSummary, setShowSummary] = useState("خیر");
+  const [currencyUnit, setCurrencyUnit] = useState("ریال");
+  const [reportType, setReportType] = useState("کلی");
+
+  // ── گزینه‌ها ──
+  const generalAccOpts = useMemo(() => {
+    return [{ value: "ALL", label: "همه" }, ...ALL_GENERAL_ACCTS];
+  }, []);
+
+  const moeinAccOpts = useMemo(() => {
+    if (!generalAcc || generalAcc === "ALL") {
+      return [{ value: "ALL", label: "همه" }, ...ALL_MOEIN_ACCTS];
+    }
+    return [{ value: "ALL", label: "همه" }, ...(MOEIN_BY_GENERAL[generalAcc] ?? [])];
+  }, [generalAcc]);
 
   // ── داده‌ها ──
   const [documents, setDocuments] = useState([]);
@@ -88,10 +154,27 @@ export default function TrialBalance() {
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
 
-  // گزینه‌ها
-  const accountOpts = useMemo(() => {
-    return [{ value: "ALL", label: "همه" }, ...ALL_ACCTS];
-  }, []);
+  // ── مدیریت فیلترها جهت ارتباط ──
+  const handleGeneralChange = (val) => {
+    setGeneralAcc(val);
+    if (val !== "ALL") {
+      const children = MOEIN_BY_GENERAL[val] ?? [];
+      const isChild = children.some((c) => c.value === moeinAcc);
+      if (!isChild) {
+        setMoeinAcc("ALL");
+      }
+    }
+  };
+
+  const handleMoeinChange = (val) => {
+    setMoeinAcc(val);
+    if (val !== "ALL") {
+      const selected = ALL_MOEIN_ACCTS.find((m) => m.value === val);
+      if (selected && selected.parentCode) {
+        setGeneralAcc(selected.parentCode);
+      }
+    }
+  };
 
   // بارگذاری اسناد
   const loadDocuments = useCallback(async () => {
@@ -110,7 +193,7 @@ export default function TrialBalance() {
     loadDocuments();
   }, [loadDocuments]);
 
-  // فیلتر و محاسبه تراز آزمایشی
+  // فیلتر و محاسبه گردش
   const handleSearch = useCallback(() => {
     if (documents.length === 0) {
       setFilteredRows([]);
@@ -118,6 +201,7 @@ export default function TrialBalance() {
       return;
     }
 
+    const fromNum = dateFrom ? dateToNum(dateFrom) : 0;
     const toNum = dateTo ? dateToNum(dateTo) : 99999999;
 
     const accum = {}; // code -> { code, title, debitBefore, creditBefore, debitTurn, creditTurn }
@@ -125,7 +209,6 @@ export default function TrialBalance() {
     documents.forEach((doc) => {
       if (doc.status === "CANCELLED") return;
       const docDateNum = dateToNum(doc.document_date);
-      if (docDateNum > toNum) return;
 
       (doc.lines ?? []).forEach((line) => {
         const rawCode = line.account_code ?? "";
@@ -133,11 +216,11 @@ export default function TrialBalance() {
         if (!digits) return;
 
         let code = "";
-        if (level === "group") {
+        if (displayLevel === "group") {
           code = digits.substring(0, 1);
-        } else if (level === "general") {
+        } else if (displayLevel === "general") {
           code = digits.substring(0, 3);
-        } else if (level === "moein") {
+        } else if (displayLevel === "moein") {
           code = digits.substring(0, 5);
         } else {
           code = digits;
@@ -145,19 +228,15 @@ export default function TrialBalance() {
 
         if (!code) return;
 
+        const { generalName, moeinName } = getAccountNamesFromCode(rawCode);
         let title = line.account_name ?? "";
-        if (level === "group") {
+        if (displayLevel === "group") {
           const groupOpt = sanamaCodes.groups.find(g => g.code === code);
           title = groupOpt ? groupOpt.title : "دارایی‌ها";
-        } else {
-          for (const group of sanamaCodes.groups ?? []) {
-            for (const acc of group.accounts ?? []) {
-              if (acc.code === code) title = acc.title;
-              for (const child of acc.children ?? []) {
-                if (child.code === code) title = child.title;
-              }
-            }
-          }
+        } else if (displayLevel === "general") {
+          title = generalName;
+        } else if (displayLevel === "moein") {
+          title = moeinName;
         }
 
         if (!accum[code]) {
@@ -174,13 +253,10 @@ export default function TrialBalance() {
         const debit = Number(line.debit) || 0;
         const credit = Number(line.credit) || 0;
 
-        // تراز آزمایشی مانده دوره قبل و گردش دوره را محاسبه می‌کند
-        // برای سادگی، اسناد سال مالی جاری به عنوان گردش و اسناد سال‌های قبل به عنوان مانده اول دوره فرض می‌شوند
-        const isCurrentYear = doc.fiscal_year === fiscalYear;
-        if (!isCurrentYear) {
+        if (docDateNum < fromNum) {
           accum[code].debitBefore += debit;
           accum[code].creditBefore += credit;
-        } else {
+        } else if (docDateNum <= toNum) {
           accum[code].debitTurn += debit;
           accum[code].creditTurn += credit;
         }
@@ -197,11 +273,12 @@ export default function TrialBalance() {
       const endingDebit = finalNet > 0 ? finalNet : 0;
       const endingCredit = finalNet < 0 ? -finalNet : 0;
 
-      if (showZeroBalance === "خیر" && acc.debitTurn === 0 && acc.creditTurn === 0 && openNet === 0) {
+      if (showZeroBalance === "بله" && acc.debitTurn === 0 && acc.creditTurn === 0 && openNet === 0) {
         return;
       }
 
-      if (codeFrom !== "ALL" && !acc.code.startsWith(codeFrom)) return;
+      if (generalAcc !== "ALL" && !acc.code.startsWith(generalAcc)) return;
+      if (moeinAcc !== "ALL" && !acc.code.startsWith(moeinAcc)) return;
 
       rows.push({
         id: acc.code,
@@ -219,18 +296,23 @@ export default function TrialBalance() {
     rows.sort((a, b) => a.accountCode.localeCompare(b.accountCode, "en", { numeric: true }));
     setFilteredRows(rows);
     setCurrentPage(1);
-  }, [documents, dateTo, level, showZeroBalance, codeFrom, fiscalYear]);
+  }, [documents, dateFrom, dateTo, displayLevel, showZeroBalance, generalAcc, moeinAcc]);
 
   const handleReset = () => {
-    setLevel("ALL");
+    setGeneralAcc("ALL");
+    setMoeinAcc("ALL");
     setCostCenter("ALL");
     setProject("ALL");
+    setDateFrom("۱۴۰۳/۰۱/۰۱");
     setDateTo("۱۴۰۳/۱۲/۲۹");
-    setCodeFrom("ALL");
-    setShowHead("همه");
-    setFiscalYear("1403");
-    setFiscalPeriod("ALL");
+    setDisplayLevel("moein");
+    setShowDetailTurnover("خیر");
+    setDocShowType("همه");
+    setDocShowLevel("کلی");
     setShowZeroBalance("خیر");
+    setShowSummary("خیر");
+    setCurrencyUnit("ریال");
+    setReportType("کلی");
     setFilteredRows([]);
     setCurrentPage(1);
   };
@@ -268,7 +350,7 @@ export default function TrialBalance() {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "تراز_آزمایشی.csv");
+    link.setAttribute("download", "گردش_حساب‌ها.csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -280,14 +362,14 @@ export default function TrialBalance() {
       <div className="mb-3 flex items-center gap-1.5 text-xs text-muted-foreground" dir="rtl">
         <span>گزارش‌ها</span>
         <ChevronLeft className="h-3 w-3 shrink-0" />
-        <span>گزارش‌های حسابداری</span>
+        <span>گزارش‌های حساب‌ها</span>
         <ChevronLeft className="h-3 w-3 shrink-0" />
-        <span className="text-primary font-semibold">تراز آزمایشی</span>
+        <span className="text-primary font-semibold">گردش حساب‌ها</span>
       </div>
 
       <div className="mb-4 flex items-center justify-between" dir="rtl">
         <div>
-          <h1 className="text-xl font-bold text-foreground">تراز آزمایشی</h1>
+          <h1 className="text-xl font-bold text-foreground">گردش حساب‌ها</h1>
         </div>
       </div>
 
@@ -318,15 +400,19 @@ export default function TrialBalance() {
             {/* بخش گرید ورودی‌ها */}
             <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-3">
               
-              {/* ستون اول: سطح حساب، مرکز هزینه، پروژه */}
+              {/* ستون اول: حساب کل، معین، مرکز هزینه، پروژه */}
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <Label className="w-24 text-right text-xs font-semibold text-foreground/80 shrink-0">سطح حساب :</Label>
+                  <Label className="w-24 text-right text-xs font-semibold text-foreground/80 shrink-0">حساب کل :</Label>
                   <div className="flex-1">
-                    <select value={level} onChange={(e) => setLevel(e.target.value)}
-                      className="w-full h-9 text-xs rounded-lg border border-input bg-background px-3 focus:outline-none focus:ring-1 focus:ring-ring">
-                      {LEVEL_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
+                    <SearchableSelect value={generalAcc} onChange={handleGeneralChange} options={generalAccOpts} placeholder="همه" className="h-9" />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Label className="w-24 text-right text-xs font-semibold text-foreground/80 shrink-0">حساب معین :</Label>
+                  <div className="flex-1">
+                    <SearchableSelect value={moeinAcc} onChange={handleMoeinChange} options={moeinAccOpts} placeholder="همه" className="h-9" />
                   </div>
                 </div>
 
@@ -351,7 +437,58 @@ export default function TrialBalance() {
                 </div>
               </div>
 
-              {/* ستون دوم: تا تاریخ، شماره حساب از، نمایش سرفصل */}
+              {/* ستون دوم: تاریخ شروع، سطح نمایش، نمایش تفصیلی، نوع سند، نمایش سند */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Label className="w-36 text-right text-xs font-semibold text-foreground/80 shrink-0">از تاریخ :</Label>
+                  <div className="flex-1">
+                    <PersianDatePicker value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} placeholder="۱۴۰۳/۰۱/۰۱" className="h-9" />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Label className="w-36 text-right text-xs font-semibold text-foreground/80 shrink-0">سطح نمایش :</Label>
+                  <div className="flex-1">
+                    <select value={displayLevel} onChange={(e) => setDisplayLevel(e.target.value)}
+                      className="w-full h-9 text-xs rounded-lg border border-input bg-background px-3 focus:outline-none focus:ring-1 focus:ring-ring">
+                      {LEVEL_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Label className="w-36 text-right text-xs font-semibold text-foreground/80 shrink-0">نمایش گردش تفصیلی :</Label>
+                  <div className="flex-1">
+                    <select value={showDetailTurnover} onChange={(e) => setShowDetailTurnover(e.target.value)}
+                      className="w-full h-9 text-xs rounded-lg border border-input bg-background px-3 focus:outline-none focus:ring-1 focus:ring-ring">
+                      {YES_NO_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Label className="w-36 text-right text-xs font-semibold text-foreground/80 shrink-0">نوع سند :</Label>
+                  <div className="flex-1">
+                    <select value={docShowType} onChange={(e) => setDocShowType(e.target.value)}
+                      className="w-full h-9 text-xs rounded-lg border border-input bg-background px-3 focus:outline-none focus:ring-1 focus:ring-ring">
+                      {DOC_SHOW_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Label className="w-36 text-right text-xs font-semibold text-foreground/80 shrink-0">سطح نمایش سند :</Label>
+                  <div className="flex-1">
+                    <select value={docShowLevel} onChange={(e) => setDocShowLevel(e.target.value)}
+                      className="w-full h-9 text-xs rounded-lg border border-input bg-background px-3 focus:outline-none focus:ring-1 focus:ring-ring">
+                      <option value="کلی">کلی</option>
+                      <option value="جزئی">جزئی</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* ستون سوم: تاریخ پایان، مانده صفر، نمایش خلاصه، واحد پول، نوع گزارش */}
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
                   <Label className="w-32 text-right text-xs font-semibold text-foreground/80 shrink-0">تا تاریخ :</Label>
@@ -361,51 +498,41 @@ export default function TrialBalance() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <Label className="w-32 text-right text-xs font-semibold text-foreground/80 shrink-0">شماره حساب از :</Label>
-                  <div className="flex-1">
-                    <SearchableSelect value={codeFrom} onChange={setCodeFrom} options={accountOpts} placeholder="همه" className="h-9" />
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Label className="w-32 text-right text-xs font-semibold text-foreground/80 shrink-0">نمایش سرفصل :</Label>
-                  <div className="flex-1">
-                    <select value={showHead} onChange={(e) => setShowHead(e.target.value)}
-                      className="w-full h-9 text-xs rounded-lg border border-input bg-background px-3 focus:outline-none focus:ring-1 focus:ring-ring">
-                      <option value="همه">همه</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* ستون سوم: سال مالی، دوره مالی، نمایش مانده صفر */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <Label className="w-28 text-right text-xs font-semibold text-foreground/80 shrink-0">سال مالی :</Label>
-                  <div className="flex-1">
-                    <select value={fiscalYear} onChange={(e) => setFiscalYear(e.target.value)}
-                      className="w-full h-9 text-xs rounded-lg border border-input bg-background px-3 focus:outline-none focus:ring-1 focus:ring-ring">
-                      {FISCAL_YEAR_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Label className="w-28 text-right text-xs font-semibold text-foreground/80 shrink-0">دوره مالی :</Label>
-                  <div className="flex-1">
-                    <select value={fiscalPeriod} onChange={(e) => setFiscalPeriod(e.target.value)}
-                      className="w-full h-9 text-xs rounded-lg border border-input bg-background px-3 focus:outline-none focus:ring-1 focus:ring-ring">
-                      <option value="ALL">همه</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Label className="w-28 text-right text-xs font-semibold text-foreground/80 shrink-0">نمایش مانده صفر :</Label>
+                  <Label className="w-32 text-right text-xs font-semibold text-foreground/80 shrink-0">نمایش مانده صفر :</Label>
                   <div className="flex-1">
                     <select value={showZeroBalance} onChange={(e) => setShowZeroBalance(e.target.value)}
                       className="w-full h-9 text-xs rounded-lg border border-input bg-background px-3 focus:outline-none focus:ring-1 focus:ring-ring">
                       {YES_NO_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Label className="w-32 text-right text-xs font-semibold text-foreground/80 shrink-0">نمایش خلاصه :</Label>
+                  <div className="flex-1">
+                    <select value={showSummary} onChange={(e) => setShowSummary(e.target.value)}
+                      className="w-full h-9 text-xs rounded-lg border border-input bg-background px-3 focus:outline-none focus:ring-1 focus:ring-ring">
+                      {YES_NO_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Label className="w-32 text-right text-xs font-semibold text-foreground/80 shrink-0">واحد پول :</Label>
+                  <div className="flex-1">
+                    <select value={currencyUnit} onChange={(e) => setCurrencyUnit(e.target.value)}
+                      className="w-full h-9 text-xs rounded-lg border border-input bg-background px-3 focus:outline-none focus:ring-1 focus:ring-ring">
+                      {CURRENCY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Label className="w-32 text-right text-xs font-semibold text-foreground/80 shrink-0">نوع گزارش :</Label>
+                  <div className="flex-1">
+                    <select value={reportType} onChange={(e) => setReportType(e.target.value)}
+                      className="w-full h-9 text-xs rounded-lg border border-input bg-background px-3 focus:outline-none focus:ring-1 focus:ring-ring">
+                      {REPORT_TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
                   </div>
                 </div>
@@ -434,7 +561,7 @@ export default function TrialBalance() {
             <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
             خروجی اکسل
           </Button>
-          <Button onClick={() => printTable("#trial-table", "تراز آزمایشی")} variant="outline" size="sm" className="gap-1.5 text-[11px] font-semibold h-8 rounded-lg bg-white border border-border shadow-sm text-foreground/80">
+          <Button onClick={() => printTable("#turnover-table", "گردش حساب‌ها")} variant="outline" size="sm" className="gap-1.5 text-[11px] font-semibold h-8 rounded-lg bg-white border border-border shadow-sm text-foreground/80">
             <Printer className="h-3.5 w-3.5" />
             چاپ
           </Button>
@@ -449,16 +576,16 @@ export default function TrialBalance() {
       {/* ─── جدول داده‌ها ─── */}
       <Card className="border border-border/80 overflow-hidden shadow-sm">
         <CardContent className="p-0">
-          <div className="overflow-x-auto" id="trial-table">
+          <div className="overflow-x-auto" id="turnover-table">
             <table className="w-full text-xs text-right" dir="rtl">
               <thead>
                 {/* هدر لایه اول */}
                 <tr className="bg-[#0e305d] text-white border-b border-border">
                   <th rowSpan={2} className="px-3 py-4 font-bold text-center w-20 border-l border-white/10 whitespace-nowrap">کد حساب</th>
                   <th rowSpan={2} className="px-3 py-4 font-bold text-right border-l border-white/10 min-w-[200px]">عنوان حساب</th>
-                  <th colSpan={2} className="px-3 py-2 font-bold text-center border-l border-white/10">مانده دوره قبل</th>
+                  <th colSpan={2} className="px-3 py-2 font-bold text-center border-l border-white/10">مانده ابتدای دوره</th>
                   <th colSpan={2} className="px-3 py-2 font-bold text-center border-l border-white/10">گردش دوره</th>
-                  <th colSpan={2} className="px-3 py-2 font-bold text-center">مانده فعلی</th>
+                  <th colSpan={2} className="px-3 py-2 font-bold text-center">مانده پایان دوره</th>
                 </tr>
                 {/* هدر لایه دوم */}
                 <tr className="bg-[#0b284e] text-white/95 border-b border-border">
@@ -515,9 +642,10 @@ export default function TrialBalance() {
                 )}
               </tbody>
 
-              {/* ─── ردیف جمع کل ─── */}
+              {/* ─── ردیف‌های جمع کل ─── */}
               {filteredRows.length > 0 && (
                 <tfoot>
+                  {/* جمع کل */}
                   <tr className="bg-[#e9f2fb] border-t border-border font-bold text-foreground">
                     <td className="px-3 py-2.5 text-center font-bold" colSpan={2}>
                       جمع کل

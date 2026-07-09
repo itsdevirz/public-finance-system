@@ -91,6 +91,7 @@ export function decryptDocument(doc: any): any {
           debit: parseInt(toEnglishDigits(r.debit), 10) || 0,
           credit: parseInt(toEnglishDigits(r.credit), 10) || 0,
           description: r.desc || r.description || "",
+          sanamaFields: r.sanamaFields || {},
         })),
         rawHeader: header,
         rawRows: rows,

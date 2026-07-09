@@ -590,7 +590,7 @@ export default function Credits() {
   if (pathname === "/credits/requests") {
     // گزینه‌های موافقت‌نامه برای سلکت باکس
     const agrOptions = agreements
-      .filter(a => !reqForm.fiscal_year || a.fiscal_year === Number(reqForm.fiscal_year))
+      .filter(a => !reqForm.fiscal_year || Number(a.fiscal_year) === Number(reqForm.fiscal_year))
       .map(a => ({
         value: String(a._id),
         label: `${a.title} (کل مصوب: ${fmtNum(a.total_amount)} ریال)`
@@ -780,7 +780,7 @@ export default function Credits() {
   if (pathname === "/credits/allocation-no-doc") {
     // گزینه‌های موافقت‌نامه برای سلکت باکس
     const agreementOptions = agreements
-      .filter(a => !allocForm.fiscal_year || a.fiscal_year === Number(allocForm.fiscal_year))
+      .filter(a => !allocForm.fiscal_year || Number(a.fiscal_year) === Number(allocForm.fiscal_year))
       .map(a => {
         const allocatedAmount = allocations
           .filter(al => String(al.agreement_id) === String(a._id) && String(al._id) !== editingAlloc)

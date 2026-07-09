@@ -1,374 +1,666 @@
-import { useState, useCallback, useEffect } from "react";
-import { PageShell, PageHeader } from "@/components/layout/PageShell";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { PageShell } from "@/components/layout/PageShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import {
-  Search, Printer, FileDown, Loader2, AlertCircle,
-  BookOpen, RotateCcw, TrendingUp, TrendingDown, Minus,
+  Search, RotateCcw, ChevronLeft, ChevronRight, ChevronsLeft,
+  Settings, Eye, FileSpreadsheet, Printer, Download, ChevronDown
 } from "lucide-react";
 import api from "@/api";
 import { printTable } from "@/lib/printUtils";
 import { cn } from "@/lib/utils";
 
-// ─── helpers ──────────────────────────────────────────────────────────────────
+// وارد کردن اطلاعات سرفصل‌ها مستقیماً از فایل JSON فرانت‌اند
+import sanamaCodes from "@/data/sanamaCodes.json";
+
+// ─── استخراج سرفصل‌های کل و معین از فایل sanamaCodes ─────────────────────────
+const ALL_GENERAL_ACCTS = [];
+const MOEIN_BY_GENERAL = {}; // code کل -> لیست معین‌ها
+const ALL_MOEIN_ACCTS = [];
+
+sanamaCodes.groups.forEach((group) => {
+  (group.accounts ?? []).forEach((acc) => {
+    const genCode = acc.code;
+    ALL_GENERAL_ACCTS.push({ value: genCode, label: `${genCode} — ${acc.title}` });
+    
+    const children = (acc.children ?? []).map((child) => {
+      const item = { value: child.code, label: `${child.code} — ${child.title}`, parentCode: genCode };
+      ALL_MOEIN_ACCTS.push(item);
+      return item;
+    });
+    
+    MOEIN_BY_GENERAL[genCode] = children;
+  });
+});
+
+// تابع کمکی برای پیدا کردن نام حساب کل و معین از روی کد
+const getAccountNamesFromCode = (code) => {
+  if (!code) return { generalName: "—", moeinName: "—" };
+  const genCode = code.substring(0, 3);
+  const moeCode = code.substring(0, 5);
+
+  let generalName = "—";
+  let moeinName = "—";
+
+  for (const group of sanamaCodes.groups ?? []) {
+    for (const acc of group.accounts ?? []) {
+      if (acc.code === genCode) {
+        generalName = acc.title;
+      }
+      for (const child of acc.children ?? []) {
+        if (child.code === moeCode) {
+          moeinName = child.title;
+        }
+      }
+    }
+  }
+
+  return { generalName, moeinName };
+};
+
+// ─── ثوابت فیلترها ───────────────────────────────────────────────────────────
+const LEVEL_OPTIONS = [
+  { value: "general", label: "حساب کل" },
+  { value: "group", label: "گروه حساب" },
+  { value: "moein", label: "حساب معین" },
+];
+
+const ZERO_BAL_OPTIONS = [
+  { value: "خیر", label: "خیر" },
+  { value: "بله", label: "بله" },
+];
+
+const DETAIL_OPTIONS = [
+  { value: "بله", label: "بله" },
+  { value: "خیر", label: "خیر" },
+  { value: "همه", label: "همه" },
+];
+
+const COST_CENTER_OPTIONS = [
+  { value: "ALL", label: "همه" },
+  { value: "اداری", label: "اداری" },
+  { value: "بازرگانی", label: "بازرگانی" },
+  { value: "فروش", label: "فروش" },
+  { value: "تولید", label: "تولید" },
+];
+
+const PROJECT_OPTIONS = [
+  { value: "ALL", label: "همه" },
+];
+
+// MOCK_ROWS removed for database-only data loading
+
 function fmtNum(n) {
   if (n === 0 || n == null) return "—";
   return Number(n).toLocaleString("fa-IR");
 }
 
-function fmtBalance(val) {
-  if (val === 0 || val == null) return { text: "—", cls: "text-muted-foreground" };
-  const abs  = Math.abs(val).toLocaleString("fa-IR");
-  const side = val > 0 ? "بد" : "بس";
-  const cls  = val > 0 ? "text-blue-700" : "text-rose-700";
-  return { text: `${abs} ${side}`, cls };
+function dateToNum(d) {
+  if (!d) return 0;
+  return parseInt(d.replace(/\D/g, ""), 10) || 0;
 }
 
-function today() {
-  return new Date().toLocaleDateString("fa-IR");
-}
-
-function exportCSV(rows, openBalance, totals, accountCode, accountName, title) {
-  const headers = ["تاریخ", "شماره سند", "شرح", "بدهکار", "بستانکار", "مانده"];
-  const openRow = ["—", "—", `مانده اول دوره ${accountName}`,
-    openBalance.debit || "", openBalance.credit || "",
-    `${Math.abs(openBalance.balance).toLocaleString()} ${openBalance.nature}`].join(",");
-  const body = rows.map((r) => [
-    r.date, r.doc_number, `"${r.description || ""}"`,
-    r.debit || "", r.credit || "",
-    `"${Math.abs(r.balance).toLocaleString()} ${r.nature}"`,
-  ].join(","));
-  const totalRow = ["", "", "جمع گردش دوره",
-    totals.debit, totals.credit, ""].join(",");
-  const csv = [headers.join(","), openRow, ...body, totalRow].join("\n");
-  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement("a");
-  a.href = url; a.download = `${title}.csv`; a.click();
-  URL.revokeObjectURL(url);
-}
-
-// ─── کامپوننت اصلی ────────────────────────────────────────────────────────────
 export default function GeneralLedger() {
   // ── فیلترها ──
-  const [fiscalYear,   setFiscalYear]   = useState("");
-  const [dateFrom,     setDateFrom]     = useState("");
-  const [dateTo,       setDateTo]       = useState(() => today());
-  const [accountCode,  setAccountCode]  = useState("");
-  const [accountSearch, setAccountSearch] = useState("");
+  const [generalAcc, setGeneralAcc] = useState("ALL");
+  const [moeinAcc, setMoeinAcc] = useState("ALL");
+  const [costCenter, setCostCenter] = useState("ALL");
+  const [project, setProject] = useState("ALL");
+  const [dateFrom, setDateFrom] = useState("۱۴۰۳/۰۱/۰۱");
+  const [dateTo, setDateTo] = useState("۱۴۰۳/۱۲/۲۹");
+  const [displayLevel, setDisplayLevel] = useState("general");
+  const [showZeroBalance, setShowZeroBalance] = useState("خیر");
+  const [showDetailAccounts, setShowDetailAccounts] = useState("بله");
+
+  // ── گزینه‌ها ──
+  const generalAccOpts = useMemo(() => {
+    return [{ value: "ALL", label: "همه" }, ...ALL_GENERAL_ACCTS];
+  }, []);
+
+  const moeinAccOpts = useMemo(() => {
+    if (!generalAcc || generalAcc === "ALL") {
+      return [{ value: "ALL", label: "همه" }, ...ALL_MOEIN_ACCTS];
+    }
+    return [{ value: "ALL", label: "همه" }, ...(MOEIN_BY_GENERAL[generalAcc] ?? [])];
+  }, [generalAcc]);
 
   // ── داده‌ها ──
-  const [fiscalYears,  setFiscalYears]  = useState([]);
-  const [accountOpts,  setAccountOpts]  = useState([]);
-  const [rows,         setRows]         = useState(null);
-  const [openBalance,  setOpenBalance]  = useState(null);
-  const [totals,       setTotals]       = useState({});
-  const [resAccountName, setResAccountName] = useState("");
-  const [queryMeta,    setQueryMeta]    = useState(null);
+  const [documents, setDocuments] = useState([]);
+  const [filteredRows, setFilteredRows] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [pageSize, setPageSize] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
 
-  // ── وضعیت ──
-  const [loading,      setLoading]      = useState(false);
-  const [fetchError,   setFetchError]   = useState("");
-  const [errors,       setErrors]       = useState({});
+  // ── مدیریت فیلترهای حساب کل و معین ──
+  const handleGeneralChange = (val) => {
+    setGeneralAcc(val);
+    if (val !== "ALL") {
+      const children = MOEIN_BY_GENERAL[val] ?? [];
+      const isChild = children.some((c) => c.value === moeinAcc);
+      if (!isChild) {
+        setMoeinAcc("ALL");
+      }
+    }
+  };
 
-  // بارگذاری سال‌های مالی
-  useEffect(() => {
-    api.get("/api/fiscal-years").then((r) => {
-      const list = (r.data?.data ?? []).map((y) => ({
-        value: String(y.year),
-        label: `${y.year} — ${y.title}`,
-      }));
-      setFiscalYears(list);
-      if (list.length > 0) setFiscalYear(list[0].value);
-    }).catch(() => {});
-  }, []);
+  const handleMoeinChange = (val) => {
+    setMoeinAcc(val);
+    if (val !== "ALL") {
+      const selected = ALL_MOEIN_ACCTS.find((m) => m.value === val);
+      if (selected && selected.parentCode) {
+        setGeneralAcc(selected.parentCode);
+      }
+    }
+  };
 
-  // بارگذاری حساب‌های کل (۳ رقم)
-  useEffect(() => {
-    api.get("/api/account-heads?flat=1").then((r) => {
-      const all = r.data?.data ?? r.data ?? [];
-      const mainAccounts = all
-        .filter((a) => {
-          const digits = (a.code ?? "").replace(/\D/g, "");
-          return digits.length === 3;
-        })
-        .map((a) => ({ value: a.code, label: `${a.code} — ${a.title}` }));
-      setAccountOpts(mainAccounts);
-    }).catch(() => {});
-  }, []);
-
-  function validate() {
-    const e = {};
-    if (!accountCode) e.accountCode = "کد حساب کل الزامی است";
-    if (!dateFrom)    e.dateFrom    = "تاریخ ابتدا الزامی است";
-    if (!dateTo)      e.dateTo      = "تاریخ انتها الزامی است";
-    return e;
-  }
-
-  const handleSubmit = useCallback(async (e) => {
-    e.preventDefault();
-    const errs = validate();
-    if (Object.keys(errs).length) { setErrors(errs); return; }
-    setErrors({});
-    setFetchError("");
+  // بارگذاری اسناد
+  const loadDocuments = useCallback(async () => {
     setLoading(true);
-    setRows(null);
-
     try {
-      const params = new URLSearchParams({ accountCode, dateFrom, dateTo });
-      if (fiscalYear) params.append("fiscalYear", fiscalYear);
-      const res = await api.get(`/api/ledger/general-ledger?${params.toString()}`);
-      setRows(res.data.data ?? []);
-      setOpenBalance(res.data.openBalance ?? { debit: 0, credit: 0, balance: 0, nature: "تراز" });
-      setTotals(res.data.totals ?? {});
-      setResAccountName(res.data.accountName ?? "");
-      setQueryMeta({ accountCode, dateFrom, dateTo, fiscalYear });
-    } catch (err) {
-      setFetchError(err?.response?.data?.message ?? "خطا در دریافت اطلاعات از سرور");
+      const res = await api.get("/api/documents");
+      setDocuments(res.data?.data ?? []);
+    } catch (e) {
+      console.error("Failed to load documents", e);
     } finally {
       setLoading(false);
     }
-  }, [accountCode, dateFrom, dateTo, fiscalYear]);
+  }, []);
 
-  function handleReset() {
-    setAccountCode(""); setDateFrom(""); setDateTo(today());
-    setFiscalYear(fiscalYears[0]?.value ?? ""); setAccountSearch("");
-    setErrors({}); setFetchError(""); setRows(null);
-    setOpenBalance(null); setTotals({}); setQueryMeta(null);
-  }
+  useEffect(() => {
+    loadDocuments();
+  }, [loadDocuments]);
 
-  const reportTitle = queryMeta
-    ? `دفتر کل — حساب ${queryMeta.accountCode}${resAccountName ? ` (${resAccountName})` : ""} — ${queryMeta.dateFrom} تا ${queryMeta.dateTo}`
-    : "دفتر کل";
+  // فیلتر و محاسبه
+  const handleSearch = useCallback(() => {
+    if (documents.length === 0) {
+      setFilteredRows([]);
+      setCurrentPage(1);
+      return;
+    }
+
+    const fromNum = dateFrom ? dateToNum(dateFrom) : 0;
+    const toNum = dateTo ? dateToNum(dateTo) : 99999999;
+
+    const accum = {}; // code -> { code, title, debitBefore, creditBefore, debitTurn, creditTurn }
+
+    documents.forEach((doc) => {
+      if (doc.status === "CANCELLED") return;
+      const docDateNum = dateToNum(doc.document_date);
+
+      (doc.lines ?? []).forEach((line) => {
+        const rawCode = line.account_code ?? "";
+        const digits = rawCode.replace(/\D/g, "");
+        if (!digits) return;
+
+        let code = "";
+        if (displayLevel === "group") {
+          code = digits.substring(0, 1);
+        } else if (displayLevel === "general") {
+          code = digits.substring(0, 3);
+        } else if (displayLevel === "moein") {
+          code = digits.substring(0, 5);
+        } else {
+          code = digits;
+        }
+
+        if (!code) return;
+
+        // یافتن نام حساب
+        const { generalName, moeinName } = getAccountNamesFromCode(rawCode);
+        let title = line.account_name ?? "";
+        if (displayLevel === "group") {
+          const groupOpt = sanamaCodes.groups.find(g => g.code === code);
+          title = groupOpt ? groupOpt.title : "دارایی‌ها";
+        } else if (displayLevel === "general") {
+          title = generalName;
+        } else if (displayLevel === "moein") {
+          title = moeinName;
+        }
+
+        if (!accum[code]) {
+          accum[code] = {
+            code,
+            title: title || `حساب ${code}`,
+            debitBefore: 0,
+            creditBefore: 0,
+            debitTurn: 0,
+            creditTurn: 0,
+          };
+        }
+
+        const debit = Number(line.debit) || 0;
+        const credit = Number(line.credit) || 0;
+
+        if (docDateNum < fromNum) {
+          accum[code].debitBefore += debit;
+          accum[code].creditBefore += credit;
+        } else if (docDateNum <= toNum) {
+          accum[code].debitTurn += debit;
+          accum[code].creditTurn += credit;
+        }
+      });
+    });
+
+    const rows = [];
+    Object.values(accum).forEach((acc) => {
+      const openNet = acc.debitBefore - acc.creditBefore;
+      const openBal = openNet;
+      
+      const finalNet = openNet + acc.debitTurn - acc.creditTurn;
+      const endingDebit = finalNet > 0 ? finalNet : 0;
+      const endingCredit = finalNet < 0 ? -finalNet : 0;
+
+      if (showZeroBalance === "خیر" && acc.debitTurn === 0 && acc.creditTurn === 0 && openNet === 0) {
+        return;
+      }
+
+      if (generalAcc !== "ALL" && !acc.code.startsWith(generalAcc)) return;
+      if (moeinAcc !== "ALL" && !acc.code.startsWith(moeinAcc)) return;
+
+      rows.push({
+        id: acc.code,
+        accountCode: acc.code,
+        accountTitle: acc.title,
+        openBalance: openBal,
+        debitTurn: acc.debitTurn,
+        creditTurn: acc.creditTurn,
+        debitBalance: endingDebit,
+        creditBalance: endingCredit,
+      });
+    });
+
+    rows.sort((a, b) => a.accountCode.localeCompare(b.accountCode, "en", { numeric: true }));
+    setFilteredRows(rows);
+    setCurrentPage(1);
+  }, [documents, dateFrom, dateTo, displayLevel, showZeroBalance, generalAcc, moeinAcc]);
+
+  const handleReset = () => {
+    setDateFrom("۱۴۰۳/۰۱/۰۱");
+    setDateTo("۱۴۰۳/۱۲/۲۹");
+    setGeneralAcc("ALL");
+    setMoeinAcc("ALL");
+    setCostCenter("ALL");
+    setProject("ALL");
+    setDisplayLevel("general");
+    setShowZeroBalance("خیر");
+    setShowDetailAccounts("بله");
+    setFilteredRows([]);
+    setCurrentPage(1);
+  };
+
+  // محاسبات جمع
+  const totals = useMemo(() => {
+    return filteredRows.reduce(
+      (acc, r) => ({
+        openBalance: acc.openBalance + (r.openBalance ?? 0),
+        debitTurn: acc.debitTurn + (r.debitTurn ?? 0),
+        creditTurn: acc.creditTurn + (r.creditTurn ?? 0),
+        debitBalance: acc.debitBalance + (r.debitBalance ?? 0),
+        creditBalance: acc.creditBalance + (r.creditBalance ?? 0),
+      }),
+      { openBalance: 0, debitTurn: 0, creditTurn: 0, debitBalance: 0, creditBalance: 0 }
+    );
+  }, [filteredRows]);
+
+  const paginatedRows = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredRows.slice(start, start + pageSize);
+  }, [filteredRows, currentPage, pageSize]);
+
+  const totalPages = Math.ceil(filteredRows.length / pageSize) || 1;
+
+  const exportExcel = () => {
+    const csvContent = "data:text/csv;charset=utf-8,\uFEFF"
+      + [
+        ["کد حساب", "عنوان حساب", "مانده از گذشته", "گردش بدهکار", "گردش بستانکار", "مانده بدهکار", "مانده بستانکار"].join(","),
+        ...filteredRows.map(r => [
+          r.accountCode, r.accountTitle, r.openBalance, r.debitTurn, r.creditTurn, r.debitBalance, r.creditBalance
+        ].join(","))
+      ].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "دفتر_کل.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
     <PageShell>
-      <PageHeader title="دفتر کل" description="نمایش کلیه گردش‌های هر حساب کل در بازه زمانی مشخص">
-        {rows !== null && !loading && (
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => printTable("#general-ledger-table", reportTitle)}>
-              <Printer className="h-4 w-4 ml-1" /> چاپ
-            </Button>
-            <Button variant="outline" size="sm"
-              onClick={() => exportCSV(rows, openBalance, totals, queryMeta?.accountCode, resAccountName, reportTitle)}>
-              <FileDown className="h-4 w-4 ml-1" /> Excel
-            </Button>
-          </div>
-        )}
-      </PageHeader>
+      {/* Breadcrumbs */}
+      <div className="mb-3 flex items-center gap-1.5 text-xs text-muted-foreground" dir="rtl">
+        <span>گزارش‌ها</span>
+        <ChevronLeft className="h-3 w-3 shrink-0" />
+        <span>گزارش‌های اسناد حسابداری</span>
+        <ChevronLeft className="h-3 w-3 shrink-0" />
+        <span className="text-primary font-semibold">دفتر کل</span>
+      </div>
 
-      {/* ─── فرم فیلتر ─── */}
-      <Card className="mb-5">
-        <CardContent className="pt-5" dir="rtl">
-          <form onSubmit={handleSubmit}>
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5 items-end">
+      <div className="mb-4 flex items-center justify-between" dir="rtl">
+        <div>
+          <h1 className="text-xl font-bold text-foreground">دفتر کل</h1>
+        </div>
+      </div>
 
-              {/* سال مالی */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold">سال مالی</Label>
-                <SearchableSelect value={fiscalYear} onChange={setFiscalYear}
-                  options={fiscalYears} placeholder="انتخاب سال..." searchable={false} />
-              </div>
-
-              {/* از تاریخ */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold flex gap-1">از تاریخ <span className="text-rose-500">*</span></Label>
-                <PersianDatePicker value={dateFrom}
-                  onChange={(e) => { setDateFrom(e.target.value); setErrors((p) => ({ ...p, dateFrom: "" })); }}
-                  placeholder="۱۴۰۳/۰۱/۰۱" />
-                {errors.dateFrom && <p className="text-[11px] text-rose-600">⚠ {errors.dateFrom}</p>}
-              </div>
-
-              {/* تا تاریخ */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold flex gap-1">تا تاریخ <span className="text-rose-500">*</span></Label>
-                <PersianDatePicker value={dateTo}
-                  onChange={(e) => { setDateTo(e.target.value); setErrors((p) => ({ ...p, dateTo: "" })); }}
-                  placeholder="۱۴۰۳/۱۲/۲۹" />
-                {errors.dateTo && <p className="text-[11px] text-rose-600">⚠ {errors.dateTo}</p>}
-              </div>
-
-              {/* کد حساب کل */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold flex gap-1">کد حساب کل <span className="text-rose-500">*</span></Label>
-                {accountOpts.length > 0 ? (
-                  <SearchableSelect value={accountCode}
-                    onChange={(v) => { setAccountCode(v); setErrors((p) => ({ ...p, accountCode: "" })); }}
-                    options={accountOpts} placeholder="جستجوی حساب..." />
-                ) : (
-                  <div className="flex gap-1">
-                    <Input value={accountCode}
-                      onChange={(e) => { setAccountCode(e.target.value); setErrors((p) => ({ ...p, accountCode: "" })); }}
-                      placeholder="مثلاً ۱۱۰" className="h-8 text-sm font-mono" dir="ltr" maxLength={3} />
-                  </div>
-                )}
-                {errors.accountCode && <p className="text-[11px] text-rose-600">⚠ {errors.accountCode}</p>}
-              </div>
-
-              {/* دکمه‌ها */}
-              <div className="flex gap-2 items-end">
-                <Button type="submit" className="flex-1 gap-1.5" disabled={loading}>
-                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                  نمایش
-                </Button>
-                <Button type="button" variant="outline" size="icon" onClick={handleReset} disabled={loading} title="پاک کردن">
-                  <RotateCcw className="h-4 w-4" />
-                </Button>
-              </div>
+      {/* ─── فیلترها ─── */}
+      <Card className="mb-5 shadow-sm border border-border/80">
+        <CardContent className="p-4" dir="rtl">
+          <div className="flex flex-col lg:flex-row gap-6 items-stretch">
+            
+            {/* دکمه‌های سمت چپ فیلتر */}
+            <div className="flex flex-col gap-2 w-full lg:w-44 shrink-0 justify-start">
+              <Button onClick={handleSearch} className="w-full bg-[#004b93] hover:bg-[#003d79] text-white flex items-center justify-center gap-2 h-9 text-xs font-semibold rounded-lg shadow-sm">
+                <Search className="h-4 w-4" />
+                جستجو
+              </Button>
+              <Button onClick={handleReset} variant="outline" className="w-full bg-white hover:bg-muted text-foreground flex items-center justify-center gap-2 h-9 text-xs font-semibold rounded-lg border shadow-sm">
+                <RotateCcw className="h-4 w-4 text-muted-foreground" />
+                پاک کردن
+              </Button>
+              <Button variant="outline" className="w-full bg-white hover:bg-muted text-foreground flex items-center justify-between gap-2 h-9 text-xs font-semibold rounded-lg border shadow-sm px-3">
+                <span className="flex items-center gap-2">
+                  <Settings className="h-4 w-4 text-muted-foreground" />
+                  جستجوی پیشرفته
+                </span>
+                <ChevronDown className="h-3 w-3 opacity-60" />
+              </Button>
             </div>
-          </form>
+
+            {/* گرید ۳ ستونه ورودی‌ها در سمت راست */}
+            <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-3">
+              
+              {/* ستون اول: حساب‌ها و پروژه */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Label className="w-24 text-right text-xs font-semibold text-foreground/80 shrink-0">حساب کل :</Label>
+                  <div className="flex-1">
+                    <SearchableSelect value={generalAcc} onChange={handleGeneralChange} options={generalAccOpts} placeholder="همه" className="h-9" />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Label className="w-24 text-right text-xs font-semibold text-foreground/80 shrink-0">حساب معین :</Label>
+                  <div className="flex-1">
+                    <SearchableSelect value={moeinAcc} onChange={handleMoeinChange} options={moeinAccOpts} placeholder="همه" className="h-9" />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Label className="w-24 text-right text-xs font-semibold text-foreground/80 shrink-0">مرکز هزینه :</Label>
+                  <div className="flex-1">
+                    <select value={costCenter} onChange={(e) => setCostCenter(e.target.value)}
+                      className="w-full h-9 text-xs rounded-lg border border-input bg-background px-3 focus:outline-none focus:ring-1 focus:ring-ring">
+                      {COST_CENTER_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Label className="w-24 text-right text-xs font-semibold text-foreground/80 shrink-0">پروژه :</Label>
+                  <div className="flex-1">
+                    <select value={project} onChange={(e) => setProject(e.target.value)}
+                      className="w-full h-9 text-xs rounded-lg border border-input bg-background px-3 focus:outline-none focus:ring-1 focus:ring-ring">
+                      {PROJECT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* ستون دوم: تاریخ شروع، سطح نمایش، مانده صفر، تفصیلی */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Label className="w-36 text-right text-xs font-semibold text-foreground/80 shrink-0">از تاریخ :</Label>
+                  <div className="flex-1">
+                    <PersianDatePicker value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} placeholder="۱۴۰۳/۰۱/۰۱" className="h-9" />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Label className="w-36 text-right text-xs font-semibold text-foreground/80 shrink-0">سطح نمایش :</Label>
+                  <div className="flex-1">
+                    <select value={displayLevel} onChange={(e) => setDisplayLevel(e.target.value)}
+                      className="w-full h-9 text-xs rounded-lg border border-input bg-background px-3 focus:outline-none focus:ring-1 focus:ring-ring">
+                      {LEVEL_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Label className="w-36 text-right text-xs font-semibold text-foreground/80 shrink-0">نمایش مانده صفر :</Label>
+                  <div className="flex-1">
+                    <select value={showZeroBalance} onChange={(e) => setShowZeroBalance(e.target.value)}
+                      className="w-full h-9 text-xs rounded-lg border border-input bg-background px-3 focus:outline-none focus:ring-1 focus:ring-ring">
+                      {ZERO_BAL_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Label className="w-36 text-right text-xs font-semibold text-foreground/80 shrink-0">نمایش حساب‌های تفصیلی :</Label>
+                  <div className="flex-1">
+                    <select value={showDetailAccounts} onChange={(e) => setShowDetailAccounts(e.target.value)}
+                      className="w-full h-9 text-xs rounded-lg border border-input bg-background px-3 focus:outline-none focus:ring-1 focus:ring-ring">
+                      {DETAIL_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* ستون سوم: تاریخ پایان (فقط این فیلد در بالای ستون چپ وجود دارد) */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Label className="w-24 text-right text-xs font-semibold text-foreground/80 shrink-0">تا تاریخ :</Label>
+                  <div className="flex-1">
+                    <PersianDatePicker value={dateTo} onChange={(e) => setDateTo(e.target.value)} placeholder="۱۴۰۳/۱۲/۲۹" className="h-9" />
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
         </CardContent>
       </Card>
 
-      {/* ─── خطا ─── */}
-      {fetchError && (
-        <Card className="mb-4 border-rose-200 bg-rose-50">
-          <CardContent className="p-4 flex items-center gap-3" dir="rtl">
-            <AlertCircle className="h-5 w-5 text-rose-600 shrink-0" />
-            <p className="text-sm text-rose-700">{fetchError}</p>
-          </CardContent>
-        </Card>
-      )}
+      {/* ─── دکمه‌های بالای جدول ─── */}
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2" dir="rtl">
+        <div>
+          <Button variant="outline" size="sm" className="gap-1.5 text-[11px] font-semibold h-8 rounded-lg bg-white border border-border shadow-sm text-foreground/80">
+            <Eye className="h-3.5 w-3.5" />
+            مشاهده سند
+          </Button>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="gap-1.5 text-[11px] font-semibold h-8 rounded-lg bg-white border border-border shadow-sm text-foreground/80">
+            <Settings className="h-3.5 w-3.5" />
+            تنظیم ستون‌ها
+          </Button>
+          <Button onClick={exportExcel} variant="outline" size="sm" className="gap-1.5 text-[11px] font-semibold h-8 rounded-lg bg-white border border-border shadow-sm text-foreground/80">
+            <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
+            اکسل
+          </Button>
+          <Button onClick={() => printTable("#ledger-table", "دفتر کل")} variant="outline" size="sm" className="gap-1.5 text-[11px] font-semibold h-8 rounded-lg bg-white border border-border shadow-sm text-foreground/80">
+            <Printer className="h-3.5 w-3.5" />
+            چاپ
+          </Button>
+          <Button variant="outline" size="sm" className="gap-1.5 text-[11px] font-semibold h-8 rounded-lg bg-white border border-border shadow-sm text-foreground/80">
+            <Download className="h-3.5 w-3.5" />
+            خروجی
+            <ChevronDown className="h-3 w-3 opacity-60 ml-0.5" />
+          </Button>
+        </div>
+      </div>
 
-      {/* ─── لودینگ ─── */}
-      {loading && (
-        <Card>
-          <CardContent className="py-20 flex flex-col items-center gap-3 text-muted-foreground">
-            <Loader2 className="h-10 w-10 animate-spin text-primary" />
-            <p className="text-sm">در حال بارگذاری دفتر کل...</p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ─── قبل از جستجو ─── */}
-      {!loading && rows === null && !fetchError && (
-        <Card>
-          <CardContent className="py-20 flex flex-col items-center gap-4 text-muted-foreground">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
-              <BookOpen className="h-8 w-8" />
-            </div>
-            <div className="text-center">
-              <p className="font-medium text-foreground">دفتر کل</p>
-              <p className="text-sm mt-1">سال مالی، بازه تاریخی و کد حساب را تنظیم کرده و نمایش را بزنید</p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ─── جدول نتیجه ─── */}
-      {!loading && rows !== null && (
-        <Card>
-          <CardContent className="p-0">
-            {/* هدر */}
-            <div className="flex items-center justify-between px-4 py-3 border-b flex-wrap gap-2" dir="rtl">
-              <div className="flex items-center gap-2 flex-wrap">
-                <BookOpen className="h-4 w-4 text-primary" />
-                <span className="text-sm font-bold">دفتر کل</span>
-                {queryMeta && (
-                  <>
-                    <Badge variant="default" className="text-xs font-mono">
-                      {queryMeta.accountCode}{resAccountName ? ` — ${resAccountName}` : ""}
-                    </Badge>
-                    <Badge variant="outline" className="text-xs font-mono">
-                      {queryMeta.dateFrom} تا {queryMeta.dateTo}
-                    </Badge>
-                    {queryMeta.fiscalYear && (
-                      <Badge variant="outline" className="text-xs">سال {queryMeta.fiscalYear}</Badge>
-                    )}
-                    <span className="text-xs text-muted-foreground">{rows.length} ردیف</span>
-                  </>
-                )}
-              </div>
-          
-            </div>
-
-            {/* جدول */}
-            <div className="overflow-x-auto" id="general-ledger-table">
-              <table className="w-full text-xs" dir="rtl">
-                <thead>
-                  <tr className="border-b bg-muted/50">
-                    <th className="px-3 py-2.5 text-right font-bold text-muted-foreground w-24 whitespace-nowrap">تاریخ</th>
-                    <th className="px-3 py-2.5 text-right font-bold text-muted-foreground w-24 whitespace-nowrap">شماره سند</th>
-                    <th className="px-3 py-2.5 text-right font-bold text-muted-foreground min-w-[200px]">شرح</th>
-                    <th className="px-3 py-2.5 text-center font-bold text-blue-700 w-32 whitespace-nowrap">بدهکار</th>
-                    <th className="px-3 py-2.5 text-center font-bold text-rose-700 w-32 whitespace-nowrap">بستانکار</th>
-                    <th className="px-3 py-2.5 text-center font-bold text-muted-foreground w-36 whitespace-nowrap">مانده</th>
+      {/* ─── جدول دفتر کل ─── */}
+      <Card className="border border-border/80 overflow-hidden shadow-sm">
+        <CardContent className="p-0">
+          <div className="overflow-x-auto" id="ledger-table">
+            <table className="w-full text-xs text-right" dir="rtl">
+              <thead>
+                {/* هدر لایه اول */}
+                <tr className="bg-[#0e305d] text-white border-b border-border">
+                  <th rowSpan={2} className="px-3 py-4 font-bold text-center w-20 border-l border-white/10 whitespace-nowrap">کد حساب</th>
+                  <th rowSpan={2} className="px-3 py-4 font-bold text-right border-l border-white/10 min-w-[200px]">عنوان حساب</th>
+                  <th rowSpan={2} className="px-3 py-4 font-bold text-center w-36 border-l border-white/10 whitespace-nowrap">مانده از گذشته</th>
+                  <th colSpan={2} className="px-3 py-2 font-bold text-center border-l border-white/10">گردش</th>
+                  <th colSpan={2} className="px-3 py-2 font-bold text-center">مانده</th>
+                </tr>
+                {/* هدر لایه دوم */}
+                <tr className="bg-[#0b284e] text-white/95 border-b border-border">
+                  <th className="px-3 py-2 font-semibold text-center w-36 border-l border-white/10">بدهکار</th>
+                  <th className="px-3 py-2 font-semibold text-center w-36 border-l border-white/10">بستانکار</th>
+                  <th className="px-3 py-2 font-semibold text-center w-36 border-l border-white/10">بدهکار</th>
+                  <th className="px-3 py-2 font-semibold text-center w-36">بستانکار</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={7} className="py-20 text-center text-muted-foreground text-sm font-semibold">
+                      در حال بارگذاری اطلاعات...
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {/* ردیف مانده اول دوره */}
-                  {openBalance && (
-                    <tr className="border-b bg-amber-50/60">
-                      <td className="px-3 py-2 text-muted-foreground italic text-center" colSpan={2}>—</td>
-                      <td className="px-3 py-2 font-semibold text-amber-800">مانده اول دوره</td>
-                      <td className="px-3 py-2 text-center font-mono text-blue-700">{fmtNum(openBalance.debit)}</td>
-                      <td className="px-3 py-2 text-center font-mono text-rose-700">{fmtNum(openBalance.credit)}</td>
-                      <td className="px-3 py-2 text-center font-mono font-semibold">
-                        {openBalance.balance !== 0 ? (
-                          <span className={openBalance.balance > 0 ? "text-blue-700" : "text-rose-700"}>
-                            {Math.abs(openBalance.balance).toLocaleString("fa-IR")}
-                            <span className="text-[10px] mr-1">{openBalance.nature}</span>
-                          </span>
-                        ) : "—"}
+                ) : paginatedRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-20 text-center text-muted-foreground text-sm font-semibold">
+                      ردیفی یافت نشد. فیلترها را تغییر داده و مجدداً تلاش کنید.
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedRows.map((row, idx) => (
+                    <tr key={row.id ?? idx} className={cn("border-b hover:bg-primary/[0.04] transition-colors", idx % 2 === 1 && "bg-muted/10")}>
+                      <td className="px-3 py-2.5 text-center font-mono font-bold text-foreground/80 border-l">
+                        {row.accountCode}
+                      </td>
+                      <td className="px-3 py-2.5 text-right font-medium text-foreground border-l">
+                        {row.accountTitle}
+                      </td>
+                      <td className="px-3 py-2.5 text-center font-mono font-semibold text-blue-700 tabular-nums border-l">
+                        {fmtNum(row.openBalance)}
+                      </td>
+                      <td className="px-3 py-2.5 text-center font-mono font-medium text-foreground/90 tabular-nums border-l">
+                        {fmtNum(row.debitTurn)}
+                      </td>
+                      <td className="px-3 py-2.5 text-center font-mono font-medium text-foreground/90 tabular-nums border-l">
+                        {fmtNum(row.creditTurn)}
+                      </td>
+                      <td className="px-3 py-2.5 text-center font-mono font-semibold text-blue-700 tabular-nums border-l">
+                        {fmtNum(row.debitBalance)}
+                      </td>
+                      <td className="px-3 py-2.5 text-center font-mono font-semibold text-rose-700 tabular-nums">
+                        {fmtNum(row.creditBalance)}
                       </td>
                     </tr>
-                  )}
-
-                  {rows.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="py-14 text-center text-muted-foreground">
-                        <div className="flex flex-col items-center gap-2">
-                          <BookOpen className="h-8 w-8 opacity-30" />
-                          <p>در این بازه زمانی گردشی برای این حساب ثبت نشده است</p>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : rows.map((row, i) => {
-                    const bal = fmtBalance(row.balance);
-                    return (
-                      <tr key={i} className={cn("border-b hover:bg-primary/5 transition-colors", i % 2 === 1 && "bg-muted/10")}>
-                        <td className="px-3 py-2 font-mono whitespace-nowrap text-muted-foreground">{row.date || "—"}</td>
-                        <td className="px-3 py-2 font-mono whitespace-nowrap font-semibold">{row.doc_number || "—"}</td>
-                        <td className="px-3 py-2 max-w-xs truncate" title={row.description}>{row.description || "—"}</td>
-                        <td className="px-3 py-2 text-center font-mono tabular-nums text-blue-700">{fmtNum(row.debit)}</td>
-                        <td className="px-3 py-2 text-center font-mono tabular-nums text-rose-700">{fmtNum(row.credit)}</td>
-                        <td className={cn("px-3 py-2 text-center font-mono tabular-nums font-semibold whitespace-nowrap", bal.cls)}>
-                          {bal.text}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-
-                {/* footer جمع گردش دوره */}
-                {rows.length > 0 && (
-                  <tfoot>
-                    <tr className="border-t-2 bg-muted/40 font-bold">
-                      <td className="px-3 py-2.5" colSpan={3}>
-                        <span className="text-xs font-bold">جمع گردش دوره</span>
-                      </td>
-                      <td className="px-3 py-2.5 text-center font-mono text-blue-700">{fmtNum(totals.debit)}</td>
-                      <td className="px-3 py-2.5 text-center font-mono text-rose-700">{fmtNum(totals.credit)}</td>
-                      <td className="px-3 py-2.5 text-center">
-                        {rows.length > 0 && (() => {
-                          const last = rows[rows.length - 1];
-                          const bal = fmtBalance(last.balance);
-                          return <span className={cn("font-mono text-xs", bal.cls)}>{bal.text}</span>;
-                        })()}
-                      </td>
-                    </tr>
-                  </tfoot>
+                  ))
                 )}
-              </table>
+              </tbody>
+
+              {/* ─── ردیف‌های جمع کل و کنترل تساوی ─── */}
+              {filteredRows.length > 0 && (
+                <tfoot>
+                  {/* جمع کل */}
+                  <tr className="bg-[#e9f2fb] border-t border-border font-bold text-foreground">
+                    <td className="px-3 py-2.5 text-center font-bold" colSpan={2}>
+                      جمع کل
+                    </td>
+                    <td className="px-3 py-2.5 text-center font-mono font-bold text-blue-700 tabular-nums border-l">
+                      {fmtNum(totals.openBalance)}
+                    </td>
+                    <td className="px-3 py-2.5 text-center font-mono font-bold text-blue-700 tabular-nums border-l">
+                      {fmtNum(totals.debitTurn)}
+                    </td>
+                    <td className="px-3 py-2.5 text-center font-mono font-bold text-rose-700 tabular-nums border-l">
+                      {fmtNum(totals.creditTurn)}
+                    </td>
+                    <td className="px-3 py-2.5 text-center font-mono font-bold text-blue-700 tabular-nums border-l">
+                      {fmtNum(totals.debitBalance)}
+                    </td>
+                    <td className="px-3 py-2.5 text-center font-mono font-bold text-rose-700 tabular-nums">
+                      {fmtNum(totals.creditBalance)}
+                    </td>
+                  </tr>
+                  
+                  {/* کنترل تساوی بدهکار و بستانکار */}
+                  <tr className="bg-[#e9f2fb] border-t border-border font-bold text-foreground">
+                    <td className="px-3 py-2.5 text-right font-bold" colSpan={3}>
+                      کنترل تساوی بدهکار و بستانکار
+                    </td>
+                    <td className="px-3 py-2.5 text-center font-mono font-bold text-blue-700 tabular-nums border-l">
+                      {fmtNum(totals.debitTurn + totals.openBalance)}
+                    </td>
+                    <td className="px-3 py-2.5 text-center font-mono font-bold text-rose-700 tabular-nums border-l">
+                      {fmtNum(totals.creditTurn + totals.openBalance)}
+                    </td>
+                    <td className="px-3 py-2.5 border-l" />
+                    <td className="px-3 py-2.5" />
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+
+          {/* ─── کنترل‌های صفحه‌بندی ─── */}
+          <div className="px-4 py-3 flex flex-col sm:flex-row items-center justify-between border-t border-border bg-muted/20 gap-3" dir="rtl">
+            
+            {/* راست: تعداد در صفحه و آمار رکوردهای در حال نمایش */}
+            <div className="flex items-center gap-3 text-xs text-muted-foreground font-semibold">
+              <div className="flex items-center gap-1.5">
+                <span>تعداد در صفحه :</span>
+                <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
+                  className="h-7 text-xs rounded border border-input bg-background px-1.5 focus:outline-none focus:ring-1 focus:ring-ring">
+                  <option value={5}>۵</option>
+                  <option value={10}>۱۰</option>
+                  <option value={20}>۲۰</option>
+                  <option value={50}>۵۰</option>
+                </select>
+              </div>
+              <div>
+                نمایش {filteredRows.length > 0 ? (currentPage - 1) * pageSize + 1 : 0} تا {Math.min(currentPage * pageSize, filteredRows.length)} از {filteredRows.length} رکورد
+              </div>
             </div>
-          </CardContent>
-        </Card>
-      )}
+
+            {/* چپ: دکمه‌های ناوبری صفحه‌بندی */}
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="icon" className="h-7 w-7 rounded" onClick={() => setCurrentPage(1)} disabled={currentPage === 1 || loading}>
+                <ChevronsLeft className="h-3.5 w-3.5 rotate-180" />
+              </Button>
+              <Button variant="outline" size="icon" className="h-7 w-7 rounded" onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} disabled={currentPage === 1 || loading}>
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Button>
+
+              {Array.from({ length: totalPages }).map((_, i) => {
+                const pageNum = i + 1;
+                if (pageNum === 1 || pageNum === totalPages || Math.abs(pageNum - currentPage) <= 1) {
+                  return (
+                    <Button key={pageNum} onClick={() => setCurrentPage(pageNum)} variant={currentPage === pageNum ? "default" : "outline"}
+                      className={cn("h-7 w-7 text-xs font-mono rounded font-semibold", currentPage === pageNum ? "bg-[#004b93] text-white hover:bg-[#003d79]" : "bg-white hover:bg-muted text-foreground")}>
+                      {pageNum}
+                    </Button>
+                  );
+                }
+                if (pageNum === 2 || pageNum === totalPages - 1) {
+                  return <span key={pageNum} className="px-1 text-muted-foreground text-xs font-semibold select-none">...</span>;
+                }
+                return null;
+              })}
+
+              <Button variant="outline" size="icon" className="h-7 w-7 rounded" onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))} disabled={currentPage === totalPages || loading}>
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </Button>
+              <Button variant="outline" size="icon" className="h-7 w-7 rounded" onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages || loading}>
+                <ChevronsLeft className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+
+          </div>
+
+        </CardContent>
+      </Card>
     </PageShell>
   );
 }
