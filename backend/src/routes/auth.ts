@@ -39,12 +39,13 @@ router.post("/login", async (c) => {
     return c.json({ message: "نام کاربری یا رمز عبور اشتباه است" }, 401);
   }
 
-  const token = signToken({ sub: (user._id as ObjectId).toHexString(), username: user.username, role: user.role });
+  const token = signToken({ sub: (user._id as ObjectId).toHexString(), username: user.username, role: user.role || "حسابدار" });
 
+  const { password: _, ...safeUser } = user;
   return c.json({
     message: "ورود موفق",
     token,
-    user: { id: (user._id as ObjectId).toHexString(), username: user.username, role: user.role },
+    user: { ...safeUser, id: (user._id as ObjectId).toHexString() },
   });
 });
 
@@ -59,7 +60,8 @@ router.get("/me", async (c) => {
   const user = await getDb().collection("users").findOne({ _id: new ObjectId(payload.sub) });
   if (!user) return c.json({ message: "کاربر یافت نشد" }, 404);
 
-  return c.json({ user: { id: payload.sub, username: user.username, role: user.role } });
+  const { password: _, ...safeUser } = user;
+  return c.json({ user: { ...safeUser, id: payload.sub } });
 });
 
 export default router;

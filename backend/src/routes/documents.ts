@@ -218,6 +218,21 @@ router.get("/:id", async (c) => {
 });
 
 router.post("/", async (c) => {
+  const payload = c.get("jwtPayload");
+  const isAdmin = payload.role === "admin";
+  const db = getDb();
+
+  let user: any = null;
+  let permissions: any = {};
+
+  if (!isAdmin) {
+    user = await db.collection("users").findOne({ _id: new ObjectId(payload.sub) });
+    permissions = user?.permissions || {};
+    if (!permissions["doc.create"]) {
+      return c.json({ message: "دسترسی غیرمجاز. شما مجوز ثبت سند جدید را ندارید." }, 403);
+    }
+  }
+
   const body = await c.req.json();
   const { document_type, fiscal_year, ciphertext, lines = [] } = body;
   if (!document_type || !fiscal_year) {
@@ -237,6 +252,17 @@ router.post("/", async (c) => {
   const balanceCheck = await validateAccountBalances(resolvedLines as JournalLine[]);
   if (!balanceCheck.valid) {
     return c.json(balanceCheck, 422);
+  }
+
+  // Enforce transaction amount limits
+  if (!isAdmin && user) {
+    const totalDebit = (resolvedLines as any[]).reduce((s, l) => s + (Number(l.debit) || 0), 0);
+    if (user.financialLimitMax > 0 && totalDebit > user.financialLimitMax) {
+      return c.json({ message: `خطا: مبلغ سند (${totalDebit.toLocaleString()} ریال) بیشتر از سقف مجاز تراکنش شما (${user.financialLimitMax.toLocaleString()} ریال) است.` }, 403);
+    }
+    if (user.financialLimitMin > 0 && totalDebit < user.financialLimitMin) {
+      return c.json({ message: `خطا: مبلغ سند (${totalDebit.toLocaleString()} ریال) کمتر از حداقل مجاز تراکنش شما (${user.financialLimitMin.toLocaleString()} ریال) است.` }, 403);
+    }
   }
 
   const document_number = `DOC-${fiscal_year}-${Date.now()}`;
@@ -260,6 +286,18 @@ router.post("/", async (c) => {
 router.patch("/:id/confirm", async (c) => {
   const id = c.req.param("id");
   if (!ObjectId.isValid(id)) return c.json({ message: "شناسه نامعتبر" }, 400);
+
+  const payload = c.get("jwtPayload");
+  const isAdmin = payload.role === "admin";
+  const db = getDb();
+
+  if (!isAdmin) {
+    const user = await db.collection("users").findOne({ _id: new ObjectId(payload.sub) });
+    if (!user?.permissions?.["doc.approve"]) {
+      return c.json({ message: "دسترسی غیرمجاز. شما مجوز تایید و نهایی‌سازی اسناد را ندارید." }, 403);
+    }
+  }
+
   const res = await getDb()
     .collection<JournalDocument>("journal_documents")
     .findOneAndUpdate(
@@ -274,6 +312,21 @@ router.patch("/:id/confirm", async (c) => {
 router.put("/:id", async (c) => {
   const id = c.req.param("id");
   if (!ObjectId.isValid(id)) return c.json({ message: "شناسه نامعتبر" }, 400);
+
+  const payload = c.get("jwtPayload");
+  const isAdmin = payload.role === "admin";
+  const db = getDb();
+
+  let user: any = null;
+  let permissions: any = {};
+
+  if (!isAdmin) {
+    user = await db.collection("users").findOne({ _id: new ObjectId(payload.sub) });
+    permissions = user?.permissions || {};
+    if (!permissions["doc.edit"]) {
+      return c.json({ message: "دسترسی غیرمجاز. شما مجوز ویرایش اسناد را ندارید." }, 403);
+    }
+  }
 
   const body = await c.req.json();
   const { document_type, fiscal_year, ciphertext, lines = [] } = body;
@@ -304,6 +357,21 @@ router.put("/:id", async (c) => {
     return c.json(balanceCheck, 422);
   }
 
+  // Enforce transaction amount limits and approve check
+  if (!isAdmin && user) {
+    const totalDebit = newLines.reduce((s, l) => s + (Number(l.debit) || 0), 0);
+    if (user.financialLimitMax > 0 && totalDebit > user.financialLimitMax) {
+      return c.json({ message: `خطا: مبلغ سند (${totalDebit.toLocaleString()} ریال) بیشتر از سقف مجاز تراکنش شما (${user.financialLimitMax.toLocaleString()} ریال) است.` }, 403);
+    }
+    if (user.financialLimitMin > 0 && totalDebit < user.financialLimitMin) {
+      return c.json({ message: `خطا: مبلغ سند (${totalDebit.toLocaleString()} ریال) کمتر از حداقل مجاز تراکنش شما (${user.financialLimitMin.toLocaleString()} ریال) است.` }, 403);
+    }
+
+    if (updateData.status === "CONFIRMED" && !permissions["doc.approve"]) {
+      return c.json({ message: "دسترسی غیرمجاز. شما مجوز تایید و نهایی‌سازی اسناد را ندارید." }, 403);
+    }
+  }
+
   const res = await getDb()
     .collection<JournalDocument>("journal_documents")
     .findOneAndUpdate(
@@ -320,6 +388,17 @@ router.put("/:id", async (c) => {
 router.delete("/:id", async (c) => {
   const id = c.req.param("id");
   if (!ObjectId.isValid(id)) return c.json({ message: "شناسه نامعتبر" }, 400);
+
+  const payload = c.get("jwtPayload");
+  const isAdmin = payload.role === "admin";
+  const db = getDb();
+
+  if (!isAdmin) {
+    const user = await db.collection("users").findOne({ _id: new ObjectId(payload.sub) });
+    if (!user?.permissions?.["doc.delete"]) {
+      return c.json({ message: "دسترسی غیرمجاز. شما مجوز حذف اسناد را ندارید." }, 403);
+    }
+  }
 
   const res = await getDb()
     .collection<JournalDocument>("journal_documents")

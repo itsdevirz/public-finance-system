@@ -21,6 +21,7 @@ import subAccountTitles from "@/data/subAccountTitles.json";
 import sanamaRequirements from "@/data/sanamaRequirements.json";
 import { PersonSanamaField } from "@/components/ui/person-sanama-field";
 import { checkDebitNatureBalance, clearBalanceCache } from "@/lib/accountBalanceCheck";
+import { useAuth } from "@/context/AuthContext";
 
 // ---- helpers ----
 const allGroups = sanamaCodes.groups.map((g) => ({ code: g.code, title: g.title, accounts: g.accounts }));
@@ -505,6 +506,7 @@ function SanamaExtraFields({ row, onSanamaChange }) {
 
 // ---- component اصلی ----
 export default function ManualDocument() {
+  const { user: currentUser } = useAuth();
   const today = new Date().toLocaleDateString("fa-IR").replace(/\//g, "/");
 
   const [header, setHeader] = useState({
@@ -631,6 +633,50 @@ export default function ManualDocument() {
   }, [docId, copySourceId]);
 
   async function handleSave() {
+    // ─── بررسی سطوح دسترسی بر اساس نقش و مجوزها ───────────────────────────
+    if (currentUser && currentUser.role !== "admin") {
+      if (docId) {
+        if (!currentUser.permissions?.["doc.edit"]) {
+          setMessage({ type: "error", text: "دسترسی غیرمجاز. شما مجوز ویرایش سند حسابداری را ندارید." });
+          return;
+        }
+      } else {
+        if (!currentUser.permissions?.["doc.create"]) {
+          setMessage({ type: "error", text: "دسترسی غیرمجاز. شما مجوز ایجاد سند جدید را ندارید." });
+          return;
+        }
+      }
+
+      let statusMapped = "DRAFT";
+      if (header.status === "رد شده") {
+        statusMapped = "CANCELLED";
+      } else if (["پرداخت و دریافت", "دفترداری", "اعتمادات", "بایگانی"].includes(header.status)) {
+        statusMapped = "CONFIRMED";
+      }
+
+      if (statusMapped === "CONFIRMED" && !currentUser.permissions?.["doc.approve"]) {
+        setMessage({ type: "error", text: "دسترسی غیرمجاز. شما مجوز تایید و نهایی‌سازی اسناد را ندارید." });
+        return;
+      }
+
+      // ─── بررسی محدودیت‌های مبالغ مالی کاربر ──────────────────────────────────
+      const totalDebit = rows.reduce((sum, r) => sum + parseNumber(r.debit), 0);
+      if (currentUser.financialLimitMax > 0 && totalDebit > currentUser.financialLimitMax) {
+        setMessage({
+          type: "error",
+          text: `مبلغ کل سند (${totalDebit.toLocaleString("fa-IR")} ریال) بیشتر از سقف مجاز تراکنش شما (${currentUser.financialLimitMax.toLocaleString("fa-IR")} ریال) است.`
+        });
+        return;
+      }
+      if (currentUser.financialLimitMin > 0 && totalDebit < currentUser.financialLimitMin) {
+        setMessage({
+          type: "error",
+          text: `مبلغ کل سند (${totalDebit.toLocaleString("fa-IR")} ریال) کمتر از حداقل مجاز تراکنش شما (${currentUser.financialLimitMin.toLocaleString("fa-IR")} ریال) است.`
+        });
+        return;
+      }
+    }
+
     if (diff !== 0) {
       setMessage({ type: "error", text: "سند تراز نیست! اختلاف بدهکار و بستانکار باید صفر باشد." });
       return;

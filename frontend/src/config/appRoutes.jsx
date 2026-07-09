@@ -14,6 +14,7 @@ const BankForm = lazy(() => import("@/modules/treasury/pages/BankForm"));
 const CreditForm = lazy(() => import("@/pages/CreditForm"));
 const Bookkeeping = lazy(() => import("@/modules/accounting/pages/Bookkeeping"));
 const SystemManagement = lazy(() => import("@/pages/SystemManagement"));
+const Users = lazy(() => import("@/pages/Users"));
 const CurrentOperations = lazy(() => import("@/modules/accounting/pages/CurrentOperations"));
 const Guarantees = lazy(() => import("@/modules/treasury/pages/Guarantees"));
 const Deposits = lazy(() => import("@/modules/treasury/pages/Deposits"));
@@ -294,7 +295,7 @@ export const PAGE_COMPONENTS = {
   "/system-management/credit-control": SystemManagement,
   "/system-management/program-details": SystemManagement,
   "/system-management/user-groups": SystemManagement,
-  "/system-management/users": SystemManagement,
+  "/system-management/users": Users,
   "/system-management/permissions": SystemManagement,
   "/system-management/change-password": SystemManagement,
   "/system-management/user-performance": SystemManagement,

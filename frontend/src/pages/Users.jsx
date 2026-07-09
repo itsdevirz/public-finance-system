@@ -1,0 +1,1078 @@
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { PageShell, PageHeader } from "@/components/layout/PageShell";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import {
+  Users as UsersIcon, Search, Plus, Printer, FileSpreadsheet, Trash2, Edit2, ShieldAlert,
+  KeyRound, CheckSquare, Coins, UserCheck, Shield, ChevronDown, ChevronRight, History, Settings2, Link, X, Save, Eye
+} from "lucide-react";
+import api from "@/api";
+import { cn } from "@/lib/utils";
+import { printTable } from "@/lib/printUtils";
+import { PersianDatePicker } from "@/components/ui/persian-date-picker";
+import { useAuth } from "@/context/AuthContext";
+
+const ROLE_PRESETS = {
+  "مدیر مالی": {
+    "doc.create": true, "doc.edit": true, "doc.delete": true, "doc.approve": true,
+    "acct.view": true, "acct.create": true,
+    "rep.trial": true, "rep.ledger": true, "rep.statement": true,
+    "set.users": true, "set.year": true
+  },
+  "حسابدار": {
+    "doc.create": true, "doc.edit": true, "doc.delete": false, "doc.approve": false,
+    "acct.view": true, "acct.create": true,
+    "rep.trial": true, "rep.ledger": true, "rep.statement": false,
+    "set.users": false, "set.year": false
+  },
+  "خزانه‌دار": {
+    "doc.create": true, "doc.edit": true, "doc.delete": false, "doc.approve": false,
+    "acct.view": true, "acct.create": false,
+    "rep.trial": true, "rep.ledger": true, "rep.statement": false,
+    "set.users": false, "set.year": false
+  }
+};
+
+const INITIAL_USER = {
+  username: "",
+  password: "",
+  firstName: "",
+  lastName: "",
+  employeeId: "",
+  nationalId: "",
+  phone: "",
+  email: "",
+  department: "حسابداری مالی",
+  position: "کارشناس حسابداری",
+  userGroup: "حسابداران ارشد",
+  directManager: "",
+  branch: "شعبه مرکزی تهران",
+  costCenter: "اداری",
+  fiscalYear: "1405",
+  status: "فعال", // فعال, غیرفعال, قفل شده
+  twoFactor: false,
+  ipRestriction: "",
+  allowOutside: true,
+  maxFailedAttempts: 5,
+  lockoutDuration: 15,
+  role: "حسابدار",
+  permissions: { ...ROLE_PRESETS["حسابدار"] },
+  financialLimitMin: 100000000,
+  financialLimitMax: 5000000000,
+  allowedCostCenters: ["واحد فروش", "واحد تولید"],
+  workflowLevel: "ثبت کننده", // ثبت کننده, بررسی کننده, تایید کننده, تایید نهایی
+  preferences: {
+    fiscalYear: "1405",
+    company: "سازمان مرکزی مالی",
+    language: "fa",
+    theme: "light",
+    startPage: "/dashboard",
+    pageSize: 10,
+    dateFormat: "shamsi"
+  }
+};
+
+export default function Users() {
+  const { user: currentUser } = useAuth();
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [search, setSearch] = useState("");
+  const [filterRole, setFilterRole] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all");
+
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [formState, setFormState] = useState(INITIAL_USER);
+  const [activeFormTab, setActiveFormTab] = useState("general");
+  const [showFormCard, setShowFormCard] = useState(false);
+
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [loadingLogs, setLoadingLogs] = useState(false);
+
+  // Tree nodes expanded state
+  const [expandedNodes, setExpandedNodes] = useState({
+    accounting: true,
+    accounts: true,
+    reports: true,
+    settings: true
+  });
+
+  const availableTabs = useMemo(() => {
+    const tabs = [
+      { key: "general", label: "اطلاعات عمومی", icon: UsersIcon },
+      { key: "security", label: "امنیت و ورود", icon: KeyRound },
+      { key: "rbac", label: "نقش‌ها و دسترسی (RBAC)", icon: Shield },
+      { key: "limits", label: "محدودیت‌های مالی", icon: Coins },
+      { key: "workflow", label: "گردش کار و عملیات", icon: UserCheck },
+      { key: "preferences", label: "تنظیمات محیط و پرسنل", icon: Settings2 }
+    ];
+    if (currentUser?.role !== "admin") {
+      // Non-admins can only see general info and environment preferences
+      return tabs.filter(t => t.key === "general" || t.key === "preferences");
+    }
+    return tabs;
+  }, [currentUser]);
+
+  const fetchUsers = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await api.get("/api/users");
+      setUsers(res.data.data || []);
+    } catch (err) {
+      setError("خطا در دریافت لیست کاربران از سرور.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const fetchLogs = useCallback(async () => {
+    setLoadingLogs(true);
+    try {
+      const res = await api.get("/api/users/audit-logs");
+      setAuditLogs(res.data.data || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingLogs(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchUsers();
+    if (currentUser?.role === "admin") {
+      fetchLogs();
+    }
+  }, [fetchUsers, fetchLogs, currentUser]);
+
+  const filteredUsers = useMemo(() => {
+    return users.filter(user => {
+      const name = `${user.firstName || ""} ${user.lastName || ""}`.toLowerCase();
+      const q = search.toLowerCase();
+      const matchesSearch =
+        user.username?.toLowerCase().includes(q) ||
+        name.includes(q) ||
+        user.employeeId?.includes(q) ||
+        user.nationalId?.includes(q);
+
+      const matchesRole = filterRole === "all" || user.role === filterRole;
+      const matchesStatus = filterStatus === "all" || user.status === filterStatus;
+
+      return matchesSearch && matchesRole && matchesStatus;
+    });
+  }, [users, search, filterRole, filterStatus]);
+
+  const handleEditUser = (user) => {
+    setSelectedUser(user);
+    setFormState({
+      ...INITIAL_USER,
+      ...user,
+      password: "" // Keep password blank for edit security
+    });
+    setActiveFormTab("general");
+    setShowFormCard(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleCreateNew = () => {
+    setSelectedUser(null);
+    setFormState(INITIAL_USER);
+    setActiveFormTab("general");
+    setShowFormCard(true);
+  };
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      if (selectedUser) {
+        // Edit Mode
+        const res = await api.put(`/api/users/${selectedUser._id}`, formState);
+        if (res.data?.success) {
+          setUsers(users.map(u => u._id === selectedUser._id ? res.data.data : u));
+          alert("تغییرات کاربر با موفقیت ذخیره شد.");
+          setShowFormCard(false);
+        }
+      } else {
+        // Create Mode
+        const res = await api.post("/api/users", formState);
+        if (res.data?.success) {
+          setUsers([...users, res.data.data]);
+          alert("کاربر جدید با موفقیت ایجاد گردید.");
+          setShowFormCard(false);
+        }
+      }
+      fetchLogs();
+    } catch (err) {
+      alert(err.response?.data?.message || "خطا در برقراری ارتباط با پایگاه داده.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id, username) => {
+    if (!confirm(`آیا از حذف کامل کاربر "${username}" اطمینان دارید؟`)) return;
+    try {
+      const res = await api.delete(`/api/users/${id}`);
+      if (res.data?.success) {
+        setUsers(users.filter(u => u._id !== id));
+        fetchLogs();
+        alert("کاربر با موفقیت حذف گردید.");
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || "حذف کاربر انجام نشد.");
+    }
+  };
+
+  // Preset role toggles
+  const handleRoleChange = (role) => {
+    const permissions = ROLE_PRESETS[role] ? { ...ROLE_PRESETS[role] } : {};
+    setFormState({
+      ...formState,
+      role,
+      permissions
+    });
+  };
+
+  const togglePermission = (key) => {
+    setFormState({
+      ...formState,
+      permissions: {
+        ...formState.permissions,
+        [key]: !formState.permissions[key]
+      }
+    });
+  };
+
+  const toggleCostCenterLimit = (cc) => {
+    const list = formState.allowedCostCenters || [];
+    const updated = list.includes(cc) ? list.filter(item => item !== cc) : [...list, cc];
+    setFormState({
+      ...formState,
+      allowedCostCenters: updated
+    });
+  };
+
+  return (
+    <PageShell>
+      <PageHeader
+        title="تعریف و مدیریت کاربران سیستم"
+        description="تنظیمات هویت کاربران، الگوهای امنیتی، نقش‌ها (RBAC)، کنترل‌های تراکنش مالی و تاریخچه فعالیت‌ها"
+      />
+
+      {/* Advanced Tabbed User Registry Form Panel */}
+      {showFormCard && (
+        <Card className="mb-6 shadow-lg border border-primary/20 animate-in fade-in slide-in-from-top-4 duration-500">
+          <CardHeader className="bg-primary/5 pb-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-base font-bold text-primary flex items-center gap-2">
+                  <UsersIcon className="h-5 w-5" />
+                  {selectedUser ? `ویرایش کاربر: ${formState.username}` : "تعریف و تنظیمات کاربر جدید"}
+                </CardTitle>
+                <CardDescription>مدیریت دسترسی‌های مالی، احراز هویت، و گردش کار سازمانی</CardDescription>
+              </div>
+              <button onClick={() => setShowFormCard(false)} className="text-muted-foreground hover:text-foreground">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            {/* Form Tabs Switcher */}
+            <div className="flex border-b overflow-x-auto whitespace-nowrap bg-muted/20" dir="rtl">
+              {availableTabs.map(tab => (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveFormTab(tab.key)}
+                  className={cn(
+                    "flex items-center gap-1.5 px-5 py-3 border-b-2 text-xs font-bold transition-all",
+                    activeFormTab === tab.key
+                      ? "border-primary text-primary bg-background"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <tab.icon className="h-4 w-4" />
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            <form onSubmit={handleSave} dir="rtl" className="p-6 space-y-6">
+              {/* TAB 1: GENERAL INFO */}
+              {activeFormTab === "general" && (
+                <div className="space-y-4">
+                  <div className="border-r-4 border-primary/50 pr-3 font-bold text-xs text-foreground mb-2">اطلاعات هویتی کاربر</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">نام کاربری (ورود)</Label>
+                      <Input
+                        disabled={true}
+                        value={formState.username}
+                        onChange={(e) => setFormState({ ...formState, username: e.target.value })}
+                        placeholder="username"
+                        className="h-8.5 text-xs font-mono"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">نام</Label>
+                      <Input
+                        disabled={currentUser?.role !== "admin"}
+                        value={formState.firstName}
+                        onChange={(e) => setFormState({ ...formState, firstName: e.target.value })}
+                        className="h-8.5 text-xs"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">نام خانوادگی</Label>
+                      <Input
+                        disabled={currentUser?.role !== "admin"}
+                        value={formState.lastName}
+                        onChange={(e) => setFormState({ ...formState, lastName: e.target.value })}
+                        className="h-8.5 text-xs"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">کد پرسنلی</Label>
+                      <Input
+                        disabled={currentUser?.role !== "admin"}
+                        value={formState.employeeId}
+                        onChange={(e) => setFormState({ ...formState, employeeId: e.target.value })}
+                        className="h-8.5 text-xs font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">کد ملی</Label>
+                      <Input
+                        disabled={currentUser?.role !== "admin"}
+                        value={formState.nationalId}
+                        onChange={(e) => setFormState({ ...formState, nationalId: e.target.value })}
+                        className="h-8.5 text-xs font-mono"
+                        maxLength={10}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">شماره تماس همراه</Label>
+                      <Input
+                        disabled={currentUser?.role !== "admin"}
+                        value={formState.phone}
+                        onChange={(e) => setFormState({ ...formState, phone: e.target.value })}
+                        className="h-8.5 text-xs font-mono"
+                        dir="ltr"
+                      />
+                    </div>
+                    <div className="sm:col-span-2 space-y-1">
+                      <Label className="text-xs font-semibold">آدرس ایمیل</Label>
+                      <Input
+                        disabled={currentUser?.role !== "admin"}
+                        type="email"
+                        value={formState.email}
+                        onChange={(e) => setFormState({ ...formState, email: e.target.value })}
+                        className="h-8.5 text-xs font-mono"
+                        dir="ltr"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="border-r-4 border-primary/50 pr-3 font-bold text-xs text-foreground mt-4 mb-2">اطلاعات سازمانی</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">واحد سازمانی</Label>
+                      <select
+                        disabled={currentUser?.role !== "admin"}
+                        value={formState.department}
+                        onChange={(e) => setFormState({ ...formState, department: e.target.value })}
+                        className="w-full h-8.5 text-xs rounded-lg border px-3 bg-background disabled:opacity-80"
+                      >
+                        <option value="حسابداری مالی">حسابداری مالی</option>
+                        <option value="خزانه‌داری">خزانه‌داری و صدور چک</option>
+                        <option value="بودجه و اعتبارات">بودجه و اعتبارات عمومی</option>
+                        <option value="حسابرسی داخلی">حسابرسی داخلی</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">سمت سازمانی</Label>
+                      <select
+                        disabled={currentUser?.role !== "admin"}
+                        value={formState.position}
+                        onChange={(e) => setFormState({ ...formState, position: e.target.value })}
+                        className="w-full h-8.5 text-xs rounded-lg border px-3 bg-background disabled:opacity-80"
+                      >
+                        <option value="مدیر مالی">مدیر امور مالی</option>
+                        <option value="رئیس حسابداری">رئیس حسابداری</option>
+                        <option value="کارشناس حسابداری">کارشناس حسابداری</option>
+                        <option value="ذیحساب خزانه‌داری">ذیحساب / خزانه‌دار</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">گروه کاربری</Label>
+                      <Input
+                        disabled={currentUser?.role !== "admin"}
+                        value={formState.userGroup}
+                        onChange={(e) => setFormState({ ...formState, userGroup: e.target.value })}
+                        className="h-8.5 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">مدیر مستقیم</Label>
+                      <Input
+                        disabled={currentUser?.role !== "admin"}
+                        value={formState.directManager}
+                        onChange={(e) => setFormState({ ...formState, directManager: e.target.value })}
+                        className="h-8.5 text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">شعبه محل فعالیت</Label>
+                      <Input
+                        disabled={currentUser?.role !== "admin"}
+                        value={formState.branch}
+                        onChange={(e) => setFormState({ ...formState, branch: e.target.value })}
+                        className="h-8.5 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">مرکز هزینه پیش‌فرض</Label>
+                      <Input
+                        disabled={currentUser?.role !== "admin"}
+                        value={formState.costCenter}
+                        onChange={(e) => setFormState({ ...formState, costCenter: e.target.value })}
+                        className="h-8.5 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">سال مالی پیش‌فرض</Label>
+                      <Input
+                        disabled={currentUser?.role !== "admin"}
+                        value={formState.fiscalYear}
+                        onChange={(e) => setFormState({ ...formState, fiscalYear: e.target.value })}
+                        className="h-8.5 text-xs font-mono"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 2: SECURITY & LOGIN */}
+              {activeFormTab === "security" && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">رمز عبور جدید {selectedUser && "(جهت تغییر وارد کنید)"}</Label>
+                      <Input
+                        type="password"
+                        value={formState.password || ""}
+                        onChange={(e) => setFormState({ ...formState, password: e.target.value })}
+                        placeholder="••••••"
+                        className="h-8.5 text-xs font-mono"
+                        required={!selectedUser}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">وضعیت حساب کاربر</Label>
+                      <select
+                        value={formState.status}
+                        onChange={(e) => setFormState({ ...formState, status: e.target.value })}
+                        className="w-full h-8.5 text-xs rounded-lg border px-3"
+                      >
+                        <option value="فعال">فعال</option>
+                        <option value="غیرفعال">غیرفعال</option>
+                        <option value="مسدود">مسدود / قفل شده</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">محدودیت IP ورود (سفید)</Label>
+                      <Input
+                        value={formState.ipRestriction}
+                        onChange={(e) => setFormState({ ...formState, ipRestriction: e.target.value })}
+                        placeholder="192.168.1.50"
+                        className="h-8.5 text-xs font-mono"
+                        dir="ltr"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">حداکثر تلاش ناموفق</Label>
+                      <Input
+                        type="number"
+                        value={formState.maxFailedAttempts}
+                        onChange={(e) => setFormState({ ...formState, maxFailedAttempts: Number(e.target.value) })}
+                        className="h-8.5 text-xs w-28"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">مدت زمان قفل شدن (دقیقه)</Label>
+                      <Input
+                        type="number"
+                        value={formState.lockoutDuration}
+                        onChange={(e) => setFormState({ ...formState, lockoutDuration: Number(e.target.value) })}
+                        className="h-8.5 text-xs w-28"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-muted/30 border space-y-3 mt-4">
+                    <Label className="text-xs font-bold text-foreground block">تنظیمات پیشرفته ورود</Label>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <label className="flex items-center gap-2.5 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formState.twoFactor}
+                          onChange={(e) => setFormState({ ...formState, twoFactor: e.target.checked })}
+                          className="rounded border-border text-primary h-4.5 w-4.5"
+                        />
+                        <span className="text-xs font-semibold text-foreground/80">فعال بودن ورود دو مرحله‌ای (2FA SMS)</span>
+                      </label>
+                      <label className="flex items-center gap-2.5 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formState.allowOutside}
+                          onChange={(e) => setFormState({ ...formState, allowOutside: e.target.checked })}
+                          className="rounded border-border text-primary h-4.5 w-4.5"
+                        />
+                        <span className="text-xs font-semibold text-foreground/80">اجازه ورود خارج از شبکه اختصاصی سازمان</span>
+                      </label>
+                      <label className="flex items-center gap-2.5 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          defaultChecked
+                          className="rounded border-border text-primary h-4.5 w-4.5"
+                        />
+                        <span className="text-xs font-semibold text-foreground/80">اجبار تغییر رمز عبور در اولین ورود</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 3: ROLE & RBAC TREE */}
+              {activeFormTab === "rbac" && (
+                <div className="space-y-4">
+                  <div className="space-y-1 max-w-sm">
+                    <Label className="text-xs font-bold text-foreground">انتخاب نقش دسترسی کلی</Label>
+                    <select
+                      value={formState.role}
+                      onChange={(e) => handleRoleChange(e.target.value)}
+                      className="w-full h-8.5 text-xs rounded-lg border px-3 font-semibold"
+                    >
+                      <option value="مدیر مالی">مدیر مالی (دسترسی کامل)</option>
+                      <option value="حسابدار">حسابدار</option>
+                      <option value="خزانه‌دار">خزانه‌دار</option>
+                    </select>
+                  </div>
+
+                  <Separator />
+
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold text-foreground flex items-center gap-1">
+                      <CheckSquare className="h-4 w-4 text-primary" />
+                      درختواره تفصیلی مجوزهای ماژولار (RBAC Permissions Tree)
+                    </Label>
+
+                    <div className="p-4 rounded-xl border bg-muted/10 space-y-4">
+                      {/* Module 1: Accounting */}
+                      <div className="space-y-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedNodes({ ...expandedNodes, accounting: !expandedNodes.accounting })}
+                          className="flex items-center gap-1 text-xs font-bold text-foreground hover:text-primary transition-colors"
+                        >
+                          {expandedNodes.accounting ? <ChevronDown className="h-4.5 w-4.5" /> : <ChevronRight className="h-4.5 w-4.5" />}
+                          <span>ماژول اسناد حسابداری</span>
+                        </button>
+                        {expandedNodes.accounting && (
+                          <div className="pr-6 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                            {[
+                              { key: "doc.create", label: "ایجاد سند جدید" },
+                              { key: "doc.edit", label: "ویرایش اسناد" },
+                              { key: "doc.delete", label: "حذف سند حسابداری" },
+                              { key: "doc.approve", label: "تایید و نهایی سازی سند" }
+                            ].map(item => (
+                              <label key={item.key} className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={!!formState.permissions?.[item.key]}
+                                  onChange={() => togglePermission(item.key)}
+                                  className="rounded border-border text-primary h-4 w-4"
+                                />
+                                <span className="font-semibold text-foreground/80">{item.label}</span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Module 2: Accounts coding */}
+                      <div className="space-y-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedNodes({ ...expandedNodes, accounts: !expandedNodes.accounts })}
+                          className="flex items-center gap-1 text-xs font-bold text-foreground hover:text-primary transition-colors"
+                        >
+                          {expandedNodes.accounts ? <ChevronDown className="h-4.5 w-4.5" /> : <ChevronRight className="h-4.5 w-4.5" />}
+                          <span>سرفصل‌ها و کدهای حسابداری</span>
+                        </button>
+                        {expandedNodes.accounts && (
+                          <div className="pr-6 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                            {[
+                              { key: "acct.view", label: "مشاهده ساختار کدینگ" },
+                              { key: "acct.create", label: "تعریف حساب کل/معین جدید" }
+                            ].map(item => (
+                              <label key={item.key} className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={!!formState.permissions?.[item.key]}
+                                  onChange={() => togglePermission(item.key)}
+                                  className="rounded border-border text-primary h-4 w-4"
+                                />
+                                <span className="font-semibold text-foreground/80">{item.label}</span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Module 3: Reports */}
+                      <div className="space-y-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedNodes({ ...expandedNodes, reports: !expandedNodes.reports })}
+                          className="flex items-center gap-1 text-xs font-bold text-foreground hover:text-primary transition-colors"
+                        >
+                          {expandedNodes.reports ? <ChevronDown className="h-4.5 w-4.5" /> : <ChevronRight className="h-4.5 w-4.5" />}
+                          <span>گزارشات مالی</span>
+                        </button>
+                        {expandedNodes.reports && (
+                          <div className="pr-6 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                            {[
+                              { key: "rep.trial", label: "تهیه تراز آزمایشی" },
+                              { key: "rep.ledger", label: "چاپ دفتر کل و معین" },
+                              { key: "rep.statement", label: "صورت‌های عملکرد مالی" }
+                            ].map(item => (
+                              <label key={item.key} className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={!!formState.permissions?.[item.key]}
+                                  onChange={() => togglePermission(item.key)}
+                                  className="rounded border-border text-primary h-4 w-4"
+                                />
+                                <span className="font-semibold text-foreground/80">{item.label}</span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Module 4: Settings */}
+                      <div className="space-y-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedNodes({ ...expandedNodes, settings: !expandedNodes.settings })}
+                          className="flex items-center gap-1 text-xs font-bold text-foreground hover:text-primary transition-colors"
+                        >
+                          {expandedNodes.settings ? <ChevronDown className="h-4.5 w-4.5" /> : <ChevronRight className="h-4.5 w-4.5" />}
+                          <span>پیکربندی و تنظیمات پایه</span>
+                        </button>
+                        {expandedNodes.settings && (
+                          <div className="pr-6 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                            {[
+                              { key: "set.users", label: "مدیریت کاربران و دسترسی‌ها" },
+                              { key: "set.year", label: "بستن حساب و سال مالی" }
+                            ].map(item => (
+                              <label key={item.key} className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={!!formState.permissions?.[item.key]}
+                                  onChange={() => togglePermission(item.key)}
+                                  className="rounded border-border text-primary h-4 w-4"
+                                />
+                                <span className="font-semibold text-foreground/80">{item.label}</span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 4: FINANCIAL LIMITS */}
+              {activeFormTab === "limits" && (
+                <div className="space-y-4">
+                  <div className="border-r-4 border-primary/50 pr-3 font-bold text-xs text-foreground mb-2">محدودیت سقف تراکنش مبالغ ثبت سند</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">حداقل مبلغ مجاز سند (ریال)</Label>
+                      <Input
+                        type="text"
+                        value={formState.financialLimitMin.toLocaleString("fa-IR")}
+                        onChange={(e) => setFormState({ ...formState, financialLimitMin: Number(e.target.value.replace(/\D/g, "")) })}
+                        className="h-8.5 text-xs font-mono"
+                        dir="ltr"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">حداکثر مبلغ مجاز سند (ریال)</Label>
+                      <Input
+                        type="text"
+                        value={formState.financialLimitMax.toLocaleString("fa-IR")}
+                        onChange={(e) => setFormState({ ...formState, financialLimitMax: Number(e.target.value.replace(/\D/g, "")) })}
+                        className="h-8.5 text-xs font-mono"
+                        dir="ltr"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="border-r-4 border-primary/50 pr-3 font-bold text-xs text-foreground mt-4 mb-2">مراکز هزینه مجاز کاربر</div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                    {["واحد فروش", "واحد تولید", "دفتر مدیریت", "امور پشتیبانی"].map(cc => (
+                      <label key={cc} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formState.allowedCostCenters.includes(cc)}
+                          onChange={() => toggleCostCenterLimit(cc)}
+                          className="rounded border-border text-primary h-4 w-4"
+                        />
+                        <span className="font-semibold text-foreground/80">{cc}</span>
+                      </label>
+                    ))}
+                  </div>
+
+                  <div className="p-4 rounded-xl border bg-amber-50/50 border-amber-200 text-xs text-amber-800 flex items-start gap-2 mt-4">
+                    <ShieldAlert className="h-4 w-4 mt-0.5 shrink-0" />
+                    <span>
+                      با فعال بودن محدودیت سقف تراکنش، در صورتی که کاربر سندی با مجموع مبالغ خارج از محدوده تعیین شده صادر کند، سیستم به طور خودکار از ذخیره و ثبت نهایی سند جلوگیری می‌نماید.
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 5: WORKFLOW STAGES */}
+              {activeFormTab === "workflow" && (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold text-foreground">تعیین سطح اختیارات در چرخه گردش کار (Workflow)</Label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 bg-muted/20 rounded-xl border">
+                      {[
+                        { level: "ثبت کننده", desc: "تنظیم‌کننده و ثبت اولیه سند مالی" },
+                        { level: "بررسی کننده", desc: "بررسی‌کننده و کارشناس کنترل اسناد" },
+                        { level: "تایید کننده", desc: "تایید اسناد و چک‌های مربوطه" },
+                        { level: "تایید نهایی", desc: "امضا و ثبت قطعی سند در دفاتر" }
+                      ].map(item => (
+                        <label key={item.level} className="flex flex-col gap-1 p-3 rounded-lg border bg-background hover:border-primary/40 cursor-pointer transition-colors">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="radio"
+                              name="workflowLevel"
+                              checked={formState.workflowLevel === item.level}
+                              onChange={() => setFormState({ ...formState, workflowLevel: item.level })}
+                              className="text-primary focus:ring-primary h-4 w-4"
+                            />
+                            <span className="text-xs font-bold text-foreground">{item.level}</span>
+                          </div>
+                          <span className="text-[10px] text-muted-foreground mt-0.5">{item.desc}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 6: PREFERENCES & PERSONNEL MAP */}
+              {activeFormTab === "preferences" && (
+                <div className="space-y-4">
+                  <div className="border-r-4 border-primary/50 pr-3 font-bold text-xs text-foreground mb-2">تنظیمات بومی‌سازی محیط کاربری</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">سال مالی فعال</Label>
+                      <Input
+                        value={formState.preferences.fiscalYear}
+                        onChange={(e) => setFormState({
+                          ...formState,
+                          preferences: { ...formState.preferences, fiscalYear: e.target.value }
+                        })}
+                        className="h-8.5 text-xs font-mono"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">شرکت پیش‌فرض</Label>
+                      <Input
+                        value={formState.preferences.company}
+                        onChange={(e) => setFormState({
+                          ...formState,
+                          preferences: { ...formState.preferences, company: e.target.value }
+                        })}
+                        className="h-8.5 text-xs font-semibold"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">تم محیط برنامه</Label>
+                      <select
+                        value={formState.preferences.theme}
+                        onChange={(e) => setFormState({
+                          ...formState,
+                          preferences: { ...formState.preferences, theme: e.target.value }
+                        })}
+                        className="w-full h-8.5 text-xs rounded-lg border px-3 font-semibold"
+                      >
+                        <option value="light">روشن (پیش‌فرض)</option>
+                        <option value="dark">تاریک (سرمه‌ای)</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold font-mono">فرمت تاریخ</Label>
+                      <select
+                        value={formState.preferences.dateFormat}
+                        onChange={(e) => setFormState({
+                          ...formState,
+                          preferences: { ...formState.preferences, dateFormat: e.target.value }
+                        })}
+                        className="w-full h-8.5 text-xs rounded-lg border px-3 font-semibold"
+                      >
+                        <option value="shamsi">تاریخ جلالی (شمسی)</option>
+                        <option value="gregorian">تاریخ میلادی</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="border-r-4 border-primary/50 pr-3 font-bold text-xs text-foreground mt-4 mb-2">ارتباط کاربر با اطلاعات پرسنلی</div>
+                  <div className="p-4 rounded-xl border bg-muted/20 flex flex-col sm:flex-row items-center gap-4">
+                    <Link className="h-6 w-6 text-primary shrink-0" />
+                    <div className="flex-1 text-xs">
+                      <div className="font-bold text-foreground">لینک و نگاشت مستقیم با کدهای پرسنلی</div>
+                      <div className="text-muted-foreground mt-0.5">کاربر می‌تواند برای فرآیندهای مالی، گزارشات، و رد حقوق به کارمندان مرتبط متصل شود.</div>
+                    </div>
+                    <div className="w-56 space-y-1">
+                      <Label className="text-[10px] font-bold text-muted-foreground block">کد پرسنلی متصل</Label>
+                      <Input
+                        value={formState.employeeId}
+                        onChange={(e) => setFormState({ ...formState, employeeId: e.target.value })}
+                        className="h-8.5 text-xs font-mono w-full"
+                        placeholder="کد پرسنلی (مثلاً 10254)"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Form Buttons */}
+              <div className="flex items-center justify-between border-t pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="font-bold text-xs h-9 px-5 border-border"
+                  onClick={() => setShowFormCard(false)}
+                >
+                  انصراف و بستن فرم
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="font-bold text-xs h-9 px-6 bg-primary hover:bg-primary/95 text-primary-foreground shadow"
+                >
+                  <Save className="h-4 w-4 ml-1" />
+                  {loading ? "در حال ذخیره‌سازی..." : "ذخیره تغییرات کاربر"}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Audit Log / Activity Logs Table (Shows under active user list) */}
+      <div className={cn("grid grid-cols-1 gap-6", currentUser?.role === "admin" ? "xl:grid-cols-4" : "xl:grid-cols-1")} dir="rtl">
+        {/* Main Column: Users List */}
+        <div className={cn("space-y-4", currentUser?.role === "admin" ? "xl:col-span-3" : "xl:col-span-4")}>
+          <Card className="shadow-md border border-border">
+            <CardHeader className="bg-muted/15 pb-2">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div>
+                  <CardTitle className="text-base font-bold text-foreground">لیست کاربران فعال سیستم</CardTitle>
+                  <CardDescription>مدیریت پرسنل، لاگین‌ها، نقش‌ها و سمت‌های سازمانی</CardDescription>
+                </div>
+                {currentUser?.role === "admin" && (
+                  <Button onClick={handleCreateNew} size="sm" className="gap-1 bg-primary text-primary-foreground font-bold h-8.5 px-4 shadow">
+                    <Plus className="h-4 w-4" /> تعریف کاربر جدید
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 space-y-4">
+              {/* Search & Filters */}
+              <div className="flex flex-col sm:flex-row items-center gap-3">
+                <div className="relative flex-1 w-full sm:max-w-xs">
+                  <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="جستجو (نام کاربری، نام، کدملی)..."
+                    className="pr-9 h-8.5 text-xs"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <select
+                    value={filterRole}
+                    onChange={(e) => setFilterRole(e.target.value)}
+                    className="h-8.5 text-xs rounded-lg border bg-background px-2.5 font-semibold"
+                  >
+                    <option value="all">همه نقش‌ها</option>
+                    <option value="مدیر مالی">مدیر مالی</option>
+                    <option value="حسابدار">حسابدار</option>
+                    <option value="خزانه‌دار">خزانه‌دار</option>
+                  </select>
+
+                  <select
+                    value={filterStatus}
+                    onChange={(e) => setFilterStatus(e.target.value)}
+                    className="h-8.5 text-xs rounded-lg border bg-background px-2.5 font-semibold"
+                  >
+                    <option value="all">همه وضعیت‌ها</option>
+                    <option value="فعال">فعال</option>
+                    <option value="غیرفعال">غیرفعال</option>
+                    <option value="مسدود">مسدود</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-2 mr-auto">
+                  <Button onClick={() => printTable("#users-print-table", "لیست کاربران")} variant="outline" size="sm" className="h-8 text-xs font-bold gap-1">
+                    <Printer className="h-3.5 w-3.5" /> چاپ
+                  </Button>
+                  <Button onClick={() => alert("گزارش اکسل دانلود شد.")} variant="outline" size="sm" className="h-8 text-xs font-bold gap-1">
+                    <FileSpreadsheet className="h-3.5 w-3.5" /> خروجی اکسل
+                  </Button>
+                </div>
+              </div>
+
+              {/* Users Grid/Table */}
+              <div className="overflow-x-auto border rounded-xl" id="users-print-table">
+                <table className="w-full text-right text-xs">
+                  <thead>
+                    <tr className="bg-muted/40 border-b h-10 font-bold text-muted-foreground">
+                      <th className="px-4 w-16 text-center">کد کاربر</th>
+                      <th className="px-4">نام کاربری</th>
+                      <th className="px-4">نام و نام خانوادگی</th>
+                      <th className="px-4">سمت سازمانی</th>
+                      <th className="px-4">شعبه / واحد</th>
+                      <th className="px-4 text-center">وضعیت</th>
+                      <th className="px-4">نقش دسترسی</th>
+                      <th className="px-4">آخرین ورود</th>
+                      <th className="px-4 w-28 text-center">{currentUser?.role === "admin" ? "عملیات" : "مشاهده پروفایل"}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {loading ? (
+                      <tr>
+                        <td colSpan={9} className="py-8 text-center text-muted-foreground">
+                          در حال بارگذاری لیست کاربران...
+                        </td>
+                      </tr>
+                    ) : filteredUsers.length === 0 ? (
+                      <tr>
+                        <td colSpan={9} className="py-8 text-center text-muted-foreground">
+                          رکوردی یافت نشد
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredUsers.map((user, idx) => (
+                        <tr key={user._id} className="h-11 hover:bg-muted/10">
+                          <td className="px-4 text-center font-mono font-semibold text-muted-foreground">{idx + 1}</td>
+                          <td className="px-4 font-mono font-bold text-foreground">{user.username}</td>
+                          <td className="px-4 font-bold text-foreground">{user.firstName || user.lastName ? `${user.firstName || ""} ${user.lastName || ""}` : "ادمین سیستم"}</td>
+                          <td className="px-4 font-semibold text-foreground/80">{user.position || "—"}</td>
+                          <td className="px-4 font-semibold text-foreground/80">{user.branch} / {user.department || "—"}</td>
+                          <td className="px-4 text-center">
+                            <Badge className={cn("font-medium",
+                              user.status === "فعال" ? "bg-emerald-50 text-emerald-800 border-emerald-200" :
+                              user.status === "غیرفعال" ? "bg-orange-50 text-orange-800 border-orange-200" :
+                              "bg-rose-50 text-rose-800 border-rose-200"
+                            )}>
+                              {user.status || "فعال"}
+                            </Badge>
+                          </td>
+                          <td className="px-4 font-bold text-primary">{user.role}</td>
+                          <td className="px-4 font-mono text-[10px] text-muted-foreground">{user.lastLogin ? new Date(user.lastLogin).toLocaleString("fa-IR") : "—"}</td>
+                          <td className="px-4 text-center">
+                            {currentUser?.role === "admin" ? (
+                              <div className="flex items-center justify-center gap-2">
+                                <button onClick={() => handleEditUser(user)} className="text-muted-foreground hover:text-primary transition-colors" title="ویرایش">
+                                  <Edit2 className="h-4 w-4" />
+                                </button>
+                                <button onClick={() => handleDelete(user._id, user.username)} className="text-muted-foreground hover:text-rose-500 transition-colors" title="حذف">
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-center">
+                                <button onClick={() => handleEditUser(user)} className="text-muted-foreground hover:text-primary transition-colors" title="مشاهده پروفایل">
+                                  <Eye className="h-4 w-4" />
+                                </button>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {currentUser?.role === "admin" && (
+          /* Right Column: Historical Audit Logs (Audit Log) */
+          <div className="xl:col-span-1 space-y-4">
+            <Card className="shadow-md border border-border h-full flex flex-col">
+              <CardHeader className="bg-muted/15 pb-2 shrink-0">
+                <CardTitle className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                  <History className="h-4.5 w-4.5 text-primary" />
+                  تاریخچه فعالیت‌ها (Audit Log)
+                </CardTitle>
+                <CardDescription>آخرین رویدادها و تغییرات کاربران در پایگاه داده</CardDescription>
+              </CardHeader>
+              <CardContent className="p-3 overflow-y-auto flex-1 max-h-[500px] xl:max-h-none space-y-3">
+                {loadingLogs ? (
+                  <div className="py-6 text-center text-xs text-muted-foreground">در حال بارگذاری لاگ‌ها...</div>
+                ) : auditLogs.length === 0 ? (
+                  <div className="py-6 text-center text-xs text-muted-foreground">رویدادی ثبت نشده است</div>
+                ) : (
+                  auditLogs.map(log => (
+                    <div key={log._id} className="p-2.5 rounded-lg border bg-muted/30 text-[10.5px] space-y-1">
+                      <div className="flex items-center justify-between border-b pb-1">
+                        <span className="font-bold text-foreground">عملیات: {log.action}</span>
+                        <span className="font-mono text-[9px] text-muted-foreground">{new Date(log.createdAt).toLocaleTimeString("fa-IR")}</span>
+                      </div>
+                      <div className="text-muted-foreground">کاربر: <span className="text-foreground font-bold">{log.username}</span></div>
+                      {log.oldValue && (
+                        <div className="text-rose-600 truncate">قبل: <span className="font-semibold">{JSON.stringify(log.oldValue)}</span></div>
+                      )}
+                      {log.newValue && (
+                        <div className="text-emerald-700 truncate">بعد: <span className="font-semibold">{JSON.stringify(log.newValue)}</span></div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </div>
+    </PageShell>
+  );
+}
