@@ -18,6 +18,8 @@ import aiRouter from "./routes/ai.js";
 import personsRouter from "./routes/persons.js";
 import fiscalYearsRouter from "./routes/fiscalYears.js";
 import accountHeadsRouter from "./routes/accountHeads.js";
+import documentTypesRouter from "./routes/documentTypes.js";
+import paymentTypesRouter from "./routes/paymentTypes.js";
 import usersRouter from "./routes/users.js";
 
 const app = new Hono();
@@ -78,6 +80,8 @@ app.route("/api/petty-cash", pettyCashRouter);
 app.route("/api/persons", personsRouter);
 app.route("/api/fiscal-years", fiscalYearsRouter);
 app.route("/api/account-heads", accountHeadsRouter);
+app.route("/api/document-types", documentTypesRouter);
+app.route("/api/payment-types", paymentTypesRouter);
 app.route("/api/users", usersRouter);
 
 connectDb().then(() => {

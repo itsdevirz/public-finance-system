@@ -398,7 +398,7 @@
     { "type": 4, "title": "ریال" }
   ]
  },
-  { "row": 31, "title": "مشحصات حساب(شماره شبا)", "xmlCode": "AccountNumber", "default": "0" },
+  { "row": 31, "title": "مشخصات حساب(شماره شبا)", "xmlCode": "AccountNumber", "default": "0" },
   { "row": 33, "title": "تعداد اوراق", "xmlCode": "Quantity", "default": "0" },
   {
     "row": 34,

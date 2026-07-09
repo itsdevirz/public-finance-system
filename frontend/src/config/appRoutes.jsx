@@ -4,6 +4,8 @@ import { getAllMenuRoutes } from "@/config/navigation";
 
 // ─── بهینه‌سازی پرفورمنس و سرعت: بارگذاری تنبل (Code Splitting) ─────────────
 const AccountHeads = lazy(() => import("@/modules/accounting/pages/AccountHeads"));
+const DocumentTypes = lazy(() => import("@/modules/accounting/pages/DocumentTypes"));
+const PaymentTypes = lazy(() => import("@/modules/accounting/pages/PaymentTypes"));
 const AccountSetup = lazy(() => import("@/modules/accounting/pages/AccountSetup"));
 const BasicInfo = lazy(() => import("@/pages/BasicInfo"));
 const DocumentSetup = lazy(() => import("@/modules/accounting/pages/DocumentSetup"));
@@ -113,6 +115,8 @@ export const PAGE_COMPONENTS = {
   "/reports/management/cost-analysis":         ManagementReport,
   "/basic-info": BasicInfo,
   "/basic-info/account-heads": AccountHeads,
+  "/basic-info/document-setup/document-types": DocumentTypes,
+  "/basic-info/document-setup/payment-types": PaymentTypes,
   "/basic-info/credits": Credits,
   "/basic-info/document-setup": DocumentSetup,
   "/basic-info/check-issuance": CheckIssuance,
