@@ -38,6 +38,10 @@ const AssetScrapForm = lazy(() => import("@/modules/assets/pages/AssetScrapForm"
 const AssetSaleForm = lazy(() => import("@/modules/assets/pages/AssetSaleForm"));
 const AssetLostForm = lazy(() => import("@/modules/assets/pages/AssetLostForm"));
 const AssetRegisterForm = lazy(() => import("@/modules/assets/pages/AssetRegisterForm"));
+const AssetWarehouseReceipt = lazy(() => import("@/modules/assets/pages/AssetWarehouseReceipt"));
+const AssetWarehouseIssue = lazy(() => import("@/modules/assets/pages/AssetWarehouseIssue"));
+const AssetWarehouseBalance = lazy(() => import("@/modules/assets/pages/AssetWarehouseBalance"));
+const AssetWarehouseMinStock = lazy(() => import("@/modules/assets/pages/AssetWarehouseMinStock"));
 const Warehouse = lazy(() => import("@/modules/warehouse/pages/Warehouse"));
 const WarehouseDashboard = lazy(() => import("@/modules/warehouse/pages/WarehouseDashboard"));
 const Payroll = lazy(() => import("@/modules/payroll/pages/Payroll"));
@@ -378,10 +382,10 @@ export const PAGE_COMPONENTS = {
   "/assets/depreciation/annual": Assets,
   "/assets/depreciation/document": Assets,
   "/assets/warehouse": Assets,
-  "/assets/warehouse/receipt": Assets,
-  "/assets/warehouse/issue": Assets,
-  "/assets/warehouse/balance": Assets,
-  "/assets/warehouse/min-stock": Assets,
+  "/assets/warehouse/receipt": AssetWarehouseReceipt,
+  "/assets/warehouse/issue": AssetWarehouseIssue,
+  "/assets/warehouse/balance": AssetWarehouseBalance,
+  "/assets/warehouse/min-stock": AssetWarehouseMinStock,
   "/assets/reports": Assets,
   "/assets/reports/all": Assets,
   "/assets/reports/by-unit": Assets,

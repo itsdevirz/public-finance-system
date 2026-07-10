@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Landmark, Loader2 } from "lucide-react";
 import { AuthProvider } from "./context/AuthContext";
 import { AssetProvider } from "./context/AssetContext";
+import { InventoryProvider } from "./context/InventoryContext";
 import PrivateRoute from "./components/PrivateRoute";
 import Sidebar from "./components/Sidebar";
 import Login from "./pages/Login";
@@ -62,21 +63,23 @@ export default function App() {
   return (
     <AuthProvider>
       <AssetProvider>
-        <BrowserRouter>
-          <Suspense fallback={<PageLoader />}>
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route
-                path="/*"
-                element={
-                  <PrivateRoute>
-                    <Layout />
-                  </PrivateRoute>
-                }
-              />
-            </Routes>
-          </Suspense>
-        </BrowserRouter>
+        <InventoryProvider>
+          <BrowserRouter>
+            <Suspense fallback={<PageLoader />}>
+              <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route
+                  path="/*"
+                  element={
+                    <PrivateRoute>
+                      <Layout />
+                    </PrivateRoute>
+                  }
+                />
+              </Routes>
+            </Suspense>
+          </BrowserRouter>
+        </InventoryProvider>
       </AssetProvider>
     </AuthProvider>
   );
