@@ -179,9 +179,6 @@ export const TOP_NAV = [
   {
     to: "/system-management", label: "امکانات", num: 5, subItems: [
       { to: "/system-management/users",             label: "تعریف کاربر" },
-      { to: "/system-management/user-groups",       label: "تعریف گروه کاربران" },
-      { to: "/system-management/permissions",       label: "تعریف دسترسی" },
-      { to: "/system-management/change-password",   label: "تغییر رمزعبور" },
       { to: "/system-management/financial-details", label: "مشخصات ذیحسابی" },
       { to: "/system-management/settings",          label: "تنظیمات" },
       { to: "/bookkeeping/bank-reconciliation", label: "مغایرت بانکی", children: [
