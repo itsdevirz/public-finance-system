@@ -22,6 +22,10 @@ import documentTypesRouter from "./routes/documentTypes.js";
 import paymentTypesRouter from "./routes/paymentTypes.js";
 import usersRouter from "./routes/users.js";
 import inventoryRouter from "./routes/inventory.js";
+import contractPartiesRouter from "./routes/contractParties.js";
+import progressBillsRouter from "./routes/progressBills.js";
+import contractPaymentsRouter from "./routes/contractPayments.js";
+import contractGuaranteesRouter from "./routes/contractGuarantees.js";
 
 const app = new Hono();
 
@@ -86,6 +90,10 @@ app.route("/api/document-types", documentTypesRouter);
 app.route("/api/payment-types", paymentTypesRouter);
 app.route("/api/users", usersRouter);
 app.route("/api/inventory", inventoryRouter);
+app.route("/api/contract-parties", contractPartiesRouter);
+app.route("/api/progress-bills", progressBillsRouter);
+app.route("/api/contract-payments", contractPaymentsRouter);
+app.route("/api/contract-guarantees", contractGuaranteesRouter);
 
 connectDb().then(() => {
   serve({ fetch: app.fetch, port: 8000 }, () => {

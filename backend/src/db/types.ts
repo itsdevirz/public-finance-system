@@ -208,3 +208,147 @@ export interface FiscalYear {
   createdAt?: string;
   updatedAt?: string;
 }
+
+// ─── Contract Parties ─────────────────────────────────────────────────────────
+export interface ContractParty {
+  _id?: ObjectId;
+  code: string;
+  personType: "حقوقی" | "حقیقی";
+  name: string;
+  nationalId: string;
+  registrationNumber?: string;
+  ceoName?: string;
+  status: "فعال" | "غیرفعال";
+  phone?: string;
+  mobile?: string;
+  email?: string;
+  address?: string;
+  postalCode?: string;
+  bankName?: string;
+  accountNumber?: string;
+  sheba?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// ─── Progress Bills ───────────────────────────────────────────────────────────
+export interface ProgressBill {
+  _id?: ObjectId;
+  contract_id: string;
+  contract_number: string;
+  contract_title: string;
+  contractor_name: string;
+  project?: string;
+  executive_unit?: string;
+  credit_source?: string;
+  statement_number: string;
+  statement_date: string;
+  from_date?: string;
+  to_date?: string;
+  progress_percent: number;
+  cumulative_progress?: number;
+  status: string;
+  description?: string;
+  contract_amount?: number;
+  prev_paid_amount?: number;
+  contract_remaining?: number;
+  payable_remaining?: number;
+  items: {
+    row_num: number;
+    description: string;
+    unit: string;
+    quantity: number;
+    unit_price: number;
+    total_amount: number;
+  }[];
+  items_sum: number;
+  adjustment_factor: number;
+  total_sum: number;
+  deductions: number;
+  payable_amount: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// ─── Contract Payments ────────────────────────────────────────────────────────
+export interface ContractPayment {
+  _id?: ObjectId;
+  payment_number: string;
+  payment_date: string;
+  payment_method: string;
+  payment_account: string;
+  doc_number?: string;
+  remittance_number?: string;
+  status: string;
+
+  contract_id: string;
+  contract_number: string;
+  contractor_name: string;
+  statement_id?: string;
+  statement_number?: string;
+  statement_date?: string;
+  gross_amount: number;
+  progress_percent?: number;
+  description?: string;
+
+  deductions_list: {
+    row_num: number;
+    deduction_type: string;
+    calc_method: "درصدی" | "مبلغ ثابت";
+    percent?: number;
+    amount: number;
+    ceiling?: number;
+    calculated_amount: number;
+  }[];
+  total_deductions: number;
+  payable_amount: number;
+  due_date?: string;
+
+  voucher_number?: string;
+  voucher_date?: string;
+  voucher_type?: string;
+  voucher_status?: string;
+  voucher_ref?: string;
+  create_voucher?: boolean;
+  send_to_accounting?: boolean;
+
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// ─── Contract Guarantees ──────────────────────────────────────────────────────
+export interface ContractGuarantee {
+  _id?: ObjectId;
+  guarantee_number: string;
+  guarantee_type: string;
+  contract_id: string;
+  contract_number: string;
+  contractor_name: string;
+  contract_title: string;
+  amount: number;
+  percent_of_contract: number;
+  status: string;
+
+  issuer_guarantee_number?: string;
+  issuing_bank?: string;
+  branch?: string;
+  issue_date: string;
+  expiry_date: string;
+  duration_days?: number;
+  credit_type?: string;
+  renewal_status?: string;
+  description?: string;
+  remarks?: string;
+
+  renewals?: {
+    row_num: number;
+    renewal_number: string;
+    renewal_date: string;
+    new_expiry_date: string;
+    duration_days: number;
+    status: string;
+  }[];
+
+  createdAt?: string;
+  updatedAt?: string;
+}

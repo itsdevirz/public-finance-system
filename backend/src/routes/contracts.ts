@@ -16,6 +16,43 @@ router.get("/", async (c) => {
   return c.json({ data: data.map((d) => serialize(d as Record<string, unknown>)), message: "لیست قراردادها" });
 });
 
+router.get("/suggest-number", async (c) => {
+  try {
+    const db = getDb();
+    const latestFiscalYearObj = await db.collection("fiscal_years")
+      .find()
+      .sort({ year: -1 })
+      .limit(1)
+      .toArray();
+    
+    let yearPrefix = 1403;
+    if (latestFiscalYearObj.length > 0 && latestFiscalYearObj[0].year) {
+      yearPrefix = latestFiscalYearObj[0].year;
+    }
+
+    const lastItem = await db.collection<Contract>("contracts")
+      .find({ contract_number: { $regex: `^${yearPrefix}-` } })
+      .sort({ contract_number: -1 })
+      .limit(1)
+      .toArray();
+
+    let nextNumber = 1;
+    if (lastItem.length > 0 && lastItem[0].contract_number) {
+      const parts = lastItem[0].contract_number.split("-");
+      if (parts.length > 1) {
+        const num = parseInt(parts[1], 10);
+        if (!isNaN(num)) {
+          nextNumber = num + 1;
+        }
+      }
+    }
+    const nextNumberStr = `${yearPrefix}-${String(nextNumber).padStart(5, "0")}`;
+    return c.json({ success: true, contract_number: nextNumberStr });
+  } catch (error: any) {
+    return c.json({ success: false, message: error.message }, 500);
+  }
+});
+
 router.get("/:id", async (c) => {
   const id = c.req.param("id");
   if (!ObjectId.isValid(id)) return c.json({ message: "شناسه نامعتبر" }, 400);
@@ -31,7 +68,7 @@ router.post("/", async (c) => {
     return c.json({ message: "فیلدهای الزامی: title، contractor_name، amount، fiscal_year" }, 400);
   }
 
-  const contract_number = `CNT-${fiscal_year}-${Date.now()}`;
+  const contract_number = body.contract_number ?? `CNT-${fiscal_year}-${Date.now()}`;
   const result = await getDb().collection<Contract>("contracts").insertOne({
     ...body,
     contract_number,

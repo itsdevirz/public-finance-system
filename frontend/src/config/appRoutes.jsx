@@ -24,6 +24,11 @@ const GuaranteeContractForm = lazy(() => import("@/modules/treasury/pages/Guaran
 const DepositManualForm = lazy(() => import("@/modules/treasury/pages/DepositManualForm"));
 const PersonsForm = lazy(() => import("@/pages/PersonsForm"));
 const FiscalYearForm = lazy(() => import("@/pages/FiscalYearForm"));
+const ContractPartiesForm = lazy(() => import("@/pages/ContractPartiesForm"));
+const ContractRegistrationForm = lazy(() => import("@/pages/ContractRegistrationForm"));
+const ProgressBillingForm = lazy(() => import("@/pages/ProgressBillingForm"));
+const ContractPaymentForm = lazy(() => import("@/pages/ContractPaymentForm"));
+const ContractGuaranteeForm = lazy(() => import("@/pages/ContractGuaranteeForm"));
 const Assets = lazy(() => import("@/modules/assets/pages/Assets"));
 const AssetGroupForm = lazy(() => import("@/modules/assets/pages/AssetGroupForm"));
 const AssetSubGroupForm = lazy(() => import("@/modules/assets/pages/AssetSubGroupForm"));
@@ -129,6 +134,11 @@ export const PAGE_COMPONENTS = {
   "/basic-info/definitions": BasicInfo,
   "/basic-info/definitions/fiscal-year": FiscalYearForm,
   "/basic-info/definitions/persons": PersonsForm,
+  "/basic-info/definitions/parties": ContractPartiesForm,
+  "/basic-info/contracts/register": ContractRegistrationForm,
+  "/basic-info/contracts/progress-billing": ProgressBillingForm,
+  "/basic-info/contracts/payment": ContractPaymentForm,
+  "/basic-info/contracts/guarantee": ContractGuaranteeForm,
   "/basic-info/definitions/bank": BankForm,
   "/basic-info/definitions/credit": CreditForm,
   "/basic-info/definitions/check": CheckIssuance,
