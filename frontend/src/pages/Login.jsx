@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Landmark, Loader2, Sparkles, ShieldCheck } from "lucide-react";
@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import api from "../api";
 
 export default function Login() {
   const { login } = useAuth();
@@ -17,18 +18,63 @@ export default function Login() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const [isSetupMode, setIsSetupMode] = useState(false);
+  const [checkingSetup, setCheckingSetup] = useState(true);
+
+  // بررسی وجود ادمین در سیستم هنگام بالا آمدن صفحه
+  useEffect(() => {
+    api.get("/api/auth/setup-status")
+      .then((res) => {
+        if (res?.data && res.data.hasAdmin === false) {
+          setIsSetupMode(true);
+        }
+      })
+      .catch((err) => {
+        console.error("Error checking system setup status:", err);
+      })
+      .finally(() => {
+        setCheckingSetup(false);
+      });
+  }, []);
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
-      await login(username, password);
+      if (isSetupMode) {
+        // ثبت نام اولین ادمین
+        await api.post("/api/auth/register", { username, password, role: "admin" });
+        // ورود خودکار
+        await login(username, password);
+      } else {
+        await login(username, password);
+      }
       navigate("/", { replace: true });
     } catch (err) {
-      setError(err?.response?.data?.message ?? "خطا در ورود به سامانه. لطفا نام کاربری و رمز عبور را بررسی کنید.");
+      setError(
+        err?.response?.data?.message ??
+        (isSetupMode
+          ? "خطا در تعریف مدیر سیستم. لطفا مجدداً تلاش کنید."
+          : "خطا در ورود به سامانه. لطفا نام کاربری و رمز عبور را بررسی کنید.")
+      );
     } finally {
       setLoading(false);
     }
+  }
+
+  if (checkingSetup) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-gradient-to-tr from-sidebar-background via-background to-background p-4">
+        <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-inner border border-primary/20 backdrop-blur-sm">
+          <Landmark className="h-8 w-8 animate-pulse text-primary" />
+        </div>
+        <div className="flex items-center gap-2 text-xs font-semibold text-foreground/80 bg-background/80 px-4 py-2 rounded-full border shadow-sm">
+          <Loader2 className="h-4 w-4 animate-spin text-accent" />
+          <span>در حال بررسی وضعیت سامانه...</span>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -67,12 +113,18 @@ export default function Login() {
               transition={{ delay: 0.3, duration: 0.5 }}
               className="space-y-2"
             >
-              <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-accent bg-accent/10 px-3 py-1 rounded-full w-fit mx-auto border border-accent/20 shadow-sm">
+              <div className={`flex items-center justify-center gap-1.5 text-xs font-bold bg-accent/10 px-3 py-1 rounded-full w-fit mx-auto border border-accent/20 shadow-sm ${isSetupMode ? "animate-pulse text-amber-500" : "text-accent"}`}>
                 <Sparkles className="h-3.5 w-3.5" />
-                <span>سامانه امن نظام مالی بخش عمومی</span>
+                <span>{isSetupMode ? "راه‌اندازی اولیه: تعریف مدیر سیستم" : "سامانه امن نظام مالی بخش عمومی"}</span>
               </div>
-              <CardTitle className="text-2xl sm:text-3xl font-black tracking-tight text-foreground">سامانه جامع نظام مالی</CardTitle>
-              <CardDescription className="text-xs sm:text-sm font-medium text-muted-foreground">جهت ورود به حساب کاربری، مشخصات خود را وارد نمایید</CardDescription>
+              <CardTitle className="text-2xl sm:text-3xl font-black tracking-tight text-foreground">
+                {isSetupMode ? "تعریف مدیر ارشد سیستم" : "سامانه جامع نظام مالی"}
+              </CardTitle>
+              <CardDescription className="text-xs sm:text-sm font-medium text-muted-foreground">
+                {isSetupMode
+                  ? "هیچ کاربری در سیستم یافت نشد. لطفاً نام کاربری و رمز عبور مدیر سیستم را تعریف کنید."
+                  : "جهت ورود به حساب کاربری، مشخصات خود را وارد نمایید"}
+              </CardDescription>
             </motion.div>
           </CardHeader>
 
@@ -96,14 +148,16 @@ export default function Login() {
                 transition={{ delay: 0.4, duration: 0.4 }}
                 className="space-y-2"
               >
-                <Label htmlFor="username" className="text-xs sm:text-sm font-bold text-foreground/90">نام کاربری</Label>
+                <Label htmlFor="username" className="text-xs sm:text-sm font-bold text-foreground/90">
+                  {isSetupMode ? "نام کاربری مدیر (Admin)" : "نام کاربری"}
+                </Label>
                 <Input
                   id="username"
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   autoComplete="username"
-                  placeholder="نام کاربری خود را وارد کنید"
+                  placeholder={isSetupMode ? "نام کاربری مدیر سیستم را وارد کنید" : "نام کاربری خود را وارد کنید"}
                   required
                   disabled={loading}
                   className="h-12 rounded-xl bg-background/60 px-4 text-sm focus:bg-background transition-all shadow-sm font-medium"
@@ -116,7 +170,9 @@ export default function Login() {
                 transition={{ delay: 0.5, duration: 0.4 }}
                 className="space-y-2"
               >
-                <Label htmlFor="password" className="text-xs sm:text-sm font-bold text-foreground/90">رمز عبور</Label>
+                <Label htmlFor="password" className="text-xs sm:text-sm font-bold text-foreground/90">
+                  {isSetupMode ? "رمز عبور مدیر" : "رمز عبور"}
+                </Label>
                 <Input
                   id="password"
                   type="password"
@@ -141,12 +197,12 @@ export default function Login() {
                   {loading ? (
                     <div className="flex items-center gap-2">
                       <Loader2 className="animate-spin h-5 w-5" />
-                      <span>در حال احراز هویت...</span>
+                      <span>{isSetupMode ? "در حال ایجاد حساب مدیر..." : "در حال احراز هویت..."}</span>
                     </div>
                   ) : (
                     <div className="flex items-center gap-2">
-                      <ShieldCheck className="h-5 w-5 text-accent" />
-                      <span>ورود به سامانه</span>
+                      <ShieldCheck className={`h-5 w-5 text-accent ${isSetupMode ? "animate-pulse" : ""}`} />
+                      <span>{isSetupMode ? "ایجاد حساب مدیر و ورود به سیستم" : "ورود به سامانه"}</span>
                     </div>
                   )}
                 </Button>

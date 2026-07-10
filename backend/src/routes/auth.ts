@@ -5,7 +5,14 @@ import { hashPassword, verifyPassword, signToken, verifyToken } from "../lib/aut
 
 const router = new Hono();
 
-// POST /api/auth/register  (فقط برای ساخت اولین ادمین — در محیط production غیرفعال کن)
+// GET /api/auth/setup-status
+router.get("/setup-status", async (c) => {
+  const db = getDb();
+  const adminCount = await db.collection("users").countDocuments({ role: "admin" });
+  return c.json({ hasAdmin: adminCount > 0 });
+});
+
+// POST /api/auth/register  (فقط برای ساخت اولین ادمین)
 router.post("/register", async (c) => {
   const { username, password, role = "admin" } = await c.req.json();
   if (!username || !password) {
@@ -13,6 +20,11 @@ router.post("/register", async (c) => {
   }
 
   const db = getDb();
+  const adminExists = await db.collection("users").countDocuments({ role: "admin" }) > 0;
+  if (adminExists) {
+    return c.json({ message: "ثبت‌نام غیرفعال است زیرا مدیر سیستم از قبل تعریف شده است." }, 403);
+  }
+
   const exists = await db.collection("users").findOne({ username });
   if (exists) return c.json({ message: "این نام کاربری قبلاً ثبت شده" }, 409);
 

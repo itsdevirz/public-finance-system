@@ -234,7 +234,7 @@ export default function Dashboard() {
 
   // بهینه‌سازی محاسبات با useMemo برای جلوگیری از رندر مجدد غیرضروری
   const now = useMemo(() => new Date().toLocaleDateString("fa-IR", {
-    year: "numeric", month: "long", day: "numeric", weekday: "long",
+    year: "numeric", month: "long", day: "numeric",
   }), []);
 
   const definitions = useMemo(() => DEFINITIONS_DATA, []);
@@ -246,23 +246,46 @@ export default function Dashboard() {
 
   return (
     <PageShell>
-      {/* بنر خوش‌آمدگویی شکیل */}
-      <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between p-6 rounded-2xl bg-gradient-to-l from-primary via-primary/95 to-sidebar-background text-primary-foreground shadow-lg border border-primary/20 relative overflow-hidden">
+      {/* بنر خوش‌آمدگویی شکیل و مدرن */}
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between p-6 md:p-8 rounded-2xl bg-gradient-to-l from-primary via-teal-900 to-sidebar text-primary-foreground shadow-lg border border-white/10 relative overflow-hidden transition-all duration-300 hover:shadow-xl">
+        {/* پس‌زمینه‌های تزئینی درخشان */}
         <div className="absolute -left-12 -bottom-12 w-48 h-48 bg-accent/10 rounded-full blur-2xl pointer-events-none" />
-        <div className="absolute right-0 top-0 w-64 h-64 bg-sidebar-primary/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative space-y-2">
-          <div className="flex items-center gap-2 text-accent font-bold text-xs md:text-sm bg-accent/10 px-3 py-1 rounded-full w-fit border border-accent/20">
-            <Sparkles className="h-4 w-4" />
+        <div className="absolute -left-8 -top-8 w-36 h-36 bg-accent/10 rounded-full blur-2xl pointer-events-none" />
+        <div className="absolute right-0 top-0 w-64 h-64 bg-primary/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute right-1/4 bottom-0 w-44 h-44 bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
+        
+        <div className="relative space-y-3 z-10">
+          <div className="flex items-center gap-2 text-accent font-bold text-xs md:text-sm bg-accent/10 px-3 py-1 rounded-full w-fit border border-accent/20 backdrop-blur-sm">
+            <Sparkles className="h-3.5 w-3.5 text-accent animate-pulse" />
             <span>سیستم جامع نظام مالی بخش عمومی</span>
           </div>
-          <h1 className="text-2xl md:text-3xl font-black tracking-tight">خوش آمدید، {user?.username}</h1>
-          <p className="text-xs md:text-sm text-primary-foreground/80 font-medium">امروز {now} — کلیه سیستم‌ها در وضعیت عملیاتی قرار دارند.</p>
+          <h1 className="text-2xl md:text-3xl font-black tracking-tight flex items-center gap-2">
+            خوش آمدید،{" "}
+            <span className="text-transparent bg-clip-text bg-gradient-to-l from-accent via-amber-400 to-accent font-black drop-shadow-sm">
+              {user?.username || "کاربر گرامی"}
+            </span>
+          </h1>
+          
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs md:text-sm text-primary-foreground/80 font-medium">
+            <span>امروز {now}</span>
+            <span className="hidden sm:inline text-primary-foreground/30">|</span>
+            <span className="flex items-center gap-1.5 bg-emerald-500/10 text-emerald-300 px-2.5 py-0.5 rounded-full border border-emerald-500/20 w-fit backdrop-blur-sm">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              کلیه سیستم‌ها در وضعیت عملیاتی قرار دارند
+            </span>
+          </div>
         </div>
-        <div className="relative mt-4 sm:mt-0 flex items-center gap-3 bg-card/10 backdrop-blur-md px-5 py-3 rounded-xl border border-primary-foreground/20 shadow-inner">
-          <Landmark className="h-8 w-8 text-accent animate-pulse" />
+
+        <div className="relative mt-6 sm:mt-0 flex items-center gap-4 bg-white/[0.06] hover:bg-white/[0.1] hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 backdrop-blur-md px-5 py-3.5 rounded-xl border border-white/10 shadow-lg group/period z-10 cursor-pointer">
+          <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-accent/10 border border-accent/20 text-accent transition-all duration-300 group-hover/period:bg-accent group-hover/period:text-accent-foreground shadow-inner">
+            <Landmark className="h-5 w-5" />
+          </div>
           <div>
-            <p className="text-[11px] text-primary-foreground/70 font-semibold">دوره مالی فعال</p>
-            <p className="text-sm font-bold text-accent">سال مالی جاری</p>
+            <p className="text-[10px] text-primary-foreground/60 font-semibold leading-none">دوره مالی فعال</p>
+            <p className="text-sm font-black text-accent mt-1.5 group-hover/period:text-white transition-colors duration-300">سال مالی جاری</p>
           </div>
         </div>
       </div>
