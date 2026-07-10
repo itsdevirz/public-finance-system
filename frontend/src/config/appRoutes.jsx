@@ -70,6 +70,7 @@ const MoeinLedger      = lazy(() => import("@/modules/reports/pages/MoeinLedger"
 const AccountTurnover  = lazy(() => import("@/modules/reports/pages/AccountTurnover"));
 const DocumentTurnover = lazy(() => import("@/modules/reports/pages/DocumentTurnover"));
 const DocumentStatus   = lazy(() => import("@/modules/reports/pages/DocumentStatus"));
+const SanamaExport     = lazy(() => import("@/modules/reports/pages/SanamaExport"));
 
 /** صفحاتی که پیاده‌سازی شده‌اند — بقیه خودکار Placeholder می‌شوند */
 export const PAGE_COMPONENTS = {
@@ -117,6 +118,7 @@ export const PAGE_COMPONENTS = {
   "/reports/management/analytical":            ManagementReport,
   "/reports/management/period-compare":        ManagementReport,
   "/reports/management/cost-analysis":         ManagementReport,
+  "/reports/sanama-export":                    SanamaExport,
   "/basic-info": BasicInfo,
   "/basic-info/account-heads": AccountHeads,
   "/basic-info/document-setup/document-types": DocumentTypes,

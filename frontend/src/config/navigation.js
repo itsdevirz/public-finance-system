@@ -163,6 +163,11 @@ export const TOP_NAV = [
           { to: "/reports/management/cost-analysis",    label: "تحلیل درآمد، هزینه و اعتبارات" },
         ],
       },
+      // ۸. خروجی سناما
+      {
+        to: "/reports/sanama-export",
+        label: "خروجی سناما",
+      },
     ],
   },
 
