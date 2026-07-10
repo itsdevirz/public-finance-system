@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import api from "../api";
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   const [username, setUsername] = useState("");
@@ -20,6 +20,13 @@ export default function Login() {
 
   const [isSetupMode, setIsSetupMode] = useState(false);
   const [checkingSetup, setCheckingSetup] = useState(true);
+
+  // اگر کاربر قبلاً لاگین کرده، به صفحه اصلی هدایت شود
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate("/", { replace: true });
+    }
+  }, [user, authLoading, navigate]);
 
   // بررسی وجود ادمین در سیستم هنگام بالا آمدن صفحه
   useEffect(() => {
@@ -50,7 +57,7 @@ export default function Login() {
       } else {
         await login(username, password);
       }
-      navigate("/", { replace: true });
+      // Navigation will be handled by useEffect when user state updates
     } catch (err) {
       setError(
         err?.response?.data?.message ??
@@ -58,12 +65,11 @@ export default function Login() {
           ? "خطا در تعریف مدیر سیستم. لطفا مجدداً تلاش کنید."
           : "خطا در ورود به سامانه. لطفا نام کاربری و رمز عبور را بررسی کنید.")
       );
-    } finally {
       setLoading(false);
     }
   }
 
-  if (checkingSetup) {
+  if (checkingSetup || authLoading) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-gradient-to-tr from-sidebar-background via-background to-background p-4">
         <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-inner border border-primary/20 backdrop-blur-sm">

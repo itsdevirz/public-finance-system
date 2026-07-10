@@ -1,13 +1,20 @@
 import { createContext, useContext, useState, useEffect } from "react";
+import { useAuth } from "@/context/AuthContext";
 import api from "@/api";
 
 const AssetContext = createContext(null);
 
 export function AssetProvider({ children }) {
+  const { user } = useAuth();
   const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const refreshAssets = async () => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+    
     try {
       setLoading(true);
       const res = await api.get("/api/inventory/assets");
@@ -23,7 +30,7 @@ export function AssetProvider({ children }) {
 
   useEffect(() => {
     refreshAssets();
-  }, []);
+  }, [user]);
 
   async function addAsset(asset) {
     try {

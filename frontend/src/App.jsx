@@ -48,39 +48,39 @@ function AppRoutes({ routes }) {
 
 function Layout() {
   return (
-    <div className="flex min-h-screen bg-background selection:bg-accent/20 selection:text-primary">
-      <Sidebar />
-      <main className="flex-1 overflow-y-auto px-2 md:px-4 transition-all duration-300">
-        <Suspense fallback={<PageLoader />}>
-          <AppRoutes routes={layoutRoutes} />
-        </Suspense>
-      </main>
-    </div>
+    <AssetProvider>
+      <InventoryProvider>
+        <div className="flex min-h-screen bg-background selection:bg-accent/20 selection:text-primary">
+          <Sidebar />
+          <main className="flex-1 overflow-y-auto px-2 md:px-4 transition-all duration-300">
+            <Suspense fallback={<PageLoader />}>
+              <AppRoutes routes={layoutRoutes} />
+            </Suspense>
+          </main>
+        </div>
+      </InventoryProvider>
+    </AssetProvider>
   );
 }
 
 export default function App() {
   return (
     <AuthProvider>
-      <AssetProvider>
-        <InventoryProvider>
-          <BrowserRouter>
-            <Suspense fallback={<PageLoader />}>
-              <Routes>
-                <Route path="/login" element={<Login />} />
-                <Route
-                  path="/*"
-                  element={
-                    <PrivateRoute>
-                      <Layout />
-                    </PrivateRoute>
-                  }
-                />
-              </Routes>
-            </Suspense>
-          </BrowserRouter>
-        </InventoryProvider>
-      </AssetProvider>
+      <BrowserRouter>
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route
+              path="/*"
+              element={
+                <PrivateRoute>
+                  <Layout />
+                </PrivateRoute>
+              }
+            />
+          </Routes>
+        </Suspense>
+      </BrowserRouter>
     </AuthProvider>
   );
 }

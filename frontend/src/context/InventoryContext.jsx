@@ -1,10 +1,12 @@
 import { createContext, useContext, useState, useEffect, useMemo } from "react";
+import { useAuth } from "@/context/AuthContext";
 import { useAssets } from "@/context/AssetContext";
 import api from "@/api";
 
 const InventoryContext = createContext(null);
 
 export function InventoryProvider({ children }) {
+  const { user } = useAuth();
   const { assets } = useAssets();
 
   // Dynamically pull consumables registered in Asset Management
@@ -27,6 +29,11 @@ export function InventoryProvider({ children }) {
 
   // Load all data from backend
   const refreshAllData = async () => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+    
     try {
       setLoading(true);
       const [whRes, recRes, issRes, altRes] = await Promise.all([
@@ -49,7 +56,7 @@ export function InventoryProvider({ children }) {
 
   useEffect(() => {
     refreshAllData();
-  }, []);
+  }, [user]);
 
   // Operations calling Hono Backend APIs
   const addReceipt = async (receipt) => {
