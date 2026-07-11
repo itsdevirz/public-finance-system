@@ -143,7 +143,7 @@ export default function ContractRegistrationForm() {
   const fetchContracts = async () => {
     setLoading(true);
     try {
-      const res = await api.get("/api/contracts/");
+      const res = await api.get("/api/contracts");
       setContractsList(res.data.data || []);
     } catch (err) {
       console.error("Error fetching contracts:", err);
@@ -234,8 +234,15 @@ export default function ContractRegistrationForm() {
 
   const handleSave = async (andNew = false) => {
     const { contract_number, title, contractor_name, amount } = form;
-    if (!contract_number || !title.trim() || !contractor_name || amount <= 0) {
-      alert("لطفاً فیلدهای الزامی (موضوع قرارداد، طرف قرارداد، مبلغ اولیه و شماره قرارداد) را پر کنید.");
+    
+    const errors = [];
+    if (!contract_number) errors.push("شماره قرارداد (در تب اطلاعات اصلی)");
+    if (!title || !title.trim()) errors.push("موضوع قرارداد (در تب اطلاعات اصلی)");
+    if (!contractor_name) errors.push("طرف قرارداد (در تب اطلاعات اصلی - باید یک طرف قرارداد انتخاب کنید)");
+    if (!amount || amount <= 0) errors.push("مبلغ اولیه قرارداد (در تب اطلاعات مالی)");
+
+    if (errors.length > 0) {
+      alert(`لطفاً فیلدهای الزامی زیر را پر یا اصلاح کنید:\n\n• ${errors.join("\n• ")}`);
       return;
     }
 
@@ -267,7 +274,7 @@ export default function ContractRegistrationForm() {
         }
       } else {
         // Create mode
-        const res = await api.post("/api/contracts/", payload);
+        const res = await api.post("/api/contracts", payload);
         if (res.status === 201) {
           alert("قرارداد با موفقیت ثبت شد.");
           fetchContracts();

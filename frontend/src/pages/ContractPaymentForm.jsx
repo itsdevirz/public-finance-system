@@ -94,7 +94,7 @@ export default function ContractPaymentForm() {
 
   const fetchContracts = async () => {
     try {
-      const res = await api.get("/api/contracts/");
+      const res = await api.get("/api/contracts");
       setContracts(res.data.data || []);
     } catch (err) {
       console.error("Error fetching contracts:", err);

@@ -403,3 +403,137 @@ export interface ContractSupplement {
   createdAt?: string;
   updatedAt?: string;
 }
+
+// ─── Contract Addenda ─────────────────────────────────────────────────────────
+export interface ContractAddendumDocument {
+  _id?: ObjectId;
+  addendum_number: string;
+  contract_id: string;
+  contract_number: string;
+  contract_title: string;
+  contractor_name: string;
+  addendum_subject: string;
+  addendum_type: string;
+  addendum_date: string;
+  approval_number?: string;
+  approval_date?: string;
+  status: string;
+
+  description?: string;
+  addendum_base?: string;
+  amount_change_percent?: number;
+  duration_change_percent?: number;
+
+  initial_amount: number;
+  prev_addenda_amount: number;
+  addendum_amount: number;
+  new_total_amount: number;
+
+  initial_duration: number;
+  prev_duration_extensions: number;
+  addendum_duration: number;
+  new_total_duration: number;
+
+  financial_items: {
+    row_num: number;
+    description: string;
+    unit: string;
+    quantity: number;
+    unit_price: number;
+    total_amount: number;
+  }[];
+
+  time_adjustments: {
+    row_num: number;
+    description: string;
+    from_date: string;
+    to_date: string;
+    duration_days: number;
+  }[];
+
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// ─── Contract Cards ───────────────────────────────────────────────────────────
+export interface ContractCardDocument {
+  _id?: ObjectId;
+  card_number: string;
+  contract_id: string;
+  contract_number: string;
+  contract_title: string;
+  contractor_name: string;
+  contract_type: string;
+  contract_subject: string;
+  contract_amount: number;
+  duration_days: number;
+  start_date: string;
+  end_date: string;
+  status: string;
+
+  project_name: string;
+  executive_unit: string;
+  execution_location: string;
+  project_code?: string;
+  credit_source: string;
+  budget_code?: string;
+  contract_expert: string;
+  registration_date: string;
+  registered_by: string;
+  remarks?: string;
+
+  financial_progress_percent?: number;
+  remaining_amount?: number;
+  total_paid?: number;
+
+  latest_statement_number?: string;
+  latest_statement_date?: string;
+  latest_statement_amount?: number;
+  latest_statement_progress_percent?: number;
+
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// ─── Contract 25% Changes ─────────────────────────────────────────────────────
+export interface ContractChange25Document {
+  _id?: ObjectId;
+  request_number: string;
+  request_date: string;
+  contract_id: string;
+  contract_number: string;
+  contract_title: string;
+  employer_name: string;
+  contractor_name: string;
+  execution_location?: string;
+  project_name?: string;
+
+  change_type: "افزایش 25 درصد" | "کاهش 25 درصد";
+  calculation_base: string;
+  change_percent: number;
+  base_amount: number;
+  change_amount: number;
+  new_amount: number;
+  description?: string;
+
+  items: {
+    row_num: number;
+    description: string;
+    unit: string;
+    initial_quantity: number;
+    change_percent: number;
+    change_quantity: number;
+    new_quantity: number;
+    change_amount: number;
+  }[];
+
+  approval_opinion?: string;
+  approval_date?: string;
+  license_number?: string;
+  license_date?: string;
+  status: string;
+  approval_remarks?: string;
+
+  createdAt?: string;
+  updatedAt?: string;
+}

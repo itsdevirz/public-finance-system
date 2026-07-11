@@ -61,7 +61,7 @@ const QUICK_ACCESS = [
   { label: "تامین اعتبار",    to: "/credits/funded",                         icon: CreditCard,     color: "bg-emerald-50 text-emerald-600 border-emerald-200/60"},
   { label: "صدور چک",         to: "/check-issuance/payments/with-check",     icon: ArrowLeftRight, color: "bg-amber-50 text-amber-600 border-amber-200/60"   },
   { label: "دفتر کل",         to: "/bookkeeping/ledger-reports/general-ledger", icon: BookOpen,    color: "bg-purple-50 text-purple-600 border-purple-200/60" },
-  { label: "ثبت ضمانت‌نامه",  to: "/guarantees/register/contract",           icon: Shield,         color: "bg-rose-50 text-rose-600 border-rose-200/60"     },
+  { label: "ثبت ضمانت‌نامه",  to: "/basic-info/contracts/guarantee",         icon: Shield,         color: "bg-rose-50 text-rose-600 border-rose-200/60"     },
   { label: "ثبت سپرده",       to: "/deposits/manual-form",                   icon: PiggyBank,      color: "bg-teal-50 text-teal-600 border-teal-200/60"     },
 ];
 

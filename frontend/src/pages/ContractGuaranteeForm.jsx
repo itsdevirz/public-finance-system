@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { PersianDatePicker } from "@/components/ui/persian-date-picker";
+import { PersianDatePicker, addDaysToJalali, diffDaysJalali } from "@/components/ui/persian-date-picker";
 import { cn } from "@/lib/utils";
 
 const GUARANTEE_TYPES = ["ضمانت انجام تعهدات", "ضمانت پیش‌پرداخت", "ضمانت حسن انجام کار", "سایر"];
@@ -75,7 +75,7 @@ export default function ContractGuaranteeForm() {
 
   const fetchContracts = async () => {
     try {
-      const res = await api.get("/api/contracts/");
+      const res = await api.get("/api/contracts");
       setContracts(res.data.data || []);
     } catch (err) {
       console.error("Error fetching contracts:", err);
@@ -274,6 +274,38 @@ export default function ContractGuaranteeForm() {
     });
   };
 
+  const handleIssueDateChange = (newDate) => {
+    setForm((prev) => {
+      const updated = { ...prev, issue_date: newDate };
+      if (newDate && prev.duration_days) {
+        updated.expiry_date = addDaysToJalali(newDate, Number(prev.duration_days));
+      }
+      return updated;
+    });
+  };
+
+  const handleDurationChange = (newDurationVal) => {
+    const duration = newDurationVal === "" ? "" : (parseInt(newDurationVal, 10) || 0);
+    setForm((prev) => {
+      const updated = { ...prev, duration_days: duration };
+      if (prev.issue_date && duration !== "") {
+        updated.expiry_date = addDaysToJalali(prev.issue_date, Number(duration));
+      }
+      return updated;
+    });
+  };
+
+  const handleExpiryDateChange = (newExpiryDate) => {
+    setForm((prev) => {
+      const updated = { ...prev, expiry_date: newExpiryDate };
+      if (prev.issue_date && newExpiryDate) {
+        const diff = diffDaysJalali(prev.issue_date, newExpiryDate);
+        updated.duration_days = diff >= 0 ? diff : 0;
+      }
+      return updated;
+    });
+  };
+
   const handlePrint = () => {
     const printWindow = window.open("", "_blank");
     printWindow.document.write(`
@@ -425,6 +457,26 @@ export default function ContractGuaranteeForm() {
           </Button>
         </div>
       </div>
+
+      {contracts.length === 0 && !loading && (
+        <div className="mb-5 p-4 rounded-xl border border-amber-500/20 bg-amber-500/5 text-amber-600 text-sm text-right flex items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="flex items-center gap-2.5">
+            <span className="text-lg">⚠️</span>
+            <div>
+              <p className="font-bold">هیچ قراردادی در سیستم یافت نشد!</p>
+              <p className="text-xs opacity-90 mt-0.5">برای ثبت ضمانت‌نامه، ابتدا باید حداقل یک قرارداد در سیستم تعریف و ثبت شده باشد.</p>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate("/basic-info/contracts/register")}
+            className="border-amber-500/20 text-amber-600 hover:bg-amber-500/10 text-xs font-semibold h-8"
+          >
+            ثبت قرارداد جدید
+          </Button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-6" dir="rtl">
         {/* بدنه فرم ضمانت نامه */}
@@ -582,14 +634,14 @@ export default function ContractGuaranteeForm() {
                   <Field label="تاریخ صدور" required>
                     <PersianDatePicker
                       value={form.issue_date}
-                      onChange={(e) => setForm((prev) => ({ ...prev, issue_date: e.target.value }))}
+                      onChange={(e) => handleIssueDateChange(e.target.value)}
                     />
                   </Field>
 
                   <Field label="تاریخ انقضاء" required>
                     <PersianDatePicker
                       value={form.expiry_date}
-                      onChange={(e) => setForm((prev) => ({ ...prev, expiry_date: e.target.value }))}
+                      onChange={(e) => handleExpiryDateChange(e.target.value)}
                     />
                   </Field>
 
@@ -597,7 +649,7 @@ export default function ContractGuaranteeForm() {
                     <Input
                       type="number"
                       value={form.duration_days}
-                      onChange={(e) => setForm((prev) => ({ ...prev, duration_days: parseInt(e.target.value, 10) }))}
+                      onChange={(e) => handleDurationChange(e.target.value)}
                       className="h-9 text-sm text-center font-mono"
                       dir="ltr"
                     />

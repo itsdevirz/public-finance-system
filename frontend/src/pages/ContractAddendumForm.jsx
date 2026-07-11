@@ -15,55 +15,59 @@ import {
 import { PersianDatePicker, addDaysToJalali, diffDaysJalali } from "@/components/ui/persian-date-picker";
 import { cn } from "@/lib/utils";
 
-const SUPPLEMENT_TYPES = [
+const ADDENDUM_TYPES = [
   "افزایش مبلغ و تمدید مدت",
   "کاهش مبلغ و کاهش مدت",
   "افزایش مبلغ بدون تغییر مدت",
   "تمدید مدت بدون تغییر مبلغ",
 ];
 
-const SUPPLEMENT_SUBJECTS = ["افزایش حجمی", "کاهش مقادیر", "تمدید زمانی", "تغییر شرایط"];
-
-const SUPPLEMENT_REASONS = [
-  "افزایش حجم کار به دستور کارفرما",
-  "تاخیر در تحویل کارگاه",
-  "تغییر در مشخصات فنی",
-  "حوادث قهریه و فورس ماژور",
-  "سایر موارد",
+const ADDENDUM_SUBJECTS = [
+  "افزایش حجم کار و مدت پیمان",
+  "کاهش مقادیر کار و زمان",
+  "تمدید زمانی پروژه",
+  "تغییر در نقشه و جزییات فنی",
 ];
 
-const UNITS = ["متر مربع", "متر مکعب", "کیلوگرم", "نقطه", "عدد", "تن", "دستگاه"];
+const ADDENDUM_BASES = [
+  "تغییر در شرایط کار",
+  "دستور کارفرما",
+  "تاخیر در تحویل کارگاه",
+  "مشکلات نقشه‌برداری و زمین‌شناسی",
+  "فورس ماژور",
+];
+
+const UNITS = ["متر مربع", "متر مکعب", "کیلوگرم", "نقطه", "عدد", "تن", "دستگاه", "شاخه"];
 
 const INITIAL_FORM = {
-  supplement_number: "",
+  addendum_number: "",
   contract_id: "",
   contract_number: "",
   contract_title: "",
-  employer_name: "",
   contractor_name: "",
-  supplement_type: "افزایش مبلغ و تمدید مدت",
-  supplement_date: "",
+  addendum_subject: "افزایش حجم کار و مدت پیمان",
+  addendum_type: "افزایش مبلغ و تمدید مدت",
+  addendum_date: "",
   approval_number: "",
   approval_date: "",
   status: "ثبت شده",
 
-  supplement_subject: "افزایش حجمی",
-  supplement_reason: "افزایش حجم کار به دستور کارفرما",
   description: "",
-  remarks: "",
+  addendum_base: "تغییر در شرایط کار",
+  amount_change_percent: 0,
+  duration_change_percent: 0,
 
   initial_amount: 0,
-  prev_supplements_amount: 0,
-  supplement_amount: 0,
+  prev_addenda_amount: 0,
+  addendum_amount: 0,
   new_total_amount: 0,
 
   initial_duration: 0,
   prev_duration_extensions: 0,
-  supplement_duration: 0,
+  addendum_duration: 0,
   new_total_duration: 0,
 
   financial_items: [],
-
   time_adjustments: [],
 };
 
@@ -79,11 +83,11 @@ function Field({ label, required, children }) {
   );
 }
 
-export default function ContractSupplementForm() {
+export default function ContractAddendumForm() {
   const navigate = useNavigate();
   const [form, setForm] = useState(INITIAL_FORM);
   const [contracts, setContracts] = useState([]);
-  const [supplementsList, setSupplementsList] = useState([]);
+  const [addendaList, setAddendaList] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [activeTab, setActiveTab] = useState("main");
   const [showSearchModal, setShowSearchModal] = useState(false);
@@ -99,15 +103,15 @@ export default function ContractSupplementForm() {
     }
   };
 
-  const fetchSupplements = async () => {
+  const fetchAddenda = async () => {
     setLoading(true);
     try {
-      const res = await api.get("/api/contract-supplements");
+      const res = await api.get("/api/contract-addenda");
       if (res.data?.success) {
-        setSupplementsList(res.data.data || []);
+        setAddendaList(res.data.data || []);
       }
     } catch (err) {
-      console.error("Error fetching supplements:", err);
+      console.error("Error fetching addenda:", err);
     } finally {
       setLoading(false);
     }
@@ -115,18 +119,18 @@ export default function ContractSupplementForm() {
 
   const getSuggestedNumber = async () => {
     try {
-      const res = await api.get("/api/contract-supplements/suggest-number");
-      if (res.data?.success && res.data.supplement_number) {
-        setForm((prev) => ({ ...prev, supplement_number: res.data.supplement_number }));
+      const res = await api.get("/api/contract-addenda/suggest-number");
+      if (res.data?.success && res.data.addendum_number) {
+        setForm((prev) => ({ ...prev, addendum_number: res.data.addendum_number }));
       }
     } catch (err) {
-      console.error("Error getting suggested supplement number:", err);
+      console.error("Error getting suggested addendum number:", err);
     }
   };
 
   useEffect(() => {
     fetchContracts();
-    fetchSupplements();
+    fetchAddenda();
     getSuggestedNumber();
   }, []);
 
@@ -138,17 +142,16 @@ export default function ContractSupplementForm() {
         contract_id: "",
         contract_number: "",
         contract_title: "",
-        employer_name: "",
         contractor_name: "",
         initial_amount: 0,
-        prev_supplements_amount: 0,
+        prev_addenda_amount: 0,
         initial_duration: 0,
         prev_duration_extensions: 0,
       }));
       return;
     }
 
-    // Sum all previous addenda/supplements from contract array
+    // Sum all previous addenda from contract document
     let prevAmt = 0;
     (selectedContract.addenda || []).forEach((a) => {
       if (a.type === "کاهش") {
@@ -166,29 +169,28 @@ export default function ContractSupplementForm() {
       contract_id: selectedContract._id,
       contract_number: selectedContract.contract_number,
       contract_title: selectedContract.title,
-      employer_name: selectedContract.executive_agency || "ادارات کل راه و شهرسازی",
       contractor_name: selectedContract.contractor_name,
       initial_amount: initAmt,
-      prev_supplements_amount: prevAmt,
+      prev_addenda_amount: prevAmt,
       initial_duration: initDur,
-      // Prefill description
-      description: `با توجه به دستور کارفرما مبنی بر افزایش حجم عملیات موضوع قرارداد، افزایش مبلغ و تمدید مدت مورد توافق طرفین قرار گرفت.`,
+      description: `به موجب این الحاقیه، با توجه به افزایش حجم کار و ضرورت تکمیل عملیات، مبلغ قرارداد و مدت زمان اجرای آن به شرح ذیل اصلاح می‌گردد.`,
     }));
   };
 
-  // Compute sums from grids in real time
+  // Compute financial sum in real-time
   const financialSum = useMemo(() => {
     return form.financial_items.reduce((sum, item) => sum + (Number(item.total_amount) || 0), 0);
   }, [form.financial_items]);
 
+  // Compute duration sum in real-time
   const durationSum = useMemo(() => {
     return form.time_adjustments.reduce((sum, item) => sum + (Number(item.duration_days) || 0), 0);
   }, [form.time_adjustments]);
 
-  // Calculations for summaries
+  // Compute percentages & sums for totals
   const computedStats = useMemo(() => {
     const initAmt = Number(form.initial_amount || 0);
-    const prevAmt = Number(form.prev_supplements_amount || 0);
+    const prevAmt = Number(form.prev_addenda_amount || 0);
     const currAmt = Number(financialSum || 0);
 
     const initDur = Number(form.initial_duration || 0);
@@ -198,7 +200,7 @@ export default function ContractSupplementForm() {
     let newAmt = initAmt + prevAmt;
     let newDur = initDur + prevDur;
 
-    if (form.supplement_type?.includes("کاهش")) {
+    if (form.addendum_type?.includes("کاهش")) {
       newAmt -= currAmt;
       newDur -= currDur;
     } else {
@@ -206,22 +208,29 @@ export default function ContractSupplementForm() {
       newDur += currDur;
     }
 
-    return {
-      supplement_amount: currAmt,
-      new_total_amount: newAmt,
-      supplement_duration: currDur,
-      new_total_duration: newDur,
-    };
-  }, [form.initial_amount, form.prev_supplements_amount, financialSum, form.initial_duration, form.prev_duration_extensions, durationSum, form.supplement_type]);
+    const amtPercent = initAmt > 0 ? Math.round((currAmt / initAmt) * 100) : 0;
+    const durPercent = initDur > 0 ? Math.round((currDur / initDur) * 100) : 0;
 
-  // Sync computed stats into form state for saving
+    return {
+      addendum_amount: currAmt,
+      new_total_amount: newAmt,
+      addendum_duration: currDur,
+      new_total_duration: newDur,
+      amount_change_percent: amtPercent,
+      duration_change_percent: durPercent,
+    };
+  }, [form.initial_amount, form.prev_addenda_amount, financialSum, form.initial_duration, form.prev_duration_extensions, durationSum, form.addendum_type]);
+
+  // Sync computed stats into form state
   useEffect(() => {
     setForm((prev) => ({
       ...prev,
-      supplement_amount: computedStats.supplement_amount,
+      addendum_amount: computedStats.addendum_amount,
       new_total_amount: computedStats.new_total_amount,
-      supplement_duration: computedStats.supplement_duration,
+      addendum_duration: computedStats.addendum_duration,
       new_total_duration: computedStats.new_total_duration,
+      amount_change_percent: computedStats.amount_change_percent,
+      duration_change_percent: computedStats.duration_change_percent,
     }));
   }, [computedStats]);
 
@@ -318,80 +327,80 @@ export default function ContractSupplementForm() {
   };
 
   const handleSave = async () => {
-    const { contract_id, supplement_number, supplement_type, supplement_date } = form;
-    if (!contract_id || !supplement_number || !supplement_type || !supplement_date) {
-      alert("لطفاً فیلدهای الزامی (قرارداد، شماره متمم، نوع متمم و تاریخ) را پر کنید.");
+    const { contract_id, addendum_number, addendum_type, addendum_date } = form;
+    if (!contract_id || !addendum_number || !addendum_type || !addendum_date) {
+      alert("لطفاً فیلدهای الزامی (قرارداد، شماره الحاقیه، نوع الحاقیه و تاریخ) را پر کنید.");
       return;
     }
 
     try {
       if (selectedId) {
         // Edit mode
-        const res = await api.put(`/api/contract-supplements/${selectedId}`, form);
+        const res = await api.put(`/api/contract-addenda/${selectedId}`, form);
         if (res.data?.success) {
-          alert("اطلاعات متمم با موفقیت بروزرسانی شد.");
-          fetchSupplements();
+          alert("اطلاعات الحاقیه با موفقیت بروزرسانی شد.");
+          fetchAddenda();
         }
       } else {
         // Create mode
-        const res = await api.post("/api/contract-supplements", form);
+        const res = await api.post("/api/contract-addenda", form);
         if (res.data?.success) {
-          alert("متمم قرارداد با موفقیت ثبت گردید.");
-          fetchSupplements();
+          alert("الحاقیه قرارداد با موفقیت ثبت گردید.");
+          fetchAddenda();
           setSelectedId(res.data.data._id);
         }
       }
     } catch (err) {
-      console.error("Error saving supplement:", err);
-      alert(err.response?.data?.message || "خطا در ثبت اطلاعات متمم.");
+      console.error("Error saving addendum:", err);
+      alert(err.response?.data?.message || "خطا در ثبت اطلاعات الحاقیه.");
     }
   };
 
   const handleDelete = async () => {
     if (!selectedId) return;
-    if (!confirm("آیا از حذف این متمم مطمئن هستید؟")) return;
+    if (!confirm("آیا از حذف این الحاقیه مطمئن هستید؟")) return;
 
     try {
-      const res = await api.delete(`/api/contract-supplements/${selectedId}`);
+      const res = await api.delete(`/api/contract-addenda/${selectedId}`);
       if (res.data?.success) {
-        alert("متمم حذف شد.");
-        fetchSupplements();
+        alert("الحاقیه حذف شد.");
+        fetchAddenda();
         handleNew();
       }
     } catch (err) {
-      console.error("Error deleting supplement:", err);
-      alert(err.response?.data?.message || "خطا در حذف متمم.");
+      console.error("Error deleting addendum:", err);
+      alert(err.response?.data?.message || "خطا در حذف الحاقیه.");
     }
   };
 
-  const loadSupplementDetails = (sup) => {
-    setSelectedId(sup._id);
+  const loadAddendumDetails = (addendum) => {
+    setSelectedId(addendum._id);
     setForm({
-      supplement_number: sup.supplement_number || "",
-      contract_id: sup.contract_id || "",
-      contract_number: sup.contract_number || "",
-      contract_title: sup.contract_title || "",
-      employer_name: sup.employer_name || "",
-      contractor_name: sup.contractor_name || "",
-      supplement_type: sup.supplement_type || "افزایش مبلغ و تمدید مدت",
-      supplement_date: sup.supplement_date || "",
-      approval_number: sup.approval_number || "",
-      approval_date: sup.approval_date || "",
-      status: sup.status || "ثبت شده",
-      supplement_subject: sup.supplement_subject || "افزایش حجمی",
-      supplement_reason: sup.supplement_reason || "",
-      description: sup.description || "",
-      remarks: sup.remarks || "",
-      initial_amount: sup.initial_amount || 0,
-      prev_supplements_amount: sup.prev_supplements_amount || 0,
-      supplement_amount: sup.supplement_amount || 0,
-      new_total_amount: sup.new_total_amount || 0,
-      initial_duration: sup.initial_duration || 0,
-      prev_duration_extensions: sup.prev_duration_extensions || 0,
-      supplement_duration: sup.supplement_duration || 0,
-      new_total_duration: sup.new_total_duration || 0,
-      financial_items: sup.financial_items || [],
-      time_adjustments: sup.time_adjustments || [],
+      addendum_number: addendum.addendum_number || "",
+      contract_id: addendum.contract_id || "",
+      contract_number: addendum.contract_number || "",
+      contract_title: addendum.contract_title || "",
+      contractor_name: addendum.contractor_name || "",
+      addendum_subject: addendum.addendum_subject || "افزایش حجم کار و مدت پیمان",
+      addendum_type: addendum.addendum_type || "افزایش مبلغ و تمدید مدت",
+      addendum_date: addendum.addendum_date || "",
+      approval_number: addendum.approval_number || "",
+      approval_date: addendum.approval_date || "",
+      status: addendum.status || "ثبت شده",
+      description: addendum.description || "",
+      addendum_base: addendum.addendum_base || "تغییر در شرایط کار",
+      amount_change_percent: addendum.amount_change_percent || 0,
+      duration_change_percent: addendum.duration_change_percent || 0,
+      initial_amount: addendum.initial_amount || 0,
+      prev_addenda_amount: addendum.prev_addenda_amount || 0,
+      addendum_amount: addendum.addendum_amount || 0,
+      new_total_amount: addendum.new_total_amount || 0,
+      initial_duration: addendum.initial_duration || 0,
+      prev_duration_extensions: addendum.prev_duration_extensions || 0,
+      addendum_duration: addendum.addendum_duration || 0,
+      new_total_duration: addendum.new_total_duration || 0,
+      financial_items: addendum.financial_items || [],
+      time_adjustments: addendum.time_adjustments || [],
     });
     setShowSearchModal(false);
   };
@@ -401,7 +410,7 @@ export default function ContractSupplementForm() {
     printWindow.document.write(`
       <html lang="fa" dir="rtl">
         <head>
-          <title>رسید متمم قرارداد - ${form.supplement_number}</title>
+          <title>رسید الحاقیه قرارداد - ${form.addendum_number}</title>
           <style>
             body { font-family: Tahoma, sans-serif; font-size: 11px; margin: 30px; line-height: 1.6; }
             h2 { text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; }
@@ -409,16 +418,15 @@ export default function ContractSupplementForm() {
           </style>
         </head>
         <body onload="window.print()">
-          <h2>رسید ثبت متمم قرارداد</h2>
+          <h2>رسید ثبت الحاقیه قرارداد</h2>
           <div class="grid">
-            <div><strong>شماره متمم:</strong> ${form.supplement_number}</div>
-            <div><strong>تاریخ متمم:</strong> ${form.supplement_date}</div>
-            <div><strong>نوع متمم:</strong> ${form.supplement_type}</div>
+            <div><strong>شماره الحاقیه:</strong> ${form.addendum_number}</div>
+            <div><strong>تاریخ الحاقیه:</strong> ${form.addendum_date}</div>
+            <div><strong>نوع الحاقیه:</strong> ${form.addendum_type}</div>
             <div><strong>شماره قرارداد:</strong> ${form.contract_number}</div>
-            <div><strong>کارفرما:</strong> ${form.employer_name}</div>
             <div><strong>پیمانکار:</strong> ${form.contractor_name}</div>
-            <div><strong>مبلغ متمم:</strong> ${Number(form.supplement_amount).toLocaleString()} ریال</div>
-            <div><strong>مدت تمدید:</strong> ${form.supplement_duration} روز</div>
+            <div><strong>مبلغ الحاقیه:</strong> ${Number(form.addendum_amount).toLocaleString()} ریال</div>
+            <div><strong>مدت تمدید:</strong> ${form.addendum_duration} روز</div>
           </div>
         </body>
       </html>
@@ -426,26 +434,26 @@ export default function ContractSupplementForm() {
     printWindow.document.close();
   };
 
-  const filteredSupplements = supplementsList.filter((s) => {
+  const filteredAddenda = addendaList.filter((a) => {
     const q = searchQuery.toLowerCase();
     return (
-      (s.supplement_number || "").toLowerCase().includes(q) ||
-      (s.contract_number || "").toLowerCase().includes(q) ||
-      (s.contractor_name || "").toLowerCase().includes(q)
+      (a.addendum_number || "").toLowerCase().includes(q) ||
+      (a.contract_number || "").toLowerCase().includes(q) ||
+      (a.contractor_name || "").toLowerCase().includes(q)
     );
   });
 
   return (
     <PageShell>
-      {/* هدر ابزارهای فرم ثبت متمم قرارداد */}
+      {/* هدر ابزارهای فرم ثبت الحاقیه */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-border/80 pb-4 mb-5" dir="rtl">
         <div className="flex items-center gap-2">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10 text-blue-500 border border-blue-500/20">
-            <span className="text-xl">📝</span>
+            <span className="text-xl">📄</span>
           </div>
           <div>
-            <h1 className="text-lg font-bold text-foreground">ثبت متمم قرارداد</h1>
-            <p className="text-xs text-muted-foreground">ثبت تغییرات، افزایش و کاهش مقادیر کار و تمدیدهای زمانی قراردادها</p>
+            <h1 className="text-lg font-bold text-foreground">ثبت الحاقیه قرارداد</h1>
+            <p className="text-xs text-muted-foreground">ثبت الحاقیه‌ها، تغییرات شرایط عمومی و خصوصی و تمدید مدت قراردادها</p>
           </div>
         </div>
 
@@ -522,7 +530,7 @@ export default function ContractSupplementForm() {
             className="gap-1.5 h-9 text-xs border-blue-500/20 text-blue-500 hover:bg-blue-500/10"
           >
             <Search className="h-4 w-4" />
-            جستجوی متمم
+            جستجوی الحاقیه
           </Button>
 
           <Button
@@ -553,7 +561,7 @@ export default function ContractSupplementForm() {
             <span className="text-lg">⚠️</span>
             <div>
               <p className="font-bold">هیچ قراردادی در سیستم یافت نشد!</p>
-              <p className="text-xs opacity-90 mt-0.5">برای ثبت متمم، ابتدا باید حداقل یک قرارداد در سیستم تعریف و ثبت شده باشد.</p>
+              <p className="text-xs opacity-90 mt-0.5">برای ثبت الحاقیه، ابتدا باید حداقل یک قرارداد در سیستم تعریف و ثبت شده باشد.</p>
             </div>
           </div>
           <Button
@@ -571,7 +579,7 @@ export default function ContractSupplementForm() {
         {/* کارت بدنه فرم */}
         <Card className="border-border/80 shadow-sm">
           <div className="border-b border-border/80 px-4 py-1.5 bg-muted/20 flex flex-wrap gap-4">
-            {["main", "items", "time", "attachments", "terms"].map((tab) => (
+            {["main", "items", "time", "attachments", "terms", "history"].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -581,10 +589,10 @@ export default function ContractSupplementForm() {
                 )}
               >
                 {tab === "main" && "اطلاعات اصلی"}
-                {tab === "items" && "اقلام متمم"}
-                {tab === "time" && "تعدیل مدت"}
-                {tab === "attachments" && "اسناد و پیوست‌ها"}
-                {tab === "terms" && "ضوابط و شرایط"}
+                {tab === "items" && "اقلام الحاقیه"}
+                {tab === "time" && "اسناد و پیوست‌ها"}
+                {tab === "attachments" && "ضوابط و شرایط"}
+                {tab === "terms" && "تاریخچه تغییرات"}
               </button>
             ))}
           </div>
@@ -593,13 +601,13 @@ export default function ContractSupplementForm() {
             {activeTab === "main" && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 text-right">
                 
-                {/* ستون راست - مشخصات متمم */}
+                {/* ستون راست - مشخصات الحاقیه */}
                 <div className="space-y-4">
-                  <Field label="شماره متمم">
+                  <Field label="شماره الحاقیه">
                     <Input
                       type="text"
-                      value={form.supplement_number}
-                      onChange={(e) => setForm((prev) => ({ ...prev, supplement_number: e.target.value }))}
+                      value={form.addendum_number}
+                      onChange={(e) => setForm((prev) => ({ ...prev, addendum_number: e.target.value }))}
                       className="h-9 text-sm text-center font-mono font-bold"
                       dir="ltr"
                     />
@@ -627,16 +635,7 @@ export default function ContractSupplementForm() {
                     />
                   </Field>
 
-                  <Field label="کارفرما">
-                    <Input
-                      type="text"
-                      value={form.employer_name}
-                      readOnly
-                      className="h-9 text-sm bg-muted/50 text-muted-foreground"
-                    />
-                  </Field>
-
-                  <Field label="پیمانکار">
+                  <Field label="طرف قرارداد">
                     <Input
                       type="text"
                       value={form.contractor_name}
@@ -645,22 +644,34 @@ export default function ContractSupplementForm() {
                     />
                   </Field>
 
-                  <Field label="نوع متمم">
+                  <Field label="موضوع الحاقیه">
                     <select
-                      value={form.supplement_type}
-                      onChange={(e) => setForm((prev) => ({ ...prev, supplement_type: e.target.value }))}
+                      value={form.addendum_subject}
+                      onChange={(e) => setForm((prev) => ({ ...prev, addendum_subject: e.target.value }))}
                       className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-right"
                     >
-                      {SUPPLEMENT_TYPES.map((t) => (
+                      {ADDENDUM_SUBJECTS.map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </Field>
+
+                  <Field label="نوع الحاقیه">
+                    <select
+                      value={form.addendum_type}
+                      onChange={(e) => setForm((prev) => ({ ...prev, addendum_type: e.target.value }))}
+                      className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-right"
+                    >
+                      {ADDENDUM_TYPES.map((t) => (
                         <option key={t} value={t}>{t}</option>
                       ))}
                     </select>
                   </Field>
 
-                  <Field label="تاریخ متمم" required>
+                  <Field label="تاریخ الحاقیه" required>
                     <PersianDatePicker
-                      value={form.supplement_date}
-                      onChange={(e) => setForm((prev) => ({ ...prev, supplement_date: e.target.value }))}
+                      value={form.addendum_date}
+                      onChange={(e) => setForm((prev) => ({ ...prev, addendum_date: e.target.value }))}
                     />
                   </Field>
 
@@ -694,41 +705,50 @@ export default function ContractSupplementForm() {
                   </Field>
                 </div>
 
-                {/* ستون چپ - مبالغ و زمان */}
+                {/* ستون چپ - توضیحات و مبالغ الحاقیه */}
                 <div className="space-y-4">
-                  <Field label="موضوع متمم">
-                    <select
-                      value={form.supplement_subject}
-                      onChange={(e) => setForm((prev) => ({ ...prev, supplement_subject: e.target.value }))}
-                      className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-right"
-                    >
-                      {SUPPLEMENT_SUBJECTS.map((s) => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
-                  </Field>
-
-                  <Field label="علت متمم">
-                    <select
-                      value={form.supplement_reason}
-                      onChange={(e) => setForm((prev) => ({ ...prev, supplement_reason: e.target.value }))}
-                      className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-right"
-                    >
-                      {SUPPLEMENT_REASONS.map((r) => (
-                        <option key={r} value={r}>{r}</option>
-                      ))}
-                    </select>
-                  </Field>
-
-                  <Field label="شرح متمم">
+                  <Field label="شرح الحاقیه">
                     <textarea
                       value={form.description}
                       onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
                       rows={3}
                       className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm text-right focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                      placeholder="توضیحات علل فنی متمم..."
+                      placeholder="توضیحات پیرامون اهداف الحاقیه..."
                     />
                   </Field>
+
+                  <Field label="مبنای الحاقیه">
+                    <select
+                      value={form.addendum_base}
+                      onChange={(e) => setForm((prev) => ({ ...prev, addendum_base: e.target.value }))}
+                      className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-right"
+                    >
+                      {ADDENDUM_BASES.map((b) => (
+                        <option key={b} value={b}>{b}</option>
+                      ))}
+                    </select>
+                  </Field>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <Field label="درصد تغییر مبلغ">
+                      <Input
+                        type="text"
+                        value={`${form.amount_change_percent} %`}
+                        readOnly
+                        className="h-9 text-xs text-center font-mono bg-background/50 font-bold text-amber-600"
+                        dir="ltr"
+                      />
+                    </Field>
+                    <Field label="درصد تغییر مدت">
+                      <Input
+                        type="text"
+                        value={`${form.duration_change_percent} %`}
+                        readOnly
+                        className="h-9 text-xs text-center font-mono bg-background/50 font-bold text-amber-600"
+                        dir="ltr"
+                      />
+                    </Field>
+                  </div>
 
                   <div className="border border-border/80 p-3 rounded-lg bg-muted/10 space-y-4">
                     <div className="grid grid-cols-2 gap-4">
@@ -740,23 +760,23 @@ export default function ContractSupplementForm() {
                           className="h-9 text-xs text-center font-mono bg-background/50"
                         />
                       </Field>
-                      <Field label="جمع مبلغ متمم‌های قبلی">
+                      <Field label="جمع الحاقیه‌های قبلی">
                         <Input
                           type="text"
-                          value={Number(form.prev_supplements_amount || 0).toLocaleString()}
+                          value={Number(form.prev_addenda_amount || 0).toLocaleString()}
                           readOnly
                           className="h-9 text-xs text-center font-mono bg-background/50"
                         />
                       </Field>
-                      <Field label="مبلغ این متمم">
+                      <Field label="مبلغ این الحاقیه">
                         <Input
                           type="text"
-                          value={Number(form.supplement_amount || 0).toLocaleString()}
+                          value={Number(form.addendum_amount || 0).toLocaleString()}
                           readOnly
                           className="h-9 text-xs text-center font-mono bg-background/50 text-blue-600 font-bold"
                         />
                       </Field>
-                      <Field label="مبلغ پس از این متمم">
+                      <Field label="جمع مبلغ قرارداد از الحاقیه">
                         <Input
                           type="text"
                           value={Number(form.new_total_amount || 0).toLocaleString()}
@@ -785,15 +805,15 @@ export default function ContractSupplementForm() {
                           className="h-9 text-xs text-center font-mono bg-background/50"
                         />
                       </Field>
-                      <Field label="تمدید مدت این متمم (روز)">
+                      <Field label="مدت این الحاقیه (روز)">
                         <Input
                           type="text"
-                          value={form.supplement_duration || 0}
+                          value={form.addendum_duration || 0}
                           readOnly
                           className="h-9 text-xs text-center font-mono bg-background/50 text-blue-600 font-bold"
                         />
                       </Field>
-                      <Field label="مدت پس از این متمم (روز)">
+                      <Field label="مدت پس از الحاقیه (روز)">
                         <Input
                           type="text"
                           value={form.new_total_duration || 0}
@@ -819,7 +839,7 @@ export default function ContractSupplementForm() {
         {/* سه جدول پایین (تعدیل مدت، اقلام متمم، خلاصه وضعیت) */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6" dir="rtl">
           
-          {/* جدول ۱: تعدیل مدت (تعداد روز) */}
+          {/* جدول ۱: تعدیل مدت */}
           <Card className="border-border/80 shadow-sm">
             <div className="border-b border-border/80 px-4 py-3 bg-muted/10 font-bold text-xs text-right flex justify-between items-center">
               <span>تعدیل مدت</span>
@@ -837,7 +857,7 @@ export default function ContractSupplementForm() {
                       <TableHead className="text-right text-xs py-2">شرح</TableHead>
                       <TableHead className="text-center text-xs py-2 w-20">از تاریخ</TableHead>
                       <TableHead className="text-center text-xs py-2 w-20">تا تاریخ</TableHead>
-                      <TableHead className="text-center text-xs py-2 w-16">تعداد روز</TableHead>
+                      <TableHead className="text-center text-xs py-2 w-16">مدت (روز)</TableHead>
                       <TableHead className="text-center text-xs py-2 w-10"></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -906,10 +926,10 @@ export default function ContractSupplementForm() {
             </CardContent>
           </Card>
 
-          {/* جدول ۲: اقلام مالی متمم (افزایش/کاهش مقادیر کارکرد) */}
+          {/* جدول ۲: اقلام مالی الحاقیه */}
           <Card className="border-border/80 shadow-sm">
             <div className="border-b border-border/80 px-4 py-3 bg-muted/10 font-bold text-xs text-right flex justify-between items-center">
-              <span>اقلام مالی متمم</span>
+              <span>اقلام مالی الحاقیه</span>
               <Button onClick={addFinancialRow} size="xs" variant="outline" className="text-blue-500 gap-1 border-blue-500/20 text-[10px] h-7">
                 <Plus className="h-3 w-3" />
                 جدید
@@ -939,7 +959,7 @@ export default function ContractSupplementForm() {
                             value={item.description}
                             onChange={(e) => handleFinancialItemChange(idx, "description", e.target.value)}
                             className="h-8 text-[11px] text-right border-none shadow-none focus-visible:ring-1"
-                            placeholder="شرح کار اضافی"
+                            placeholder="شرح کار"
                           />
                         </TableCell>
                         <TableCell className="p-1">
@@ -1004,10 +1024,10 @@ export default function ContractSupplementForm() {
             </CardContent>
           </Card>
 
-          {/* خلاصه وضعیت متمم‌ها */}
+          {/* خلاصه مبالغ */}
           <Card className="border-border/80 shadow-sm text-right bg-card">
             <div className="border-b border-border/80 p-3 font-bold text-xs bg-muted/10">
-              خلاصه وضعیت متمم‌ها
+              خلاصه مبالغ
             </div>
             <div className="p-4 space-y-4 text-xs">
               <div className="space-y-2 border-b pb-3">
@@ -1016,39 +1036,27 @@ export default function ContractSupplementForm() {
                   <span className="font-mono font-semibold">{Number(form.initial_amount).toLocaleString()} ریال</span>
                 </div>
                 <div className="flex justify-between items-center py-0.5">
-                  <span className="text-muted-foreground">جمع متمم‌های قبلی:</span>
-                  <span className="font-mono font-semibold">{Number(form.prev_supplements_amount).toLocaleString()} ریال</span>
+                  <span className="text-muted-foreground">جمع الحاقیه‌های قبلی:</span>
+                  <span className="font-mono font-semibold">{Number(form.prev_addenda_amount).toLocaleString()} ریال</span>
                 </div>
-                <div className="flex justify-between items-center py-0.5">
-                  <span className="text-muted-foreground">مبلغ این متمم:</span>
-                  <span className="font-mono font-semibold text-emerald-500">{Number(form.supplement_amount).toLocaleString()} ریال</span>
-                </div>
-                <div className="flex justify-between items-center py-0.5 font-bold text-blue-600">
-                  <span>جمع کل متمم‌ها:</span>
-                  <span className="font-mono">{Number(Number(form.prev_supplements_amount) + Number(form.supplement_amount)).toLocaleString()} ریال</span>
+                <div className="flex justify-between items-center py-0.5 font-bold text-emerald-500">
+                  <span>مبلغ این الحاقیه:</span>
+                  <span className="font-mono">{Number(form.addendum_amount).toLocaleString()} ریال</span>
                 </div>
                 <div className="flex justify-between items-center pt-1 font-bold text-foreground border-t border-dashed">
-                  <span>مبلغ پس از این متمم:</span>
+                  <span>جمع کل پس از الحاقیه:</span>
                   <span className="font-mono text-blue-600">{Number(form.new_total_amount).toLocaleString()} ریال</span>
                 </div>
               </div>
 
               <div className="space-y-2 pt-1">
-                <div className="flex justify-between items-center py-0.5">
-                  <span className="text-muted-foreground">مدت اولیه قرارداد:</span>
-                  <span className="font-mono font-semibold">{form.initial_duration} روز</span>
+                <div className="flex justify-between items-center py-0.5 font-bold text-amber-600">
+                  <span>درصد تغییر مبلغ:</span>
+                  <span className="font-mono">{form.amount_change_percent} %</span>
                 </div>
-                <div className="flex justify-between items-center py-0.5">
-                  <span className="text-muted-foreground">جمع تمدیدهای قبلی:</span>
-                  <span className="font-mono font-semibold">{form.prev_duration_extensions} روز</span>
-                </div>
-                <div className="flex justify-between items-center py-0.5 text-emerald-500">
-                  <span>تمدید مدت این متمم:</span>
-                  <span className="font-mono font-semibold">{form.supplement_duration} روز</span>
-                </div>
-                <div className="flex justify-between items-center pt-1 font-bold text-foreground border-t border-dashed">
-                  <span>مدت پس از این متمم:</span>
-                  <span className="font-mono text-blue-600">{form.new_total_duration} روز</span>
+                <div className="flex justify-between items-center py-0.5 font-bold text-amber-600">
+                  <span>درصد تغییر مدت:</span>
+                  <span className="font-mono">{form.duration_change_percent} %</span>
                 </div>
               </div>
             </div>
@@ -1056,30 +1064,14 @@ export default function ContractSupplementForm() {
 
         </div>
 
-        {/* بخش توضیحات */}
-        <Card className="border-border/80 shadow-sm bg-muted/5">
-          <div className="border-b border-border/80 p-3 font-bold text-xs bg-muted/10 text-right">
-            توضیحات
-          </div>
-          <CardContent className="p-3">
-            <textarea
-              value={form.remarks}
-              onChange={(e) => setForm((prev) => ({ ...prev, remarks: e.target.value }))}
-              rows={2}
-              className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-xs text-right focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              placeholder="توضیحات تکمیلی پیرامون متمم..."
-            />
-          </CardContent>
-        </Card>
-
       </div>
 
-      {/* مودال جستجوی متمم‌ها */}
+      {/* مودال جستجوی الحاقیه‌ها */}
       {showSearchModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <Card className="w-full max-w-3xl border-border/80 shadow-2xl max-h-[85vh] flex flex-col" dir="rtl">
             <div className="border-b border-border/80 p-4 bg-muted/10 flex justify-between items-center">
-              <span className="font-bold text-sm">لیست متمم‌های قرارداد ثبت شده</span>
+              <span className="font-bold text-sm">لیست الحاقیه‌های قرارداد ثبت شده</span>
               <button onClick={() => setShowSearchModal(false)} className="text-muted-foreground hover:text-foreground">
                 <X className="h-5 w-5" />
               </button>
@@ -1091,7 +1083,7 @@ export default function ContractSupplementForm() {
                 <Input
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="جستجو بر اساس شماره متمم، شماره قرارداد، نام پیمانکار..."
+                  placeholder="جستجو بر اساس شماره الحاقیه، شماره قرارداد، نام پیمانکار..."
                   className="h-9 pr-9 text-xs text-right w-full"
                 />
               </div>
@@ -1103,37 +1095,37 @@ export default function ContractSupplementForm() {
                   <TableHeader className="bg-muted/50">
                     <TableRow>
                       <TableHead className="text-right text-xs">ردیف</TableHead>
-                      <TableHead className="text-center text-xs">شماره متمم</TableHead>
+                      <TableHead className="text-center text-xs">شماره الحاقیه</TableHead>
                       <TableHead className="text-center text-xs">شماره قرارداد</TableHead>
                       <TableHead className="text-right text-xs">پیمانکار</TableHead>
-                      <TableHead className="text-center text-xs">تاریخ متمم</TableHead>
-                      <TableHead className="text-center text-xs">مبلغ متمم</TableHead>
+                      <TableHead className="text-center text-xs">تاریخ الحاقیه</TableHead>
+                      <TableHead className="text-center text-xs">مبلغ الحاقیه</TableHead>
                       <TableHead className="text-center text-xs">وضعیت</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredSupplements.map((s, idx) => (
+                    {filteredAddenda.map((a, idx) => (
                       <TableRow
-                        key={s._id}
-                        onClick={() => loadSupplementDetails(s)}
+                        key={a._id}
+                        onClick={() => loadAddendumDetails(a)}
                         className="cursor-pointer hover:bg-muted/40 transition-colors"
                       >
                         <TableCell className="text-xs">{idx + 1}</TableCell>
-                        <TableCell className="text-center text-xs font-semibold font-mono">{s.supplement_number}</TableCell>
-                        <TableCell className="text-center text-xs font-semibold font-mono">{s.contract_number}</TableCell>
-                        <TableCell className="text-right text-xs font-medium">{s.contractor_name}</TableCell>
-                        <TableCell className="text-center text-xs font-mono">{s.supplement_date}</TableCell>
-                        <TableCell className="text-center text-xs font-mono">{Number(s.supplement_amount || 0).toLocaleString()} ریال</TableCell>
+                        <TableCell className="text-center text-xs font-semibold font-mono">{a.addendum_number}</TableCell>
+                        <TableCell className="text-center text-xs font-semibold font-mono">{a.contract_number}</TableCell>
+                        <TableCell className="text-right text-xs font-medium">{a.contractor_name}</TableCell>
+                        <TableCell className="text-center text-xs font-mono">{a.addendum_date}</TableCell>
+                        <TableCell className="text-center text-xs font-mono">{Number(a.addendum_amount || 0).toLocaleString()} ریال</TableCell>
                         <TableCell className="text-center">
                           <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-500">
-                            {s.status}
+                            {a.status}
                           </span>
                         </TableCell>
                       </TableRow>
                     ))}
-                    {filteredSupplements.length === 0 && (
+                    {filteredAddenda.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center text-xs py-8 text-muted-foreground">متممی یافت نشد.</TableCell>
+                        <TableCell colSpan={7} className="text-center text-xs py-8 text-muted-foreground">الحاقیه‌ای یافت نشد.</TableCell>
                       </TableRow>
                     )}
                   </TableBody>

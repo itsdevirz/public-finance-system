@@ -30,6 +30,9 @@ const ProgressBillingForm = lazy(() => import("@/pages/ProgressBillingForm"));
 const ContractPaymentForm = lazy(() => import("@/pages/ContractPaymentForm"));
 const ContractGuaranteeForm = lazy(() => import("@/pages/ContractGuaranteeForm"));
 const ContractSupplementForm = lazy(() => import("@/pages/ContractSupplementForm"));
+const ContractAddendumForm = lazy(() => import("@/pages/ContractAddendumForm"));
+const ContractCard = lazy(() => import("@/pages/ContractCard"));
+const ContractChanges25Form = lazy(() => import("@/pages/ContractChanges25Form"));
 const Assets = lazy(() => import("@/modules/assets/pages/Assets"));
 const AssetGroupForm = lazy(() => import("@/modules/assets/pages/AssetGroupForm"));
 const AssetSubGroupForm = lazy(() => import("@/modules/assets/pages/AssetSubGroupForm"));
@@ -78,6 +81,15 @@ const DocumentTurnover = lazy(() => import("@/modules/reports/pages/DocumentTurn
 const DocumentStatus   = lazy(() => import("@/modules/reports/pages/DocumentStatus"));
 const SanamaExport     = lazy(() => import("@/modules/reports/pages/SanamaExport"));
 
+// Contract Reports
+const ContractDashboardReport = lazy(() => import("@/pages/ContractDashboardReport"));
+const ContractListReport = lazy(() => import("@/pages/ContractListReport"));
+const ContractPaymentsReport = lazy(() => import("@/pages/ContractPaymentsReport"));
+const ContractGuaranteesReport = lazy(() => import("@/pages/ContractGuaranteesReport"));
+const ContractDeductionsReport = lazy(() => import("@/pages/ContractDeductionsReport"));
+const ContractChangesReport = lazy(() => import("@/pages/ContractChangesReport"));
+const ContractPartiesReport = lazy(() => import("@/pages/ContractPartiesReport"));
+
 /** صفحاتی که پیاده‌سازی شده‌اند — بقیه خودکار Placeholder می‌شوند */
 export const PAGE_COMPONENTS = {
   "/ai/chat": AiChat,
@@ -125,6 +137,16 @@ export const PAGE_COMPONENTS = {
   "/reports/management/period-compare":        ManagementReport,
   "/reports/management/cost-analysis":         ManagementReport,
   "/reports/sanama-export":                    SanamaExport,
+  
+  // Contract Reports
+  "/reports/contracts/dashboard":              ContractDashboardReport,
+  "/reports/contracts/list":                   ContractListReport,
+  "/reports/contracts/payments":               ContractPaymentsReport,
+  "/reports/contracts/guarantees":             ContractGuaranteesReport,
+  "/reports/contracts/deductions":             ContractDeductionsReport,
+  "/reports/contracts/change-25":              ContractChangesReport,
+  "/reports/contracts/by-party":               ContractPartiesReport,
+
   "/basic-info": BasicInfo,
   "/basic-info/account-heads": AccountHeads,
   "/basic-info/document-setup/document-types": DocumentTypes,
@@ -138,6 +160,9 @@ export const PAGE_COMPONENTS = {
   "/basic-info/definitions/parties": ContractPartiesForm,
   "/basic-info/contracts/register": ContractRegistrationForm,
   "/basic-info/contracts/supplement": ContractSupplementForm,
+  "/basic-info/contracts/card": ContractCard,
+  "/basic-info/contracts/addendum": ContractAddendumForm,
+  "/basic-info/contracts/change-25": ContractChanges25Form,
   "/basic-info/contracts/progress-billing": ProgressBillingForm,
   "/basic-info/contracts/payment": ContractPaymentForm,
   "/basic-info/contracts/guarantee": ContractGuaranteeForm,

@@ -34,6 +34,7 @@ export const BASIC_INFO_SUB = [
       { to: "/basic-info/contracts/register",               label: "ثبت قرارداد" },
       { to: "/basic-info/contracts/addendum",               label: "ثبت الحاقیه" },
       { to: "/basic-info/contracts/supplement",             label: "ثبت متمم" },
+      { to: "/basic-info/contracts/card",                   label: "کارت قرارداد" },
       { to: "/basic-info/contracts/progress-billing",       label: "ثبت صورت وضعیت" },
       { to: "/basic-info/contracts/payment",                label: "پرداخت قرارداد" },
       { to: "/basic-info/contracts/guarantee",              label: "ثبت ضمانتنامه" },
@@ -170,7 +171,7 @@ export const TOP_NAV = [
         to: "/reports/contracts",
         label: "گزارش قراردادها",
         children: [
-          { to: "/reports/contracts/card",         label: "کارت قرارداد" },
+          { to: "/reports/contracts/dashboard",    label: "داشبورد" },
           { to: "/reports/contracts/list",         label: "گزارش قراردادها" },
           { to: "/reports/contracts/payments",     label: "گزارش پرداختها" },
           { to: "/reports/contracts/guarantees",   label: "گزارش ضمانتها" },

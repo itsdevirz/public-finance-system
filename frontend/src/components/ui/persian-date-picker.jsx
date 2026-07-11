@@ -40,21 +40,86 @@ function getDaysInMonth(jy, jm) {
 }
 
 // Convert Jalali to Gregorian to find weekday of the first day
-function jalaliToGregorian(jy, jm, jd) {
-  const jdn = jd + (jm - 1) * 31 - Math.floor(jm / 7) * (jm - 7) + Math.floor((jy - 474) / 2820) * 1029983 + Math.floor(((jy - 474) % 2820 + 312) / 33) * 12053 + Math.floor(((jy - 474) % 2820 + 312) % 33 * 365) + Math.floor(((jy - 474) % 2820 + 312) % 33 / 4) - 492688;
-  
-  let l = jdn + 68569;
-  const n = Math.floor((4 * l) / 146097);
-  l = l - Math.floor((146097 * n + 3) / 4);
-  const i = Math.floor((4000 * (l + 1)) / 1461001);
-  l = l - Math.floor((1461 * i) / 4) + 31;
-  const j = Math.floor((80 * l) / 2447);
-  const gd = l - Math.floor((2447 * j) / 80);
-  l = Math.floor(j / 11);
-  const gm = j + 2 - 12 * l;
-  const gy = 100 * (n - 49) + i + l;
-  
+export function jalaliToGregorian(jy, jm, jd) {
+  const sal_a = [0, 31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29];
+  let jy2 = jy - 979;
+  let jm2 = jm - 1;
+  let jd2 = jd - 1;
+  let days = jy2 * 365 + Math.floor(jy2 / 33) * 8 + Math.floor((jy2 % 33 + 3) / 4);
+  for (let i = 0; i <= jm2; ++i) days += sal_a[i];
+  days += jd2;
+  let g_day_no = days + 79;
+  let gy = 1600 + 400 * Math.floor(g_day_no / 146097);
+  g_day_no = g_day_no % 146097;
+  let leap = 1;
+  if (g_day_no >= 36525) {
+    g_day_no--;
+    gy += 100 * Math.floor(g_day_no / 36524);
+    g_day_no = g_day_no % 36524;
+    if (g_day_no >= 365) {
+      g_day_no++;
+    } else {
+      leap = 0;
+    }
+  }
+  gy += 4 * Math.floor(g_day_no / 1461);
+  g_day_no %= 1461;
+  if (g_day_no >= 366) {
+    leap = 0;
+    g_day_no--;
+    gy += Math.floor(g_day_no / 365);
+    g_day_no = g_day_no % 365;
+  }
+  let i;
+  const sal_g = [31, (leap ? 29 : 28), 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  for (i = 0; g_day_no >= sal_g[i]; i++) {
+    g_day_no -= sal_g[i];
+  }
+  let gm = i + 1;
+  let gd = g_day_no + 1;
   return new Date(gy, gm - 1, gd);
+}
+
+export function gregorianToJalali(date) {
+  const formatter = new Intl.DateTimeFormat('en-US-u-ca-persian', { year: 'numeric', month: 'numeric', day: 'numeric' });
+  const parts = formatter.formatToParts(date);
+  const y = parts.find(p => p.type === 'year').value;
+  const m = parts.find(p => p.type === 'month').value.padStart(2, '0');
+  const d = parts.find(p => p.type === 'day').value.padStart(2, '0');
+  return `${y}/${m}/${d}`;
+}
+
+export function parseJalaliDate(dateStr) {
+  if (!dateStr) return null;
+  const english = toEnglishDigits(dateStr);
+  const parts = english.split("/");
+  if (parts.length === 3) {
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    const d = parseInt(parts[2], 10);
+    if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+      return { y, m, d };
+    }
+  }
+  return null;
+}
+
+export function addDaysToJalali(dateStr, days) {
+  const parsed = parseJalaliDate(dateStr);
+  if (!parsed) return "";
+  const gDate = jalaliToGregorian(parsed.y, parsed.m, parsed.d);
+  gDate.setDate(gDate.getDate() + days);
+  return gregorianToJalali(gDate);
+}
+
+export function diffDaysJalali(dateStr1, dateStr2) {
+  const parsed1 = parseJalaliDate(dateStr1);
+  const parsed2 = parseJalaliDate(dateStr2);
+  if (!parsed1 || !parsed2) return 0;
+  const gDate1 = jalaliToGregorian(parsed1.y, parsed1.m, parsed1.d);
+  const gDate2 = jalaliToGregorian(parsed2.y, parsed2.m, parsed2.d);
+  const diffTime = gDate2.getTime() - gDate1.getTime();
+  return Math.round(diffTime / (1000 * 60 * 60 * 24));
 }
 
 function getWeekdayOfFirst(jy, jm) {
@@ -107,21 +172,20 @@ export function PersianDatePicker({ value = "", onChange, className = "", placeh
   }, []);
 
   const handleInputChange = (e) => {
-    let raw = toEnglishDigits(e.target.value).replace(/\D/g, "");
-    if (raw.length > 8) raw = raw.substring(0, 8);
-
-    let formatted = "";
-    if (raw.length > 0) {
-      formatted += raw.substring(0, 4);
-      if (raw.length > 4) {
-        formatted += "/" + raw.substring(4, 6);
-        if (raw.length > 6) {
-          formatted += "/" + raw.substring(6, 8);
-        }
-      }
-    }
-    const finalVal = toPersianDigits(formatted);
+    const val = e.target.value;
+    let filtered = toEnglishDigits(val).replace(/[^0-9/]/g, "");
+    if (filtered.length > 10) filtered = filtered.substring(0, 10);
+    const finalVal = toPersianDigits(filtered);
     onChange({ target: { value: finalVal } });
+  };
+
+  const handleInputBlur = (e) => {
+    let val = toEnglishDigits(e.target.value);
+    let digits = val.replace(/\D/g, "");
+    if (digits.length === 8) {
+      const formatted = `${digits.substring(0, 4)}/${digits.substring(4, 6)}/${digits.substring(6, 8)}`;
+      onChange({ target: { value: toPersianDigits(formatted) } });
+    }
   };
 
   const selectDay = (day) => {
@@ -190,6 +254,7 @@ export function PersianDatePicker({ value = "", onChange, className = "", placeh
           type="text"
           value={toPersianDigits(value)}
           onChange={handleInputChange}
+          onBlur={handleInputBlur}
           placeholder={toPersianDigits(placeholder)}
           disabled={disabled}
           required={required}

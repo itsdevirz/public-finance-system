@@ -6,7 +6,7 @@ export default function Contracts() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get("/api/contracts/")
+    api.get("/api/contracts")
       .then((res) => setData(res.data.data ?? []))
       .catch(console.error)
       .finally(() => setLoading(false));
