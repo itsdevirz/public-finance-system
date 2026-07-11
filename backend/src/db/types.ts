@@ -352,3 +352,54 @@ export interface ContractGuarantee {
   createdAt?: string;
   updatedAt?: string;
 }
+
+// ─── Contract Supplements ─────────────────────────────────────────────────────
+export interface ContractSupplement {
+  _id?: ObjectId;
+  supplement_number: string;
+  contract_id: string;
+  contract_number: string;
+  contract_title: string;
+  employer_name: string;
+  contractor_name: string;
+  supplement_type: string;
+  supplement_date: string;
+  approval_number?: string;
+  approval_date?: string;
+  status: string;
+
+  supplement_subject: string;
+  supplement_reason?: string;
+  description?: string;
+  remarks?: string;
+
+  initial_amount: number;
+  prev_supplements_amount: number;
+  supplement_amount: number;
+  new_total_amount: number;
+
+  initial_duration: number;
+  prev_duration_extensions: number;
+  supplement_duration: number;
+  new_total_duration: number;
+
+  financial_items: {
+    row_num: number;
+    description: string;
+    unit: string;
+    quantity: number;
+    unit_price: number;
+    total_amount: number;
+  }[];
+
+  time_adjustments: {
+    row_num: number;
+    description: string;
+    from_date: string;
+    to_date: string;
+    duration_days: number;
+  }[];
+
+  createdAt?: string;
+  updatedAt?: string;
+}

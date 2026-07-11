@@ -26,6 +26,7 @@ import contractPartiesRouter from "./routes/contractParties.js";
 import progressBillsRouter from "./routes/progressBills.js";
 import contractPaymentsRouter from "./routes/contractPayments.js";
 import contractGuaranteesRouter from "./routes/contractGuarantees.js";
+import contractSupplementsRouter from "./routes/contractSupplements.js";
 
 const app = new Hono();
 
@@ -94,6 +95,7 @@ app.route("/api/contract-parties", contractPartiesRouter);
 app.route("/api/progress-bills", progressBillsRouter);
 app.route("/api/contract-payments", contractPaymentsRouter);
 app.route("/api/contract-guarantees", contractGuaranteesRouter);
+app.route("/api/contract-supplements", contractSupplementsRouter);
 
 connectDb().then(() => {
   serve({ fetch: app.fetch, port: 8000 }, () => {
