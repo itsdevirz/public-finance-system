@@ -101,16 +101,16 @@ router.delete("/allocations/:id", async (c) => {
   return c.json({ message: "تخصیص با موفقیت حذف شد" });
 });
 
-// ─── Budget Requests (درخواست بودجه) ───────────────────────────────────────────
+// ─── Budget Requests (درخواست وجه) ───────────────────────────────────────────
 
 router.get("/requests", async (c) => {
   const data = await getDb().collection("budget_requests").find().toArray();
-  return c.json({ data: data.map((d) => serialize(d as Record<string, unknown>)), message: "لیست درخواست‌های بودجه" });
+  return c.json({ data: data.map((d) => serialize(d as Record<string, unknown>)), message: "لیست درخواست‌های وجه" });
 });
 
 router.post("/requests", async (c) => {
   const body = await c.req.json();
-  const request_number = `REQ-${body.fiscal_year}-${Date.now()}`;
+  const request_number = body.request_number || `REQ-${body.fiscal_year || 1403}-${Date.now()}`;
   const result = await getDb().collection("budget_requests").insertOne({
     ...body,
     request_number,
@@ -118,7 +118,7 @@ router.post("/requests", async (c) => {
     agreement_id: body.agreement_id ? new ObjectId(body.agreement_id) : undefined,
   });
   const inserted = await getDb().collection("budget_requests").findOne({ _id: result.insertedId });
-  return c.json({ message: "درخواست بودجه ثبت شد", data: serialize(inserted as Record<string, unknown>) }, 201);
+  return c.json({ message: "درخواست وجه ثبت شد", data: serialize(inserted as Record<string, unknown>) }, 201);
 });
 
 router.put("/requests/:id", async (c) => {
@@ -137,8 +137,8 @@ router.put("/requests/:id", async (c) => {
     },
     { returnDocument: "after" }
   );
-  if (!result) return c.json({ message: "درخواست بودجه یافت نشد" }, 404);
-  return c.json({ message: "درخواست بودجه با موفقیت ویرایش شد", data: serialize(result as Record<string, unknown>) });
+  if (!result) return c.json({ message: "درخواست وجه یافت نشد" }, 404);
+  return c.json({ message: "درخواست وجه با موفقیت ویرایش شد", data: serialize(result as Record<string, unknown>) });
 });
 
 router.delete("/requests/:id", async (c) => {
@@ -146,8 +146,8 @@ router.delete("/requests/:id", async (c) => {
   let oid: ObjectId;
   try { oid = new ObjectId(id); } catch { return c.json({ message: "شناسه نامعتبر است" }, 400); }
   const result = await getDb().collection("budget_requests").deleteOne({ _id: oid });
-  if (result.deletedCount === 0) return c.json({ message: "درخواست بودجه یافت نشد" }, 404);
-  return c.json({ message: "درخواست بودجه با موفقیت حذف شد" });
+  if (result.deletedCount === 0) return c.json({ message: "درخواست وجه یافت نشد" }, 404);
+  return c.json({ message: "درخواست وجه با موفقیت حذف شد" });
 });
 
 // ─── Receipts ─────────────────────────────────────────────────────────────────
@@ -402,7 +402,7 @@ async function seedMockBudgetData(db: any) {
     }
   ]);
 
-  // ثبت درخواست‌های بودجه فرضی متناظر
+  // ثبت درخواست‌های وجه فرضی متناظر
   const reqCount = await db.collection("budget_requests").countDocuments({});
   if (reqCount === 0) {
     await db.collection("budget_requests").insertMany([
@@ -414,7 +414,7 @@ async function seedMockBudgetData(db: any) {
         requesting_unit: "معاونت پشتیبانی و توسعه منابع",
         request_date: "1403/04/10",
         status: "approved",
-        description: "درخواست بودجه جهت خرید اقلام اداری"
+        description: "درخواست وجه جهت خرید اقلام اداری"
       },
       {
         request_number: "REQ-1403-502",

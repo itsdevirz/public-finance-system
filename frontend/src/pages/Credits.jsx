@@ -90,12 +90,136 @@ export default function Credits() {
     program_code: "", activity_code: "", chapter_code: "", description: ""
   });
 
-  // ── فرم درخواست بودجه ──
+  // ── فرم درخواست وجه ──
+  const [showForm, setShowForm] = useState(false);
   const [editingReq, setEditingReq] = useState(null);
-  const [reqForm, setReqForm] = useState({
-    fiscal_year: "", agreement_id: "", amount: "",
-    requesting_unit: "", request_date: "", description: "", status: "pending"
-  });
+
+  const getInitialReqForm = () => {
+    // Current shamsi date as default request date
+    let request_date = "";
+    try {
+      const todayFormatter = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { year: 'numeric', month: 'numeric', day: 'numeric' });
+      request_date = todayFormatter.format(new Date());
+    } catch (e) {}
+
+    return {
+      fiscal_year: "1403",
+      request_number: "",
+      request_date: request_date,
+      requesting_unit: "واحد مالی",
+      requester: "علی محمدی",
+      title: "",
+      description: "",
+      request_type: "پرداخت",
+      status: "pending",
+      priority: "عادی",
+      amount: 0,
+      amount_in_words: "",
+      project: "",
+      cost_center: "مرکز و عمومی",
+      agreement_id: "",
+
+      // Payment details
+      payment_type: "انتقال بانکی",
+      payment_due_date: "",
+      payment_account: "",
+      payment_method: "یک مرحله ای",
+      iban: "",
+      destination_bank: "",
+      destination_account: "",
+      recipient_name: "",
+      national_id: "",
+      payment_description: "",
+      attachments: [],
+
+      // Items
+      items: [
+        {
+          description_item: "",
+          code: 1, // Quantity multiplier
+          unit: "دستگاه",
+          unit_price: 0,
+          total_price: 0,
+          cost_center: "اداری و عمومی",
+          project: "",
+          description: ""
+        }
+      ]
+    };
+  };
+
+  const [reqForm, setReqForm] = useState(getInitialReqForm());
+
+  const handleItemChange = (index, field, value) => {
+    const updatedItems = [...reqForm.items];
+    const item = { ...updatedItems[index], [field]: value };
+    if (field === "code" || field === "unit_price") {
+      const qty = Number(item.code) || 0;
+      const price = Number(item.unit_price) || 0;
+      item.total_price = qty * price;
+    }
+    updatedItems[index] = item;
+    const totalAmount = updatedItems.reduce((sum, it) => sum + (it.total_price || 0), 0);
+    const amountInWords = numToPersianWords(totalAmount);
+    setReqForm({
+      ...reqForm,
+      items: updatedItems,
+      amount: totalAmount,
+      amount_in_words: amountInWords
+    });
+  };
+
+  const addItemRow = () => {
+    setReqForm({
+      ...reqForm,
+      items: [
+        ...reqForm.items,
+        {
+          description_item: "",
+          code: 1,
+          unit: "عدد",
+          unit_price: 0,
+          total_price: 0,
+          cost_center: "اداری و عمومی",
+          project: "",
+          description: ""
+        }
+      ]
+    });
+  };
+
+  const removeItemRow = (index) => {
+    if (reqForm.items.length <= 1) return;
+    const updatedItems = reqForm.items.filter((_, idx) => idx !== index);
+    const totalAmount = updatedItems.reduce((sum, it) => sum + (it.total_price || 0), 0);
+    const amountInWords = numToPersianWords(totalAmount);
+    setReqForm({
+      ...reqForm,
+      items: updatedItems,
+      amount: totalAmount,
+      amount_in_words: amountInWords
+    });
+  };
+
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files || []);
+    const newAttachments = files.map(file => ({
+      name: file.name,
+      size: (file.size / 1024).toFixed(1) + " KB",
+      type: file.type
+    }));
+    setReqForm({
+      ...reqForm,
+      attachments: [...reqForm.attachments, ...newAttachments]
+    });
+  };
+
+  const removeAttachment = (index) => {
+    setReqForm({
+      ...reqForm,
+      attachments: reqForm.attachments.filter((_, idx) => idx !== index)
+    });
+  };
 
   // ── فرم تخصیص اعتبار ──
   const [editingAlloc, setEditingAlloc] = useState(null);
@@ -183,11 +307,11 @@ export default function Credits() {
     }
   };
 
-  // ── مدیریت ارسال فرم درخواست بودجه ──
+  // ── مدیریت ارسال فرم درخواست وجه ──
   const handleReqSubmit = async (e) => {
-    e.preventDefault();
-    if (!reqForm.fiscal_year || !reqForm.agreement_id || !reqForm.amount || !reqForm.requesting_unit) {
-      setAlertMsg({ type: "error", text: "پر کردن فیلدهای ستاره‌دار الزامی است" });
+    if (e) e.preventDefault();
+    if (!reqForm.fiscal_year || !reqForm.amount || !reqForm.requesting_unit || !reqForm.title) {
+      setAlertMsg({ type: "error", text: "پر کردن فیلدهای ستاره‌دار (سال مالی، واحد درخواست دهنده، عنوان درخواست و مبلغ) الزامی است" });
       return;
     }
 
@@ -200,28 +324,59 @@ export default function Credits() {
 
       if (editingReq) {
         await api.put(`/api/credits/requests/${editingReq}`, payload);
-        setAlertMsg({ type: "success", text: "درخواست بودجه با موفقیت ویرایش شد" });
+        setAlertMsg({ type: "success", text: "درخواست وجه با موفقیت ویرایش شد" });
       } else {
         await api.post("/api/credits/requests", payload);
-        setAlertMsg({ type: "success", text: "درخواست بودجه با موفقیت ثبت شد" });
+        setAlertMsg({ type: "success", text: "درخواست وجه با موفقیت ثبت شد" });
       }
-      setReqForm({ fiscal_year: "", agreement_id: "", amount: "", requesting_unit: "", request_date: "", description: "", status: "pending" });
+      setReqForm(getInitialReqForm());
       setEditingReq(null);
+      setShowForm(false);
       fetchData();
     } catch (err) {
-      setAlertMsg({ type: "error", text: "خطا در ثبت درخواست بودجه" });
+      setAlertMsg({ type: "error", text: "خطا در ثبت درخواست وجه" });
     }
   };
 
-  // حذف درخواست بودجه
-  const handleReqDelete = async (id) => {
-    if (!confirm("آیا از حذف این درخواست بودجه اطمینان دارید؟")) return;
+  const handleSendForApproval = async () => {
+    if (!reqForm.fiscal_year || !reqForm.amount || !reqForm.requesting_unit || !reqForm.title) {
+      setAlertMsg({ type: "error", text: "پر کردن فیلدهای ستاره‌دار (سال مالی، واحد درخواست دهنده، عنوان درخواست و مبلغ) الزامی است" });
+      return;
+    }
+
     try {
-      await api.delete(`/api/credits/requests/${id}`);
-      setAlertMsg({ type: "success", text: "درخواست بودجه با موفقیت حذف شد" });
+      const payload = {
+        ...reqForm,
+        status: "approved",
+        fiscal_year: Number(reqForm.fiscal_year),
+        amount: Number(reqForm.amount)
+      };
+
+      if (editingReq) {
+        await api.put(`/api/credits/requests/${editingReq}`, payload);
+        setAlertMsg({ type: "success", text: "درخواست وجه با موفقیت ارسال و ویرایش شد" });
+      } else {
+        await api.post("/api/credits/requests", payload);
+        setAlertMsg({ type: "success", text: "درخواست وجه با موفقیت ثبت و ارسال شد" });
+      }
+      setReqForm(getInitialReqForm());
+      setEditingReq(null);
+      setShowForm(false);
       fetchData();
     } catch (err) {
-      setAlertMsg({ type: "error", text: "خطا در حذف درخواست بودجه" });
+      setAlertMsg({ type: "error", text: "خطا در ارسال درخواست وجه" });
+    }
+  };
+
+  // حذف درخواست وجه
+  const handleReqDelete = async (id) => {
+    if (!confirm("آیا از حذف این درخواست وجه اطمینان دارید؟")) return;
+    try {
+      await api.delete(`/api/credits/requests/${id}`);
+      setAlertMsg({ type: "success", text: "درخواست وجه با موفقیت حذف شد" });
+      fetchData();
+    } catch (err) {
+      setAlertMsg({ type: "error", text: "خطا در حذف درخواست وجه" });
     }
   };
 
@@ -335,7 +490,7 @@ export default function Credits() {
   if (pathname === "/credits") {
     return (
       <PageShell>
-        <PageHeader title="داشبورد و مدیریت اعتبارات" description="فرآیندهای موافقت‌نامه، درخواست بودجه، تخصیص و ابلاغ اعتبار دستگاه" />
+        <PageHeader title="داشبورد و مدیریت اعتبارات" description="فرآیندهای موافقت‌نامه، درخواست وجه، تخصیص و ابلاغ اعتبار دستگاه" />
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6" dir="rtl">
           <Card className="bg-gradient-to-br from-blue-50 to-blue-100/50 border-blue-200">
             <CardContent className="pt-6 flex items-center justify-between">
@@ -351,7 +506,7 @@ export default function Credits() {
           <Card className="bg-gradient-to-br from-amber-50 to-amber-100/50 border-amber-200">
             <CardContent className="pt-6 flex items-center justify-between">
               <div className="text-right">
-                <p className="text-xs text-amber-600 font-semibold">کل درخواست‌های بودجه</p>
+                <p className="text-xs text-amber-600 font-semibold">کل درخواست‌های وجه</p>
                 <h3 className="text-lg font-bold mt-1 text-amber-900 font-mono">{fmtNum(totalRequested)} <span className="text-[10px]">ریال</span></h3>
               </div>
               <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-600">
@@ -398,7 +553,7 @@ export default function Credits() {
           <Card className="hover:border-amber-300 transition-all cursor-pointer" onClick={() => navigate("/credits/requests")}>
             <CardHeader className="text-right pb-2">
               <CardTitle className="text-sm font-bold text-amber-800 flex items-center gap-2">
-                <FileSpreadsheet className="h-4 w-4" /> درخواست بودجه
+                <FileSpreadsheet className="h-4 w-4" /> درخواست وجه
               </CardTitle>
             </CardHeader>
             <CardContent className="text-right text-xs text-muted-foreground">
@@ -586,7 +741,7 @@ export default function Credits() {
     );
   }
 
-  // ─── ۳. صفحه درخواست بودجه ────────────────────────────────────────────────
+  // ─── ۳. صفحه درخواست وجه ────────────────────────────────────────────────
   if (pathname === "/credits/requests") {
     // گزینه‌های موافقت‌نامه برای سلکت باکس
     const agrOptions = agreements
@@ -596,9 +751,633 @@ export default function Credits() {
         label: `${a.title} (کل مصوب: ${fmtNum(a.total_amount)} ریال)`
       }));
 
+    if (showForm) {
+      // FULL PAGE FORM VIEW
+      return (
+        <PageShell>
+          <div className="bg-background rounded-2xl border shadow-sm overflow-hidden" dir="rtl">
+            {/* Form Top Header */}
+            <div className="bg-muted/30 px-6 py-4 border-b flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileSpreadsheet className="h-5 w-5 text-amber-600 animate-pulse" />
+                <h2 className="text-base font-bold text-foreground">درخواست وجه</h2>
+              </div>
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted" onClick={() => { setShowForm(false); setEditingReq(null); setReqForm(getInitialReqForm()); }}>
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+
+            {/* Alert Message */}
+            {alertMsg && (
+              <div className={cn("m-4 p-4 rounded-xl border flex items-center gap-2 text-sm justify-between",
+                alertMsg.type === "success" ? "bg-emerald-50 border-emerald-200 text-emerald-800" : "bg-rose-50 border-rose-200 text-rose-800")}>
+                <div className="flex items-center gap-2">
+                  {alertMsg.type === "success" ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
+                  <span>{alertMsg.text}</span>
+                </div>
+                <button onClick={() => setAlertMsg(null)}><X className="h-4 w-4" /></button>
+              </div>
+            )}
+
+            <div className="p-6 space-y-6">
+              {/* SECTION 1: اطلاعات اصلی */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 border-b pb-2">
+                  <span className="h-2 w-2 rounded-full bg-blue-600"></span>
+                  <h3 className="text-sm font-bold text-blue-700">اطلاعات اصلی</h3>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 text-right">
+                  {/* Right Column of General Info */}
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-3 items-center gap-2">
+                      <Label className="text-xs font-semibold text-muted-foreground">شماره درخواست :</Label>
+                      <div className="col-span-2">
+                        <Input 
+                          value={reqForm.request_number} 
+                          onChange={e => setReqForm({ ...reqForm, request_number: e.target.value })} 
+                          placeholder="مثال: ۱۴۰۳/۰۳/۰۰۱۲ (یا خالی برای تولید خودکار)" 
+                          className="h-9 text-xs" 
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 items-center gap-2">
+                      <Label className="text-xs font-semibold text-muted-foreground">تاریخ درخواست <span className="text-rose-500">*</span> :</Label>
+                      <div className="col-span-2">
+                        <PersianDatePicker 
+                          value={reqForm.request_date} 
+                          onChange={e => setReqForm({ ...reqForm, request_date: e.target.value })} 
+                          placeholder="۱۴۰۳/۰۳/۲۰" 
+                          className="h-9 text-xs" 
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 items-center gap-2">
+                      <Label className="text-xs font-semibold text-muted-foreground">واحد درخواست دهنده <span className="text-rose-500">*</span> :</Label>
+                      <div className="col-span-2">
+                        <SearchableSelect 
+                          value={reqForm.requesting_unit} 
+                          onChange={val => setReqForm({ ...reqForm, requesting_unit: val })} 
+                          options={[
+                            { value: "واحد مالی", label: "واحد مالی" },
+                            { value: "اداره کل فناوری اطلاعات", label: "اداره کل فناوری اطلاعات" },
+                            { value: "اداره کل عمران و بهسازی", label: "اداره کل عمران و بهسازی" },
+                            { value: "معاونت پشتیبانی و توسعه منابع", label: "معاونت پشتیبانی و توسعه منابع" },
+                          ]} 
+                          placeholder="انتخاب واحد..." 
+                          searchable={true} 
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 items-center gap-2">
+                      <Label className="text-xs font-semibold text-muted-foreground">درخواست دهنده <span className="text-rose-500">*</span> :</Label>
+                      <div className="col-span-2">
+                        <SearchableSelect 
+                          value={reqForm.requester} 
+                          onChange={val => setReqForm({ ...reqForm, requester: val })} 
+                          options={[
+                            { value: "علی محمدی", label: "علی محمدی" },
+                            { value: "رضا علوی", label: "رضا علوی" },
+                            { value: "مریم رضایی", label: "مریم رضایی" },
+                          ]} 
+                          placeholder="انتخاب درخواست دهنده..." 
+                          searchable={true} 
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 items-center gap-2">
+                      <Label className="text-xs font-semibold text-muted-foreground">عنوان درخواست <span className="text-rose-500">*</span> :</Label>
+                      <div className="col-span-2">
+                        <Input 
+                          value={reqForm.title} 
+                          onChange={e => setReqForm({ ...reqForm, title: e.target.value })} 
+                          placeholder="مثال: پرداخت هزینه خرید تجهیزات اداری" 
+                          className="h-9 text-xs" 
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 items-start gap-2">
+                      <Label className="text-xs font-semibold text-muted-foreground pt-2">شرح درخواست :</Label>
+                      <div className="col-span-2">
+                        <textarea 
+                          value={reqForm.description} 
+                          onChange={e => setReqForm({ ...reqForm, description: e.target.value })} 
+                          placeholder="شرح کامل علت درخواست..." 
+                          className="w-full min-h-[80px] rounded-md border border-input bg-transparent px-3 py-2 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Left Column of General Info */}
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-3 items-center gap-2">
+                      <Label className="text-xs font-semibold text-muted-foreground">نوع درخواست :</Label>
+                      <div className="col-span-2">
+                        <SearchableSelect 
+                          value={reqForm.request_type} 
+                          onChange={val => setReqForm({ ...reqForm, request_type: val })} 
+                          options={[
+                            { value: "پرداخت", label: "پرداخت" },
+                            { value: "پیش‌پرداخت", label: "پیش‌پرداخت" },
+                            { value: "علی‌الحساب", label: "علی‌الحساب" },
+                          ]} 
+                          placeholder="نوع..." 
+                          searchable={false} 
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 items-center gap-2">
+                      <Label className="text-xs font-semibold text-muted-foreground">وضعیت :</Label>
+                      <div className="col-span-2">
+                        <SearchableSelect 
+                          value={reqForm.status} 
+                          onChange={val => setReqForm({ ...reqForm, status: val })} 
+                          options={[
+                            { value: "pending", label: "در حال بررسی" },
+                            { value: "approved", label: "تایید شده" },
+                            { value: "rejected", label: "رد شده" },
+                          ]} 
+                          placeholder="وضعیت..." 
+                          searchable={false} 
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 items-center gap-2">
+                      <Label className="text-xs font-semibold text-muted-foreground">اولویت :</Label>
+                      <div className="col-span-2">
+                        <SearchableSelect 
+                          value={reqForm.priority} 
+                          onChange={val => setReqForm({ ...reqForm, priority: val })} 
+                          options={[
+                            { value: "عادی", label: "عادی" },
+                            { value: "فوری", label: "فوری" },
+                            { value: "آنی", label: "آنی" },
+                          ]} 
+                          placeholder="اولویت..." 
+                          searchable={false} 
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 items-center gap-2">
+                      <Label className="text-xs font-semibold text-muted-foreground">مبلغ درخواستی (ریال) :</Label>
+                      <div className="col-span-2 relative">
+                        <Input 
+                          type="text"
+                          value={fmtNum(reqForm.amount)} 
+                          readOnly 
+                          className="h-9 text-xs pl-8 font-mono bg-muted font-bold text-amber-800" 
+                          dir="ltr"
+                        />
+                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">ریال</span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 items-center gap-2">
+                      <Label className="text-xs font-semibold text-muted-foreground">ارز :</Label>
+                      <div className="col-span-2">
+                        <SearchableSelect 
+                          value={reqForm.currency || "ریال"} 
+                          onChange={val => setReqForm({ ...reqForm, currency: val })} 
+                          options={[
+                            { value: "ریال", label: "ریال" },
+                            { value: "دلار", label: "دلار" },
+                            { value: "یورو", label: "یورو" },
+                          ]} 
+                          placeholder="ارز..." 
+                          searchable={false} 
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 items-center gap-2">
+                      <Label className="text-xs font-semibold text-muted-foreground">مبلغ به حروف :</Label>
+                      <div className="col-span-2">
+                        <Input 
+                          value={reqForm.amount_in_words || "صفر ریال"} 
+                          readOnly 
+                          className="h-9 text-xs bg-muted text-amber-700 font-medium" 
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 items-center gap-2">
+                      <Label className="text-xs font-semibold text-muted-foreground">پروژه :</Label>
+                      <div className="col-span-2">
+                        <SearchableSelect 
+                          value={reqForm.project} 
+                          onChange={val => setReqForm({ ...reqForm, project: val })} 
+                          options={[
+                            { value: "", label: "انتخاب کنید" },
+                            { value: "پروژه خرید تجهیزات اداری و ملزومات", label: "پروژه خرید تجهیزات اداری و ملزومات" },
+                            { value: "پروژه هوشمندسازی سیستم مالی", label: "پروژه هوشمندسازی سیستم مالی" },
+                          ]} 
+                          placeholder="انتخاب پروژه..." 
+                          searchable={true} 
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 items-center gap-2">
+                      <Label className="text-xs font-semibold text-muted-foreground">سال مالی ارجاع :</Label>
+                      <div className="col-span-2">
+                        <SearchableSelect value={reqForm.fiscal_year} onChange={val => setReqForm({ ...reqForm, fiscal_year: val, agreement_id: "" })} options={fiscalYears} placeholder="سال..." searchable={false} />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 items-center gap-2">
+                      <Label className="text-xs font-semibold text-muted-foreground">موافقت‌نامه مرجع :</Label>
+                      <div className="col-span-2">
+                        <SearchableSelect value={reqForm.agreement_id} onChange={val => setReqForm({ ...reqForm, agreement_id: val })} options={agrOptions} placeholder="بدون موافقت‌نامه مرجع..." searchable={true} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* SECTION 2: جزئیات پرداخت */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 border-b pb-2">
+                  <span className="h-2 w-2 rounded-full bg-blue-600"></span>
+                  <h3 className="text-sm font-bold text-blue-700">جزئیات پرداخت</h3>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 text-right">
+                  {/* Right Column of Payment Details */}
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-3 items-center gap-2">
+                      <Label className="text-xs font-semibold text-muted-foreground">نوع پرداخت :</Label>
+                      <div className="col-span-2">
+                        <SearchableSelect 
+                          value={reqForm.payment_type} 
+                          onChange={val => setReqForm({ ...reqForm, payment_type: val })} 
+                          options={[
+                            { value: "انتقال بانکی", label: "انتقال بانکی" },
+                            { value: "چک", label: "چک" },
+                            { value: "کارت به کارت", label: "کارت به کارت" },
+                            { value: "نقدی / تنخواه", label: "نقدی / تنخواه" },
+                          ]} 
+                          placeholder="انتخاب نوع پرداخت..." 
+                          searchable={false} 
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 items-center gap-2">
+                      <Label className="text-xs font-semibold text-muted-foreground">حساب پرداختی :</Label>
+                      <div className="col-span-2">
+                        <SearchableSelect 
+                          value={reqForm.payment_account} 
+                          onChange={val => setReqForm({ ...reqForm, payment_account: val })} 
+                          options={[
+                            { value: "بانک ملت - حساب جاری 12345678", label: "بانک ملت - حساب جاری 12345678" },
+                            { value: "بانک ملی - حساب جاری 87654321", label: "بانک ملی - حساب جاری 87654321" },
+                          ]} 
+                          placeholder="انتخاب حساب بانکی..." 
+                          searchable={true} 
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 items-center gap-2">
+                      <Label className="text-xs font-semibold text-muted-foreground">شماره شبا :</Label>
+                      <div className="col-span-2">
+                        <Input 
+                          value={reqForm.iban} 
+                          onChange={e => setReqForm({ ...reqForm, iban: e.target.value })} 
+                          placeholder="IR12 0123 4567 8901 2345 6789 01" 
+                          className="h-9 text-xs font-mono" 
+                          dir="ltr"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 items-center gap-2">
+                      <Label className="text-xs font-semibold text-muted-foreground">بانک مقصد :</Label>
+                      <div className="col-span-2">
+                        <SearchableSelect 
+                          value={reqForm.destination_bank} 
+                          onChange={val => setReqForm({ ...reqForm, destination_bank: val })} 
+                          options={[
+                            { value: "بانک سامان", label: "بانک سامان" },
+                            { value: "بانک ملت", label: "بانک ملت" },
+                            { value: "بانک ملی", label: "بانک ملی" },
+                            { value: "بانک تجارت", label: "بانک تجارت" },
+                          ]} 
+                          placeholder="انتخاب بانک..." 
+                          searchable={true} 
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 items-center gap-2">
+                      <Label className="text-xs font-semibold text-muted-foreground">شماره حساب مقصد :</Label>
+                      <div className="col-span-2">
+                        <Input 
+                          value={reqForm.destination_account} 
+                          onChange={e => setReqForm({ ...reqForm, destination_account: e.target.value })} 
+                          placeholder="987654321098" 
+                          className="h-9 text-xs font-mono" 
+                          dir="ltr"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 items-center gap-2">
+                      <Label className="text-xs font-semibold text-muted-foreground">شخص/شرکت دریافت کننده :</Label>
+                      <div className="col-span-2">
+                        <Input 
+                          value={reqForm.recipient_name} 
+                          onChange={e => setReqForm({ ...reqForm, recipient_name: e.target.value })} 
+                          placeholder="شرکت نوین سیستم" 
+                          className="h-9 text-xs" 
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 items-center gap-2">
+                      <Label className="text-xs font-semibold text-muted-foreground">شناسه ملی / کد اقتصادی :</Label>
+                      <div className="col-span-2">
+                        <Input 
+                          value={reqForm.national_id} 
+                          onChange={e => setReqForm({ ...reqForm, national_id: e.target.value })} 
+                          placeholder="12345678901" 
+                          className="h-9 text-xs font-mono" 
+                          dir="ltr"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Left Column of Payment Details */}
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-3 items-center gap-2">
+                      <Label className="text-xs font-semibold text-muted-foreground">موعد پرداخت :</Label>
+                      <div className="col-span-2">
+                        <PersianDatePicker 
+                          value={reqForm.payment_due_date} 
+                          onChange={e => setReqForm({ ...reqForm, payment_due_date: e.target.value })} 
+                          placeholder="۱۴۰۳/۰۳/۲۵" 
+                          className="h-9 text-xs" 
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 items-center gap-2">
+                      <Label className="text-xs font-semibold text-muted-foreground">روش پرداخت :</Label>
+                      <div className="col-span-2">
+                        <SearchableSelect 
+                          value={reqForm.payment_method} 
+                          onChange={val => setReqForm({ ...reqForm, payment_method: val })} 
+                          options={[
+                            { value: "یک مرحله ای", label: "یک مرحله ای" },
+                            { value: "چند مرحله ای", label: "چند مرحله ای" },
+                          ]} 
+                          placeholder="روش پرداخت..." 
+                          searchable={false} 
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 items-start gap-2">
+                      <Label className="text-xs font-semibold text-muted-foreground pt-1.5">پیوست ها :</Label>
+                      <div className="col-span-2 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <label className="flex items-center gap-1.5 px-3 py-1.5 bg-muted hover:bg-muted/70 rounded-md border text-[11px] cursor-pointer transition-colors font-medium">
+                            <Plus className="h-3.5 w-3.5" />
+                            افزودن فایل
+                            <input 
+                              type="file" 
+                              multiple 
+                              onChange={handleFileChange} 
+                              className="hidden" 
+                            />
+                          </label>
+                        </div>
+
+                        {reqForm.attachments && reqForm.attachments.length > 0 && (
+                          <div className="space-y-1.5">
+                            {reqForm.attachments.map((file, fileIdx) => (
+                              <div key={fileIdx} className="flex items-center justify-between p-2 rounded-lg border bg-muted/20 text-xs gap-3">
+                                <div className="flex items-center gap-1.5 truncate">
+                                  <FileText className="h-4 w-4 text-red-500 shrink-0" />
+                                  <span className="font-semibold text-foreground/80 truncate" title={file.name}>{file.name}</span>
+                                  <span className="text-[10px] text-muted-foreground font-mono shrink-0">({file.size})</span>
+                                </div>
+                                <Button 
+                                  type="button" 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-5 w-5 text-rose-500 hover:text-rose-700" 
+                                  onClick={() => removeAttachment(fileIdx)}
+                                >
+                                  <X className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 items-start gap-2">
+                      <Label className="text-xs font-semibold text-muted-foreground pt-2">توضیحات پرداخت :</Label>
+                      <div className="col-span-2">
+                        <textarea 
+                          value={reqForm.payment_description} 
+                          onChange={e => setReqForm({ ...reqForm, payment_description: e.target.value })} 
+                          placeholder="لطفا در اسرع وقت اقدام شود." 
+                          className="w-full min-h-[100px] rounded-md border border-input bg-transparent px-3 py-2 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* SECTION 3: اقلام درخواست */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between border-b pb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-blue-600"></span>
+                    <h3 className="text-sm font-bold text-blue-700">اقلام درخواست</h3>
+                  </div>
+                  <Button type="button" size="sm" variant="outline" onClick={addItemRow} className="h-8 gap-1 text-xs border-dashed">
+                    <Plus className="h-3.5 w-3.5" /> افزودن سطر جدید
+                  </Button>
+                </div>
+
+                <div className="overflow-x-auto rounded-xl border">
+                  <table className="w-full text-xs text-right border-collapse">
+                    <thead>
+                      <tr className="bg-muted/70 border-b font-bold text-muted-foreground text-center">
+                        <th className="px-2 py-2 w-10">ردیف</th>
+                        <th className="px-3 py-2 min-w-[200px] text-right">شرح کالا / خدمت <span className="text-rose-500">*</span></th>
+                        <th className="px-2 py-2 w-24">کد کالا</th>
+                        <th className="px-2 py-2 w-24">واحد</th>
+                        <th className="px-3 py-2 w-36">مبلغ واحد (ریال) <span className="text-rose-500">*</span></th>
+                        <th className="px-3 py-2 w-40">مبلغ کل (ریال)</th>
+                        <th className="px-3 py-2 w-32">مرکز هزینه</th>
+                        <th className="px-3 py-2 w-32">پروژه</th>
+                        <th className="px-3 py-2 min-w-[150px]">شرح</th>
+                        <th className="px-2 py-2 w-10">حذف</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reqForm.items.map((item, index) => (
+                        <tr key={index} className="border-b hover:bg-muted/10 transition-colors">
+                          <td className="px-2 py-2.5 text-center font-semibold text-muted-foreground">{index + 1}</td>
+                          <td className="px-2 py-2">
+                            <Input 
+                              value={item.description_item} 
+                              onChange={e => handleItemChange(index, "description_item", e.target.value)} 
+                              placeholder="مثال: پرینتر لیزری HP 401dn"
+                              required
+                              className="h-8 text-xs bg-transparent"
+                            />
+                          </td>
+                          <td className="px-2 py-2">
+                            <Input 
+                              type="number"
+                              value={item.code} 
+                              onChange={e => handleItemChange(index, "code", Number(e.target.value))} 
+                              className="h-8 text-xs text-center font-mono bg-transparent"
+                              min="1"
+                            />
+                          </td>
+                          <td className="px-2 py-2">
+                            <select
+                              value={item.unit}
+                              onChange={e => handleItemChange(index, "unit", e.target.value)}
+                              className="h-8 w-full rounded-md border border-input bg-transparent px-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                            >
+                              <option value="دستگاه">دستگاه</option>
+                              <option value="عدد">عدد</option>
+                              <option value="بسته">بسته</option>
+                              <option value="شاخه">شاخه</option>
+                              <option value="متر">متر</option>
+                              <option value="خدمت">خدمت</option>
+                            </select>
+                          </td>
+                          <td className="px-2 py-2">
+                            <Input 
+                              type="number"
+                              value={item.unit_price} 
+                              onChange={e => handleItemChange(index, "unit_price", Number(e.target.value))} 
+                              placeholder="مبلغ واحد..."
+                              required
+                              className="h-8 text-xs font-mono text-center bg-transparent"
+                            />
+                          </td>
+                          <td className="px-2 py-2">
+                            <Input 
+                              type="text"
+                              value={fmtNum(item.total_price)} 
+                              readOnly 
+                              className="h-8 text-xs text-center font-mono font-bold bg-muted text-emerald-800"
+                            />
+                          </td>
+                          <td className="px-2 py-2">
+                            <select
+                              value={item.cost_center || "اداری و عمومی"}
+                              onChange={e => handleItemChange(index, "cost_center", e.target.value)}
+                              className="h-8 w-full rounded-md border border-input bg-transparent px-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                            >
+                              <option value="اداری و عمومی">اداری و عمومی</option>
+                              <option value="پشتیبانی">پشتیبانی</option>
+                              <option value="فناوری اطلاعات">فناوری اطلاعات</option>
+                            </select>
+                          </td>
+                          <td className="px-2 py-2">
+                            <Input 
+                              value={item.project} 
+                              onChange={e => handleItemChange(index, "project", e.target.value)} 
+                              placeholder="پروژه..."
+                              className="h-8 text-xs bg-transparent"
+                            />
+                          </td>
+                          <td className="px-2 py-2">
+                            <Input 
+                              value={item.description} 
+                              onChange={e => handleItemChange(index, "description", e.target.value)} 
+                              placeholder="توضیحات قلم..."
+                              className="h-8 text-xs bg-transparent"
+                            />
+                          </td>
+                          <td className="px-2 py-2 text-center">
+                            <Button 
+                              type="button" 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-7 w-7 text-rose-500 hover:text-rose-700 disabled:opacity-40" 
+                              disabled={reqForm.items.length <= 1}
+                              onClick={() => removeItemRow(index)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                      {/* Total row */}
+                      <tr className="bg-muted/40 font-bold border-t">
+                        <td colSpan={2} className="px-3 py-3 text-left">جمع کل :</td>
+                        <td className="px-2 py-3 text-center font-mono">—</td>
+                        <td className="px-2 py-3 text-center text-muted-foreground">—</td>
+                        <td className="px-3 py-3 text-center text-muted-foreground">—</td>
+                        <td className="px-3 py-3 text-center font-mono text-emerald-900 text-sm font-extrabold bg-emerald-50/50">
+                          {fmtNum(reqForm.amount)} ریال
+                        </td>
+                        <td colSpan={4} className="px-3 py-3"></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Form Bottom Buttons Actions */}
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-4 border-t pt-6">
+                <div className="flex items-center gap-2">
+                  <Button type="button" variant="outline" className="h-9 text-xs" onClick={() => { setShowForm(false); setEditingReq(null); setReqForm(getInitialReqForm()); }}>
+                    بازگشت
+                  </Button>
+                  <Button type="submit" className="h-9 text-xs bg-blue-600 hover:bg-blue-700 text-white gap-1.5">
+                    <Save className="h-4 w-4" /> ذخیره
+                  </Button>
+                  <Button type="button" className="h-9 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5" onClick={handleSendForApproval}>
+                    <CheckCircle2 className="h-4 w-4" /> ارسال برای تایید
+                  </Button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button type="button" variant="outline" className="h-9 text-xs gap-1.5" onClick={() => window.print()}>
+                    <FileText className="h-4 w-4" /> چاپ
+                  </Button>
+                  <Button type="button" variant="outline" className="h-9 text-xs gap-1.5">
+                    <SearchableSelect placeholder="پیش نمایش" searchable={false} options={[{ value: "1", label: "پیش نمایش فرم" }]} className="border-0 w-24 h-7" />
+                  </Button>
+                  <Button type="button" variant="outline" className="h-9 text-xs gap-1.5">
+                    <RefreshCw className="h-4 w-4" /> سابقه گردش کار
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </PageShell>
+      );
+    }
+
+    // LIST VIEW
     return (
       <PageShell>
-        <PageHeader title="درخواست بودجه" description="ثبت و پیگیری تقاضای تخصیص و ابلاغ اعتبار توسط واحدهای سازمانی" />
+        <PageHeader title="درخواست وجه" description="ثبت و پیگیری تقاضای تخصیص و ابلاغ اعتبار توسط واحدهای سازمانی" />
         
         {alertMsg && (
           <div className={cn("p-4 mb-4 rounded-xl border flex items-center gap-2 text-sm justify-between",
@@ -611,167 +1390,121 @@ export default function Credits() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6" dir="rtl">
-          {/* فرم ثبت درخواست */}
-          <Card className="lg:col-span-1">
-            <CardHeader className="text-right">
-              <CardTitle className="text-sm font-bold flex items-center gap-2">
-                <FileSpreadsheet className="h-4 w-4 text-amber-600" />
-                {editingReq ? "ویرایش درخواست بودجه" : "درخواست بودجه جدید"}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleReqSubmit} className="space-y-4 text-right">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold">سال مالی <span className="text-rose-500">*</span></Label>
-                    <SearchableSelect value={reqForm.fiscal_year} onChange={val => setReqForm({ ...reqForm, fiscal_year: val, agreement_id: "" })} options={fiscalYears} placeholder="سال..." searchable={false} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold">تاریخ درخواست</Label>
-                    <PersianDatePicker value={reqForm.request_date} onChange={e => setReqForm({ ...reqForm, request_date: e.target.value })} placeholder="۱۴۰۳/۰۴/۱۰" className="h-9 text-xs" />
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">انتخاب موافقت‌نامه مرجع <span className="text-rose-500">*</span></Label>
-                  <SearchableSelect value={reqForm.agreement_id} onChange={val => setReqForm({ ...reqForm, agreement_id: val })} options={agrOptions} placeholder="موافقت‌نامه..." searchable={true} />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold">واحد درخواست‌کننده <span className="text-rose-500">*</span></Label>
-                    <SearchableSelect value={reqForm.requesting_unit} onChange={val => setReqForm({ ...reqForm, requesting_unit: val })} options={[
-                      { value: "معاونت پشتیبانی و توسعه منابع", label: "معاونت پشتیبانی و توسعه منابع" },
-                      { value: "اداره کل فناوری اطلاعات", label: "اداره کل فناوری اطلاعات" },
-                      { value: "اداره کل عمران و بهسازی", label: "اداره کل عمران و بهسازی" },
-                    ]} placeholder="انتخاب واحد..." searchable={true} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold">وضعیت درخواست</Label>
-                    <SearchableSelect value={reqForm.status} onChange={val => setReqForm({ ...reqForm, status: val })} options={[
-                      { value: "pending", label: "در انتظار بررسی" },
-                      { value: "approved", label: "تایید شده" },
-                      { value: "rejected", label: "رد شده" },
-                    ]} placeholder="وضعیت..." searchable={false} />
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">مبلغ درخواستی (ریال) <span className="text-rose-500">*</span></Label>
-                  <Input type="number" value={reqForm.amount} onChange={e => setReqForm({ ...reqForm, amount: e.target.value })} placeholder="مبلغ ریالی..." className="font-mono pl-8" dir="ltr" />
-                  {reqForm.amount && (
-                    <p className="text-[10px] text-amber-600 bg-amber-50/50 p-2 rounded border border-amber-100 font-semibold mt-1">
-                      {numToPersianWords(reqForm.amount)}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">توضیحات</Label>
-                  <Input value={reqForm.description} onChange={e => setReqForm({ ...reqForm, description: e.target.value })} placeholder="توضیحات درخواست..." />
-                </div>
-
-                <div className="flex gap-2 pt-2">
-                  <Button type="submit" size="sm" className="flex-1 gap-1.5 bg-amber-600 hover:bg-amber-700 text-white">
-                    <Save className="h-4 w-4" /> ثبت درخواست
-                  </Button>
-                  {editingReq && (
-                    <Button type="button" variant="outline" size="sm" onClick={() => {
-                      setEditingReq(null);
-                      setReqForm({ fiscal_year: "", agreement_id: "", amount: "", requesting_unit: "", request_date: "", description: "", status: "pending" });
-                    }}>
-                      انصراف
-                    </Button>
-                  )}
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-
-          {/* جدول درخواست ها */}
-          <Card className="lg:col-span-2">
-            <CardHeader className="text-right flex items-center justify-between flex-row">
-              <CardTitle className="text-sm font-bold">لیست درخواست‌های بودجه</CardTitle>
-              <Button variant="outline" size="icon" className="h-7 w-7" onClick={fetchData} disabled={loading}>
+        <Card dir="rtl" className="w-full">
+          <CardHeader className="text-right flex items-center justify-between flex-row">
+            <CardTitle className="text-sm font-bold text-foreground">لیست درخواست‌های ثبت شده وجه</CardTitle>
+            <div className="flex items-center gap-2">
+              <Button onClick={() => { setShowForm(true); setEditingReq(null); setReqForm(getInitialReqForm()); }} className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-1.5 text-xs font-semibold h-8 px-3 rounded-lg">
+                <Plus className="h-4 w-4" /> ثبت درخواست وجه جدید
+              </Button>
+              <Button variant="outline" size="icon" className="h-8 w-8" onClick={fetchData} disabled={loading}>
                 <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
               </Button>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs text-right">
-                  <thead>
-                    <tr className="bg-muted/50 border-b font-bold text-muted-foreground">
-                      <th className="px-3 py-2.5">شماره سند / واحد متقاضی</th>
-                      <th className="px-3 py-2.5 text-center w-24">سال مالی</th>
-                      <th className="px-3 py-2.5 text-center w-36">موافقت‌نامه مرجع</th>
-                      <th className="px-3 py-2.5 text-center w-32">مبلغ درخواستی (ریال)</th>
-                      <th className="px-3 py-2.5 text-center w-24">وضعیت</th>
-                      <th className="px-3 py-2.5 text-center w-20">عملیات</th>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-right">
+                <thead>
+                  <tr className="bg-muted/50 border-b font-bold text-muted-foreground text-center">
+                    <th className="px-3 py-3 text-right">شماره درخواست / واحد متقاضی / عنوان</th>
+                    <th className="px-3 py-3 w-28">تاریخ درخواست</th>
+                    <th className="px-3 py-3 w-24">سال مالی</th>
+                    <th className="px-3 py-3 w-36">درخواست دهنده</th>
+                    <th className="px-3 py-3 w-36">مبلغ درخواستی (ریال)</th>
+                    <th className="px-3 py-3 w-28">وضعیت</th>
+                    <th className="px-3 py-3 w-24">عملیات</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {requests.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-12 text-center text-muted-foreground">
+                        هیچ درخواست وجهی ثبت نشده است
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {requests.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="py-12 text-center text-muted-foreground">
-                          هیچ درخواست بودجه‌ای ثبت نشده است
-                        </td>
-                      </tr>
-                    ) : (
-                      requests.map((req) => {
-                        const relatedAgr = agreements.find(a => String(a._id) === String(req.agreement_id));
-                        return (
-                          <tr key={req._id} className="border-b hover:bg-muted/30">
-                            <td className="px-3 py-3">
-                              <span className="font-semibold text-amber-700">{req.request_number}</span>
-                              <div className="text-[10px] font-bold text-foreground mt-0.5">{req.requesting_unit}</div>
-                              {req.description && <div className="text-[9px] text-muted-foreground font-normal mt-0.5">{req.description}</div>}
-                            </td>
-                            <td className="px-3 py-3 text-center font-mono">{req.fiscal_year}</td>
-                            <td className="px-3 py-3 text-center text-muted-foreground truncate max-w-[150px]" title={relatedAgr?.title}>
-                              {relatedAgr?.title || "—"}
-                            </td>
-                            <td className="px-3 py-3 text-center font-mono font-bold text-amber-900">{fmtNum(req.amount)}</td>
-                            <td className="px-3 py-3 text-center">
-                              <Badge className={cn("text-[9px] font-bold text-white border-0",
-                                req.status === "approved" && "bg-emerald-600",
-                                req.status === "pending" && "bg-amber-500",
-                                req.status === "rejected" && "bg-rose-600"
-                              )}>
-                                {req.status === "approved" ? "تایید شده" : req.status === "rejected" ? "رد شده" : "در انتظار"}
-                              </Badge>
-                            </td>
-                            <td className="px-3 py-3 text-center">
-                              <div className="flex gap-1.5 justify-center">
-                                <Button variant="ghost" size="icon" className="h-6 w-6 text-amber-600" onClick={() => {
-                                  setEditingReq(req._id);
-                                  setReqForm({
-                                    fiscal_year: req.fiscal_year ? String(req.fiscal_year) : "",
-                                    agreement_id: req.agreement_id ? String(req.agreement_id) : "",
-                                    amount: req.amount ? String(req.amount) : "",
-                                    requesting_unit: req.requesting_unit ?? "",
-                                    request_date: req.request_date ?? "",
-                                    description: req.description ?? "",
-                                    status: req.status ?? "pending"
-                                  });
-                                }}>
-                                  <Edit className="h-3.5 w-3.5" />
-                                </Button>
-                                <Button variant="ghost" size="icon" className="h-6 w-6 text-rose-600" onClick={() => handleReqDelete(req._id)}>
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                  ) : (
+                    requests.map((req) => {
+                      return (
+                        <tr key={req._id} className="border-b hover:bg-muted/30">
+                          <td className="px-3 py-3.5 text-right">
+                            <span className="font-semibold text-amber-700">{req.request_number}</span>
+                            <div className="text-[10px] font-bold text-foreground mt-0.5">{req.requesting_unit}</div>
+                            <div className="text-[10px] text-muted-foreground font-medium mt-0.5">موضوع: {req.title || req.description || "—"}</div>
+                          </td>
+                          <td className="px-3 py-3.5 text-center font-mono text-muted-foreground">{req.request_date || "—"}</td>
+                          <td className="px-3 py-3.5 text-center font-mono">{req.fiscal_year}</td>
+                          <td className="px-3 py-3.5 text-center">{req.requester || "—"}</td>
+                          <td className="px-3 py-3.5 text-center font-mono font-bold text-amber-900">{fmtNum(req.amount)}</td>
+                          <td className="px-3 py-3.5 text-center">
+                            <Badge className={cn("text-[9px] font-bold text-white border-0 px-2 py-0.5",
+                              req.status === "approved" && "bg-emerald-600",
+                              req.status === "pending" && "bg-amber-500",
+                              req.status === "rejected" && "bg-rose-600"
+                            )}>
+                              {req.status === "approved" ? "تایید شده" : req.status === "rejected" ? "رد شده" : "در انتظار"}
+                            </Badge>
+                          </td>
+                          <td className="px-3 py-3.5 text-center">
+                            <div className="flex gap-1.5 justify-center">
+                              <Button variant="ghost" size="icon" className="h-6 w-6 text-amber-600" onClick={() => {
+                                setEditingReq(req._id);
+                                setReqForm({
+                                  fiscal_year: req.fiscal_year ? String(req.fiscal_year) : "1403",
+                                  agreement_id: req.agreement_id ? String(req.agreement_id) : "",
+                                  request_number: req.request_number ?? "",
+                                  request_date: req.request_date ?? "",
+                                  requesting_unit: req.requesting_unit ?? "واحد مالی",
+                                  requester: req.requester ?? "علی محمدی",
+                                  title: req.title ?? "",
+                                  description: req.description ?? "",
+                                  request_type: req.request_type ?? "پرداخت",
+                                  status: req.status ?? "pending",
+                                  priority: req.priority ?? "عادی",
+                                  amount: req.amount ?? 0,
+                                  amount_in_words: req.amount_in_words ?? "",
+                                  project: req.project ?? "",
+                                  cost_center: req.cost_center ?? "مرکز و عمومی",
+                                  payment_type: req.payment_type ?? "انتقال بانکی",
+                                  payment_due_date: req.payment_due_date ?? "",
+                                  payment_account: req.payment_account ?? "",
+                                  payment_method: req.payment_method ?? "یک مرحله ای",
+                                  iban: req.iban ?? "",
+                                  destination_bank: req.destination_bank ?? "",
+                                  destination_account: req.destination_account ?? "",
+                                  recipient_name: req.recipient_name ?? "",
+                                  national_id: req.national_id ?? "",
+                                  payment_description: req.payment_description ?? "",
+                                  attachments: req.attachments ?? [],
+                                  items: req.items && req.items.length > 0 ? req.items : [{
+                                    description_item: "",
+                                    code: 1,
+                                    unit: "دستگاه",
+                                    unit_price: 0,
+                                    total_price: 0,
+                                    cost_center: "اداری و عمومی",
+                                    project: "",
+                                    description: ""
+                                  }]
+                                });
+                                setShowForm(true);
+                              }}>
+                                <Edit className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-6 w-6 text-rose-600" onClick={() => handleReqDelete(req._id)}>
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
       </PageShell>
     );
   }

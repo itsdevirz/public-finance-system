@@ -405,8 +405,8 @@ export const TOP_NAV = [
     subItems: [
       { to: "/credits", label: "داشبورد اعتبارات" },
       { to: "/credits/agreements", label: "ثبت موافقت‌نامه" },
-      { to: "/credits/requests", label: "درخواست بودجه" },
       { to: "/credits/allocation-no-doc", label: "تخصیص اعتبار" },
+      { to: "/credits/requests", label: "درخواست وجه" },
       { to: "/credits/notification/request", label: "ابلاغ و انتقال اعتبار" },
     ]
   },
