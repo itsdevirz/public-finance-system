@@ -118,6 +118,7 @@ export default function Credits() {
       project: "",
       cost_center: "مرکز و عمومی",
       agreement_id: "",
+      allocation_id: "",
 
       // Payment details
       payment_type: "انتقال بانکی",
@@ -232,7 +233,7 @@ export default function Credits() {
   const [editingDel, setEditingDel] = useState(null);
   const [delForm, setDelForm] = useState({
     fiscal_year: "", amount: "", from_unit: "مرکز",
-    to_unit: "", delegation_date: "", description: ""
+    to_unit: "", delegation_date: "", description: "", request_id: ""
   });
 
   // بارگذاری داده‌ها
@@ -310,9 +311,25 @@ export default function Credits() {
   // ── مدیریت ارسال فرم درخواست وجه ──
   const handleReqSubmit = async (e) => {
     if (e) e.preventDefault();
-    if (!reqForm.fiscal_year || !reqForm.amount || !reqForm.requesting_unit || !reqForm.title) {
-      setAlertMsg({ type: "error", text: "پر کردن فیلدهای ستاره‌دار (سال مالی، واحد درخواست دهنده، عنوان درخواست و مبلغ) الزامی است" });
+    if (!reqForm.fiscal_year || !reqForm.amount || !reqForm.requesting_unit || !reqForm.title || !reqForm.allocation_id) {
+      setAlertMsg({ type: "error", text: "پر کردن فیلدهای ستاره‌دار (سال مالی، واحد درخواست دهنده، عنوان درخواست، تخصیص اعتبار مرجع و مبلغ) الزامی است" });
       return;
+    }
+
+    // Validate that request amount does not exceed remaining allocation amount
+    const selectedAlloc = allocations.find(al => String(al._id) === String(reqForm.allocation_id));
+    if (selectedAlloc) {
+      const currentRequested = requests
+        .filter(r => String(r.allocation_id) === String(reqForm.allocation_id) && String(r._id) !== editingReq)
+        .reduce((sum, r) => sum + (r.amount ?? 0), 0);
+      const remaining = selectedAlloc.amount - currentRequested;
+      if (Number(reqForm.amount) > remaining) {
+        setAlertMsg({
+          type: "error",
+          text: `مبلغ درخواست وجه از سقف باقیمانده تخصیص اعتبار مربوطه (${fmtNum(remaining)} ریال) بیشتر است.`
+        });
+        return;
+      }
     }
 
     try {
@@ -339,9 +356,25 @@ export default function Credits() {
   };
 
   const handleSendForApproval = async () => {
-    if (!reqForm.fiscal_year || !reqForm.amount || !reqForm.requesting_unit || !reqForm.title) {
-      setAlertMsg({ type: "error", text: "پر کردن فیلدهای ستاره‌دار (سال مالی، واحد درخواست دهنده، عنوان درخواست و مبلغ) الزامی است" });
+    if (!reqForm.fiscal_year || !reqForm.amount || !reqForm.requesting_unit || !reqForm.title || !reqForm.allocation_id) {
+      setAlertMsg({ type: "error", text: "پر کردن فیلدهای ستاره‌دار (سال مالی، واحد درخواست دهنده، عنوان درخواست، تخصیص اعتبار مرجع و مبلغ) الزامی است" });
       return;
+    }
+
+    // Validate that request amount does not exceed remaining allocation amount
+    const selectedAlloc = allocations.find(al => String(al._id) === String(reqForm.allocation_id));
+    if (selectedAlloc) {
+      const currentRequested = requests
+        .filter(r => String(r.allocation_id) === String(reqForm.allocation_id) && String(r._id) !== editingReq)
+        .reduce((sum, r) => sum + (r.amount ?? 0), 0);
+      const remaining = selectedAlloc.amount - currentRequested;
+      if (Number(reqForm.amount) > remaining) {
+        setAlertMsg({
+          type: "error",
+          text: `مبلغ درخواست وجه از سقف باقیمانده تخصیص اعتبار مربوطه (${fmtNum(remaining)} ریال) بیشتر است.`
+        });
+        return;
+      }
     }
 
     try {
@@ -441,9 +474,25 @@ export default function Credits() {
   // ── مدیریت ارسال فرم تفویض / ابلاغ ──
   const handleDelSubmit = async (e) => {
     e.preventDefault();
-    if (!delForm.fiscal_year || !delForm.amount || !delForm.to_unit) {
-      setAlertMsg({ type: "error", text: "پر کردن فیلدهای ستاره‌دار الزامی است" });
+    if (!delForm.fiscal_year || !delForm.amount || !delForm.to_unit || !delForm.request_id) {
+      setAlertMsg({ type: "error", text: "پر کردن فیلدهای ستاره‌دار (سال مالی، مبلغ، واحد مقصد و درخواست وجه مرجع) الزامی است" });
       return;
+    }
+
+    // Validate that delegation amount does not exceed remaining request amount
+    const selectedReq = requests.find(r => String(r._id) === String(delForm.request_id));
+    if (selectedReq) {
+      const currentDelegated = delegations
+        .filter(d => String(d.request_id) === String(delForm.request_id) && String(d._id) !== editingDel)
+        .reduce((sum, d) => sum + (d.amount ?? 0), 0);
+      const remaining = selectedReq.amount - currentDelegated;
+      if (Number(delForm.amount) > remaining) {
+        setAlertMsg({
+          type: "error",
+          text: `مبلغ ابلاغ اعتبار از سقف باقیمانده درخواست وجه مربوطه (${fmtNum(remaining)} ریال) بیشتر است.`
+        });
+        return;
+      }
     }
 
     try {
@@ -460,7 +509,7 @@ export default function Credits() {
         await api.post("/api/credits/delegations", payload);
         setAlertMsg({ type: "success", text: "ابلاغ اعتبار با موفقیت ثبت شد" });
       }
-      setDelForm({ fiscal_year: "", amount: "", from_unit: "مرکز", to_unit: "", delegation_date: "", description: "" });
+      setDelForm({ fiscal_year: "", amount: "", from_unit: "مرکز", to_unit: "", delegation_date: "", description: "", request_id: "" });
       setEditingDel(null);
       fetchData();
     } catch (err) {
@@ -743,6 +792,43 @@ export default function Credits() {
 
   // ─── ۳. صفحه درخواست وجه ────────────────────────────────────────────────
   if (pathname === "/credits/requests") {
+    if (allocations.length === 0) {
+      return (
+        <PageShell>
+          <PageHeader title="درخواست وجه" description="ثبت و پیگیری تقاضای تخصیص و ابلاغ اعتبار توسط واحدهای سازمانی" />
+          <Card dir="rtl" className="max-w-xl mx-auto mt-12 border-rose-100 bg-rose-50/50">
+            <CardHeader className="text-right flex flex-row items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-600 shrink-0">
+                <ShieldAlert className="h-5 w-5" />
+              </div>
+              <CardTitle className="text-sm font-bold text-rose-900">فرم درخواست وجه قفل است</CardTitle>
+            </CardHeader>
+            <CardContent className="text-right text-xs text-rose-800 space-y-4">
+              <p>لطفاً ابتدا از بخش «تخصیص اعتبار»، حداقل یک تخصیص اعتبار ثبت کنید تا فرم درخواست وجه برای شما باز شود.</p>
+              <Button onClick={() => navigate("/credits/allocation-no-doc")} className="bg-rose-600 hover:bg-rose-700 text-white text-xs h-8 px-4 rounded-lg">
+                ورود به تخصیص اعتبار
+              </Button>
+            </CardContent>
+          </Card>
+        </PageShell>
+      );
+    }
+
+    // گزینه‌های تخصیص اعتبار برای سلکت باکس
+    const allocOptions = allocations
+      .filter(al => !reqForm.fiscal_year || Number(al.fiscal_year) === Number(reqForm.fiscal_year))
+      .map(al => {
+        const referenceAgr = agreements.find(a => String(a._id) === String(al.agreement_id));
+        const currentRequested = requests
+          .filter(r => String(r.allocation_id) === String(al._id) && String(r._id) !== editingReq)
+          .reduce((sum, r) => sum + (r.amount ?? 0), 0);
+        const remaining = al.amount - currentRequested;
+        return {
+          value: String(al._id),
+          label: `تخصیص: ${al.allocation_number || "نامشخص"} | بابت: ${referenceAgr?.title || "موافق‌نامه نامشخص"} | باقیمانده: ${fmtNum(remaining)} ریال`
+        };
+      });
+
     // گزینه‌های موافقت‌نامه برای سلکت باکس
     const agrOptions = agreements
       .filter(a => !reqForm.fiscal_year || Number(a.fiscal_year) === Number(reqForm.fiscal_year))
@@ -989,14 +1075,27 @@ export default function Credits() {
                     <div className="grid grid-cols-3 items-center gap-2">
                       <Label className="text-xs font-semibold text-muted-foreground">سال مالی ارجاع :</Label>
                       <div className="col-span-2">
-                        <SearchableSelect value={reqForm.fiscal_year} onChange={val => setReqForm({ ...reqForm, fiscal_year: val, agreement_id: "" })} options={fiscalYears} placeholder="سال..." searchable={false} />
+                        <SearchableSelect value={reqForm.fiscal_year} onChange={val => setReqForm({ ...reqForm, fiscal_year: val, agreement_id: "", allocation_id: "" })} options={fiscalYears} placeholder="سال..." searchable={false} />
                       </div>
                     </div>
 
                     <div className="grid grid-cols-3 items-center gap-2">
-                      <Label className="text-xs font-semibold text-muted-foreground">موافقت‌نامه مرجع :</Label>
+                      <Label className="text-xs font-semibold text-muted-foreground">تخصیص اعتبار مرجع <span className="text-rose-500">*</span> :</Label>
                       <div className="col-span-2">
-                        <SearchableSelect value={reqForm.agreement_id} onChange={val => setReqForm({ ...reqForm, agreement_id: val })} options={agrOptions} placeholder="بدون موافقت‌نامه مرجع..." searchable={true} />
+                        <SearchableSelect 
+                          value={reqForm.allocation_id} 
+                          onChange={val => {
+                            const selectedAlloc = allocations.find(al => String(al._id) === String(val));
+                            setReqForm({ 
+                              ...reqForm, 
+                              allocation_id: val, 
+                              agreement_id: selectedAlloc ? String(selectedAlloc.agreement_id) : "" 
+                            });
+                          }} 
+                          options={allocOptions} 
+                          placeholder="انتخاب تخصیص اعتبار مرجع..." 
+                          searchable={true} 
+                        />
                       </div>
                     </div>
                   </div>
@@ -1452,6 +1551,7 @@ export default function Credits() {
                                 setReqForm({
                                   fiscal_year: req.fiscal_year ? String(req.fiscal_year) : "1403",
                                   agreement_id: req.agreement_id ? String(req.agreement_id) : "",
+                                  allocation_id: req.allocation_id ? String(req.allocation_id) : "",
                                   request_number: req.request_number ?? "",
                                   request_date: req.request_date ?? "",
                                   requesting_unit: req.requesting_unit ?? "واحد مالی",
@@ -1511,6 +1611,27 @@ export default function Credits() {
 
   // ─── ۴. صفحه تخصیص اعتبار ───────────────────────────────────────────────────
   if (pathname === "/credits/allocation-no-doc") {
+    if (agreements.length === 0) {
+      return (
+        <PageShell>
+          <PageHeader title="تخصیص بودجه و اعتبار" description="اختصاص مبالغ بودجه بر اساس موافقت‌نامه‌های مصوب" />
+          <Card dir="rtl" className="max-w-xl mx-auto mt-12 border-rose-100 bg-rose-50/50">
+            <CardHeader className="text-right flex flex-row items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-rose-5050/10 flex items-center justify-center text-rose-600 shrink-0">
+                <ShieldAlert className="h-5 w-5" />
+              </div>
+              <CardTitle className="text-sm font-bold text-rose-900">فرم تخصیص اعتبار قفل است</CardTitle>
+            </CardHeader>
+            <CardContent className="text-right text-xs text-rose-800 space-y-4">
+              <p>لطفاً ابتدا از بخش «ثبت موافقت‌نامه»، حداقل یک موافقت‌نامه مالی ثبت کنید تا بتوانید اقدام به تخصیص اعتبار نمایید.</p>
+              <Button onClick={() => navigate("/credits/agreements")} className="bg-rose-600 hover:bg-rose-700 text-white text-xs h-8 px-4 rounded-lg">
+                ورود به ثبت موافقت‌نامه
+              </Button>
+            </CardContent>
+          </Card>
+        </PageShell>
+      );
+    }
     // گزینه‌های موافقت‌نامه برای سلکت باکس
     const agreementOptions = agreements
       .filter(a => !allocForm.fiscal_year || Number(a.fiscal_year) === Number(allocForm.fiscal_year))
@@ -1686,6 +1807,42 @@ export default function Credits() {
 
   // ─── ۵. صفحه تفویض و ابلاغ اعتبار ────────────────────────────────────────────
   if (pathname === "/credits/notification/request") {
+    if (requests.length === 0) {
+      return (
+        <PageShell>
+          <PageHeader title="ابلاغ اعتبار و انتقال بودجه" description="ابلاغ اعتبار مصوب به معاونت‌ها و ادارات تابعه" />
+          <Card dir="rtl" className="max-w-xl mx-auto mt-12 border-rose-100 bg-rose-50/50">
+            <CardHeader className="text-right flex flex-row items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-600 shrink-0">
+                <ShieldAlert className="h-5 w-5" />
+              </div>
+              <CardTitle className="text-sm font-bold text-rose-900">فرم ابلاغ اعتبار قفل است</CardTitle>
+            </CardHeader>
+            <CardContent className="text-right text-xs text-rose-800 space-y-4">
+              <p>لطفاً ابتدا از بخش «درخواست وجه»، حداقل یک درخواست ثبت کنید تا فرم ابلاغ اعتبار برای شما باز شود.</p>
+              <Button onClick={() => navigate("/credits/requests")} className="bg-rose-600 hover:bg-rose-700 text-white text-xs h-8 px-4 rounded-lg">
+                ورود به درخواست وجه
+              </Button>
+            </CardContent>
+          </Card>
+        </PageShell>
+      );
+    }
+
+    // گزینه‌های درخواست وجه برای سلکت باکس
+    const requestOptions = requests
+      .filter(r => !delForm.fiscal_year || Number(r.fiscal_year) === Number(delForm.fiscal_year))
+      .map(r => {
+        const currentDelegated = delegations
+          .filter(d => String(d.request_id) === String(r._id) && String(d._id) !== editingDel)
+          .reduce((sum, d) => sum + (d.amount ?? 0), 0);
+        const remaining = r.amount - currentDelegated;
+        return {
+          value: String(r._id),
+          label: `درخواست: ${r.request_number || "نامشخص"} | واحد: ${r.requesting_unit} | باقیمانده: ${fmtNum(remaining)} ریال`
+        };
+      });
+
     return (
       <PageShell>
         <PageHeader title="ابلاغ اعتبار و انتقال بودجه" description="ابلاغ اعتبار مصوب به معاونت‌ها و ادارات تابعه" />
@@ -1715,12 +1872,40 @@ export default function Credits() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-xs font-semibold">سال مالی <span className="text-rose-500">*</span></Label>
-                    <SearchableSelect value={delForm.fiscal_year} onChange={val => setDelForm({ ...delForm, fiscal_year: val })} options={fiscalYears} placeholder="سال..." searchable={false} />
+                    <SearchableSelect value={delForm.fiscal_year} onChange={val => setDelForm({ ...delForm, fiscal_year: val, request_id: "" })} options={fiscalYears} placeholder="سال..." searchable={false} />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs font-semibold">تاریخ ابلاغ</Label>
                     <PersianDatePicker value={delForm.delegation_date} onChange={e => setDelForm({ ...delForm, delegation_date: e.target.value })} placeholder="۱۴۰۳/۰۴/۱۵" className="h-9 text-xs" />
                   </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold">درخواست وجه مرجع <span className="text-rose-500">*</span></Label>
+                  <SearchableSelect 
+                    value={delForm.request_id} 
+                    onChange={val => {
+                      const selectedReq = requests.find(r => String(r._id) === String(val));
+                      if (selectedReq) {
+                        const currentDelegated = delegations
+                          .filter(d => String(d.request_id) === String(val) && String(d._id) !== editingDel)
+                          .reduce((sum, d) => sum + (d.amount ?? 0), 0);
+                        const remaining = selectedReq.amount - currentDelegated;
+                        setDelForm({
+                          ...delForm,
+                          request_id: val,
+                          amount: String(remaining),
+                          to_unit: selectedReq.requesting_unit || "",
+                          description: `ابلاغ اعتبار بابت درخواست وجه شماره ${selectedReq.request_number} - ${selectedReq.title || ""}`
+                        });
+                      } else {
+                        setDelForm({ ...delForm, request_id: val });
+                      }
+                    }} 
+                    options={requestOptions} 
+                    placeholder="انتخاب درخواست وجه مرجع..." 
+                    searchable={true} 
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -1819,7 +2004,8 @@ export default function Credits() {
                                   setDelForm({
                                     fiscal_year: String(del.fiscal_year), amount: String(del.amount),
                                     from_unit: del.from_unit ?? "مرکز", to_unit: del.to_unit ?? "",
-                                    delegation_date: del.delegation_date ?? "", description: del.description ?? ""
+                                    delegation_date: del.delegation_date ?? "", description: del.description ?? "",
+                                    request_id: del.request_id ?? ""
                                   });
                                 }}>
                                 <Edit className="h-3.5 w-3.5" />
