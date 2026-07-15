@@ -38,6 +38,8 @@ import purchasePowerRatesRouter from "./routes/purchasePowerRates.js";
 import penaltyRatesRouter from "./routes/penaltyRates.js";
 import contractTerminationsRouter from "./routes/contractTerminations.js";
 import contractCancellationsRouter from "./routes/contractCancellations.js";
+import depreciationSetupsRouter from "./routes/depreciationSetups.js";
+import monthlyDepreciationsRouter from "./routes/monthlyDepreciations.js";
 
 
 
@@ -126,6 +128,8 @@ app.route("/api/purchase-power-rates", purchasePowerRatesRouter);
 app.route("/api/penalty-rates", penaltyRatesRouter);
 app.route("/api/contract-terminations", contractTerminationsRouter);
 app.route("/api/contract-cancellations", contractCancellationsRouter);
+app.route("/api/depreciation-setups", depreciationSetupsRouter);
+app.route("/api/monthly-depreciations", monthlyDepreciationsRouter);
 
 
 

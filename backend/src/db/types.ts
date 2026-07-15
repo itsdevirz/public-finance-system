@@ -53,7 +53,7 @@ export interface ContractDeduction {
   amount?: number;
 }
 
-export interface ContractPayment {
+export interface ContractPaymentSubItem {
   payment_date?: string;
   amount?: number;
   description?: string;
@@ -88,7 +88,7 @@ export interface Contract {
   purchase_power_rate?: number;
   has_addendum?: boolean;
   deductions?: ContractDeduction[];
-  payments?: ContractPayment[];
+  payments?: ContractPaymentSubItem[];
   addenda?: ContractAddendum[];
 }
 
@@ -448,6 +448,42 @@ export interface ContractPayment {
   create_voucher?: boolean;
   send_to_accounting?: boolean;
 
+  // New financial and accounting integration fields
+  accounting_moein_code?: string;
+  contractor_detail_code?: string;
+  budget_line_code?: string;
+  funding_source?: string;
+  prepayment_amortization?: number;
+  imprest_amortization?: number;
+  other_additions?: number;
+  approved_gross_amount?: number;
+  vat_acceptable?: number;
+  supplement_id?: string;
+
+  // New documents/attachments and log fields
+  attachments?: {
+    row_num: number;
+    name: string;
+    type: string;
+    size: string;
+    date: string;
+  }[];
+  related_vouchers?: {
+    voucher_number: string;
+    voucher_date: string;
+    voucher_type: string;
+    voucher_status: string;
+    amount: number;
+    description?: string;
+  }[];
+  history_logs?: {
+    row_num: number;
+    user: string;
+    date: string;
+    action: string;
+    comment?: string;
+  }[];
+
   createdAt?: string;
   updatedAt?: string;
 }
@@ -669,6 +705,134 @@ export interface ContractChange25Document {
   license_date?: string;
   status: string;
   approval_remarks?: string;
+
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// ─── Depreciation Setup ────────────────────────────────────────────────────────
+export interface DepreciationSetup {
+  _id?: ObjectId;
+  setup_code: string;
+  title: string;
+  status: "فعال" | "غیرفعال";
+  fiscal_year: number;
+  start_date: string;
+  end_date?: string;
+
+  scope: {
+    asset_group?: string;
+    asset_subgroup?: string;
+    cost_center?: string;
+    project?: string;
+    location?: string;
+    org_unit?: string;
+    ownership_type?: string;
+    company?: string;
+  };
+
+  calc_method: {
+    method: "خط مستقیم" | "نزولی" | "نزولی مضاعف" | "مجموع سنوات" | "بر اساس کارکرد" | "بر اساس تولید" | "سفارشی";
+    period: "ماهانه" | "فصلی" | "سالانه";
+    basis: "ارزش خرید" | "ارزش دفتری" | "ارزش جایگزینی";
+    salvage_value: number;
+    useful_life: number;
+    useful_life_unit: "سال" | "ماه";
+    rounding: "بدون گرد کردن" | "گرد به ریال" | "گرد به هزار" | "گرد به میلیون";
+  };
+
+  accounting: {
+    expense_account_code?: string;
+    expense_account_name?: string;
+    accumulated_depr_account_code?: string;
+    accumulated_depr_account_name?: string;
+    default_cost_center?: string;
+    default_project?: string;
+    voucher_desc_template?: string;
+    voucher_numbering?: "خودکار" | "دستی";
+  };
+
+  calc_settings: {
+    calc_from_utilization?: boolean;
+    calc_from_purchase?: boolean;
+    first_month_depr?: "کامل" | "نصف" | "بر اساس روز";
+    calc_last_month?: boolean;
+    stop_after_useful_life?: boolean;
+    skip_scrapped_assets?: boolean;
+    skip_sold_assets?: boolean;
+    auto_calc_on_close_month?: boolean;
+    auto_issue_voucher?: boolean;
+  };
+
+  notes?: string;
+  creator?: string;
+  attachments?: {
+    row_num: number;
+    name: string;
+    size: string;
+    date: string;
+  }[];
+  audit_logs?: {
+    row_num: number;
+    user: string;
+    date: string;
+    action: string;
+    comment?: string;
+  }[];
+
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// ─── Monthly Depreciation Calculation ──────────────────────────────────────────
+export interface MonthlyDepreciationCalculation {
+  _id?: ObjectId;
+  fiscal_year: number;
+  month: string;
+  calc_date: string;
+  voucher_date: string;
+  status: "پیش‌نویس" | "تأیید نهایی" | "سند صادر شده";
+
+  filters: {
+    asset_group?: string;
+    asset_subgroup?: string;
+    cost_center?: string;
+    project?: string;
+    location?: string;
+    org_unit?: string;
+    asset_status?: string;
+  };
+
+  summary: {
+    total_assets: number;
+    calculated_assets: number;
+    rejected_assets: number;
+    total_depreciation_amount: number;
+    total_book_value: number;
+  };
+
+  voucher?: {
+    voucher_number?: string;
+    voucher_status?: string;
+    expense_account_code?: string;
+    accumulated_depr_account_code?: string;
+  };
+
+  items: {
+    row_num: number;
+    asset_code: string;
+    asset_name: string;
+    asset_group: string;
+    utilization_date: string;
+    original_value: number;
+    useful_life: number;
+    accumulated_before: number;
+    amount: number;
+    accumulated_after: number;
+    book_value: number;
+    status: string;
+    error_msg?: string;
+  }[];
 
   createdAt?: string;
   updatedAt?: string;

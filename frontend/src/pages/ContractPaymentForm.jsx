@@ -31,6 +31,32 @@ const DEDUCTION_TYPES = [
   "سایر کسورات",
 ];
 
+const MOEIN_ACCOUNTS = [
+  "61001 - هزینه عملیاتی پیمانکاران",
+  "12002 - دارایی در جریان ساخت",
+  "61005 - پیش‌پرداخت سرمایه‌ای",
+  "11003 - علی‌الحساب جاری",
+];
+
+const DETAIL_ACCOUNTS = [
+  "400012 - تفصیلی طرف قرارداد (پیمانکار)",
+  "400015 - تفصیلی کارکنان طرح",
+  "400020 - تفصیلی ناظرین پروژه",
+];
+
+const BUDGET_LINES = [
+  "30201 - طرح احداث ساختمان اداری و محوطه‌سازی",
+  "30202 - طرح توسعه تأسیسات و ماشین‌آلات",
+  "30203 - طرح نگهداری و بهسازی ابنیه",
+];
+
+const FUNDING_SOURCES = [
+  "تملک دارایی‌های سرمایه‌ای (بودجه دولتی)",
+  "منابع داخلی موسسه",
+  "تسهیلات بانکی و مالی",
+  "سایر منابع اعتباری",
+];
+
 const INITIAL_FORM = {
   payment_number: "",
   payment_date: "",
@@ -66,6 +92,27 @@ const INITIAL_FORM = {
   voucher_ref: "",
   create_voucher: true,
   send_to_accounting: false,
+
+  // Financial Tab fields
+  accounting_moein_code: "61001 - هزینه عملیاتی پیمانکاران",
+  contractor_detail_code: "400012 - تفصیلی طرف قرارداد (پیمانکار)",
+  budget_line_code: "30201 - طرح احداث ساختمان اداری و محوطه‌سازی",
+  funding_source: "تملک دارایی‌های سرمایه‌ای (بودجه دولتی)",
+  prepayment_amortization: 0,
+  imprest_amortization: 0,
+  other_additions: 0,
+  vat_acceptable: 0,
+  supplement_id: "",
+
+  // Documents Tab fields
+  attachments: [
+    { row_num: 1, name: "صورت_وضعیت_تایید_شده.pdf", type: "صورت وضعیت", size: "2.4 MB", date: "1403/05/01" },
+    { row_num: 2, name: "فیش_واریز_بانکی.jpg", type: "فیش واریز", size: "850 KB", date: "1403/05/10" }
+  ],
+  related_vouchers: [],
+
+  // History Tab fields
+  history_logs: []
 };
 
 function Field({ label, required, children }) {
@@ -91,6 +138,33 @@ export default function ContractPaymentForm() {
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
+  const [newAttachment, setNewAttachment] = useState({ name: "", type: "صورت وضعیت" });
+
+  const handleAddAttachment = () => {
+    if (!newAttachment.name) return;
+    const item = {
+      row_num: (form.attachments || []).length + 1,
+      name: newAttachment.name,
+      type: newAttachment.type,
+      size: "1.2 MB",
+      date: form.payment_date || "1403/05/15"
+    };
+    setForm(prev => ({
+      ...prev,
+      attachments: [...(prev.attachments || []), item]
+    }));
+    setNewAttachment({ name: "", type: "صورت وضعیت" });
+  };
+
+  const handleDeleteAttachment = (idx) => {
+    setForm(prev => {
+      const list = prev.attachments.filter((_, i) => i !== idx).map((item, i) => ({
+        ...item,
+        row_num: i + 1
+      }));
+      return { ...prev, attachments: list };
+    });
+  };
 
   const fetchContracts = async () => {
     try {
@@ -251,8 +325,25 @@ export default function ContractPaymentForm() {
   }, [form.deductions_list]);
 
   const computedPayableAmount = useMemo(() => {
-    return Math.max(0, Number(form.gross_amount || 0) - computedDeductionsSum);
-  }, [form.gross_amount, computedDeductionsSum]);
+    return Math.max(
+      0,
+      Number(form.gross_amount || 0) +
+        Number(form.other_additions || 0) -
+        Number(form.prepayment_amortization || 0) -
+        Number(form.imprest_amortization || 0) -
+        computedDeductionsSum
+    );
+  }, [
+    form.gross_amount,
+    form.other_additions,
+    form.prepayment_amortization,
+    form.imprest_amortization,
+    computedDeductionsSum,
+  ]);
+
+  const computedApprovedGross = useMemo(() => {
+    return Number(form.gross_amount || 0) + Number(form.other_additions || 0);
+  }, [form.gross_amount, form.other_additions]);
 
   // Sync to form state
   useEffect(() => {
@@ -260,8 +351,9 @@ export default function ContractPaymentForm() {
       ...prev,
       total_deductions: computedDeductionsSum,
       payable_amount: computedPayableAmount,
+      approved_gross_amount: computedApprovedGross,
     }));
-  }, [computedDeductionsSum, computedPayableAmount]);
+  }, [computedDeductionsSum, computedPayableAmount, computedApprovedGross]);
 
   const handleDeductionChange = (index, field, value) => {
     setForm((prev) => {
@@ -419,6 +511,28 @@ export default function ContractPaymentForm() {
       voucher_ref: pay.voucher_ref || "",
       create_voucher: pay.create_voucher ?? true,
       send_to_accounting: pay.send_to_accounting ?? false,
+
+      // new fields with dynamic fallback
+      accounting_moein_code: pay.accounting_moein_code || "61001 - هزینه عملیاتی پیمانکاران",
+      contractor_detail_code: pay.contractor_detail_code || "400012 - تفصیلی طرف قرارداد (پیمانکار)",
+      budget_line_code: pay.budget_line_code || "30201 - طرح احداث ساختمان اداری و محوطه‌سازی",
+      funding_source: pay.funding_source || "تملک دارایی‌های سرمایه‌ای (بودجه دولتی)",
+      prepayment_amortization: pay.prepayment_amortization || 0,
+      imprest_amortization: pay.imprest_amortization || 0,
+      other_additions: pay.other_additions || 0,
+      vat_acceptable: pay.vat_acceptable || 0,
+      supplement_id: pay.supplement_id || "",
+      attachments: pay.attachments || [
+        { row_num: 1, name: "صورت_وضعیت_تایید_شده.pdf", type: "صورت وضعیت", size: "2.4 MB", date: pay.payment_date || "1403/05/01" },
+        { row_num: 2, name: "فیش_واریز_بانکی.jpg", type: "فیش واریز", size: "850 KB", date: pay.payment_date || "1403/05/10" }
+      ],
+      related_vouchers: pay.related_vouchers || (pay.voucher_number ? [
+        { voucher_number: pay.voucher_number, voucher_date: pay.voucher_date || pay.payment_date, voucher_type: pay.voucher_type || "سند پرداخت", voucher_status: pay.voucher_status || "ثبت موقت", amount: pay.payable_amount || 0, description: pay.description || "بابت پرداخت صورت وضعیت" }
+      ] : []),
+      history_logs: pay.history_logs || [
+        { row_num: 1, user: "امیر حسینی (کارشناس قرارداد)", date: pay.createdAt ? pay.createdAt.replace('T', ' ').substring(0, 16) : "1403/05/01 11:20", action: "ثبت اولیه و ارسال به مالی", comment: "صورت وضعیت بررسی شد." },
+        { row_num: 2, user: "زهرا موسوی (رئیس حسابداری)", date: pay.updatedAt ? pay.updatedAt.replace('T', ' ').substring(0, 16) : "1403/05/05 09:45", action: "تامین اعتبار و بررسی سرفصل‌ها", comment: "اعتبار طرح تامین گردید." }
+      ],
     });
     setShowSearchModal(false);
   };
@@ -604,7 +718,6 @@ export default function ContractPaymentForm() {
           <CardContent className="pt-6 pb-6">
             {activeTab === "main" && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 text-right">
-                
                 {/* ستون راست - جزئیات پرداخت */}
                 <div className="space-y-4">
                   <Field label="شماره پرداخت">
@@ -624,13 +737,11 @@ export default function ContractPaymentForm() {
                     />
                   </Field>
 
-
-
                   <Field label="نحوه پرداخت">
                     <select
                       value={form.payment_method}
                       onChange={(e) => setForm((prev) => ({ ...prev, payment_method: e.target.value }))}
-                      className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+                      className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-right"
                     >
                       {PAYMENT_METHODS.map((m) => (
                         <option key={m} value={m}>{m}</option>
@@ -642,7 +753,7 @@ export default function ContractPaymentForm() {
                     <select
                       value={form.payment_account}
                       onChange={(e) => setForm((prev) => ({ ...prev, payment_account: e.target.value }))}
-                      className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+                      className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-right"
                     >
                       {PAYMENT_ACCOUNTS.map((a) => (
                         <option key={a} value={a}>{a}</option>
@@ -683,7 +794,7 @@ export default function ContractPaymentForm() {
                     <select
                       value={form.contract_id}
                       onChange={(e) => handleContractChange(e.target.value)}
-                      className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+                      className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-right"
                     >
                       <option value="">انتخاب قرارداد</option>
                       {contracts.map((c) => (
@@ -706,7 +817,7 @@ export default function ContractPaymentForm() {
                       value={form.statement_id}
                       onChange={(e) => handleBillChange(e.target.value)}
                       disabled={!form.contract_id}
-                      className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm disabled:opacity-50"
+                      className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-right disabled:opacity-50"
                     >
                       <option value="">انتخاب صورت وضعیت</option>
                       {contractBills.map((b) => (
@@ -722,8 +833,6 @@ export default function ContractPaymentForm() {
                       disabled={!!form.statement_id}
                     />
                   </Field>
-
-
 
                   <Field label="مبلغ ناخالص صورت وضعیت">
                     <div className="relative">
@@ -754,7 +863,6 @@ export default function ContractPaymentForm() {
                     </div>
                   </Field>
 
-
                   <Field label="شرح">
                     <textarea
                       value={form.description}
@@ -765,278 +873,571 @@ export default function ContractPaymentForm() {
                     />
                   </Field>
                 </div>
-
               </div>
             )}
 
-            {activeTab !== "main" && (
-              <div className="py-8 text-center text-xs text-muted-foreground bg-muted/5 border rounded-lg border-dashed">
-                اطلاعات این تب پس از فعال‌سازی چرخه مالی در دیتابیس در دسترس قرار خواهد گرفت.
+            {activeTab === "financial" && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 text-right animate-in fade-in duration-300">
+                {/* ستون راست - حسابداری و بودجه */}
+                <div className="space-y-4">
+                  <Field label="سرفصل حسابداری معین">
+                    <select
+                      value={form.accounting_moein_code}
+                      onChange={(e) => setForm((prev) => ({ ...prev, accounting_moein_code: e.target.value }))}
+                      className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-right"
+                    >
+                      {MOEIN_ACCOUNTS.map((m) => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </select>
+                  </Field>
+
+                  <Field label="تفصیلی طرف قرارداد">
+                    <select
+                      value={form.contractor_detail_code}
+                      onChange={(e) => setForm((prev) => ({ ...prev, contractor_detail_code: e.target.value }))}
+                      className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-right"
+                    >
+                      {DETAIL_ACCOUNTS.map((d) => (
+                        <option key={d} value={d}>{d}</option>
+                      ))}
+                    </select>
+                  </Field>
+
+                  <Field label="ردیف بودجه / طرح">
+                    <select
+                      value={form.budget_line_code}
+                      onChange={(e) => setForm((prev) => ({ ...prev, budget_line_code: e.target.value }))}
+                      className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-right"
+                    >
+                      {BUDGET_LINES.map((b) => (
+                        <option key={b} value={b}>{b}</option>
+                      ))}
+                    </select>
+                  </Field>
+
+                  <Field label="منبع تأمین اعتبار">
+                    <select
+                      value={form.funding_source}
+                      onChange={(e) => setForm((prev) => ({ ...prev, funding_source: e.target.value }))}
+                      className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-right"
+                    >
+                      {FUNDING_SOURCES.map((f) => (
+                        <option key={f} value={f}>{f}</option>
+                      ))}
+                    </select>
+                  </Field>
+
+                  <Field label="اتصال به متمم/الحاقیه">
+                    <select
+                      value={form.supplement_id}
+                      onChange={(e) => setForm((prev) => ({ ...prev, supplement_id: e.target.value }))}
+                      className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-right"
+                    >
+                      <option value="">عدم اتصال (قرارداد اصلی)</option>
+                      <option value="supp-1">متمم شماره ۱ (افزایش مقادیر کارکرد)</option>
+                      <option value="supp-2">الحاقیه شماره ۱ (تمدید زمان و افزایش مبلغ)</option>
+                    </select>
+                  </Field>
+                </div>
+
+                {/* ستون چپ - استهلاک پیش‌پرداخت و تایید نهایی */}
+                <div className="space-y-4">
+                  <Field label="مبلغ استهلاک پیش‌پرداخت">
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        value={form.prepayment_amortization}
+                        onChange={(e) => setForm((prev) => ({ ...prev, prepayment_amortization: Number(e.target.value) || 0 }))}
+                        className="h-9 text-sm text-center font-mono pl-10"
+                        dir="ltr"
+                        min={0}
+                      />
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">ریال</span>
+                    </div>
+                  </Field>
+
+                  <Field label="مبلغ استهلاک علی‌الحساب">
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        value={form.imprest_amortization}
+                        onChange={(e) => setForm((prev) => ({ ...prev, imprest_amortization: Number(e.target.value) || 0 }))}
+                        className="h-9 text-sm text-center font-mono pl-10"
+                        dir="ltr"
+                        min={0}
+                      />
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">ریال</span>
+                    </div>
+                  </Field>
+
+                  <Field label="سایر اضافات / تعدیلات مثبت">
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        value={form.other_additions}
+                        onChange={(e) => setForm((prev) => ({ ...prev, other_additions: Number(e.target.value) || 0 }))}
+                        className="h-9 text-sm text-center font-mono pl-10"
+                        dir="ltr"
+                        min={0}
+                      />
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">ریال</span>
+                    </div>
+                  </Field>
+
+                  <Field label="مبلغ ناخالص تایید شده (کارکرد + اضافات)">
+                    <div className="relative">
+                      <Input
+                        type="text"
+                        value={Number(form.approved_gross_amount || 0).toLocaleString()}
+                        readOnly
+                        className="h-9 text-sm text-center font-mono pl-10 bg-muted/40 text-muted-foreground"
+                        dir="ltr"
+                      />
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">ریال</span>
+                    </div>
+                  </Field>
+
+                  <Field label="مالیات بر ارزش افزوده قابل قبول">
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        value={form.vat_acceptable}
+                        onChange={(e) => setForm((prev) => ({ ...prev, vat_acceptable: Number(e.target.value) || 0 }))}
+                        className="h-9 text-sm text-center font-mono pl-10"
+                        dir="ltr"
+                        min={0}
+                      />
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">ریال</span>
+                    </div>
+                  </Field>
+                </div>
               </div>
             )}
-          </CardContent>
-        </Card>
 
-        {/* بخش پایینی: جدول کسورات + پنل محاسبات نهایی */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6" dir="rtl">
-          
-          {/* جدول کسورات پرداخت (۲ ستون در صفحه بزرگ) */}
-          <Card className="border-border/80 shadow-sm lg:col-span-2">
-            <div className="border-b border-border/80 px-4 py-3 bg-muted/10 font-bold text-xs text-right flex justify-between items-center">
-              <span>کسورات پرداخت</span>
-              <div className="flex gap-2">
-                <Button onClick={addDeductionRow} size="xs" variant="outline" className="text-blue-500 gap-1 border-blue-500/20 text-[10px] h-7">
-                  <Plus className="h-3 w-3" />
-                  افزودن کسر جدید
-                </Button>
-              </div>
-            </div>
-            <CardContent className="p-3">
-              <div className="overflow-x-auto rounded border">
-                <Table>
-                  <TableHeader className="bg-muted/30">
-                    <TableRow>
-                      <TableHead className="text-right text-xs w-10">ردیف</TableHead>
-                      <TableHead className="text-right text-xs">نوع کسر</TableHead>
-                      <TableHead className="text-center text-xs w-28">نحوه محاسبه</TableHead>
-                      <TableHead className="text-center text-xs w-20">درصد</TableHead>
-                      <TableHead className="text-center text-xs w-36">مبلغ کسر (ریال)</TableHead>
-                      <TableHead className="text-center text-xs w-32">سقف کسر</TableHead>
-                      <TableHead className="text-center text-xs w-36">مبلغ محاسباتی</TableHead>
-                      <TableHead className="text-center text-xs w-10"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {form.deductions_list.map((item, idx) => (
-                      <TableRow key={idx}>
-                        <TableCell className="font-mono text-xs text-center">{idx + 1}</TableCell>
-                        <TableCell className="p-1">
-                          <select
-                            value={item.deduction_type}
-                            onChange={(e) => handleDeductionChange(idx, "deduction_type", e.target.value)}
-                            className="h-8 rounded border px-2 text-xs text-right w-full bg-transparent"
-                          >
-                            {DEDUCTION_TYPES.map((t) => (
-                              <option key={t} value={t}>{t}</option>
-                            ))}
-                          </select>
-                        </TableCell>
-                        <TableCell className="p-1 text-center">
-                          <select
-                            value={item.calc_method}
-                            onChange={(e) => handleDeductionChange(idx, "calc_method", e.target.value)}
-                            className="h-8 rounded border px-2 text-xs text-right w-full bg-transparent"
-                          >
-                            <option value="درصدی">درصدی</option>
-                            <option value="مبلغ ثابت">مبلغ ثابت</option>
-                          </select>
-                        </TableCell>
-                        <TableCell className="p-1 text-center">
-                          <Input
-                            type="number"
-                            value={item.percent || ""}
-                            onChange={(e) => handleDeductionChange(idx, "percent", Number(e.target.value))}
-                            disabled={item.calc_method === "مبلغ ثابت"}
-                            className="h-8 text-xs text-center font-mono border-none shadow-none disabled:opacity-30"
-                          />
-                        </TableCell>
-                        <TableCell className="p-1 text-center">
-                          <Input
-                            type="number"
-                            value={item.amount || ""}
-                            onChange={(e) => handleDeductionChange(idx, "amount", Number(e.target.value))}
-                            disabled={item.calc_method === "درصدی"}
-                            className="h-8 text-xs text-center font-mono border-none shadow-none disabled:opacity-80"
-                          />
-                        </TableCell>
-                        <TableCell className="p-1 text-center">
+            {activeTab === "deductions" && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-right animate-in fade-in duration-300">
+                {/* جدول کسورات پرداخت (۲ ستون در صفحه بزرگ) */}
+                <div className="lg:col-span-2 border rounded-lg bg-card overflow-hidden">
+                  <div className="border-b border-border/80 px-4 py-3 bg-muted/10 font-bold text-xs text-right flex justify-between items-center">
+                    <span>کسورات کارکرد</span>
+                    <Button onClick={addDeductionRow} size="xs" variant="outline" className="text-blue-500 gap-1 border-blue-500/20 text-[10px] h-7 bg-background">
+                      <Plus className="h-3 w-3" />
+                      افزودن کسر جدید
+                    </Button>
+                  </div>
+                  <div className="p-3">
+                    <div className="overflow-x-auto rounded border">
+                      <Table>
+                        <TableHeader className="bg-muted/30">
+                          <TableRow>
+                            <TableHead className="text-right text-xs w-10">ردیف</TableHead>
+                            <TableHead className="text-right text-xs">نوع کسر</TableHead>
+                            <TableHead className="text-center text-xs w-28">نحوه محاسبه</TableHead>
+                            <TableHead className="text-center text-xs w-20">درصد</TableHead>
+                            <TableHead className="text-center text-xs w-36">مبلغ کسر (ریال)</TableHead>
+                            <TableHead className="text-center text-xs w-32">سقف کسر</TableHead>
+                            <TableHead className="text-center text-xs w-36">مبلغ محاسباتی</TableHead>
+                            <TableHead className="text-center text-xs w-10"></TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {form.deductions_list.map((item, idx) => (
+                            <TableRow key={idx}>
+                              <TableCell className="font-mono text-xs text-center">{idx + 1}</TableCell>
+                              <TableCell className="p-1">
+                                <select
+                                  value={item.deduction_type}
+                                  onChange={(e) => handleDeductionChange(idx, "deduction_type", e.target.value)}
+                                  className="h-8 rounded border px-2 text-xs text-right w-full bg-transparent"
+                                >
+                                  {DEDUCTION_TYPES.map((t) => (
+                                    <option key={t} value={t}>{t}</option>
+                                  ))}
+                                </select>
+                              </TableCell>
+                              <TableCell className="p-1 text-center">
+                                <select
+                                  value={item.calc_method}
+                                  onChange={(e) => handleDeductionChange(idx, "calc_method", e.target.value)}
+                                  className="h-8 rounded border px-2 text-xs text-right w-full bg-transparent"
+                                >
+                                  <option value="درصدی">درصدی</option>
+                                  <option value="مبلغ ثابت">مبلغ ثابت</option>
+                                </select>
+                              </TableCell>
+                              <TableCell className="p-1 text-center">
+                                <Input
+                                  type="number"
+                                  value={item.percent || ""}
+                                  onChange={(e) => handleDeductionChange(idx, "percent", Number(e.target.value))}
+                                  disabled={item.calc_method === "مبلغ ثابت"}
+                                  className="h-8 text-xs text-center font-mono border-none shadow-none disabled:opacity-30"
+                                />
+                              </TableCell>
+                              <TableCell className="p-1 text-center">
+                                <Input
+                                  type="number"
+                                  value={item.amount || ""}
+                                  onChange={(e) => handleDeductionChange(idx, "amount", Number(e.target.value))}
+                                  disabled={item.calc_method === "درصدی"}
+                                  className="h-8 text-xs text-center font-mono border-none shadow-none disabled:opacity-80"
+                                />
+                              </TableCell>
+                              <TableCell className="p-1 text-center">
+                                <Input
+                                  type="text"
+                                  value={item.ceiling || ""}
+                                  onChange={(e) => handleDeductionChange(idx, "ceiling", e.target.value)}
+                                  className="h-8 text-xs text-center font-mono border-none shadow-none"
+                                />
+                              </TableCell>
+                              <TableCell className="font-mono text-xs text-center font-semibold text-blue-500">
+                                {Number(item.calculated_amount || 0).toLocaleString()}
+                              </TableCell>
+                              <TableCell className="text-center p-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => deleteDeductionRow(idx)}
+                                  className="h-7 w-7 text-destructive hover:text-destructive/80"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                          {form.deductions_list.length === 0 && (
+                            <TableRow>
+                              <TableCell colSpan={8} className="text-center text-xs py-6 text-muted-foreground">هیچ کسری ثبت نشده است.</TableCell>
+                            </TableRow>
+                          )}
+                          {form.deductions_list.length > 0 && (
+                            <TableRow className="bg-muted/20 font-bold">
+                              <TableCell colSpan={6} className="text-left text-xs pr-4 font-bold">جمع کسورات:</TableCell>
+                              <TableCell className="font-mono text-xs text-center text-red-500 font-extrabold">
+                                {Number(form.total_deductions).toLocaleString()} ریال
+                              </TableCell>
+                              <TableCell></TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                </div>
+
+                {/* خلاصه محاسبات پرداخت (۱ ستون) */}
+                <div className="border rounded-lg bg-card overflow-hidden">
+                  <div className="border-b border-border/80 p-3 font-bold text-xs bg-muted/10">
+                    خلاصه محاسبات پرداخت
+                  </div>
+                  <div className="p-4 space-y-4">
+                    <Field label="مبلغ ناخالص صورت وضعیت">
+                      <div className="relative">
+                        <Input
+                          type="text"
+                          value={Number(form.gross_amount || 0).toLocaleString()}
+                          readOnly
+                          className="h-9 text-xs text-center font-mono pl-10 bg-muted/40 text-muted-foreground"
+                          dir="ltr"
+                        />
+                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">ریال</span>
+                      </div>
+                    </Field>
+
+                    {form.other_additions > 0 && (
+                      <Field label="سایر اضافات">
+                        <div className="relative">
                           <Input
                             type="text"
-                            value={item.ceiling || ""}
-                            onChange={(e) => handleDeductionChange(idx, "ceiling", e.target.value)}
-                            className="h-8 text-xs text-center font-mono border-none shadow-none"
+                            value={Number(form.other_additions || 0).toLocaleString()}
+                            readOnly
+                            className="h-9 text-xs text-center font-mono pl-10 bg-muted/40 text-emerald-600 font-semibold"
+                            dir="ltr"
                           />
-                        </TableCell>
-                        <TableCell className="font-mono text-xs text-center font-semibold text-blue-500">
-                          {Number(item.calculated_amount || 0).toLocaleString()}
-                        </TableCell>
-                        <TableCell className="text-center p-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => deleteDeductionRow(idx)}
-                            className="h-7 w-7 text-destructive hover:text-destructive/80"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {form.deductions_list.length === 0 && (
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">ریال</span>
+                        </div>
+                      </Field>
+                    )}
+
+                    {(form.prepayment_amortization > 0 || form.imprest_amortization > 0) && (
+                      <Field label="جمع استهلاک پیش‌پرداخت/علی‌الحساب">
+                        <div className="relative">
+                          <Input
+                            type="text"
+                            value={`(${Number((form.prepayment_amortization || 0) + (form.imprest_amortization || 0)).toLocaleString()})`}
+                            readOnly
+                            className="h-9 text-xs text-center font-mono pl-10 bg-muted/40 text-orange-600 font-semibold"
+                            dir="ltr"
+                          />
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">ریال</span>
+                        </div>
+                      </Field>
+                    )}
+
+                    <Field label="جمع کسورات">
+                      <div className="relative">
+                        <Input
+                          type="text"
+                          value={`(${Number(form.total_deductions || 0).toLocaleString()})`}
+                          readOnly
+                          className="h-9 text-xs text-center font-mono pl-10 bg-muted/40 text-destructive font-bold"
+                          dir="ltr"
+                        />
+                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">ریال</span>
+                      </div>
+                    </Field>
+
+                    <Field label="مبلغ قابل پرداخت">
+                      <div className="relative">
+                        <Input
+                          type="text"
+                          value={Number(form.payable_amount || 0).toLocaleString()}
+                          readOnly
+                          className="h-9 text-xs text-center font-mono pl-10 bg-muted/40 text-blue-600 font-extrabold"
+                          dir="ltr"
+                        />
+                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">ریال</span>
+                      </div>
+                    </Field>
+
+                    <Field label="تاریخ سررسید پرداخت">
+                      <PersianDatePicker
+                        value={form.due_date}
+                        onChange={(e) => setForm((prev) => ({ ...prev, due_date: e.target.value }))}
+                      />
+                    </Field>
+
+                    <Field label="وضعیت پرداخت">
+                      <div className="px-3 py-2 rounded border border-yellow-500/20 bg-yellow-500/5 text-yellow-600 text-xs font-bold text-center bg-background">
+                        {form.status}
+                      </div>
+                    </Field>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === "docs" && (
+              <div className="space-y-6 text-right animate-in fade-in duration-300">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* جدول ضمایم پیوست */}
+                  <div className="lg:col-span-2 space-y-3">
+                    <h3 className="text-xs font-bold text-foreground pr-1">اسناد و فایل‌های ضمیمه</h3>
+                    <div className="overflow-x-auto rounded border bg-card">
+                      <Table>
+                        <TableHeader className="bg-muted/30">
+                          <TableRow>
+                            <TableHead className="text-right text-xs w-10">ردیف</TableHead>
+                            <TableHead className="text-right text-xs">نام فایل</TableHead>
+                            <TableHead className="text-center text-xs">نوع فایل</TableHead>
+                            <TableHead className="text-center text-xs">حجم</TableHead>
+                            <TableHead className="text-center text-xs">تاریخ بارگذاری</TableHead>
+                            <TableHead className="text-center text-xs w-20">عملیات</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {(form.attachments || []).map((att, idx) => (
+                            <TableRow key={idx}>
+                              <TableCell className="font-mono text-xs text-center">{idx + 1}</TableCell>
+                              <TableCell className="text-right text-xs font-mono" dir="ltr">{att.name}</TableCell>
+                              <TableCell className="text-center text-xs">{att.type}</TableCell>
+                              <TableCell className="text-center text-xs font-mono">{att.size}</TableCell>
+                              <TableCell className="text-center text-xs font-mono">{att.date}</TableCell>
+                              <TableCell className="text-center p-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleDeleteAttachment(idx)}
+                                  className="h-7 w-7 text-destructive hover:text-destructive/80"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                          {(form.attachments || []).length === 0 && (
+                            <TableRow>
+                              <TableCell colSpan={6} className="text-center text-xs py-6 text-muted-foreground">هیچ فایلی ضمیمه نشده است.</TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+
+                  {/* فرم شبیه‌ساز بارگذاری ضمیمه */}
+                  <div className="space-y-3 p-4 border rounded-lg bg-muted/10 h-fit">
+                    <h3 className="text-xs font-bold text-foreground">بارگذاری ضمیمه جدید (شبیه‌ساز)</h3>
+                    <div className="space-y-3">
+                      <Field label="نام فایل">
+                        <Input
+                          type="text"
+                          placeholder="مثال: check_receipt.jpg"
+                          value={newAttachment.name}
+                          onChange={(e) => setNewAttachment(prev => ({ ...prev, name: e.target.value }))}
+                          className="h-8 text-xs text-right"
+                        />
+                      </Field>
+                      <Field label="نوع سند">
+                        <select
+                          value={newAttachment.type}
+                          onChange={(e) => setNewAttachment(prev => ({ ...prev, type: e.target.value }))}
+                          className="h-8 w-full rounded border border-input bg-background px-2 text-xs"
+                        >
+                          <option value="صورت وضعیت">صورت وضعیت</option>
+                          <option value="فیش واریز">فیش واریز</option>
+                          <option value="تاییدیه ناظر">تاییدیه ناظر</option>
+                          <option value="ضمانت‌نامه">ضمانت‌نامه</option>
+                          <option value="سایر">سایر</option>
+                        </select>
+                      </Field>
+                      <Button
+                        type="button"
+                        onClick={handleAddAttachment}
+                        size="xs"
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs h-8"
+                      >
+                        <Plus className="h-3.5 w-3.5 ml-1 inline" />
+                        افزودن به لیست ضمایم
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* آرتیکل و تنظیمات سند حسابداری صادر شده */}
+                <div className="border-t pt-5">
+                  <div className="border rounded-lg shadow-sm bg-muted/5 overflow-hidden">
+                    <div className="border-b border-border/80 p-3 font-bold text-xs bg-muted/10 flex justify-between items-center">
+                      <span>ایجاد و تنظیمات سند حسابداری همزمان</span>
+                      {form.voucher_number && (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-600 font-mono">
+                          سند صادر شده است ({form.voucher_status})
+                        </span>
+                      )}
+                    </div>
+                    <CardContent className="p-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-center">
+                        <Field label="شماره سند">
+                          <Input
+                            type="text"
+                            value={form.voucher_number}
+                            onChange={(e) => setForm((prev) => ({ ...prev, voucher_number: e.target.value }))}
+                            className="h-9 text-xs text-center font-mono"
+                            placeholder="خودکار صادر می‌شود"
+                          />
+                        </Field>
+
+                        <Field label="تاریخ سند">
+                          <PersianDatePicker
+                            value={form.voucher_date}
+                            onChange={(e) => setForm((prev) => ({ ...prev, voucher_date: e.target.value }))}
+                          />
+                        </Field>
+
+                        <Field label="نوع سند">
+                          <Input
+                            type="text"
+                            value={form.voucher_type}
+                            readOnly
+                            className="h-9 text-xs text-center bg-muted/40 text-muted-foreground"
+                          />
+                        </Field>
+
+                        <Field label="وضعیت سند">
+                          <Input
+                            type="text"
+                            value={form.voucher_status}
+                            readOnly
+                            className="h-9 text-xs text-center bg-muted/40 text-muted-foreground"
+                          />
+                        </Field>
+
+                        <Field label="شماره عطف سند">
+                          <Input
+                            type="text"
+                            value={form.voucher_ref}
+                            onChange={(e) => setForm((prev) => ({ ...prev, voucher_ref: e.target.value }))}
+                            className="h-9 text-xs text-center font-mono"
+                          />
+                        </Field>
+
+                        <div className="lg:col-span-5 flex flex-wrap gap-6 mt-2 justify-end border-t pt-3">
+                          <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-muted-foreground">
+                            <input
+                              type="checkbox"
+                              checked={form.send_to_accounting}
+                              onChange={(e) => setForm((prev) => ({ ...prev, send_to_accounting: e.target.checked }))}
+                              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span>ارسال به حسابداری</span>
+                          </label>
+
+                          <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-muted-foreground">
+                            <input
+                              type="checkbox"
+                              checked={form.create_voucher}
+                              onChange={(e) => setForm((prev) => ({ ...prev, create_voucher: e.target.checked }))}
+                              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span>ایجاد سند حسابداری</span>
+                          </label>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === "history" && (
+              <div className="space-y-4 text-right animate-in fade-in duration-300">
+                <div className="border-b pb-2 mb-3">
+                  <h3 className="text-xs font-bold text-foreground">تاریخچه گردش کار و اقدامات مالی</h3>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">سوابق تغییر وضعیت، ثبت و تاییدات این سند پرداخت</p>
+                </div>
+                <div className="overflow-x-auto rounded border bg-card">
+                  <Table>
+                    <TableHeader className="bg-muted/30">
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center text-xs py-6 text-muted-foreground">هیچ کسری ثبت نشده است.</TableCell>
+                        <TableHead className="text-right text-xs w-10">ردیف</TableHead>
+                        <TableHead className="text-right text-xs">اقدام‌کننده</TableHead>
+                        <TableHead className="text-center text-xs">تاریخ و ساعت</TableHead>
+                        <TableHead className="text-center text-xs">عنوان اقدام</TableHead>
+                        <TableHead className="text-right text-xs">توضیحات / پی‌نوشت کارتابل</TableHead>
                       </TableRow>
-                    )}
-                    {form.deductions_list.length > 0 && (
-                      <TableRow className="bg-muted/20 font-bold">
-                        <TableCell colSpan={6} className="text-left text-xs pr-4 font-bold">جمع کسورات:</TableCell>
-                        <TableCell className="font-mono text-xs text-center text-red-500 font-extrabold">
-                          {Number(form.total_deductions).toLocaleString()} ریال
-                        </TableCell>
-                        <TableCell></TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {(form.history_logs || []).map((log, idx) => (
+                        <TableRow key={idx}>
+                          <TableCell className="font-mono text-xs text-center">{idx + 1}</TableCell>
+                          <TableCell className="text-right text-xs font-semibold">{log.user}</TableCell>
+                          <TableCell className="text-center text-xs font-mono">{log.date}</TableCell>
+                          <TableCell className="text-center">
+                            <span className={cn(
+                              "px-2 py-0.5 rounded text-[10px] font-bold",
+                              log.action.includes("تایید") ? "bg-emerald-500/10 text-emerald-600" :
+                              log.action.includes("ارسال") ? "bg-blue-500/10 text-blue-600" : "bg-muted text-muted-foreground"
+                            )}>
+                              {log.action}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right text-xs text-muted-foreground">{log.comment || "-"}</TableCell>
+                        </TableRow>
+                      ))}
+                      {(form.history_logs || []).length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center text-xs py-8 text-muted-foreground">هیچ گردش کار یا سابقه تاییداتی ثبت نشده است.</TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* خلاصه محاسبات پرداخت (۱ ستون) */}
-          <Card className="border-border/80 shadow-sm text-right bg-card">
-            <div className="border-b border-border/80 p-3 font-bold text-xs bg-muted/10">
-              خلاصه محاسبات پرداخت
-            </div>
-            <div className="p-4 space-y-4">
-              <Field label="مبلغ ناخالص صورت وضعیت">
-                <div className="relative">
-                  <Input
-                    type="text"
-                    value={Number(form.gross_amount || 0).toLocaleString()}
-                    readOnly
-                    className="h-9 text-xs text-center font-mono pl-10 bg-muted/40 text-muted-foreground"
-                    dir="ltr"
-                  />
-                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">ریال</span>
-                </div>
-              </Field>
-
-              <Field label="جمع کسورات">
-                <div className="relative">
-                  <Input
-                    type="text"
-                    value={`(${Number(form.total_deductions || 0).toLocaleString()})`}
-                    readOnly
-                    className="h-9 text-xs text-center font-mono pl-10 bg-muted/40 text-destructive font-bold"
-                    dir="ltr"
-                  />
-                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">ریال</span>
-                </div>
-              </Field>
-
-              <Field label="مبلغ قابل پرداخت">
-                <div className="relative">
-                  <Input
-                    type="text"
-                    value={Number(form.payable_amount || 0).toLocaleString()}
-                    readOnly
-                    className="h-9 text-xs text-center font-mono pl-10 bg-muted/40 text-blue-600 font-extrabold"
-                    dir="ltr"
-                  />
-                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">ریال</span>
-                </div>
-              </Field>
-
-              <Field label="تاریخ سررسید پرداخت">
-                <PersianDatePicker
-                  value={form.due_date}
-                  onChange={(e) => setForm((prev) => ({ ...prev, due_date: e.target.value }))}
-                />
-              </Field>
-
-
-
-              <Field label="وضعیت پرداخت">
-                <div className="px-3 py-2 rounded border border-yellow-500/20 bg-yellow-500/5 text-yellow-600 text-xs font-bold text-center">
-                  {form.status}
-                </div>
-              </Field>
-            </div>
-          </Card>
-
-        </div>
-
-        {/* بخش اطلاعات سند حسابداری */}
-        <Card className="border-border/80 shadow-sm text-right bg-muted/5">
-          <div className="border-b border-border/80 p-3 font-bold text-xs bg-muted/10">
-            اطلاعات سند حسابداری
-          </div>
-          <CardContent className="p-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-center">
-              
-              <Field label="شماره سند">
-                <Input
-                  type="text"
-                  value={form.voucher_number}
-                  onChange={(e) => setForm((prev) => ({ ...prev, voucher_number: e.target.value }))}
-                  className="h-9 text-xs text-center font-mono"
-                  placeholder="خودکار صادر می‌شود"
-                />
-              </Field>
-
-              <Field label="تاریخ سند">
-                <PersianDatePicker
-                  value={form.voucher_date}
-                  onChange={(e) => setForm((prev) => ({ ...prev, voucher_date: e.target.value }))}
-                />
-              </Field>
-
-
-
-              <Field label="نوع سند">
-                <Input
-                  type="text"
-                  value={form.voucher_type}
-                  readOnly
-                  className="h-9 text-xs text-center bg-muted/40 text-muted-foreground"
-                />
-              </Field>
-
-              <Field label="وضعیت سند">
-                <Input
-                  type="text"
-                  value={form.voucher_status}
-                  readOnly
-                  className="h-9 text-xs text-center bg-muted/40 text-muted-foreground"
-                />
-              </Field>
-
-              <Field label="شماره عطف سند">
-                <Input
-                  type="text"
-                  value={form.voucher_ref}
-                  onChange={(e) => setForm((prev) => ({ ...prev, voucher_ref: e.target.value }))}
-                  className="h-9 text-xs text-center font-mono"
-                />
-              </Field>
-
-              {/* چک باکس ها */}
-              <div className="lg:col-span-5 flex flex-wrap gap-6 mt-2 justify-end border-t pt-3">
-                <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-muted-foreground">
-                  <input
-                    type="checkbox"
-                    checked={form.send_to_accounting}
-                    onChange={(e) => setForm((prev) => ({ ...prev, send_to_accounting: e.target.checked }))}
-                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span>ارسال به حسابداری</span>
-                </label>
-
-                <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-muted-foreground">
-                  <input
-                    type="checkbox"
-                    checked={form.create_voucher}
-                    onChange={(e) => setForm((prev) => ({ ...prev, create_voucher: e.target.checked }))}
-                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span>ایجاد سند حسابداری</span>
-                </label>
-              </div>
-
-            </div>
+            )}
           </CardContent>
         </Card>
-
       </div>
 
       {/* مودال جستجوی پرداخت‌ها */}
