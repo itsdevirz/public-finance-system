@@ -25,6 +25,22 @@ const DepositManualForm = lazy(() => import("@/modules/treasury/pages/DepositMan
 const PersonsForm = lazy(() => import("@/pages/PersonsForm"));
 const FiscalYearForm = lazy(() => import("@/pages/FiscalYearForm"));
 const ContractPartiesForm = lazy(() => import("@/pages/ContractPartiesForm"));
+const ContractTypesForm = lazy(() => import("@/pages/ContractTypesForm"));
+const DeductionTypesForm = lazy(() => import("@/pages/DeductionTypesForm"));
+const GuaranteeTypesForm = lazy(() => import("@/pages/GuaranteeTypesForm"));
+const AssignmentMethodsForm = lazy(() => import("@/pages/AssignmentMethodsForm"));
+const PurchasePowerRatesForm = lazy(() => import("@/pages/PurchasePowerRatesForm"));
+const PenaltyRatesForm = lazy(() => import("@/pages/PenaltyRatesForm"));
+const ContractTerminationForm = lazy(() => import("@/pages/ContractTerminationForm"));
+const ContractCancellationForm = lazy(() => import("@/pages/ContractCancellationForm"));
+
+
+
+
+
+
+
+
 const ContractRegistrationForm = lazy(() => import("@/pages/ContractRegistrationForm"));
 const ProgressBillingForm = lazy(() => import("@/pages/ProgressBillingForm"));
 const ContractPaymentForm = lazy(() => import("@/pages/ContractPaymentForm"));
@@ -158,6 +174,18 @@ export const PAGE_COMPONENTS = {
   "/basic-info/definitions/fiscal-year": FiscalYearForm,
   "/basic-info/definitions/persons": PersonsForm,
   "/basic-info/definitions/parties": ContractPartiesForm,
+  "/basic-info/definitions/contract-types": ContractTypesForm,
+  "/basic-info/definitions/deduction-types": DeductionTypesForm,
+  "/basic-info/definitions/guarantee-types": GuaranteeTypesForm,
+  "/basic-info/definitions/assignment-methods": AssignmentMethodsForm,
+  "/basic-info/definitions/purchase-power-rate": PurchasePowerRatesForm,
+  "/basic-info/definitions/penalty-rate": PenaltyRatesForm,
+
+
+
+
+
+
   "/basic-info/contracts/register": ContractRegistrationForm,
   "/basic-info/contracts/supplement": ContractSupplementForm,
   "/basic-info/contracts/card": ContractCard,
@@ -166,6 +194,10 @@ export const PAGE_COMPONENTS = {
   "/basic-info/contracts/progress-billing": ProgressBillingForm,
   "/basic-info/contracts/payment": ContractPaymentForm,
   "/basic-info/contracts/guarantee": ContractGuaranteeForm,
+  "/basic-info/contracts/termination": ContractTerminationForm,
+  "/basic-info/contracts/cancellation": ContractCancellationForm,
+
+
   "/basic-info/definitions/bank": BankForm,
   "/basic-info/definitions/credit": CreditForm,
   "/basic-info/definitions/check": CheckIssuance,

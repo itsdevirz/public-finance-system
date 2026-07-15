@@ -219,6 +219,32 @@ export default function ContractPaymentForm() {
     });
   };
 
+  const handleGrossAmountChange = (val) => {
+    const gross = Number(val) || 0;
+    setForm((prev) => {
+      const nextDeductions = prev.deductions_list.map((item) => {
+        if (item.calc_method === "درصدی") {
+          const amt = Math.round(gross * (Number(item.percent || 0) / 100));
+          return { ...item, amount: amt, calculated_amount: amt };
+        }
+        return item;
+      });
+      return {
+        ...prev,
+        gross_amount: gross,
+        deductions_list: nextDeductions,
+      };
+    });
+  };
+
+  const handleProgressPercentChange = (val) => {
+    setForm((prev) => ({
+      ...prev,
+      progress_percent: Number(val) || 0,
+    }));
+  };
+
+
   // Recalculate deductions in real time
   const computedDeductionsSum = useMemo(() => {
     return form.deductions_list.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
@@ -598,6 +624,8 @@ export default function ContractPaymentForm() {
                     />
                   </Field>
 
+
+
                   <Field label="نحوه پرداخت">
                     <select
                       value={form.payment_method}
@@ -688,23 +716,24 @@ export default function ContractPaymentForm() {
                   </Field>
 
                   <Field label="تاریخ صورت وضعیت">
-                    <Input
-                      type="text"
+                    <PersianDatePicker
                       value={form.statement_date}
-                      readOnly
-                      className="h-9 text-sm text-center font-mono bg-muted/50 text-muted-foreground"
-                      dir="ltr"
+                      onChange={(e) => setForm((prev) => ({ ...prev, statement_date: e.target.value }))}
+                      disabled={!!form.statement_id}
                     />
                   </Field>
+
+
 
                   <Field label="مبلغ ناخالص صورت وضعیت">
                     <div className="relative">
                       <Input
-                        type="text"
-                        value={Number(form.gross_amount || 0).toLocaleString()}
-                        readOnly
-                        className="h-9 text-sm text-center font-mono pl-10 bg-muted/50 text-muted-foreground"
+                        type="number"
+                        value={form.gross_amount}
+                        onChange={(e) => handleGrossAmountChange(e.target.value)}
+                        className="h-9 text-sm text-center font-mono pl-10"
                         dir="ltr"
+                        min={0}
                       />
                       <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">ریال</span>
                     </div>
@@ -713,15 +742,18 @@ export default function ContractPaymentForm() {
                   <Field label="درصد پیشرفت">
                     <div className="relative">
                       <Input
-                        type="text"
+                        type="number"
                         value={form.progress_percent}
-                        readOnly
-                        className="h-9 text-sm text-center font-mono pl-7 bg-muted/50 text-muted-foreground"
+                        onChange={(e) => handleProgressPercentChange(e.target.value)}
+                        className="h-9 text-sm text-center font-mono pl-7"
                         dir="ltr"
+                        min={0}
+                        max={100}
                       />
                       <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-mono text-muted-foreground">%</span>
                     </div>
                   </Field>
+
 
                   <Field label="شرح">
                     <textarea
@@ -912,6 +944,8 @@ export default function ContractPaymentForm() {
                 />
               </Field>
 
+
+
               <Field label="وضعیت پرداخت">
                 <div className="px-3 py-2 rounded border border-yellow-500/20 bg-yellow-500/5 text-yellow-600 text-xs font-bold text-center">
                   {form.status}
@@ -946,6 +980,8 @@ export default function ContractPaymentForm() {
                   onChange={(e) => setForm((prev) => ({ ...prev, voucher_date: e.target.value }))}
                 />
               </Field>
+
+
 
               <Field label="نوع سند">
                 <Input

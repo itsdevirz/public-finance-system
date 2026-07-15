@@ -30,6 +30,22 @@ import contractSupplementsRouter from "./routes/contractSupplements.js";
 import contractAddendaRouter from "./routes/contractAddenda.js";
 import contractCardsRouter from "./routes/contractCards.js";
 import contractChanges25Router from "./routes/contractChanges25.js";
+import contractTypesRouter from "./routes/contractTypes.js";
+import deductionTypesRouter from "./routes/deductionTypes.js";
+import guaranteeTypesRouter from "./routes/guaranteeTypes.js";
+import assignmentMethodsRouter from "./routes/assignmentMethods.js";
+import purchasePowerRatesRouter from "./routes/purchasePowerRates.js";
+import penaltyRatesRouter from "./routes/penaltyRates.js";
+import contractTerminationsRouter from "./routes/contractTerminations.js";
+import contractCancellationsRouter from "./routes/contractCancellations.js";
+
+
+
+
+
+
+
+
 
 const app = new Hono();
 
@@ -102,6 +118,22 @@ app.route("/api/contract-supplements", contractSupplementsRouter);
 app.route("/api/contract-addenda", contractAddendaRouter);
 app.route("/api/contract-cards", contractCardsRouter);
 app.route("/api/contract-changes-25", contractChanges25Router);
+app.route("/api/contract-types", contractTypesRouter);
+app.route("/api/deduction-types", deductionTypesRouter);
+app.route("/api/guarantee-types", guaranteeTypesRouter);
+app.route("/api/assignment-methods", assignmentMethodsRouter);
+app.route("/api/purchase-power-rates", purchasePowerRatesRouter);
+app.route("/api/penalty-rates", penaltyRatesRouter);
+app.route("/api/contract-terminations", contractTerminationsRouter);
+app.route("/api/contract-cancellations", contractCancellationsRouter);
+
+
+
+
+
+
+
+
 
 connectDb().then(() => {
   serve({ fetch: app.fetch, port: 8000 }, () => {

@@ -209,6 +209,142 @@ export interface FiscalYear {
   updatedAt?: string;
 }
 
+// ─── Contract Types ───────────────────────────────────────────────────────────
+export interface ContractType {
+  _id?: ObjectId;
+  code: string;
+  title: string;
+  nature: string; // e.g. "پیمانکاری" | "مشاوره" | "خرید کالا/تجهیزات" | "فروش" | "خدماتی" | "مشارکت" | "سایر"
+  taxRate?: number;
+  insuranceRate?: number;
+  hasGuarantee?: boolean;
+  status: "فعال" | "غیرفعال";
+  description?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// ─── Deduction Types ──────────────────────────────────────────────────────────
+export interface DeductionType {
+  _id?: ObjectId;
+  code: string;
+  title: string;
+  nature: string; // e.g. "قانونی" | "قراردادی" | "سپرده" | "پیش‌پرداخت" | "سایر"
+  calcMethod: "درصدی" | "مبلغ ثابت";
+  rate?: number; // percentage rate
+  amount?: number; // fixed amount
+  moeinAccount?: string; // associated moein ledger code
+  status: "فعال" | "غیرفعال";
+  description?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// ─── Guarantee Types ──────────────────────────────────────────────────────────
+export interface GuaranteeType {
+  _id?: ObjectId;
+  code: string;
+  title: string;
+  nature: string; // e.g. "شرکت در فرآیند" | "انجام تعهدات" | "پیش‌پرداخت" | "حسن انجام کار" | "گمرکی" | "سایر"
+  allowedCollaterals: string[]; // e.g. ["ضمانت‌نامه بانکی", "ضمانت‌نامه بیمه‌ای", "سفته", "وثیقه نقدی", "سند ملکی"]
+  validityDurationDays?: number; // default duration in days
+  status: "فعال" | "غیرفعال";
+  description?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// ─── Assignment Methods ───────────────────────────────────────────────────────
+export interface AssignmentMethod {
+  _id?: ObjectId;
+  code: string;
+  title: string;
+  nature: string; // e.g. "مناقصه" | "مزایده" | "ترک تشریفات" | "استعلام" | "خرید مستقیم" | "سایر"
+  hasTenderCommittee?: boolean;
+  minAmount?: number;
+  maxAmount?: number;
+  status: "فعال" | "غیرفعال";
+  description?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// ─── Purchase Power Rates ────────────────────────────────────────────────────
+export interface PurchasePowerRate {
+  _id?: ObjectId;
+  code: string;
+  fiscalYear: number;
+  annualRate: number; // annual preservation rate percentage (e.g. 20.5)
+  startDate: string; // Shami date string, e.g. "1403/01/01"
+  endDate: string; // Shami date string, e.g. "1403/12/29"
+  billTitle?: string; // associated regulation/approval/treasury bill title
+  status: "فعال" | "غیرفعال";
+  description?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// ─── Penalty Rates ───────────────────────────────────────────────────────────
+export interface PenaltyRate {
+  _id?: ObjectId;
+  code: string;
+  title: string;
+  nature: string; // e.g. "تأخیر در تعهدات" | "کیفیت کار" | "تخلفات قراردادی" | "سایر"
+  calcMethod: "روزانه درصدی" | "روزانه مبلغ ثابت" | "کل درصدی" | "کل مبلغ ثابت";
+  rate?: number; // percentage
+  amount?: number; // fixed amount
+  status: "فعال" | "غیرفعال";
+  description?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// ─── Contract Terminations ───────────────────────────────────────────────────
+export interface ContractTermination {
+  _id?: ObjectId;
+  contract_id: string; // references contracts collection
+  contract_number: string;
+  contract_title: string;
+  contractor_name: string;
+  termination_number: string; // notification/memo number
+  termination_date: string; // shamsi date like YYYY/MM/DD
+  reason: "اعمال ماده ۴۸" | "فقدان بودجه و اعتبارات" | "توافق طرفین" | "قوه قهریه" | "سایر";
+  work_done_amount?: number; // amount of work done until termination
+  settlement_status: "تسویه کامل" | "در حال تسویه" | "تسویه نشده";
+  guarantee_refund_status: "مسترد شده" | "در جریان استرداد" | "آزاد نشده";
+  status: "پیش‌نویس" | "ابلاغ شده" | "تایید نهایی";
+  description?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// ─── Contract Cancellations ──────────────────────────────────────────────────
+export interface ContractCancellation {
+  _id?: ObjectId;
+  contract_id: string; // references contracts collection
+  contract_number: string;
+  contract_title: string;
+  contractor_name: string;
+  cancellation_number: string; // official notification/memo number
+  cancellation_date: string; // shamsi date like YYYY/MM/DD
+  reason: "اعمال ماده ۴۶" | "ورشکستگی پیمانکار" | "تخلفات مالی یا واگذاری" | "عدم توانایی فنی" | "سایر";
+  damages_claimed_amount?: number; // estimated damages claimed by employer
+  guarantee_confiscation_status: "ضبط شده" | "در جریان ضبط" | "آزاد شده" | "اقدام نشده";
+  legal_case_status: "ثبت در دادگاه" | "در حال داوری" | "بدون اقدام" | "حل و فصل شده";
+  status: "پیش‌نویس" | "ابلاغ شده" | "تایید نهایی";
+  description?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+
+
+
+
+
+
+
+
 // ─── Contract Parties ─────────────────────────────────────────────────────────
 export interface ContractParty {
   _id?: ObjectId;
