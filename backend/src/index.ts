@@ -40,6 +40,8 @@ import contractTerminationsRouter from "./routes/contractTerminations.js";
 import contractCancellationsRouter from "./routes/contractCancellations.js";
 import depreciationSetupsRouter from "./routes/depreciationSetups.js";
 import monthlyDepreciationsRouter from "./routes/monthlyDepreciations.js";
+import annualDepreciationsRouter from "./routes/annualDepreciations.js";
+import depreciationVouchersRouter from "./routes/depreciationVouchers.js";
 
 
 
@@ -130,6 +132,8 @@ app.route("/api/contract-terminations", contractTerminationsRouter);
 app.route("/api/contract-cancellations", contractCancellationsRouter);
 app.route("/api/depreciation-setups", depreciationSetupsRouter);
 app.route("/api/monthly-depreciations", monthlyDepreciationsRouter);
+app.route("/api/annual-depreciations", annualDepreciationsRouter);
+app.route("/api/depreciation-vouchers", depreciationVouchersRouter);
 
 
 

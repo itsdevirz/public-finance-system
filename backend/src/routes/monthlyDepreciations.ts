@@ -36,91 +36,7 @@ router.post("/calculate", async (c) => {
       return c.json({ success: false, message: "سال و ماه محاسبه الزامی است" }, 400);
     }
 
-    // ۱. دریافت دارایی‌ها از پایگاه داده (یا ایجاد نمونه دارایی‌ها در صورت خالی بودن)
     let dbAssets: any[] = await db.collection("inventory_assets").find().toArray();
-    if (dbAssets.length === 0) {
-      // ایجاد داده‌های نمونه جهت اجرای بی‌نقص برنامه
-      dbAssets = [
-        {
-          code: "FA-1001",
-          name: "سواری پژو پارس - اداری",
-          group: "وسایل نقلیه",
-          subgroup: "سواری",
-          cost_center: "۱۰۲ - واحد پشتیبانی و تدارکات",
-          project: "پروژه بهسازی شبکه داخلی",
-          location: "ساختمان مرکزی - طبقه اول",
-          org_unit: "اداره پشتیبانی",
-          original_value: 850_000_000,
-          utilization_date: "1401/02/10",
-          status: "فعال"
-        },
-        {
-          code: "FA-1002",
-          name: "سرور HP ProLiant DL380",
-          group: "رایانه و ملزومات فناوری",
-          subgroup: "سرور",
-          cost_center: "۱۰۱ - واحد مالی و حسابداری",
-          project: "پروژه بهسازی شبکه داخلی",
-          location: "ساختمان مرکزی - طبقه دوم",
-          org_unit: "معاونت اداری و مالی",
-          original_value: 450_000_000,
-          utilization_date: "1402/06/15",
-          status: "فعال"
-        },
-        {
-          code: "FA-1003",
-          name: "میز کنفرانس ۲۰ نفره چوبی",
-          group: "تجهیزات اداری",
-          subgroup: "میز و صندلی اداری",
-          cost_center: "۱۰۳ - واحد مدیریت و اجرایی",
-          project: "طرح تجهیز سالن همایش",
-          location: "ساختمان مرکزی - طبقه دوم",
-          org_unit: "مدیریت سرمایه انسانی",
-          original_value: 120_000_000,
-          utilization_date: "1403/01/20",
-          status: "فعال"
-        },
-        {
-          code: "FA-1004",
-          name: "سوله انبار مرکزی پشتیبانی",
-          group: "ساختمان و ابنیه",
-          subgroup: "ملکی اداری",
-          cost_center: "۱۰۲ - واحد پشتیبانی و تدارکات",
-          project: "طرح احداث ساختمان مرکزی",
-          location: "انبار شماره ۱ - پشتیبانی",
-          org_unit: "اداره پشتیبانی",
-          original_value: 4_500_000_000,
-          utilization_date: "1395/10/01",
-          status: "فعال"
-        },
-        {
-          code: "FA-1005",
-          name: "لپ‌تاپ لنوو ThinkPad - امور مالی",
-          group: "رایانه و ملزومات فناوری",
-          subgroup: "لپ‌تاپ",
-          cost_center: "۱۰۱ - واحد مالی و حسابداری",
-          project: "پروژه بهسازی شبکه داخلی",
-          location: "ساختمان مرکزی - طبقه اول",
-          org_unit: "معاونت اداری و مالی",
-          original_value: 65_000_000,
-          utilization_date: "1403/02/05",
-          status: "اسقاط شده" // ایجاد خطا برای دارایی‌های اسقاط شده
-        },
-        {
-          code: "FA-1006",
-          name: "کمپرسور باد کارگاه",
-          group: "ماشین‌آلات و تجهیزات کارگاهی",
-          subgroup: "کمپرسور",
-          cost_center: "۱۰۴ - کارگاه شماره ۱",
-          project: "طرح احداث ساختمان مرکزی",
-          location: "انبار شماره ۱ - پشتیبانی",
-          org_unit: "اداره پشتیبانی",
-          original_value: 350_000_000,
-          utilization_date: "", // ایجاد خطا برای تاریخ نامعتبر
-          status: "فعال"
-        }
-      ];
-    }
 
     // ۲. دریافت قوانین تنظیم استهلاک
     const deprRules = await db.collection<DepreciationSetup>("depreciation_setups").find({ status: "فعال" }).toArray();
@@ -144,7 +60,12 @@ router.post("/calculate", async (c) => {
       const initialVal = Number(asset.purchaseAmount || asset.original_value || 0);
       const utilizationDate = asset.operationDate || asset.purchaseDate || asset.utilization_date;
       const usefulLifeFromAsset = Number(asset.usefulLife || asset.useful_life || 0);
-      const status = asset.status || "فعال";
+      let status = asset.status || "فعال";
+      if (status === "active") status = "فعال";
+      else if (status === "scrap" || status === "scrapped") status = "اسقاط شده";
+      else if (status === "lost") status = "مفقود شده";
+      else if (status === "repair" || status === "in_repair") status = "در حال تعمیر";
+      else if (status === "sold") status = "فروخته شده";
 
       totalAssetsCount++;
       
@@ -176,26 +97,49 @@ router.post("/calculate", async (c) => {
       } else if (!utilizationDate) {
         errorMsg = "تاریخ بهره‌برداری نامعتبر است";
       } else {
-        // یافتن قانون متناسب با دارایی بر اساس گروه
+        // یافتن قانون متناسب با دارایی بر اساس گروه (یا استفاده از اطلاعات ثبت شده دارایی به عنوان فال‌بک)
         const rule = deprRules.find(r => r.scope?.asset_group === assetGroup);
-        if (!rule) {
+        let salvage = 0;
+        let hasMethod = false;
+
+        if (rule) {
+          usefulLife = usefulLifeFromAsset || rule.calc_method.useful_life || 5;
+          salvage = Number(rule.calc_method.salvage_value || 0);
+          hasMethod = true;
+        } else if (asset.depreciationMethod || asset.depreciation_method) {
+          usefulLife = usefulLifeFromAsset || 5;
+          salvage = Number(asset.salvageValue || asset.salvage_value || 0);
+          hasMethod = true;
+        }
+
+        if (!hasMethod) {
           errorMsg = "روش استهلاک تعریف نشده است";
         } else {
-          usefulLife = usefulLifeFromAsset || rule.calc_method.useful_life || 5;
-          const isYearly = rule.calc_method.useful_life_unit === "سال";
-          const totalMonths = isYearly ? usefulLife * 12 : usefulLife;
+          const totalMonths = usefulLife * 12;
 
-          // شبیه‌ساز محاسبه ماه‌های سپری شده فرضی
-          const matchedYear = parseInt(utilizationDate.split("/")[0]) || 1400;
-          const passedMonths = Math.max(0, (fiscal_year - matchedYear) * 12);
-          
-          const salvage = Number(rule.calc_method.salvage_value || 0);
+          const monthsMap: Record<string, number> = {
+            "فروردین": 1, "اردیبهشت": 2, "خرداد": 3, "تیر": 4, "مرداد": 5, "شهریور": 6,
+            "مهر": 7, "آبان": 8, "آذر": 9, "دی": 10, "بهمن": 11, "اسفند": 12
+          };
+          const targetMonthIdx = monthsMap[month] || 1;
+
+          let utilYear = 1400;
+          let utilMonth = 1;
+          if (utilizationDate && utilizationDate.includes("/")) {
+            const parts = utilizationDate.split("/");
+            utilYear = parseInt(parts[0]) || 1400;
+            utilMonth = parseInt(parts[1]) || 1;
+          }
+
+          const passedMonths = (fiscal_year - utilYear) * 12 + (targetMonthIdx - utilMonth);
           const baseValue = initialVal - salvage;
 
-          if (passedMonths >= totalMonths) {
+          if (passedMonths < 0) {
+            errorMsg = "دارایی قبل از شروع تاریخ بهره‌برداری است";
+          } else if (passedMonths >= totalMonths) {
             errorMsg = "عمر مفید دارایی به پایان رسیده است";
           } else {
-            accBefore = Math.floor((baseValue / totalMonths) * Math.min(passedMonths, totalMonths));
+            accBefore = Math.floor((baseValue / totalMonths) * passedMonths);
             amount = Math.floor(baseValue / totalMonths);
             accAfter = accBefore + amount;
           }

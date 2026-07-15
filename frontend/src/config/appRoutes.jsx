@@ -60,6 +60,8 @@ const AssetSupplierForm = lazy(() => import("@/modules/assets/pages/AssetSupplie
 const DepreciationMethodForm = lazy(() => import("@/modules/assets/pages/DepreciationMethodForm"));
 const DepreciationSetupForm = lazy(() => import("@/modules/assets/pages/DepreciationSetupForm"));
 const MonthlyDepreciationForm = lazy(() => import("@/modules/assets/pages/MonthlyDepreciationForm"));
+const AnnualDepreciationForm = lazy(() => import("@/modules/assets/pages/AnnualDepreciationForm"));
+const DepreciationVoucherForm = lazy(() => import("@/modules/assets/pages/DepreciationVoucherForm"));
 const AssetDeliveryForm = lazy(() => import("@/modules/assets/pages/AssetDeliveryForm"));
 const AssetScrapForm = lazy(() => import("@/modules/assets/pages/AssetScrapForm"));
 const AssetSaleForm = lazy(() => import("@/modules/assets/pages/AssetSaleForm"));
@@ -452,8 +454,8 @@ export const PAGE_COMPONENTS = {
   "/assets/depreciation": Assets,
   "/assets/depreciation/setup": DepreciationSetupForm,
   "/assets/depreciation/monthly": MonthlyDepreciationForm,
-  "/assets/depreciation/annual": Assets,
-  "/assets/depreciation/document": Assets,
+  "/assets/depreciation/annual": AnnualDepreciationForm,
+  "/assets/depreciation/document": DepreciationVoucherForm,
   "/assets/warehouse": Assets,
   "/assets/warehouse/receipt": AssetWarehouseReceipt,
   "/assets/warehouse/issue": AssetWarehouseIssue,
