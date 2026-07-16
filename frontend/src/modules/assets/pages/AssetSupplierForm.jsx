@@ -10,6 +10,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { useAssets } from "@/context/AssetContext";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 
 // ─── نوع تامین‌کننده ─────────────────────────────────────────────────────────
@@ -25,13 +26,6 @@ const TYPE_COLORS = {
   government: "bg-violet-100 text-violet-700",
 };
 
-// ─── نمونه داده اولیه ────────────────────────────────────────────────────────
-const SAMPLE_DATA = [
-  { id: 1, code: "S001", title: "شرکت تجهیزات اداری ایران",  type: "company",    nationalId: "1010123456", economicCode: "41100000000", phone: "02112345678", contactName: "علی رضایی",  province: "تهران", inactive: false },
-  { id: 2, code: "S002", title: "سازمان اموال دولتی",         type: "government", nationalId: "1410000001", economicCode: "",            phone: "02144001122", contactName: "",           province: "تهران", inactive: false },
-  { id: 3, code: "S003", title: "احمد محمدی",                 type: "individual", nationalId: "0012345678", economicCode: "",            phone: "09121234567", contactName: "احمد محمدی", province: "اصفهان",inactive: false },
-];
-
 const INITIAL_FORM = {
   code: "", title: "", type: "company",
   nationalId: "", economicCode: "",
@@ -46,7 +40,6 @@ const INITIAL_FORM = {
 const TABS = [
   { key: "main",    label: "اطلاعات اصلی" },
   { key: "contact", label: "تماس و آدرس" },
-  
 ];
 
 function Field({ label, required, children, col }) {
@@ -61,12 +54,14 @@ function Field({ label, required, children, col }) {
 }
 
 export default function AssetSupplierForm() {
+  const { suppliers, addConfig, updateConfig, deleteConfig } = useAssets();
   const [form, setForm]         = useState(INITIAL_FORM);
-  const [list, setList]         = useState(SAMPLE_DATA);
   const [selected, setSelected] = useState(null);
   const [search, setSearch]     = useState("");
   const [activeTab, setActiveTab] = useState("main");
   const [saved, setSaved]       = useState(false);
+
+  const list = suppliers || [];
 
   function set(field) {
     return (e) => {
@@ -83,42 +78,43 @@ export default function AssetSupplierForm() {
     setActiveTab("main");
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!form.code.trim() || !form.title.trim()) return;
-    const record = { id: selected ?? Date.now(), ...form };
+    const record = { ...form };
     if (selected !== null) {
-      setList((l) => l.map((r) => (r.id === selected ? record : r)));
+      await updateConfig("suppliers", { ...record, _id: selected, id: selected });
     } else {
-      setList((l) => [...l, record]);
+      await addConfig("suppliers", record);
     }
     setSaved(true);
+    handleNew();
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (selected === null) return;
-    setList((l) => l.filter((r) => r.id !== selected));
+    await deleteConfig("suppliers", selected);
     handleNew();
   }
 
   function handleRowClick(row) {
-    setSelected(row.id);
+    setSelected(row._id || row.id);
     setForm({
-      code:         row.code         ?? "",
-      title:        row.title        ?? "",
-      type:         row.type         ?? "company",
-      nationalId:   row.nationalId   ?? "",
-      economicCode: row.economicCode ?? "",
-      phone:        row.phone        ?? "",
-      fax:          row.fax          ?? "",
-      email:        row.email        ?? "",
-      contactName:  row.contactName  ?? "",
-      contactPhone: row.contactPhone ?? "",
-      province:     row.province     ?? "",
-      city:         row.city         ?? "",
-      address:      row.address      ?? "",
-      sheba:        row.sheba        ?? "",
-      bankName:     row.bankName     ?? "",
-      inactive:     row.inactive     ?? false,
+      code:          row.code          ?? "",
+      title:         row.title         ?? "",
+      type:          row.type          ?? "company",
+      nationalId:    row.nationalId    ?? "",
+      economicCode:  row.economicCode  ?? "",
+      phone:         row.phone         ?? "",
+      fax:           row.fax           ?? "",
+      email:         row.email         ?? "",
+      contactName:   row.contactName   ?? "",
+      contactPhone:  row.contactPhone  ?? "",
+      province:      row.province      ?? "",
+      city:          row.city          ?? "",
+      address:       row.address       ?? "",
+      sheba:         row.sheba         ?? "",
+      bankName:      row.bankName      ?? "",
+      inactive:      row.inactive      ?? false,
     });
     setSaved(false);
     setActiveTab("main");
@@ -129,11 +125,10 @@ export default function AssetSupplierForm() {
       !search ||
       r.code?.includes(search) ||
       r.title?.includes(search) ||
-      r.nationalId?.includes(search) ||
-      r.phone?.includes(search)
+      r.contactName?.includes(search)
   );
 
-  const isIndividual = form.type === "individual";
+  const canSave = form.code.trim() && form.title.trim();
 
   return (
     <PageShell>
@@ -149,10 +144,9 @@ export default function AssetSupplierForm() {
       {/* هدر */}
       <div className="mb-4 flex items-center justify-between" dir="rtl">
         <div className="flex items-center gap-2">
-          <Button size="sm" onClick={handleSave}
-            disabled={!form.code.trim() || !form.title.trim()}
+          <Button size="sm" onClick={handleSave} disabled={!canSave}
             className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white">
-            <Save className="h-4 w-4" />ثبت
+            <Save className="h-4 w-4" />ذخیره
           </Button>
           <Button variant="outline" size="sm" onClick={handleNew} className="gap-1.5">
             <Plus className="h-4 w-4" />جدید
@@ -166,115 +160,98 @@ export default function AssetSupplierForm() {
         </div>
         <div className="text-right">
           <h1 className="text-xl font-bold">تعریف تامین‌کنندگان</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">تامین‌کنندگان و فروشندگان اموال را تعریف کنید</p>
+          <p className="text-xs text-muted-foreground mt-0.5">ثبت و مدیریت مشخصات پیمانکاران، فروشندگان و واگذارندگان دارایی‌ها</p>
         </div>
       </div>
 
       {/* تب‌ها */}
-      <div className="flex border-b mb-0 gap-0" dir="rtl">
+      <div className="tabs mb-0" dir="rtl">
         {TABS.map((t) => (
           <button key={t.key} onClick={() => setActiveTab(t.key)}
-            className={cn(
-              "px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px",
-              activeTab === t.key
-                ? "border-blue-500 text-blue-600"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            )}>
+            className={cn("tab-btn", activeTab === t.key && "active")}>
             {t.label}
           </button>
         ))}
       </div>
 
-      <Card className="rounded-tr-none border-t-0 shadow-sm mb-4">
-        <CardContent className="pt-5 px-6 pb-5">
-
-          {/* ══ تب اطلاعات اصلی ══ */}
+      {/* فرم */}
+      <Card className="rounded-tr-none shadow-sm mb-4">
+        <CardContent className="pt-5 px-6 pb-5 space-y-5">
           {activeTab === "main" && (
             <div className="grid grid-cols-2 gap-x-8 gap-y-4 md:grid-cols-4" dir="rtl">
-
               <Field label="کد تامین‌کننده" required>
-                <Input value={form.code} onChange={set("code")}
-                  className="h-9 text-sm font-mono" dir="ltr" maxLength={8} placeholder="S001" />
+                <Input value={form.code} onChange={set("code")} className="h-9 text-sm font-mono text-left" placeholder="مثال: S001" />
+              </Field>
+
+              <Field label="نام / عنوان تامین‌کننده" required col={2}>
+                <Input value={form.title} onChange={set("title")} className="h-9 text-sm" placeholder="مثال: شرکت تجهیزات اداری ایران" />
               </Field>
 
               <Field label="نوع تامین‌کننده" required>
-                <SearchableSelect value={form.type} onChange={v => { setForm(f => ({...f, type: v})); setSaved(false); }} options={SUPPLIER_TYPES} />
+                <SearchableSelect value={form.type} onChange={(v) => setForm(f => ({...f, type: v}))} options={SUPPLIER_TYPES} />
               </Field>
 
-              <Field label={isIndividual ? "نام و نام خانوادگی" : "نام شرکت / سازمان"} required col={2}>
-                <Input value={form.title} onChange={set("title")} className="h-9 text-sm"
-                  placeholder={isIndividual ? "نام کامل شخص" : "نام کامل شرکت یا سازمان"} />
+              <Field label="شناسه ملی / کد ملی">
+                <Input value={form.nationalId} onChange={set("nationalId")} className="h-9 text-sm font-mono text-left" placeholder="۱۰ یا ۱۱ رقم" />
               </Field>
 
-              <Field label={isIndividual ? "کد ملی" : "شناسه ملی"} required>
-                <Input value={form.nationalId} onChange={set("nationalId")}
-                  className="h-9 text-sm font-mono" dir="ltr"
-                  maxLength={11} placeholder={isIndividual ? "10 رقم" : "11 رقم"} />
+              <Field label="کد اقتصادی">
+                <Input value={form.economicCode} onChange={set("economicCode")} className="h-9 text-sm font-mono text-left" placeholder="۱۲ رقم" />
               </Field>
 
-              {!isIndividual && (
-                <Field label="کد اقتصادی">
-                  <Input value={form.economicCode} onChange={set("economicCode")}
-                    className="h-9 text-sm font-mono" dir="ltr" maxLength={12} placeholder="12 رقم" />
-                </Field>
-              )}
+              <Field label="نام بانک">
+                <Input value={form.bankName} onChange={set("bankName")} className="h-9 text-sm" placeholder="مثال: بانک ملی ایران" />
+              </Field>
+
+              <Field label="شماره شبا (IR)">
+                <Input value={form.sheba} onChange={set("sheba")} className="h-9 text-sm font-mono text-left animate-in fade-in" dir="ltr" placeholder="IR000000000000000000000000" />
+              </Field>
+            </div>
+          )}
+
+          {activeTab === "contact" && (
+            <div className="grid grid-cols-2 gap-x-8 gap-y-4 md:grid-cols-4" dir="rtl">
+              <Field label="تلفن ثابت">
+                <Input value={form.phone} onChange={set("phone")} className="h-9 text-sm font-mono text-left" placeholder="۰۲۱۸۸۸۸۸۸۸۸" />
+              </Field>
+
+              <Field label="فکس">
+                <Input value={form.fax} onChange={set("fax")} className="h-9 text-sm font-mono text-left" placeholder="۰۲۱۸۸۸۸۸۸۸۹" />
+              </Field>
+
+              <Field label="پست الکترونیکی" col={2}>
+                <Input value={form.email} onChange={set("email")} className="h-9 text-sm font-mono text-left" dir="ltr" placeholder="info@supplier.com" />
+              </Field>
+
+              <Field label="نام شخص رابط">
+                <Input value={form.contactName} onChange={set("contactName")} className="h-9 text-sm" placeholder="مثال: علی رضایی" />
+              </Field>
+
+              <Field label="تلفن همراه رابط">
+                <Input value={form.contactPhone} onChange={set("contactPhone")} className="h-9 text-sm font-mono text-left" placeholder="۰۹۱۲۱۲۳۴۵۶۷" />
+              </Field>
+
+              <Field label="استان">
+                <Input value={form.province} onChange={set("province")} className="h-9 text-sm" placeholder="مثال: تهران" />
+              </Field>
+
+              <Field label="شهر">
+                <Input value={form.city} onChange={set("city")} className="h-9 text-sm" placeholder="مثال: تهران" />
+              </Field>
+
+              <Field label="نشانی کامل" col={3}>
+                <Input value={form.address} onChange={set("address")} className="h-9 text-sm" placeholder="نشانی دقیق شرکت..." />
+              </Field>
 
               <Field label="وضعیت">
                 <label className="flex items-center gap-2 text-sm cursor-pointer pt-1.5">
                   <input type="checkbox" checked={form.inactive} onChange={set("inactive")}
-                    className="rounded accent-destructive" />
-                  <span className={cn("font-medium", form.inactive && "text-destructive")}>غیرفعال</span>
+                    className="rounded accent-red-600 h-4 w-4" />
+                  <span className={cn("font-medium", form.inactive && "text-red-600")}>غیرفعال</span>
                 </label>
               </Field>
-
             </div>
           )}
-
-          {/* ══ تب تماس و آدرس ══ */}
-          {activeTab === "contact" && (
-            <div className="grid grid-cols-2 gap-x-8 gap-y-4 md:grid-cols-4" dir="rtl">
-
-              <Field label="تلفن">
-                <Input value={form.phone} onChange={set("phone")}
-                  className="h-9 text-sm font-mono" dir="ltr" placeholder="021-XXXXXXXX" />
-              </Field>
-
-              <Field label="نمابر (فاکس)">
-                <Input value={form.fax} onChange={set("fax")}
-                  className="h-9 text-sm font-mono" dir="ltr" placeholder="021-XXXXXXXX" />
-              </Field>
-
-              <Field label="ایمیل" col={2}>
-                <Input value={form.email} onChange={set("email")}
-                  className="h-9 text-sm font-mono" dir="ltr" placeholder="example@email.com" />
-              </Field>
-
-              <Field label="نام شخص رابط">
-                <Input value={form.contactName} onChange={set("contactName")}
-                  className="h-9 text-sm" placeholder="نام و نام خانوادگی" />
-              </Field>
-
-              <Field label="تلفن شخص رابط">
-                <Input value={form.contactPhone} onChange={set("contactPhone")}
-                  className="h-9 text-sm font-mono" dir="ltr" placeholder="09XXXXXXXXX" />
-              </Field>
-
-              <Field label="استان">
-                <Input value={form.province} onChange={set("province")} className="h-9 text-sm" />
-              </Field>
-
-              <Field label="شهر">
-                <Input value={form.city} onChange={set("city")} className="h-9 text-sm" />
-              </Field>
-
-              <Field label="آدرس کامل" col={2}>
-                <Input value={form.address} onChange={set("address")}
-                  className="h-9 text-sm" placeholder="آدرس کامل دفتر یا انبار" />
-              </Field>
-
-            </div>
-          )}
-
         </CardContent>
       </Card>
 
@@ -284,11 +261,9 @@ export default function AssetSupplierForm() {
           <div className="mb-3 flex items-center gap-2" dir="rtl">
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input placeholder="جستجو بر اساس کد، نام، شناسه ملی..."
-                className="pr-9 h-8 text-sm" value={search}
-                onChange={(e) => setSearch(e.target.value)} />
+              <Input placeholder="جستجو در کد، عنوان، شخص رابط..." className="pr-9 h-8 text-sm" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
-            <Button variant="ghost" size="sm" onClick={() => setSearch("")}>پاک</Button>
+            <Button variant="ghost" size="sm" onClick={() => setSearch("")}>پاک کردن</Button>
             <span className="text-xs text-muted-foreground mr-auto">{filtered.length} رکورد</span>
           </div>
 
@@ -296,42 +271,37 @@ export default function AssetSupplierForm() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  <TableHead className="text-xs font-bold text-right w-20">کد</TableHead>
-                  <TableHead className="text-xs font-bold text-right">نام</TableHead>
-                  <TableHead className="text-xs font-bold text-right">نوع</TableHead>
-                  <TableHead className="text-xs font-bold text-right">شناسه ملی</TableHead>
-                  <TableHead className="text-xs font-bold text-right">تلفن</TableHead>
-                  <TableHead className="text-xs font-bold text-right">استان</TableHead>
-                  <TableHead className="text-xs font-bold text-right">وضعیت</TableHead>
+                  <TableHead className="text-xs font-bold text-right w-28">کد</TableHead>
+                  <TableHead className="text-xs font-bold text-right">عنوان تامین‌کننده</TableHead>
+                  <TableHead className="text-xs font-bold text-right w-36">نوع</TableHead>
+                  <TableHead className="text-xs font-bold text-right w-32">تلفن</TableHead>
+                  <TableHead className="text-xs font-bold text-right w-36">شخص رابط</TableHead>
+                  <TableHead className="text-xs font-bold text-right w-24">وضعیت</TableHead>
                   <TableHead className="w-10"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="py-8 text-center text-muted-foreground text-sm">
-                      رکوردی یافت نشد
-                    </TableCell>
+                    <TableCell colSpan={7} className="py-8 text-center text-muted-foreground text-sm">رکوردی یافت نشد</TableCell>
                   </TableRow>
                 ) : filtered.map((row) => (
-                  <TableRow key={row.id} onClick={() => handleRowClick(row)}
+                  <TableRow key={row._id || row.id} onClick={() => handleRowClick(row)}
                     className={cn("cursor-pointer transition-colors",
-                      selected === row.id ? "bg-primary/10 hover:bg-primary/15" : "hover:bg-muted/40")}>
-                    <TableCell className="font-mono text-sm font-bold">{row.code}</TableCell>
-                    <TableCell className="text-sm font-medium max-w-[180px] truncate">{row.title}</TableCell>
+                      selected === (row._id || row.id) ? "bg-primary/10 hover:bg-primary/15" : "hover:bg-muted/40")}>
+                    <TableCell className="font-mono text-xs">{row.code}</TableCell>
+                    <TableCell className="text-sm font-medium">{row.title}</TableCell>
                     <TableCell>
-                      <Badge variant="secondary"
-                        className={cn("text-xs", TYPE_COLORS[row.type] ?? "bg-slate-100 text-slate-600")}>
-                        {SUPPLIER_TYPES.find((t) => t.value === row.type)?.label ?? row.type}
+                      <Badge className={cn("text-xs font-normal border shadow-none", TYPE_COLORS[row.type] || TYPE_COLORS.company)}>
+                        {SUPPLIER_TYPES.find((t) => t.value === row.type)?.label || row.type}
                       </Badge>
                     </TableCell>
-                    <TableCell className="font-mono text-xs text-muted-foreground">{row.nationalId || "—"}</TableCell>
-                    <TableCell className="font-mono text-xs text-muted-foreground">{row.phone || "—"}</TableCell>
-                    <TableCell className="text-xs">{row.province || "—"}</TableCell>
+                    <TableCell className="font-mono text-xs text-left">{row.phone || "—"}</TableCell>
+                    <TableCell className="text-xs">{row.contactName || "—"}</TableCell>
                     <TableCell>
-                      {row.inactive
-                        ? <Badge variant="destructive" className="text-xs">غیرفعال</Badge>
-                        : <Badge variant="secondary" className="text-xs bg-emerald-100 text-emerald-700">فعال</Badge>}
+                      <Badge variant={row.inactive ? "destructive" : "success"} className="text-xs">
+                        {row.inactive ? "غیرفعال" : "فعال"}
+                      </Badge>
                     </TableCell>
                     <TableCell><Pencil className="h-3.5 w-3.5 text-muted-foreground" /></TableCell>
                   </TableRow>

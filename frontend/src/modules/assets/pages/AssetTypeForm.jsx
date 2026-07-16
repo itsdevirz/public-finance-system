@@ -10,14 +10,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-
-// ─── نمونه داده اولیه ────────────────────────────────────────────────────────
-const SAMPLE_DATA = [
-  { id: 1, code: "01", title: "مصرفی",           consumable: true,  trackable: false, description: "اقلامی که پس از مصرف از بین می‌روند", inactive: false },
-  { id: 2, code: "02", title: "غیرمصرفی",        consumable: false, trackable: true,  description: "اقلامی که قابل استفاده مجدد هستند",   inactive: false },
-  { id: 3, code: "03", title: "نیمه‌مصرفی",      consumable: true,  trackable: true,  description: "اقلامی با عمر محدود و قابل ردیابی",    inactive: false },
-  { id: 4, code: "04", title: "مصرفی بهداشتی",  consumable: true,  trackable: false, description: "",                                       inactive: false },
-];
+import { useAssets } from "@/context/AssetContext";
 
 const INITIAL_FORM = {
   code: "", title: "",
@@ -38,11 +31,13 @@ function Field({ label, required, children, col }) {
 }
 
 export default function AssetTypeForm() {
+  const { types, addConfig, updateConfig, deleteConfig } = useAssets();
   const [form, setForm]         = useState(INITIAL_FORM);
-  const [list, setList]         = useState(SAMPLE_DATA);
   const [selected, setSelected] = useState(null);
   const [search, setSearch]     = useState("");
   const [saved, setSaved]       = useState(false);
+
+  const list = types || [];
 
   function set(field) {
     return (e) => {
@@ -58,25 +53,26 @@ export default function AssetTypeForm() {
     setSaved(false);
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!form.code.trim() || !form.title.trim()) return;
-    const record = { id: selected ?? Date.now(), ...form };
+    const record = { ...form };
     if (selected !== null) {
-      setList((l) => l.map((r) => (r.id === selected ? record : r)));
+      await updateConfig("types", { ...record, _id: selected, id: selected });
     } else {
-      setList((l) => [...l, record]);
+      await addConfig("types", record);
     }
     setSaved(true);
+    handleNew();
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (selected === null) return;
-    setList((l) => l.filter((r) => r.id !== selected));
+    await deleteConfig("types", selected);
     handleNew();
   }
 
   function handleRowClick(row) {
-    setSelected(row.id);
+    setSelected(row._id || row.id);
     setForm({
       code:        row.code        ?? "",
       title:       row.title       ?? "",
@@ -95,6 +91,8 @@ export default function AssetTypeForm() {
       r.title?.includes(search)
   );
 
+  const canSave = form.code.trim() && form.title.trim();
+
   return (
     <PageShell>
       {/* Breadcrumb */}
@@ -109,131 +107,67 @@ export default function AssetTypeForm() {
       {/* هدر */}
       <div className="mb-4 flex items-center justify-between" dir="rtl">
         <div className="flex items-center gap-2">
-          <Button
-            size="sm" onClick={handleSave}
-            disabled={!form.code.trim() || !form.title.trim()}
-            className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            <Save className="h-4 w-4" />ثبت
+          <Button size="sm" onClick={handleSave} disabled={!canSave}
+            className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white">
+            <Save className="h-4 w-4" />ذخیره
           </Button>
           <Button variant="outline" size="sm" onClick={handleNew} className="gap-1.5">
             <Plus className="h-4 w-4" />جدید
           </Button>
-          <Button
-            variant="outline" size="sm" onClick={handleDelete}
+          <Button variant="outline" size="sm" onClick={handleDelete}
             disabled={selected === null}
-            className="gap-1.5 text-destructive hover:text-destructive"
-          >
+            className="gap-1.5 text-destructive hover:text-destructive">
             <Trash2 className="h-4 w-4" />حذف
           </Button>
-          {saved && (
-            <span className="text-sm font-medium text-emerald-600 animate-in fade-in">✓ ذخیره شد</span>
-          )}
+          {saved && <span className="text-sm font-medium text-emerald-600 animate-in fade-in">✓ ذخیره شد</span>}
         </div>
         <div className="text-right">
-          <h1 className="text-xl font-bold">تعریف نوع مال (مصرفی/غیرمصرفی)</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">تعریف انواع مال از نظر قابلیت مصرف</p>
+          <h1 className="text-xl font-bold">تعریف نوع مال</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">تفکیک مصرفی یا غیرمصرفی بودن اقلام اموال</p>
         </div>
       </div>
 
       {/* فرم */}
       <Card className="shadow-sm mb-4">
-        <CardContent className="pt-5 px-6 pb-5">
-          <div className="grid grid-cols-2 gap-x-8 gap-y-5 md:grid-cols-4" dir="rtl">
-
-            {/* کد نوع */}
-            <Field label="کد اموال" required>
-              <Input
-                value={form.code}
-                onChange={set("code")}
-                className="h-9 text-sm font-mono"
-                dir="ltr"
-                maxLength={4}
-                placeholder="مثال: 01"
-              />
+        <CardContent className="pt-5 px-6 pb-5 space-y-5">
+          <div className="grid grid-cols-2 gap-x-8 gap-y-4 md:grid-cols-4" dir="rtl">
+            <Field label="کد نوع" required>
+              <Input value={form.code} onChange={set("code")} className="h-9 text-sm font-mono text-left" placeholder="مثال: ۰۱" />
             </Field>
 
-            {/* عنوان */}
-            <Field label="عنوان نوع مال" required col={2}>
-              <Input
-                value={form.title}
-                onChange={set("title")}
-                className="h-9 text-sm"
-                placeholder="عنوان نوع مال را وارد کنید"
-              />
+            <Field label="عنوان نوع" required col={2}>
+              <Input value={form.title} onChange={set("title")} className="h-9 text-sm" placeholder="مثال: غیرمصرفی (دارایی ثابت)" />
             </Field>
 
-            {/* غیرفعال */}
+            <div className="flex gap-6 items-center pt-2">
+              <Field label="ماهیت مصرفی">
+                <label className="flex items-center gap-2 text-sm cursor-pointer pt-1.5">
+                  <input type="checkbox" checked={form.consumable} onChange={set("consumable")}
+                    className="rounded accent-blue-600 h-4 w-4" />
+                  <span className={cn("font-medium", form.consumable && "text-blue-600")}>مصرفی</span>
+                </label>
+              </Field>
+
+              <Field label="قابل ردیابی">
+                <label className="flex items-center gap-2 text-sm cursor-pointer pt-1.5">
+                  <input type="checkbox" checked={form.trackable} onChange={set("trackable")}
+                    className="rounded accent-blue-600 h-4 w-4" />
+                  <span className={cn("font-medium", form.trackable && "text-blue-600")}>نیاز به برچسب / سریال</span>
+                </label>
+              </Field>
+            </div>
+
+            <Field label="توضیحات" col={2}>
+              <Input value={form.description} onChange={set("description")} className="h-9 text-sm" placeholder="توضیحات اختیاری..." />
+            </Field>
+
             <Field label="وضعیت">
               <label className="flex items-center gap-2 text-sm cursor-pointer pt-1.5">
-                <input
-                  type="checkbox"
-                  checked={form.inactive}
-                  onChange={set("inactive")}
-                  className="rounded accent-destructive"
-                />
-                <span className={cn("font-medium", form.inactive && "text-destructive")}>
-                  غیرفعال
-                </span>
+                <input type="checkbox" checked={form.inactive} onChange={set("inactive")}
+                  className="rounded accent-red-600 h-4 w-4" />
+                <span className={cn("font-medium", form.inactive && "text-red-600")}>غیرفعال</span>
               </label>
             </Field>
-
-            {/* نوع: مصرفی / غیرمصرفی */}
-            <div className="col-span-2 rounded-xl border bg-muted/20 px-5 py-4">
-              <p className="text-xs font-bold text-primary mb-3">نوع مال</p>
-              <div className="flex items-center gap-8">
-                {[
-                  { v: true,  l: "مصرفی",    desc: "پس از مصرف از بین می‌رود" },
-                  { v: false, l: "غیرمصرفی", desc: "قابل استفاده مجدد است" },
-                ].map(({ v, l, desc }) => (
-                  <label key={l} className="flex items-start gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="consumable"
-                      checked={form.consumable === v}
-                      onChange={() => { setForm((f) => ({ ...f, consumable: v })); setSaved(false); }}
-                      className="accent-blue-600 mt-0.5"
-                    />
-                    <div>
-                      <span className={cn("text-sm font-medium", form.consumable === v && "text-blue-600")}>{l}</span>
-                      <p className="text-xs text-muted-foreground">{desc}</p>
-                    </div>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* ردیابی */}
-            <div className="col-span-2 rounded-xl border bg-muted/20 px-5 py-4">
-              <p className="text-xs font-bold text-primary mb-3">ردیابی و کنترل</p>
-              <label className="flex items-center gap-2 text-sm cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={form.trackable}
-                  onChange={set("trackable")}
-                  className="rounded accent-blue-600 h-4 w-4"
-                />
-                <div>
-                  <span className={cn("font-medium", form.trackable && "text-blue-600")}>
-                    نیاز به ردیابی (شماره سریال / برچسب اموال)
-                  </span>
-                  <p className="text-xs text-muted-foreground">
-                    در صورت فعال بودن، هنگام ثبت مال، شماره سریال و برچسب اجباری می‌شود.
-                  </p>
-                </div>
-              </label>
-            </div>
-
-            {/* توضیحات */}
-            <Field label="توضیحات" col={2}>
-              <Input
-                value={form.description}
-                onChange={set("description")}
-                className="h-9 text-sm"
-                placeholder="توضیحات اضافی (اختیاری)"
-              />
-            </Field>
-
           </div>
         </CardContent>
       </Card>
@@ -242,16 +176,11 @@ export default function AssetTypeForm() {
       <Card>
         <CardContent className="pt-4">
           <div className="mb-3 flex items-center gap-2" dir="rtl">
-            <div className="relative flex-1 max-w-xs">
+            <div className="relative flex-1 max-w-sm">
               <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="جستجو بر اساس کد یا عنوان..."
-                className="pr-9 h-8 text-sm"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
+              <Input placeholder="جستجو..." className="pr-9 h-8 text-sm" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
-            <Button variant="ghost" size="sm" onClick={() => setSearch("")}>پاک</Button>
+            <Button variant="ghost" size="sm" onClick={() => setSearch("")}>پاک کردن</Button>
             <span className="text-xs text-muted-foreground mr-auto">{filtered.length} رکورد</span>
           </div>
 
@@ -259,70 +188,37 @@ export default function AssetTypeForm() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  <TableHead className="text-xs font-bold text-right w-16">کد</TableHead>
-                  <TableHead className="text-xs font-bold text-right">عنوان</TableHead>
-                  <TableHead className="text-xs font-bold text-right">نوع</TableHead>
-                  <TableHead className="text-xs font-bold text-right">ردیابی</TableHead>
-                  <TableHead className="text-xs font-bold text-right">وضعیت</TableHead>
+                  <TableHead className="text-xs font-bold text-right w-24">کد نوع</TableHead>
+                  <TableHead className="text-xs font-bold text-right">عنوان نوع</TableHead>
+                  <TableHead className="text-xs font-bold text-right w-28">مصرفی</TableHead>
+                  <TableHead className="text-xs font-bold text-right w-28">قابل ردیابی</TableHead>
+                  <TableHead className="text-xs font-bold text-right">توضیحات</TableHead>
+                  <TableHead className="text-xs font-bold text-right w-24">وضعیت</TableHead>
                   <TableHead className="w-10"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="py-8 text-center text-muted-foreground text-sm">
-                      رکوردی یافت نشد
-                    </TableCell>
+                    <TableCell colSpan={7} className="py-8 text-center text-muted-foreground text-sm">رکوردی یافت نشد</TableCell>
                   </TableRow>
-                ) : (
-                  filtered.map((row) => (
-                    <TableRow
-                      key={row.id}
-                      onClick={() => handleRowClick(row)}
-                      className={cn(
-                        "cursor-pointer transition-colors",
-                        selected === row.id
-                          ? "bg-primary/10 hover:bg-primary/15"
-                          : "hover:bg-muted/40"
-                      )}
-                    >
-                      <TableCell className="font-mono text-sm font-bold">{row.code}</TableCell>
-                      <TableCell className="text-sm font-medium">{row.title}</TableCell>
-                      <TableCell>
-                        <Badge
-                          className={cn(
-                            "text-xs",
-                            row.consumable
-                              ? "bg-amber-100 text-amber-700"
-                              : "bg-blue-100 text-blue-700"
-                          )}
-                          variant="secondary"
-                        >
-                          {row.consumable ? "مصرفی" : "غیرمصرفی"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {row.trackable ? (
-                          <Badge variant="secondary" className="text-xs bg-violet-100 text-violet-700">
-                            ردیابی‌پذیر
-                          </Badge>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {row.inactive ? (
-                          <Badge variant="destructive" className="text-xs">غیرفعال</Badge>
-                        ) : (
-                          <Badge variant="secondary" className="text-xs bg-emerald-100 text-emerald-700">فعال</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
+                ) : filtered.map((row) => (
+                  <TableRow key={row._id || row.id} onClick={() => handleRowClick(row)}
+                    className={cn("cursor-pointer transition-colors",
+                      selected === (row._id || row.id) ? "bg-primary/10 hover:bg-primary/15" : "hover:bg-muted/40")}>
+                    <TableCell className="font-mono text-xs">{row.code}</TableCell>
+                    <TableCell className="text-sm font-medium">{row.title}</TableCell>
+                    <TableCell className="text-xs">{row.consumable ? "بله" : "خیر"}</TableCell>
+                    <TableCell className="text-xs">{row.trackable ? "بله" : "خیر"}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{row.description || "—"}</TableCell>
+                    <TableCell>
+                      <Badge variant={row.inactive ? "destructive" : "success"} className="text-xs">
+                        {row.inactive ? "غیرفعال" : "فعال"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell><Pencil className="h-3.5 w-3.5 text-muted-foreground" /></TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           </div>

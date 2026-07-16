@@ -438,4 +438,137 @@ router.delete("/alerts/:id", async (c) => {
   }
 });
 
+// ─── CUSTOM CONFIGURATIONS CRUD & SEEDING ─────────────────────────────────────
+const SEED_DATA: Record<string, any[]> = {
+  groups: [
+    { id: 1, code: "01", title: "اموال منقول", depreciable: true,  usefulLife: 10, depRate: 10, inactive: false },
+    { id: 2, code: "02", title: "اموال غیرمنقول", depreciable: true,  usefulLife: 40, depRate: 2.5, inactive: false },
+    { id: 3, code: "03", title: "تجهیزات اداری", depreciable: true,  usefulLife: 5,  depRate: 20, inactive: false },
+    { id: 4, code: "04", title: "وسایط نقلیه",   depreciable: true,  usefulLife: 8,  depRate: 12.5, inactive: false },
+    { id: 5, code: "05", title: "اموال مصرفی",   depreciable: false, usefulLife: "", depRate: "",  inactive: false },
+  ],
+  subgroups: [
+    { id: 1, code: "01-01", title: "رایانه و لپ‌تاپ", groupCode: "01", description: "شامل رایانه‌های رومیزی و لپ‌تاپ‌ها", inactive: false },
+    { id: 2, code: "01-02", title: "تجهیزات شبکه", groupCode: "01", description: "سوئیچ، روتر و ملزومات غیرفعال", inactive: false },
+    { id: 3, code: "03-01", title: "میز و صندلی اداری", groupCode: "03", description: "انواع مبلمان اداری و کنفرانس", inactive: false },
+  ],
+  types: [
+    { id: 1, code: "T-01", title: "غیرمصرفی (دارایی ثابت)", nature: "non-consumable", description: "دارای طول عمر مفید بیش از یک سال", inactive: false },
+    { id: 2, code: "T-02", title: "مصرفی", nature: "consumable", description: "اقلام مصرفی اداری", inactive: false },
+    { id: 3, code: "T-03", title: "در حکم مصرفی", nature: "consumable-2", description: "دارای عمر مفید کوتاه یا ارزش ناچیز", inactive: false },
+  ],
+  natures: [
+    { id: 1, code: "N-01", title: "اموال منقول", movable: true, description: "اموال قابل حمل", inactive: false },
+    { id: 2, code: "N-02", title: "اموال غیرمنقول", movable: false, description: "زمین و ساختمان", inactive: false },
+  ],
+  units: [
+    { id: 1, code: "U-01", title: "دستگاه", abbreviation: "دستگاه", inactive: false },
+    { id: 2, code: "U-02", title: "عدد", abbreviation: "عدد", inactive: false },
+    { id: 3, code: "U-03", title: "متر", abbreviation: "متر", inactive: false },
+    { id: 4, code: "U-04", title: "جلد", abbreviation: "جلد", inactive: false },
+  ],
+  locations: [
+    { id: 1, code: "L-01", name: "ساختمان مرکزی - طبقه اول - اتاق ۱۰۱", building: "ساختمان مرکزی", floor: "اول", room: "۱۰۱", inactive: false },
+    { id: 2, code: "L-02", name: "ساختمان مرکزی - طبقه دوم - سالن کنفرانس", building: "ساختمان مرکزی", floor: "دوم", room: "سالن کنفرانس", inactive: false },
+  ],
+  suppliers: [
+    { id: 1, code: "S-01", name: "شرکت رایان سیستم", tel: "021-88888888", manager: "احمدی", active: true },
+    { id: 2, code: "S-02", name: "صنایع چوب نیلپر", tel: "021-77777777", manager: "رضایی", active: true },
+  ]
+};
+
+const collections = [
+  "groups",
+  "subgroups",
+  "types",
+  "natures",
+  "units",
+  "locations",
+  "suppliers"
+];
+
+collections.forEach((name) => {
+  const collName = `inventory_${name}`;
+
+  // GET /api/inventory/:name
+  router.get(`/${name}`, async (c) => {
+    try {
+      const db = getDb();
+      const count = await db.collection(collName).countDocuments();
+      if (count === 0 && SEED_DATA[name]) {
+        await db.collection(collName).insertMany(SEED_DATA[name]);
+      }
+      const list = await db.collection(collName).find().toArray();
+      return c.json({ success: true, data: list });
+    } catch (error: any) {
+      return c.json({ success: false, message: error.message }, 500);
+    }
+  });
+
+  // POST /api/inventory/:name
+  router.post(`/${name}`, async (c) => {
+    try {
+      const db = getDb();
+      const body = await c.req.json();
+      const doc = {
+        ...body,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      delete doc._id;
+      const res = await db.collection(collName).insertOne(doc);
+      return c.json({ success: true, data: { ...doc, _id: res.insertedId, id: doc.id || res.insertedId.toString() } });
+    } catch (error: any) {
+      return c.json({ success: false, message: error.message }, 500);
+    }
+  });
+
+  // PUT /api/inventory/:name/:id
+  router.put(`/${name}/:id`, async (c) => {
+    try {
+      const db = getDb();
+      const id = c.req.param("id");
+      const body = await c.req.json();
+      let query: any = { id: id };
+      if (id.length === 24) {
+        try {
+          query = { _id: new ObjectId(id) };
+        } catch (e) {
+          // ignore
+        }
+      } else if (!isNaN(Number(id))) {
+        query = { $or: [{ id: Number(id) }, { id: id }] };
+      }
+      const doc = { ...body, updatedAt: new Date().toISOString() };
+      delete doc._id;
+      await db.collection(collName).updateOne(query, { $set: doc });
+      return c.json({ success: true, data: doc });
+    } catch (error: any) {
+      return c.json({ success: false, message: error.message }, 500);
+    }
+  });
+
+  // DELETE /api/inventory/:name/:id
+  router.delete(`/${name}/:id`, async (c) => {
+    try {
+      const db = getDb();
+      const id = c.req.param("id");
+      let query: any = { id: id };
+      if (id.length === 24) {
+        try {
+          query = { _id: new ObjectId(id) };
+        } catch (e) {
+          // ignore
+        }
+      } else if (!isNaN(Number(id))) {
+        query = { $or: [{ id: Number(id) }, { id: id }] };
+      }
+      await db.collection(collName).deleteOne(query);
+      return c.json({ success: true });
+    } catch (error: any) {
+      return c.json({ success: false, message: error.message }, 500);
+    }
+  });
+});
+
 export default router;

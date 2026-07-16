@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Plus, Trash2, Save, Search, Pencil } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,27 +10,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-
-// ─── گروه‌های موجود (در واقعیت از API یا context می‌آید) ────────────────────
-const ASSET_GROUPS = [
-  { code: "01", title: "اموال منقول" },
-  { code: "02", title: "اموال غیرمنقول" },
-  { code: "03", title: "تجهیزات اداری" },
-  { code: "04", title: "وسایط نقلیه" },
-  { code: "05", title: "اموال مصرفی" },
-];
-
-// ─── نمونه داده اولیه زیرگروه‌ها ─────────────────────────────────────────────
-const SAMPLE_DATA = [
-  { id: 1, groupCode: "01", code: "0101", title: "اثاثیه و مبلمان",        account: "1411001", inactive: false },
-  { id: 2, groupCode: "01", code: "0102", title: "ماشین‌آلات و دستگاه‌ها",  account: "1411002", inactive: false },
-  { id: 3, groupCode: "01", code: "0103", title: "تجهیزات رایانه‌ای",       account: "1411003", inactive: false },
-  { id: 4, groupCode: "02", code: "0201", title: "زمین",                    account: "1412001", inactive: false },
-  { id: 5, groupCode: "02", code: "0202", title: "ساختمان و مستحدثات",      account: "1412002", inactive: false },
-  { id: 6, groupCode: "03", code: "0301", title: "تجهیزات اداری سبک",       account: "1413001", inactive: false },
-  { id: 7, groupCode: "04", code: "0401", title: "خودرو سواری",              account: "1414001", inactive: false },
-  { id: 8, groupCode: "04", code: "0402", title: "خودرو سنگین",              account: "1414002", inactive: false },
-];
+import { useAssets } from "@/context/AssetContext";
 
 const INITIAL_FORM = {
   groupCode: "", code: "", title: "",
@@ -69,12 +49,18 @@ function StyledSelect({ value, onChange, options, placeholder, disabled }) {
 }
 
 export default function AssetSubGroupForm() {
+  const { groups, subgroups, addConfig, updateConfig, deleteConfig } = useAssets();
   const [form, setForm]         = useState(INITIAL_FORM);
-  const [list, setList]         = useState(SAMPLE_DATA);
   const [selected, setSelected] = useState(null);
   const [search, setSearch]     = useState("");
   const [filterGroup, setFilterGroup] = useState(""); // فیلتر جدول بر اساس گروه
   const [saved, setSaved]       = useState(false);
+
+  const list = subgroups || [];
+
+  const groupOptions = useMemo(() => {
+    return (groups || []).map((g) => ({ value: g.code, label: `${g.code} — ${g.title}` }));
+  }, [groups]);
 
   function set(field) {
     return (e) => {
@@ -90,25 +76,26 @@ export default function AssetSubGroupForm() {
     setSaved(false);
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!form.groupCode || !form.code.trim() || !form.title.trim()) return;
-    const record = { id: selected ?? Date.now(), ...form };
+    const record = { ...form };
     if (selected !== null) {
-      setList((l) => l.map((r) => (r.id === selected ? record : r)));
+      await updateConfig("subgroups", { ...record, _id: selected, id: selected });
     } else {
-      setList((l) => [...l, record]);
+      await addConfig("subgroups", record);
     }
     setSaved(true);
+    handleNew();
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (selected === null) return;
-    setList((l) => l.filter((r) => r.id !== selected));
+    await deleteConfig("subgroups", selected);
     handleNew();
   }
 
   function handleRowClick(row) {
-    setSelected(row.id);
+    setSelected(row._id || row.id);
     setForm({
       groupCode:   row.groupCode   ?? "",
       code:        row.code        ?? "",
@@ -120,25 +107,16 @@ export default function AssetSubGroupForm() {
     setSaved(false);
   }
 
-  // نام گروه بر اساس کد
-  function groupTitle(code) {
-    return ASSET_GROUPS.find((g) => g.code === code)?.title ?? code;
-  }
-
   const filtered = list.filter((r) => {
-    const matchSearch =
-      !search ||
+    const matchesSearch = !search ||
       r.code?.includes(search) ||
       r.title?.includes(search) ||
       r.account?.includes(search);
-    const matchGroup = !filterGroup || r.groupCode === filterGroup;
-    return matchSearch && matchGroup;
+    const matchesGroup = !filterGroup || r.groupCode === filterGroup;
+    return matchesSearch && matchesGroup;
   });
 
-  const groupOptions = ASSET_GROUPS.map((g) => ({
-    value: g.code,
-    label: `${g.code} — ${g.title}`,
-  }));
+  const canSave = form.groupCode && form.code.trim() && form.title.trim();
 
   return (
     <PageShell>
@@ -154,108 +132,62 @@ export default function AssetSubGroupForm() {
       {/* هدر */}
       <div className="mb-4 flex items-center justify-between" dir="rtl">
         <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            onClick={handleSave}
-            disabled={!form.groupCode || !form.code.trim() || !form.title.trim()}
-            className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            <Save className="h-4 w-4" />ثبت
+          <Button size="sm" onClick={handleSave} disabled={!canSave}
+            className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white">
+            <Save className="h-4 w-4" />ذخیره
           </Button>
           <Button variant="outline" size="sm" onClick={handleNew} className="gap-1.5">
             <Plus className="h-4 w-4" />جدید
           </Button>
-          <Button
-            variant="outline" size="sm" onClick={handleDelete}
+          <Button variant="outline" size="sm" onClick={handleDelete}
             disabled={selected === null}
-            className="gap-1.5 text-destructive hover:text-destructive"
-          >
+            className="gap-1.5 text-destructive hover:text-destructive">
             <Trash2 className="h-4 w-4" />حذف
           </Button>
-          {saved && (
-            <span className="text-sm font-medium text-emerald-600 animate-in fade-in">✓ ذخیره شد</span>
-          )}
+          {saved && <span className="text-sm font-medium text-emerald-600 animate-in fade-in">✓ ذخیره شد</span>}
         </div>
         <div className="text-right">
           <h1 className="text-xl font-bold">تعریف زیرگروه اموال</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">زیرگروه‌های هر گروه اموال را تعریف کنید</p>
+          <p className="text-xs text-muted-foreground mt-0.5">تعیین دسته‌بندی‌های تفصیلی و حساب معین اموال</p>
         </div>
       </div>
 
       {/* فرم */}
       <Card className="shadow-sm mb-4">
-        <CardContent className="pt-5 px-6 pb-5">
+        <CardContent className="pt-5 px-6 pb-5 space-y-5">
           <div className="grid grid-cols-2 gap-x-8 gap-y-4 md:grid-cols-4" dir="rtl">
-
-            {/* گروه اموال */}
-            <Field label="گروه اموال" required col={2}>
+            <Field label="گروه اصلی" required>
               <StyledSelect
                 value={form.groupCode}
                 onChange={set("groupCode")}
                 options={groupOptions}
-                placeholder="انتخاب گروه اموال"
+                placeholder="انتخاب گروه..."
               />
             </Field>
 
-            {/* کد زیرگروه */}
             <Field label="کد زیرگروه" required>
-              <Input
-                value={form.code}
-                onChange={set("code")}
-                className="h-9 text-sm font-mono"
-                dir="ltr"
-                maxLength={6}
-                placeholder="مثال: 0101"
-              />
+              <Input value={form.code} onChange={set("code")} className="h-9 text-sm font-mono text-left" placeholder="مثال: ۰۱۰۳" />
             </Field>
 
-            {/* عنوان زیرگروه */}
             <Field label="عنوان زیرگروه" required col={2}>
-              <Input
-                value={form.title}
-                onChange={set("title")}
-                className="h-9 text-sm"
-                placeholder="عنوان زیرگروه را وارد کنید"
-              />
+              <Input value={form.title} onChange={set("title")} className="h-9 text-sm" placeholder="مثال: تجهیزات رایانه‌ای" />
             </Field>
 
-            {/* سرفصل حساب */}
-            <Field label="سرفصل حساب معین">
-              <Input
-                value={form.account}
-                onChange={set("account")}
-                className="h-9 text-sm font-mono"
-                dir="ltr"
-                maxLength={10}
-                placeholder="کد حساب"
-              />
+            <Field label="شماره حساب معین">
+              <Input value={form.account} onChange={set("account")} className="h-9 text-sm font-mono text-left" placeholder="مثال: ۱۴۱۱۰۰۳" />
             </Field>
 
-            {/* توضیحات */}
             <Field label="توضیحات" col={2}>
-              <Input
-                value={form.description}
-                onChange={set("description")}
-                className="h-9 text-sm"
-                placeholder="توضیحات اضافی (اختیاری)"
-              />
+              <Input value={form.description} onChange={set("description")} className="h-9 text-sm" placeholder="توضیحات اختیاری..." />
             </Field>
 
-            {/* غیرفعال */}
             <Field label="وضعیت">
               <label className="flex items-center gap-2 text-sm cursor-pointer pt-1.5">
-                <input
-                  type="checkbox"
-                  checked={form.inactive}
-                  onChange={set("inactive")}
-                  className="rounded accent-destructive"
-                />
-                <span className={cn("font-medium", form.inactive && "text-destructive")}>
-                  غیرفعال
-                </span>
+                <input type="checkbox" checked={form.inactive} onChange={set("inactive")}
+                  className="rounded accent-red-600 h-4 w-4" />
+                <span className={cn("font-medium", form.inactive && "text-red-600")}>غیرفعال</span>
               </label>
             </Field>
-
           </div>
         </CardContent>
       </Card>
@@ -263,26 +195,22 @@ export default function AssetSubGroupForm() {
       {/* جدول */}
       <Card>
         <CardContent className="pt-4">
-          <div className="mb-3 flex items-center gap-2 flex-wrap" dir="rtl">
-            {/* فیلتر گروه */}
-            <StyledSelect
-              value={filterGroup}
-              onChange={(e) => setFilterGroup(e.target.value)}
-              options={groupOptions}
-              placeholder="همه گروه‌ها"
-            />
-            <div className="relative flex-1 max-w-xs">
+          <div className="mb-3 flex items-center gap-2" dir="rtl">
+            <div className="relative flex-1 max-w-sm">
               <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="جستجو بر اساس کد یا عنوان..."
-                className="pr-9 h-8 text-sm"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+              <Input placeholder="جستجو..." className="pr-9 h-8 text-sm" value={search} onChange={(e) => setSearch(e.target.value)} />
+            </div>
+
+            <div className="w-48">
+              <StyledSelect
+                value={filterGroup}
+                onChange={(e) => setFilterGroup(e.target.value)}
+                options={groupOptions}
+                placeholder="فیلتر بر اساس گروه..."
               />
             </div>
-            <Button variant="ghost" size="sm" onClick={() => { setSearch(""); setFilterGroup(""); }}>
-              پاک
-            </Button>
+
+            <Button variant="ghost" size="sm" onClick={() => { setSearch(""); setFilterGroup(""); }}>پاک کردن</Button>
             <span className="text-xs text-muted-foreground mr-auto">{filtered.length} رکورد</span>
           </div>
 
@@ -290,55 +218,38 @@ export default function AssetSubGroupForm() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  <TableHead className="text-xs font-bold text-right">گروه</TableHead>
-                  <TableHead className="text-xs font-bold text-right w-20">کد زیرگروه</TableHead>
+                  <TableHead className="text-xs font-bold text-right w-32">گروه اصلی</TableHead>
+                  <TableHead className="text-xs font-bold text-right w-24">کد زیرگروه</TableHead>
                   <TableHead className="text-xs font-bold text-right">عنوان زیرگروه</TableHead>
-                  <TableHead className="text-xs font-bold text-right">سرفصل حساب</TableHead>
-                  <TableHead className="text-xs font-bold text-right">وضعیت</TableHead>
+                  <TableHead className="text-xs font-bold text-right w-32">حساب معین</TableHead>
+                  <TableHead className="text-xs font-bold text-right w-24">وضعیت</TableHead>
                   <TableHead className="w-10"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="py-8 text-center text-muted-foreground text-sm">
-                      رکوردی یافت نشد
-                    </TableCell>
+                    <TableCell colSpan={6} className="py-8 text-center text-muted-foreground text-sm">رکوردی یافت نشد</TableCell>
                   </TableRow>
-                ) : (
-                  filtered.map((row) => (
-                    <TableRow
-                      key={row.id}
-                      onClick={() => handleRowClick(row)}
-                      className={cn(
-                        "cursor-pointer transition-colors",
-                        selected === row.id
-                          ? "bg-primary/10 hover:bg-primary/15"
-                          : "hover:bg-muted/40"
-                      )}
-                    >
-                      <TableCell className="text-sm">
-                        <span className="font-mono text-xs text-muted-foreground ml-1">{row.groupCode}</span>
-                        {groupTitle(row.groupCode)}
-                      </TableCell>
-                      <TableCell className="font-mono text-sm font-bold">{row.code}</TableCell>
+                ) : filtered.map((row) => {
+                  const grp = groups.find((g) => g.code === row.groupCode);
+                  return (
+                    <TableRow key={row._id || row.id} onClick={() => handleRowClick(row)}
+                      className={cn("cursor-pointer transition-colors",
+                        selected === (row._id || row.id) ? "bg-primary/10 hover:bg-primary/15" : "hover:bg-muted/40")}>
+                      <TableCell className="text-xs">{grp ? grp.title : row.groupCode}</TableCell>
+                      <TableCell className="font-mono text-xs">{row.code}</TableCell>
                       <TableCell className="text-sm font-medium">{row.title}</TableCell>
-                      <TableCell className="font-mono text-xs text-muted-foreground">
-                        {row.account || "—"}
-                      </TableCell>
+                      <TableCell className="font-mono text-xs text-left">{row.account || "—"}</TableCell>
                       <TableCell>
-                        {row.inactive ? (
-                          <Badge variant="destructive" className="text-xs">غیرفعال</Badge>
-                        ) : (
-                          <Badge variant="secondary" className="text-xs bg-emerald-100 text-emerald-700">فعال</Badge>
-                        )}
+                        <Badge variant={row.inactive ? "destructive" : "success"} className="text-xs">
+                          {row.inactive ? "غیرفعال" : "فعال"}
+                        </Badge>
                       </TableCell>
-                      <TableCell>
-                        <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                      </TableCell>
+                      <TableCell><Pencil className="h-3.5 w-3.5 text-muted-foreground" /></TableCell>
                     </TableRow>
-                  ))
-                )}
+                  );
+                })}
               </TableBody>
             </Table>
           </div>

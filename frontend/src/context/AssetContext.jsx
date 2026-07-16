@@ -9,6 +9,15 @@ export function AssetProvider({ children }) {
   const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Custom configurations states
+  const [groups, setGroups] = useState([]);
+  const [subgroups, setSubgroups] = useState([]);
+  const [types, setTypes] = useState([]);
+  const [natures, setNatures] = useState([]);
+  const [units, setUnits] = useState([]);
+  const [locations, setLocations] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
+
   const refreshAssets = async () => {
     if (!user) {
       setLoading(false);
@@ -28,8 +37,25 @@ export function AssetProvider({ children }) {
     }
   };
 
+  const refreshAllConfigs = async () => {
+    if (!user) return;
+    try {
+      const names = ["groups", "subgroups", "types", "natures", "units", "locations", "suppliers"];
+      const setters = [setGroups, setSubgroups, setTypes, setNatures, setUnits, setLocations, setSuppliers];
+      await Promise.all(names.map(async (name, idx) => {
+        const res = await api.get(`/api/inventory/${name}`);
+        if (res.data?.success) {
+          setters[idx](res.data.data);
+        }
+      }));
+    } catch (err) {
+      console.error("Error loading configs from backend:", err);
+    }
+  };
+
   useEffect(() => {
     refreshAssets();
+    refreshAllConfigs();
   }, [user]);
 
   async function addAsset(asset) {
@@ -67,8 +93,50 @@ export function AssetProvider({ children }) {
     }
   }
 
+  // Generic config CRUD helpers
+  async function addConfig(name, item) {
+    try {
+      const res = await api.post(`/api/inventory/${name}`, item);
+      if (res.data?.success) {
+        await refreshAllConfigs();
+        return res.data.data;
+      }
+    } catch (err) {
+      console.error(`Error saving config ${name}:`, err);
+    }
+  }
+
+  async function updateConfig(name, item) {
+    try {
+      const id = item.id || item._id;
+      const res = await api.put(`/api/inventory/${name}/${id}`, item);
+      if (res.data?.success) {
+        await refreshAllConfigs();
+        return res.data.data;
+      }
+    } catch (err) {
+      console.error(`Error updating config ${name}:`, err);
+    }
+  }
+
+  async function deleteConfig(name, id) {
+    try {
+      const res = await api.delete(`/api/inventory/${name}/${id}`);
+      if (res.data?.success) {
+        await refreshAllConfigs();
+        return true;
+      }
+    } catch (err) {
+      console.error(`Error deleting config ${name}:`, err);
+    }
+  }
+
   return (
-    <AssetContext.Provider value={{ assets, addAsset, updateAsset, deleteAsset, loading, refreshAssets }}>
+    <AssetContext.Provider value={{
+      assets, addAsset, updateAsset, deleteAsset, loading, refreshAssets,
+      groups, subgroups, types, natures, units, locations, suppliers,
+      addConfig, updateConfig, deleteConfig, refreshAllConfigs
+    }}>
       {children}
     </AssetContext.Provider>
   );

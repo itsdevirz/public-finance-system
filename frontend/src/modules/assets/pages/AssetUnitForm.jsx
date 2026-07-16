@@ -10,28 +10,14 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { useAssets } from "@/context/AssetContext";
 
-// ─── دسته‌بندی واحدها ────────────────────────────────────────────────────────
 const UNIT_CATEGORIES = [
   { value: "count",   label: "تعداد / شمارشی" },
   { value: "weight",  label: "وزن" },
   { value: "length",  label: "طول / مساحت / حجم" },
   { value: "time",    label: "زمان" },
   { value: "other",   label: "سایر" },
-];
-
-// ─── نمونه داده اولیه ────────────────────────────────────────────────────────
-const SAMPLE_DATA = [
-  { id: 1, code: "01", title: "عدد",      symbol: "عدد", category: "count",  description: "",                inactive: false },
-  { id: 2, code: "02", title: "دستگاه",   symbol: "دستگاه", category: "count",  description: "",             inactive: false },
-  { id: 3, code: "03", title: "کیلوگرم",  symbol: "kg",  category: "weight", description: "",                inactive: false },
-  { id: 4, code: "04", title: "تن",       symbol: "ton", category: "weight", description: "معادل ۱۰۰۰ کیلوگرم", inactive: false },
-  { id: 5, code: "05", title: "متر",      symbol: "m",   category: "length", description: "",                inactive: false },
-  { id: 6, code: "06", title: "متر مربع", symbol: "m²",  category: "length", description: "",                inactive: false },
-  { id: 7, code: "07", title: "متر مکعب", symbol: "m³",  category: "length", description: "",                inactive: false },
-  { id: 8, code: "08", title: "لیتر",     symbol: "L",   category: "length", description: "",                inactive: false },
-  { id: 9, code: "09", title: "جفت",      symbol: "جفت", category: "count",  description: "",                inactive: false },
-  { id:10, code: "10", title: "بسته",     symbol: "بسته",category: "count",  description: "",                inactive: false },
 ];
 
 const INITIAL_FORM = {
@@ -74,11 +60,13 @@ const CATEGORY_COLORS = {
 };
 
 export default function AssetUnitForm() {
+  const { units, addConfig, updateConfig, deleteConfig } = useAssets();
   const [form, setForm]         = useState(INITIAL_FORM);
-  const [list, setList]         = useState(SAMPLE_DATA);
   const [selected, setSelected] = useState(null);
   const [search, setSearch]     = useState("");
   const [saved, setSaved]       = useState(false);
+
+  const list = units || [];
 
   function set(field) {
     return (e) => {
@@ -94,25 +82,26 @@ export default function AssetUnitForm() {
     setSaved(false);
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!form.code.trim() || !form.title.trim()) return;
-    const record = { id: selected ?? Date.now(), ...form };
+    const record = { ...form };
     if (selected !== null) {
-      setList((l) => l.map((r) => (r.id === selected ? record : r)));
+      await updateConfig("units", { ...record, _id: selected, id: selected });
     } else {
-      setList((l) => [...l, record]);
+      await addConfig("units", record);
     }
     setSaved(true);
+    handleNew();
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (selected === null) return;
-    setList((l) => l.filter((r) => r.id !== selected));
+    await deleteConfig("units", selected);
     handleNew();
   }
 
   function handleRowClick(row) {
-    setSelected(row.id);
+    setSelected(row._id || row.id);
     setForm({
       code:        row.code        ?? "",
       title:       row.title       ?? "",
@@ -132,6 +121,8 @@ export default function AssetUnitForm() {
       r.symbol?.includes(search)
   );
 
+  const canSave = form.code.trim() && form.title.trim();
+
   return (
     <PageShell>
       {/* Breadcrumb */}
@@ -146,106 +137,57 @@ export default function AssetUnitForm() {
       {/* هدر */}
       <div className="mb-4 flex items-center justify-between" dir="rtl">
         <div className="flex items-center gap-2">
-          <Button
-            size="sm" onClick={handleSave}
-            disabled={!form.code.trim() || !form.title.trim()}
-            className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            <Save className="h-4 w-4" />ثبت
+          <Button size="sm" onClick={handleSave} disabled={!canSave}
+            className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white">
+            <Save className="h-4 w-4" />ذخیره
           </Button>
           <Button variant="outline" size="sm" onClick={handleNew} className="gap-1.5">
             <Plus className="h-4 w-4" />جدید
           </Button>
-          <Button
-            variant="outline" size="sm" onClick={handleDelete}
+          <Button variant="outline" size="sm" onClick={handleDelete}
             disabled={selected === null}
-            className="gap-1.5 text-destructive hover:text-destructive"
-          >
+            className="gap-1.5 text-destructive hover:text-destructive">
             <Trash2 className="h-4 w-4" />حذف
           </Button>
-          {saved && (
-            <span className="text-sm font-medium text-emerald-600 animate-in fade-in">✓ ذخیره شد</span>
-          )}
+          {saved && <span className="text-sm font-medium text-emerald-600 animate-in fade-in">✓ ذخیره شد</span>}
         </div>
         <div className="text-right">
           <h1 className="text-xl font-bold">تعریف واحد اندازه‌گیری</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">واحدهای اندازه‌گیری اموال و کالاها را تعریف کنید</p>
+          <p className="text-xs text-muted-foreground mt-0.5">ثبت انواع واحدهای اندازه‌گیری مقداری دارایی‌ها</p>
         </div>
       </div>
 
       {/* فرم */}
       <Card className="shadow-sm mb-4">
-        <CardContent className="pt-5 px-6 pb-5">
+        <CardContent className="pt-5 px-6 pb-5 space-y-5">
           <div className="grid grid-cols-2 gap-x-8 gap-y-4 md:grid-cols-4" dir="rtl">
-
-            {/* کد */}
             <Field label="کد واحد" required>
-              <Input
-                value={form.code}
-                onChange={set("code")}
-                className="h-9 text-sm font-mono"
-                dir="ltr"
-                maxLength={4}
-                placeholder="مثال: 01"
-              />
+              <Input value={form.code} onChange={set("code")} className="h-9 text-sm font-mono text-left" placeholder="مثال: ۰۱" />
             </Field>
 
-            {/* عنوان */}
             <Field label="عنوان واحد" required>
-              <Input
-                value={form.title}
-                onChange={set("title")}
-                className="h-9 text-sm"
-                placeholder="مثال: کیلوگرم"
-              />
+              <Input value={form.title} onChange={set("title")} className="h-9 text-sm" placeholder="مثال: کیلوگرم" />
             </Field>
 
-            {/* نماد / اختصار */}
-            <Field label="نماد / اختصار">
-              <Input
-                value={form.symbol}
-                onChange={set("symbol")}
-                className="h-9 text-sm font-mono"
-                dir="ltr"
-                maxLength={6}
-                placeholder="مثال: kg"
-              />
+            <Field label="نماد / علامت اختصاری" required>
+              <Input value={form.symbol} onChange={set("symbol")} className="h-9 text-sm font-mono text-left" placeholder="مثال: kg" />
             </Field>
 
-            {/* دسته‌بندی */}
-            <Field label="دسته‌بندی">
-              <StyledSelect
-                value={form.category}
-                onChange={set("category")}
-                options={UNIT_CATEGORIES}
-              />
+            <Field label="دسته‌بندی واحد" required>
+              <StyledSelect value={form.category} onChange={set("category")} options={UNIT_CATEGORIES} />
             </Field>
 
-            {/* توضیحات */}
             <Field label="توضیحات" col={2}>
-              <Input
-                value={form.description}
-                onChange={set("description")}
-                className="h-9 text-sm"
-                placeholder="توضیحات اضافی (اختیاری)"
-              />
+              <Input value={form.description} onChange={set("description")} className="h-9 text-sm" placeholder="توضیحات اختیاری..." />
             </Field>
 
-            {/* غیرفعال */}
             <Field label="وضعیت">
               <label className="flex items-center gap-2 text-sm cursor-pointer pt-1.5">
-                <input
-                  type="checkbox"
-                  checked={form.inactive}
-                  onChange={set("inactive")}
-                  className="rounded accent-destructive"
-                />
-                <span className={cn("font-medium", form.inactive && "text-destructive")}>
-                  غیرفعال
-                </span>
+                <input type="checkbox" checked={form.inactive} onChange={set("inactive")}
+                  className="rounded accent-red-600 h-4 w-4" />
+                <span className={cn("font-medium", form.inactive && "text-red-600")}>غیرفعال</span>
               </label>
             </Field>
-
           </div>
         </CardContent>
       </Card>
@@ -254,16 +196,11 @@ export default function AssetUnitForm() {
       <Card>
         <CardContent className="pt-4">
           <div className="mb-3 flex items-center gap-2" dir="rtl">
-            <div className="relative flex-1 max-w-xs">
+            <div className="relative flex-1 max-w-sm">
               <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="جستجو بر اساس کد، عنوان یا نماد..."
-                className="pr-9 h-8 text-sm"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
+              <Input placeholder="جستجو..." className="pr-9 h-8 text-sm" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
-            <Button variant="ghost" size="sm" onClick={() => setSearch("")}>پاک</Button>
+            <Button variant="ghost" size="sm" onClick={() => setSearch("")}>پاک کردن</Button>
             <span className="text-xs text-muted-foreground mr-auto">{filtered.length} رکورد</span>
           </div>
 
@@ -271,61 +208,41 @@ export default function AssetUnitForm() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  <TableHead className="text-xs font-bold text-right w-16">کد</TableHead>
-                  <TableHead className="text-xs font-bold text-right">عنوان</TableHead>
-                  <TableHead className="text-xs font-bold text-right w-20">نماد</TableHead>
-                  <TableHead className="text-xs font-bold text-right">دسته‌بندی</TableHead>
+                  <TableHead className="text-xs font-bold text-right w-24">کد واحد</TableHead>
+                  <TableHead className="text-xs font-bold text-right">عنوان واحد</TableHead>
+                  <TableHead className="text-xs font-bold text-right w-28">نماد اختصاری</TableHead>
+                  <TableHead className="text-xs font-bold text-right w-36">دسته‌بندی</TableHead>
                   <TableHead className="text-xs font-bold text-right">توضیحات</TableHead>
-                  <TableHead className="text-xs font-bold text-right">وضعیت</TableHead>
+                  <TableHead className="text-xs font-bold text-right w-24">وضعیت</TableHead>
                   <TableHead className="w-10"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="py-8 text-center text-muted-foreground text-sm">
-                      رکوردی یافت نشد
-                    </TableCell>
+                    <TableCell colSpan={7} className="py-8 text-center text-muted-foreground text-sm">رکوردی یافت نشد</TableCell>
                   </TableRow>
-                ) : (
-                  filtered.map((row) => (
-                    <TableRow
-                      key={row.id}
-                      onClick={() => handleRowClick(row)}
-                      className={cn(
-                        "cursor-pointer transition-colors",
-                        selected === row.id
-                          ? "bg-primary/10 hover:bg-primary/15"
-                          : "hover:bg-muted/40"
-                      )}
-                    >
-                      <TableCell className="font-mono text-sm font-bold">{row.code}</TableCell>
-                      <TableCell className="text-sm font-medium">{row.title}</TableCell>
-                      <TableCell className="font-mono text-xs text-muted-foreground">{row.symbol || "—"}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="secondary"
-                          className={cn("text-xs", CATEGORY_COLORS[row.category] ?? CATEGORY_COLORS.other)}
-                        >
-                          {UNIT_CATEGORIES.find((c) => c.value === row.category)?.label ?? row.category}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground max-w-[160px] truncate">
-                        {row.description || "—"}
-                      </TableCell>
-                      <TableCell>
-                        {row.inactive ? (
-                          <Badge variant="destructive" className="text-xs">غیرفعال</Badge>
-                        ) : (
-                          <Badge variant="secondary" className="text-xs bg-emerald-100 text-emerald-700">فعال</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
+                ) : filtered.map((row) => (
+                  <TableRow key={row._id || row.id} onClick={() => handleRowClick(row)}
+                    className={cn("cursor-pointer transition-colors",
+                      selected === (row._id || row.id) ? "bg-primary/10 hover:bg-primary/15" : "hover:bg-muted/40")}>
+                    <TableCell className="font-mono text-xs">{row.code}</TableCell>
+                    <TableCell className="text-sm font-medium">{row.title}</TableCell>
+                    <TableCell className="font-mono text-xs">{row.symbol || "—"}</TableCell>
+                    <TableCell>
+                      <Badge className={cn("text-xs font-normal border shadow-none", CATEGORY_COLORS[row.category] || CATEGORY_COLORS.other)}>
+                        {UNIT_CATEGORIES.find((c) => c.value === row.category)?.label || row.category}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{row.description || "—"}</TableCell>
+                    <TableCell>
+                      <Badge variant={row.inactive ? "destructive" : "success"} className="text-xs">
+                        {row.inactive ? "غیرفعال" : "فعال"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell><Pencil className="h-3.5 w-3.5 text-muted-foreground" /></TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           </div>

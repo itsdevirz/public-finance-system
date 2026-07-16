@@ -10,6 +10,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { useAssets } from "@/context/AssetContext";
 
 // ─── سطوح مکان ───────────────────────────────────────────────────────────────
 const LEVELS = [
@@ -18,27 +19,13 @@ const LEVELS = [
   { value: "room",     label: "اتاق",    icon: DoorOpen,  color: "text-emerald-600",bg: "bg-emerald-50 border-emerald-200" },
 ];
 
-// ─── نمونه داده اولیه ────────────────────────────────────────────────────────
-const SAMPLE_DATA = [
-  { id: 1, level: "building", parentId: null, code: "B01", title: "ساختمان مرکزی",    address: "تهران، خیابان ولیعصر", inactive: false },
-  { id: 2, level: "building", parentId: null, code: "B02", title: "ساختمان اداری شماره ۲", address: "", inactive: false },
-  { id: 3, level: "floor",    parentId: 1,    code: "B01-F0", title: "همکف",           address: "", inactive: false },
-  { id: 4, level: "floor",    parentId: 1,    code: "B01-F1", title: "طبقه اول",       address: "", inactive: false },
-  { id: 5, level: "floor",    parentId: 1,    code: "B01-F2", title: "طبقه دوم",       address: "", inactive: false },
-  { id: 6, level: "floor",    parentId: 2,    code: "B02-F1", title: "طبقه اول",       address: "", inactive: false },
-  { id: 7, level: "room",     parentId: 3,    code: "B01-F0-R01", title: "اتاق مدیریت",     address: "", inactive: false },
-  { id: 8, level: "room",     parentId: 3,    code: "B01-F0-R02", title: "دفتر حسابداری",   address: "", inactive: false },
-  { id: 9, level: "room",     parentId: 4,    code: "B01-F1-R01", title: "اتاق کنفرانس",    address: "", inactive: false },
-  { id:10, level: "room",     parentId: 4,    code: "B01-F1-R02", title: "بایگانی",          address: "", inactive: false },
-];
-
 const INITIAL_FORM = {
   level: "building", parentId: "", code: "", title: "", address: "", inactive: false,
 };
 
 // ─── کمکی: عنوان رکورد بر اساس id ───────────────────────────────────────────
 function getTitle(list, id) {
-  return list.find((r) => r.id === id)?.title ?? "";
+  return list.find((r) => (r._id === id || r.id === id))?.title ?? "";
 }
 
 function Field({ label, required, children, col }) {
@@ -73,7 +60,7 @@ function StyledSelect({ value, onChange, options, placeholder, disabled }) {
 // ─── نمایش درختی ─────────────────────────────────────────────────────────────
 function TreeRow({ row, list, depth, selected, onSelect }) {
   const [open, setOpen] = useState(true);
-  const children = list.filter((r) => r.parentId === row.id);
+  const children = list.filter((r) => r.parentId === (row._id || row.id));
   const levelInfo = LEVELS.find((l) => l.value === row.level);
   const Icon = levelInfo?.icon ?? Building2;
 
@@ -83,7 +70,7 @@ function TreeRow({ row, list, depth, selected, onSelect }) {
         onClick={() => onSelect(row)}
         className={cn(
           "cursor-pointer transition-colors",
-          selected === row.id ? "bg-primary/10 hover:bg-primary/15" : "hover:bg-muted/40"
+          selected === (row._id || row.id) ? "bg-primary/10 hover:bg-primary/15" : "hover:bg-muted/40"
         )}
       >
         {/* عنوان با تورفتگی */}
@@ -122,7 +109,7 @@ function TreeRow({ row, list, depth, selected, onSelect }) {
       </TableRow>
 
       {open && children.map((child) => (
-        <TreeRow key={child.id} row={child} list={list} depth={depth + 1} selected={selected} onSelect={onSelect} />
+        <TreeRow key={child._id || child.id} row={child} list={list} depth={depth + 1} selected={selected} onSelect={onSelect} />
       ))}
     </>
   );
@@ -130,11 +117,13 @@ function TreeRow({ row, list, depth, selected, onSelect }) {
 
 // ─── صفحه اصلی ────────────────────────────────────────────────────────────────
 export default function AssetLocationForm() {
+  const { locations, addConfig, updateConfig, deleteConfig } = useAssets();
   const [form, setForm]         = useState(INITIAL_FORM);
-  const [list, setList]         = useState(SAMPLE_DATA);
   const [selected, setSelected] = useState(null);
   const [search, setSearch]     = useState("");
   const [saved, setSaved]       = useState(false);
+
+  const list = locations || [];
 
   function set(field) {
     return (e) => {
@@ -155,38 +144,38 @@ export default function AssetLocationForm() {
     setSaved(false);
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!form.code.trim() || !form.title.trim()) return;
     // ساختمان نیاز به والد ندارد؛ بقیه باید والد داشته باشند
     if (form.level !== "building" && !form.parentId) return;
     const record = {
-      id: selected ?? Date.now(),
       ...form,
-      parentId: form.parentId ? Number(form.parentId) : null,
+      parentId: form.parentId ? form.parentId : null,
     };
     if (selected !== null) {
-      setList((l) => l.map((r) => (r.id === selected ? record : r)));
+      await updateConfig("locations", { ...record, _id: selected, id: selected });
     } else {
-      setList((l) => [...l, record]);
+      await addConfig("locations", record);
     }
     setSaved(true);
+    handleNew();
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (selected === null) return;
     // حذف خود رکورد + همه فرزندان بازگشتی
     function collectIds(id) {
       const ids = [id];
-      list.filter((r) => r.parentId === id).forEach((c) => ids.push(...collectIds(c.id)));
+      list.filter((r) => r.parentId === id).forEach((c) => ids.push(...collectIds(c._id || c.id)));
       return ids;
     }
     const toDelete = collectIds(selected);
-    setList((l) => l.filter((r) => !toDelete.includes(r.id)));
+    await Promise.all(toDelete.map((id) => deleteConfig("locations", id)));
     handleNew();
   }
 
   function handleRowClick(row) {
-    setSelected(row.id);
+    setSelected(row._id || row.id);
     setForm({
       level:    row.level    ?? "building",
       parentId: row.parentId != null ? String(row.parentId) : "",
@@ -204,7 +193,7 @@ export default function AssetLocationForm() {
     const parentLevel = form.level === "floor" ? "building" : "floor";
     return list
       .filter((r) => r.level === parentLevel && !r.inactive)
-      .map((r) => ({ value: String(r.id), label: `${r.code} — ${r.title}` }));
+      .map((r) => ({ value: String(r._id || r.id), label: `${r.code} — ${r.title}` }));
   }, [form.level, list]);
 
   // رکوردهای ریشه برای نمایش درختی (فیلتر جستجو روی مسطح اعمال می‌شه)
@@ -248,157 +237,117 @@ export default function AssetLocationForm() {
         </div>
         <div className="text-right">
           <h1 className="text-xl font-bold">تعریف مکان‌ها (ساختمان / طبقه / اتاق)</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">ساختار سلسله‌مراتبی محل استقرار اموال</p>
+          <p className="text-xs text-muted-foreground mt-0.5">دسته‌بندی درختی مکان‌های استقرار اموال و تجهیزات</p>
         </div>
       </div>
 
       {/* فرم */}
       <Card className="shadow-sm mb-4">
-        <CardContent className="pt-5 px-6 pb-5">
+        <CardContent className="pt-5 px-6 pb-5 space-y-5">
           <div className="grid grid-cols-2 gap-x-8 gap-y-4 md:grid-cols-4" dir="rtl">
-
-            {/* سطح */}
             <Field label="سطح مکان" required>
-              <div className="flex gap-2">
-                {LEVELS.map(({ value, label, icon: Icon, color }) => (
-                  <label key={value}
-                    className={cn(
-                      "flex-1 flex flex-col items-center gap-1 py-2 rounded-lg border-2 cursor-pointer transition-all text-xs font-medium",
-                      form.level === value
-                        ? `border-current ${color} bg-muted/40`
-                        : "border-input text-muted-foreground hover:border-muted-foreground"
-                    )}
-                  >
-                    <input type="radio" name="level" value={value}
-                      checked={form.level === value} onChange={set("level")} className="sr-only" />
-                    <Icon className={cn("h-4 w-4", form.level === value ? color : "text-muted-foreground")} />
-                    {label}
-                  </label>
-                ))}
-              </div>
+              <StyledSelect
+                value={form.level}
+                onChange={set("level")}
+                options={LEVELS}
+              />
             </Field>
 
-            {/* والد (طبقه نیاز به ساختمان دارد؛ اتاق نیاز به طبقه) */}
             {form.level !== "building" && (
-              <Field label={form.level === "floor" ? "ساختمان والد" : "طبقه والد"} required>
+              <Field label={`انتخاب ${form.level === "floor" ? "ساختمان" : "طبقه"} والد`} required>
                 <StyledSelect
                   value={form.parentId}
                   onChange={set("parentId")}
                   options={parentOptions}
-                  placeholder={form.level === "floor" ? "انتخاب ساختمان" : "انتخاب طبقه"}
+                  placeholder="انتخاب والد..."
                 />
               </Field>
             )}
 
-            {/* کد */}
-            <Field label="کد مکان" required>
-              <Input value={form.code} onChange={set("code")}
-                className="h-9 text-sm font-mono" dir="ltr"
-                maxLength={12} placeholder="مثال: B01-F1-R02" />
+            <Field label={`کد ${currentLevel?.label || ""}`} required>
+              <Input value={form.code} onChange={set("code")} className="h-9 text-sm font-mono text-left" placeholder="مثال: B01-F1-R02" />
             </Field>
 
-            {/* عنوان */}
-            <Field label={`عنوان ${currentLevel?.label ?? "مکان"}`} required col={2}>
-              <Input value={form.title} onChange={set("title")}
-                className="h-9 text-sm"
-                placeholder={`عنوان ${currentLevel?.label ?? "مکان"} را وارد کنید`} />
+            <Field label={`عنوان ${currentLevel?.label || ""}`} required col={form.level === "building" ? 2 : 1}>
+              <Input value={form.title} onChange={set("title")} className="h-9 text-sm" placeholder="مثال: اتاق حسابداری" />
             </Field>
 
-            {/* آدرس (فقط برای ساختمان) */}
             {form.level === "building" && (
-              <Field label="آدرس" col={2}>
-                <Input value={form.address} onChange={set("address")}
-                  className="h-9 text-sm" placeholder="آدرس کامل ساختمان" />
+              <Field label="آدرس ساختمان" col={2}>
+                <Input value={form.address} onChange={set("address")} className="h-9 text-sm" placeholder="مثال: بلوار دانشگاه، ساختمان اداری" />
               </Field>
             )}
 
-            {/* غیرفعال */}
             <Field label="وضعیت">
               <label className="flex items-center gap-2 text-sm cursor-pointer pt-1.5">
                 <input type="checkbox" checked={form.inactive} onChange={set("inactive")}
-                  className="rounded accent-destructive" />
-                <span className={cn("font-medium", form.inactive && "text-destructive")}>غیرفعال</span>
+                  className="rounded accent-red-600 h-4 w-4" />
+                <span className={cn("font-medium", form.inactive && "text-red-600")}>غیرفعال</span>
               </label>
             </Field>
-
           </div>
         </CardContent>
       </Card>
 
-      {/* جدول درختی */}
-      <Card>
+      {/* نمایش درختی یا لیست جستجو */}
+      <Card dir="rtl">
         <CardContent className="pt-4">
-          <div className="mb-3 flex items-center gap-2" dir="rtl">
-            <div className="relative flex-1 max-w-xs">
+          <div className="mb-3 flex items-center gap-2">
+            <div className="relative flex-1 max-w-sm">
               <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input placeholder="جستجو..." className="pr-9 h-8 text-sm"
-                value={search} onChange={(e) => setSearch(e.target.value)} />
+              <Input placeholder="جستجو در کل مکان‌ها..." className="pr-9 h-8 text-sm" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
-            <Button variant="ghost" size="sm" onClick={() => setSearch("")}>پاک</Button>
-            <span className="text-xs text-muted-foreground mr-auto">{list.length} رکورد</span>
+            {search && <Button variant="ghost" size="sm" onClick={() => setSearch("")}>پاک کردن</Button>}
+            <span className="text-xs text-muted-foreground mr-auto">{list.length} مکان تعریف‌شده</span>
           </div>
 
           <div className="overflow-x-auto rounded-lg border">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  <TableHead className="text-xs font-bold text-right">عنوان</TableHead>
-                  <TableHead className="text-xs font-bold text-right w-32">کد</TableHead>
-                  <TableHead className="text-xs font-bold text-right w-24">سطح</TableHead>
-                  <TableHead className="text-xs font-bold text-right">آدرس</TableHead>
-                  <TableHead className="text-xs font-bold text-right w-20">وضعیت</TableHead>
+                  <TableHead className="text-xs font-bold text-right">عنوان مکان</TableHead>
+                  <TableHead className="text-xs font-bold text-right w-36">کد مکان</TableHead>
+                  <TableHead className="text-xs font-bold text-right w-28">سطح</TableHead>
+                  <TableHead className="text-xs font-bold text-right">آدرس / والد</TableHead>
+                  <TableHead className="text-xs font-bold text-right w-24">وضعیت</TableHead>
                   <TableHead className="w-10"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {search ? (
-                  // حالت جستجو: نمایش مسطح
+                  // اگر جستجو فعال باشد لیست مسطح فیلتر شده را نشان می‌دهیم
                   flatFiltered.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="py-8 text-center text-muted-foreground text-sm">
-                        رکوردی یافت نشد
-                      </TableCell>
-                    </TableRow>
+                    <TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground text-sm">موردی یافت نشد</TableCell></TableRow>
                   ) : flatFiltered.map((row) => {
-                    const lv = LEVELS.find((l) => l.value === row.level);
-                    const Icon = lv?.icon ?? Building2;
+                    const parentTitle = row.parentId ? getTitle(list, row.parentId) : "—";
+                    const levelInfo = LEVELS.find((l) => l.value === row.level);
                     return (
-                      <TableRow key={row.id} onClick={() => handleRowClick(row)}
+                      <TableRow key={row._id || row.id} onClick={() => handleRowClick(row)}
                         className={cn("cursor-pointer transition-colors",
-                          selected === row.id ? "bg-primary/10 hover:bg-primary/15" : "hover:bg-muted/40")}>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Icon className={cn("h-4 w-4 shrink-0", lv?.color)} />
-                            <span className="text-sm font-medium">{row.title}</span>
-                          </div>
-                        </TableCell>
+                          selected === (row._id || row.id) ? "bg-primary/10 hover:bg-primary/15" : "hover:bg-muted/40")}>
+                        <TableCell className="text-sm font-semibold">{row.title}</TableCell>
                         <TableCell className="font-mono text-xs text-muted-foreground">{row.code}</TableCell>
                         <TableCell>
-                          <Badge variant="secondary" className={cn("text-xs border", lv?.bg, lv?.color)}>
-                            {lv?.label}
+                          <Badge variant="secondary" className={cn("text-xs border", levelInfo?.bg, levelInfo?.color)}>
+                            {levelInfo?.label}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{row.address || "—"}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {row.level === "building" ? (row.address || "—") : `والد: ${parentTitle}`}
+                        </TableCell>
                         <TableCell>
-                          {row.inactive
-                            ? <Badge variant="destructive" className="text-xs">غیرفعال</Badge>
-                            : <Badge variant="secondary" className="text-xs bg-emerald-100 text-emerald-700">فعال</Badge>}
+                          {row.inactive ? <Badge variant="destructive" className="text-xs">غیرفعال</Badge> : <Badge variant="secondary" className="text-xs bg-emerald-100 text-emerald-700">فعال</Badge>}
                         </TableCell>
                         <TableCell><Pencil className="h-3.5 w-3.5 text-muted-foreground" /></TableCell>
                       </TableRow>
                     );
                   })
                 ) : (
-                  // حالت عادی: نمایش درختی
+                  // در حالت عادی ساختار درختی را از ریشه رندر می‌کنیم
                   roots.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="py-8 text-center text-muted-foreground text-sm">
-                        رکوردی یافت نشد
-                      </TableCell>
-                    </TableRow>
-                  ) : roots.map((row) => (
-                    <TreeRow key={row.id} row={row} list={list} depth={0}
-                      selected={selected} onSelect={handleRowClick} />
+                    <TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground text-sm">مکانی تعریف نشده است</TableCell></TableRow>
+                  ) : roots.map((root) => (
+                    <TreeRow key={root._id || root.id} row={root} list={list} depth={0} selected={selected} onSelect={handleRowClick} />
                   ))
                 )}
               </TableBody>

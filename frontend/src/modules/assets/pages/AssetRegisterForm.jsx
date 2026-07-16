@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Save, RotateCcw, QrCode, Package, MapPin, User, Calculator, BookOpen, Pencil, Trash2 } from "lucide-react";
 import { PageShell, PageHeader } from "@/components/layout/PageShell";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,11 +21,8 @@ const TABS = [
   { key: "depreciation", label: "استهلاک",        icon: Calculator },
 ];
 
-const ASSET_TYPES    = [{ value: "non-consumable", label: "غیرمصرفی" }, { value: "consumable", label: "مصرفی" }, { value: "consumable-2", label: "در حکم مصرفی" }];
-const ASSET_NATURES  = [{ value: "movable", label: "منقول" }, { value: "immovable", label: "غیرمنقول" }];
 const STATUSES       = [{ value: "active", label: "فعال" }, { value: "scrap", label: "اسقاط" }, { value: "lost", label: "مفقود" }, { value: "repair", label: "در تعمیر" }];
 const DEPREC_METHODS = [{ value: "straight", label: "خط مستقیم" }, { value: "declining", label: "نزولی" }, { value: "sum_years", label: "مجموع سنوات" }, { value: "units", label: "تعداد تولید" }];
-const UNITS          = [{ value: "unit", label: "عدد" }, { value: "meter", label: "متر" }, { value: "kg", label: "کیلوگرم" }, { value: "set", label: "دست" }];
 
 // تبدیل ارقام فارسی به انگلیسی و parse
 function parseNum(val) {
@@ -78,14 +75,16 @@ function SecTitle({ icon: Icon, title }) {
 }
 
 export default function AssetRegisterForm() {
-  const { assets, addAsset, updateAsset, deleteAsset } = useAssets();
+  const {
+    assets, addAsset, updateAsset, deleteAsset,
+    groups, subgroups, types, natures, units, locations, suppliers
+  } = useAssets();
+
   const [form, setForm]           = useState(INITIAL);
   const [activeTab, setActiveTab] = useState("basic");
   const [editingId, setEditingId] = useState(null);
 
-  // records حالا از context می‌آید
   const records = assets;
-
   const isConsumable = form.assetType === "consumable";
 
   // محاسبه زنده استهلاک
@@ -96,6 +95,35 @@ export default function AssetRegisterForm() {
   const annualDep  = canCalc ? (cost - salvage) / life : 0;
   const monthlyDep = canCalc ? Math.round(annualDep / 12) : 0;
   const depRate    = canCalc ? (((cost - salvage) / cost) * 100 / life).toFixed(2) : "0";
+
+  // گزینه‌های انتخابی پویا از دیتابیس
+  const groupOptions = useMemo(() => {
+    return (groups || []).map((g) => ({ value: g.title, label: `${g.code} — ${g.title}` }));
+  }, [groups]);
+
+  const subgroupOptions = useMemo(() => {
+    return (subgroups || []).map((s) => ({ value: s.title, label: `${s.code} — ${s.title}` }));
+  }, [subgroups]);
+
+  const typeOptions = useMemo(() => {
+    return (types || []).map((t) => ({ value: t.nature || t.code, label: t.title }));
+  }, [types]);
+
+  const natureOptions = useMemo(() => {
+    return (natures || []).map((n) => ({ value: n.movable ? "movable" : "immovable", label: n.title }));
+  }, [natures]);
+
+  const unitOptions = useMemo(() => {
+    return (units || []).map((u) => ({ value: u.symbol || u.code, label: u.title }));
+  }, [units]);
+
+  const supplierOptions = useMemo(() => {
+    return (suppliers || []).map((s) => ({ value: s.title, label: `${s.code} — ${s.title}` }));
+  }, [suppliers]);
+
+  const locationOptions = useMemo(() => {
+    return (locations || []).map((l) => ({ value: l.name || l.title, label: `${l.code} — ${l.title}` }));
+  }, [locations]);
 
   function set(field) {
     return (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
@@ -157,21 +185,21 @@ export default function AssetRegisterForm() {
           {activeTab === "basic" && (
             <div className="space-y-4">
               <SecTitle icon={Package} title="مشخصات کلی" />
-              <div className="form-grid">
-                <Field label="کد مال"><Input value={form.assetCode} onChange={set("assetCode")} className="h-8 text-sm font-mono" /></Field>
+              <div className="form-grid" dir="rtl">
+                <Field label="کد مال"><Input value={form.assetCode} onChange={set("assetCode")} className="h-8 text-sm font-mono text-left" /></Field>
                 <Field label="نام مال" required><Input value={form.assetName} onChange={set("assetName")} className="h-8 text-sm" /></Field>
-                <Field label="گروه مال"><Input value={form.assetGroup} onChange={set("assetGroup")} className="h-8 text-sm" /></Field>
-                <Field label="زیرگروه مال"><Input value={form.assetSubgroup} onChange={set("assetSubgroup")} className="h-8 text-sm" /></Field>
-                <Field label="نوع مال" required><SearchableSelect value={form.assetType} onChange={v => setForm(f => ({...f, assetType: v}))} options={ASSET_TYPES} /></Field>
-                <Field label="ماهیت مال"><SearchableSelect value={form.assetNature} onChange={v => setForm(f => ({...f, assetNature: v}))} options={ASSET_NATURES} /></Field>
+                <Field label="گروه مال"><SearchableSelect value={form.assetGroup} onChange={v => setForm(f => ({...f, assetGroup: v}))} options={groupOptions} placeholder="انتخاب گروه مال..." /></Field>
+                <Field label="زیرگروه مال"><SearchableSelect value={form.assetSubgroup} onChange={v => setForm(f => ({...f, assetSubgroup: v}))} options={subgroupOptions} placeholder="انتخاب زیرگروه مال..." /></Field>
+                <Field label="نوع مال" required><SearchableSelect value={form.assetType} onChange={v => setForm(f => ({...f, assetType: v}))} options={typeOptions} /></Field>
+                <Field label="ماهیت مال"><SearchableSelect value={form.assetNature} onChange={v => setForm(f => ({...f, assetNature: v}))} options={natureOptions} /></Field>
                 <Field label="شماره سریال"><Input value={form.serialNumber} onChange={set("serialNumber")} className="h-8 text-sm font-mono" dir="ltr" /></Field>
                 <Field label="برند"><Input value={form.brand} onChange={set("brand")} className="h-8 text-sm" /></Field>
                 <Field label="مدل"><Input value={form.model} onChange={set("model")} className="h-8 text-sm" /></Field>
                 <Field label="تاریخ خرید"><PersianDatePicker value={form.purchaseDate} onChange={set("purchaseDate")} placeholder="۱۴۰۳/۰۱/۰۱" className="h-8" /></Field>
                 <Field label="مبلغ خرید (ریال)"><Input value={form.purchaseAmount} onChange={set("purchaseAmount")} className="h-8 text-sm" placeholder="0" /></Field>
                 <Field label="تعداد"><Input value={form.quantity} onChange={set("quantity")} type="number" min="1" className="h-8 text-sm" /></Field>
-                <Field label="واحد"><SearchableSelect value={form.unit} onChange={v => setForm(f => ({...f, unit: v}))} options={UNITS} /></Field>
-                <Field label="تامین‌کننده"><Input value={form.supplier} onChange={set("supplier")} className="h-8 text-sm" /></Field>
+                <Field label="واحد"><SearchableSelect value={form.unit} onChange={v => setForm(f => ({...f, unit: v}))} options={unitOptions} /></Field>
+                <Field label="تامین‌کننده"><SearchableSelect value={form.supplier} onChange={v => setForm(f => ({...f, supplier: v}))} options={supplierOptions} placeholder="انتخاب تامین‌کننده..." /></Field>
                 <Field label="وضعیت"><SearchableSelect value={form.status} onChange={v => setForm(f => ({...f, status: v}))} options={STATUSES} /></Field>
               </div>
             </div>
@@ -187,8 +215,8 @@ export default function AssetRegisterForm() {
               ) : (
                 <>
                   <SecTitle icon={QrCode} title="اطلاعات برچسب" />
-                  <div className="form-grid">
-                    <Field label="شماره برچسب" required><Input value={form.labelNumber} onChange={set("labelNumber")} className="h-8 text-sm font-mono" /></Field>
+                  <div className="form-grid" dir="rtl">
+                    <Field label="شماره برچسب" required><Input value={form.labelNumber} onChange={set("labelNumber")} className="h-8 text-sm font-mono text-left" /></Field>
                     <Field label="QR Code"><Input value={form.qrCode} onChange={set("qrCode")} className="h-8 text-sm font-mono" dir="ltr" /></Field>
                     <Field label="بارکد"><Input value={form.barcode} onChange={set("barcode")} className="h-8 text-sm font-mono" dir="ltr" /></Field>
                     <Field label="تاریخ الصاق"><PersianDatePicker value={form.labelDate} onChange={set("labelDate")} placeholder="۱۴۰۳/۰۱/۰۱" className="h-8" /></Field>
@@ -202,19 +230,35 @@ export default function AssetRegisterForm() {
           {activeTab === "location" && (
             <div className="space-y-5">
               <SecTitle icon={MapPin} title="اطلاعات مکانی" />
-              <div className="form-grid">
+              <div className="form-grid" dir="rtl">
                 <Field label="سازمان"><Input value={form.organization} onChange={set("organization")} className="h-8 text-sm" /></Field>
                 <Field label="واحد / اداره"><Input value={form.department} onChange={set("department")} className="h-8 text-sm" /></Field>
-                <Field label="ساختمان"><Input value={form.building} onChange={set("building")} className="h-8 text-sm" /></Field>
-                <Field label="طبقه"><Input value={form.floor} onChange={set("floor")} className="h-8 text-sm" /></Field>
-                <Field label="اتاق"><Input value={form.room} onChange={set("room")} className="h-8 text-sm" /></Field>
-                <Field label="محل استقرار"><Input value={form.location} onChange={set("location")} className="h-8 text-sm" /></Field>
+                <Field label="محل استقرار">
+                  <SearchableSelect
+                    value={form.location}
+                    onChange={(v) => {
+                      const loc = locations.find((l) => (l.name === v || l.title === v));
+                      setForm((f) => ({
+                        ...f,
+                        location: v,
+                        building: loc?.building || f.building,
+                        floor: loc?.floor || f.floor,
+                        room: loc?.room || f.room,
+                      }));
+                    }}
+                    options={locationOptions}
+                    placeholder="انتخاب محل استقرار..."
+                  />
+                </Field>
+                <Field label="ساختمان"><Input value={form.building} onChange={set("building")} className="h-8 text-sm bg-muted/30" readOnly /></Field>
+                <Field label="طبقه"><Input value={form.floor} onChange={set("floor")} className="h-8 text-sm bg-muted/30" readOnly /></Field>
+                <Field label="اتاق"><Input value={form.room} onChange={set("room")} className="h-8 text-sm bg-muted/30" readOnly /></Field>
               </div>
               <Separator />
               <SecTitle icon={User} title="مسئول مال" />
-              <div className="form-grid">
+              <div className="form-grid" dir="rtl">
                 <Field label="نام پرسنل"><Input value={form.personnelName} onChange={set("personnelName")} className="h-8 text-sm" /></Field>
-                <Field label="کد پرسنلی"><Input value={form.personnelCode} onChange={set("personnelCode")} className="h-8 text-sm font-mono" /></Field>
+                <Field label="کد پرسنلی"><Input value={form.personnelCode} onChange={set("personnelCode")} className="h-8 text-sm font-mono text-left" /></Field>
                 <Field label="تاریخ تحویل"><PersianDatePicker value={form.deliveryDate} onChange={set("deliveryDate")} placeholder="۱۴۰۳/۰۱/۰۱" className="h-8" /></Field>
                 <Field label="تاریخ عودت"><PersianDatePicker value={form.returnDate} onChange={set("returnDate")} className="h-8" /></Field>
                 <Field label="وضعیت تحویل"><SearchableSelect value={form.deliveryStatus} onChange={v => setForm(f => ({...f, deliveryStatus: v}))} options={[{value:"delivered",label:"تحویل داده شده"},{value:"returned",label:"عودت داده شده"},{value:"pending",label:"در انتظار"}]} /></Field>
@@ -225,13 +269,13 @@ export default function AssetRegisterForm() {
           {activeTab === "accounting" && (
             <div className="space-y-4">
               <SecTitle icon={BookOpen} title="اطلاعات مالی و حسابداری" />
-              <div className="form-grid">
-                <Field label="حساب کل"><Input value={form.mainAccount} onChange={set("mainAccount")} className="h-8 text-sm font-mono" /></Field>
-                <Field label="حساب معین"><Input value={form.subAccount} onChange={set("subAccount")} className="h-8 text-sm font-mono" /></Field>
+              <div className="form-grid" dir="rtl">
+                <Field label="حساب کل"><Input value={form.mainAccount} onChange={set("mainAccount")} className="h-8 text-sm font-mono text-left" /></Field>
+                <Field label="حساب معین"><Input value={form.subAccount} onChange={set("subAccount")} className="h-8 text-sm font-mono text-left" /></Field>
                 <Field label="مرکز هزینه"><Input value={form.costCenter} onChange={set("costCenter")} className="h-8 text-sm" /></Field>
                 <Field label="پروژه"><Input value={form.project} onChange={set("project")} className="h-8 text-sm" /></Field>
-                <Field label="شماره سند خرید"><Input value={form.purchaseDocNumber} onChange={set("purchaseDocNumber")} className="h-8 text-sm font-mono" /></Field>
-                <Field label="شماره فاکتور"><Input value={form.invoiceNumber} onChange={set("invoiceNumber")} className="h-8 text-sm font-mono" /></Field>
+                <Field label="شماره سند خرید"><Input value={form.purchaseDocNumber} onChange={set("purchaseDocNumber")} className="h-8 text-sm font-mono text-left" /></Field>
+                <Field label="شماره فاکتور"><Input value={form.invoiceNumber} onChange={set("invoiceNumber")} className="h-8 text-sm font-mono text-left" /></Field>
               </div>
             </div>
           )}
@@ -246,7 +290,7 @@ export default function AssetRegisterForm() {
               ) : (
                 <>
                   <SecTitle icon={Calculator} title="تنظیمات استهلاک" />
-                  <div className="form-grid">
+                  <div className="form-grid" dir="rtl">
                     <Field label="روش استهلاک"><SearchableSelect value={form.depreciationMethod} onChange={v => setForm(f => ({...f, depreciationMethod: v}))} options={DEPREC_METHODS} /></Field>
                     <Field label="تاریخ بهره‌برداری"><PersianDatePicker value={form.operationDate} onChange={set("operationDate")} placeholder="۱۴۰۳/۰۱/۰۱" className="h-8" /></Field>
                     <Field label="عمر مفید (سال)"><Input value={form.usefulLife} onChange={set("usefulLife")} type="number" min="1" className="h-8 text-sm" /></Field>
@@ -283,12 +327,12 @@ export default function AssetRegisterForm() {
 
                   <Separator />
                   <SecTitle icon={Calculator} title="نتایج اعمال‌شده" />
-                  <div className="form-grid">
-                    <Field label="نرخ استهلاک (%)"><Input value={form.depreciationRate} readOnly className="h-8 text-sm bg-muted/40 font-mono" /></Field>
-                    <Field label="استهلاک ماهانه (ریال)"><Input value={form.monthlyDepreciation ? fmt(form.monthlyDepreciation) : ""} readOnly className="h-8 text-sm bg-muted/40 font-mono" /></Field>
-                    <Field label="استهلاک انباشته (ریال)"><Input value={form.accumulatedDepreciation} onChange={set("accumulatedDepreciation")} className="h-8 text-sm font-mono" /></Field>
-                    <Field label="ارزش دفتری (ریال)"><Input value={form.bookValue ? fmt(form.bookValue) : ""} readOnly className="h-8 text-sm bg-muted/40 font-mono" /></Field>
-                    <Field label="مبلغ خالص دارایی (ریال)"><Input value={form.netAssetValue ? fmt(form.netAssetValue) : ""} readOnly className="h-8 text-sm bg-muted/40 font-mono font-semibold" /></Field>
+                  <div className="form-grid" dir="rtl">
+                    <Field label="نرخ استهلاک (%)"><Input value={form.depreciationRate} readOnly className="h-8 text-sm bg-muted/40 font-mono text-left" /></Field>
+                    <Field label="استهلاک ماهانه (ریال)"><Input value={form.monthlyDepreciation ? fmt(form.monthlyDepreciation) : ""} readOnly className="h-8 text-sm bg-muted/40 font-mono text-left" /></Field>
+                    <Field label="استهلاک انباشته (ریال)"><Input value={form.accumulatedDepreciation} onChange={set("accumulatedDepreciation")} className="h-8 text-sm font-mono text-left" /></Field>
+                    <Field label="ارزش دفتری (ریال)"><Input value={form.bookValue ? fmt(form.bookValue) : ""} readOnly className="h-8 text-sm bg-muted/40 font-mono text-left" /></Field>
+                    <Field label="مبلغ خالص دارایی (ریال)"><Input value={form.netAssetValue ? fmt(form.netAssetValue) : ""} readOnly className="h-8 text-sm bg-muted/40 font-mono text-left font-semibold" /></Field>
                   </div>
                 </>
               )}
@@ -310,37 +354,37 @@ export default function AssetRegisterForm() {
       {records.length > 0 && (
         <Card>
           <CardContent className="pt-4">
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-3" dir="rtl">
               <p className="text-sm font-semibold">اموال ثبت‌شده</p>
               <Badge variant="secondary">{records.length} مورد</Badge>
             </div>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>کد</TableHead>
-                  <TableHead>نام مال</TableHead>
-                  <TableHead>نوع</TableHead>
-                  <TableHead>گروه</TableHead>
-                  <TableHead>برند / مدل</TableHead>
-                  <TableHead>مبلغ خرید</TableHead>
-                  <TableHead>وضعیت</TableHead>
-                  <TableHead className="w-20">عملیات</TableHead>
+                  <TableHead className="text-right">کد</TableHead>
+                  <TableHead className="text-right">نام مال</TableHead>
+                  <TableHead className="text-right">نوع</TableHead>
+                  <TableHead className="text-right">گروه</TableHead>
+                  <TableHead className="text-right">برند / مدل</TableHead>
+                  <TableHead className="text-right">مبلغ خرید</TableHead>
+                  <TableHead className="text-right">وضعیت</TableHead>
+                  <TableHead className="w-20 text-right">عملیات</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {records.map((rec) => (
-                  <TableRow key={rec.id} className={cn(editingId === rec.id && "bg-primary/5 hover:bg-primary/10")}>
-                    <TableCell className="font-mono text-xs">{rec.assetCode || "—"}</TableCell>
-                    <TableCell className="font-medium">{rec.assetName}</TableCell>
-                    <TableCell>
+                  <TableRow key={rec.id || rec._id} className={cn(editingId === (rec.id || rec._id) && "bg-primary/5 hover:bg-primary/10")}>
+                    <TableCell className="font-mono text-xs text-left">{rec.assetCode || "—"}</TableCell>
+                    <TableCell className="font-medium text-right">{rec.assetName}</TableCell>
+                    <TableCell className="text-right">
                       <Badge variant={rec.assetType === "non-consumable" ? "default" : "secondary"} className="text-xs">
                         {rec.assetType === "non-consumable" ? "غیرمصرفی" : "مصرفی"}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-xs">{rec.assetGroup || "—"}</TableCell>
-                    <TableCell className="text-xs">{[rec.brand, rec.model].filter(Boolean).join(" / ") || "—"}</TableCell>
-                    <TableCell className="font-mono text-xs">{rec.purchaseAmount ? fmt(rec.purchaseAmount) + " ریال" : "—"}</TableCell>
-                    <TableCell>
+                    <TableCell className="text-xs text-right">{rec.assetGroup || "—"}</TableCell>
+                    <TableCell className="text-xs text-right">{[rec.brand, rec.model].filter(Boolean).join(" / ") || "—"}</TableCell>
+                    <TableCell className="font-mono text-xs text-left">{rec.purchaseAmount ? fmt(rec.purchaseAmount) + " ریال" : "—"}</TableCell>
+                    <TableCell className="text-right">
                       <Badge variant={rec.status === "active" ? "outline" : "destructive"} className="text-xs">
                         {STATUSES.find((s) => s.value === rec.status)?.label ?? rec.status}
                       </Badge>
@@ -350,7 +394,7 @@ export default function AssetRegisterForm() {
                         <button onClick={() => handleEdit(rec)} className="rounded p-1.5 hover:bg-accent text-muted-foreground hover:text-foreground transition-colors" title="ویرایش">
                           <Pencil className="h-3.5 w-3.5" />
                         </button>
-                        <button onClick={() => handleDelete(rec.id)} className="rounded p-1.5 hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="حذف">
+                        <button onClick={() => handleDelete(rec.id || rec._id)} className="rounded p-1.5 hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="حذف">
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       </div>

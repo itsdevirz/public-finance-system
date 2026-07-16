@@ -366,6 +366,8 @@ export const TOP_NAV = [
         { to: "/assets/register/scrap",    label: "اسقاط مال" },
         { to: "/assets/register/sale",     label: "فروش مال" },
         { to: "/assets/register/lost",     label: "ثبت مفقودی" },
+        { to: "/assets/register/repair",   label: "تعمیر اموال" },
+        { to: "/assets/register/transfer", label: "انتقال اموال" },
       ]},
       { to: "/assets/depreciation", label: "استهلاک", children: [
         { to: "/assets/depreciation/setup",    label: "تنظیم استهلاک" },

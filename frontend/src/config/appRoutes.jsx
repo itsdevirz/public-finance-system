@@ -68,6 +68,8 @@ const AssetScrapForm = lazy(() => import("@/modules/assets/pages/AssetScrapForm"
 const AssetSaleForm = lazy(() => import("@/modules/assets/pages/AssetSaleForm"));
 const AssetLostForm = lazy(() => import("@/modules/assets/pages/AssetLostForm"));
 const AssetRegisterForm = lazy(() => import("@/modules/assets/pages/AssetRegisterForm"));
+const AssetRepairForm = lazy(() => import("@/modules/assets/pages/AssetRepairForm"));
+const AssetTransferForm = lazy(() => import("@/modules/assets/pages/AssetTransferForm"));
 const AssetWarehouseReceipt = lazy(() => import("@/modules/assets/pages/AssetWarehouseReceipt"));
 const AssetWarehouseIssue = lazy(() => import("@/modules/assets/pages/AssetWarehouseIssue"));
 const AssetWarehouseBalance = lazy(() => import("@/modules/assets/pages/AssetWarehouseBalance"));
@@ -452,6 +454,8 @@ export const PAGE_COMPONENTS = {
   "/assets/register/scrap": AssetScrapForm,
   "/assets/register/sale": AssetSaleForm,
   "/assets/register/lost": AssetLostForm,
+  "/assets/register/repair": AssetRepairForm,
+  "/assets/register/transfer": AssetTransferForm,
   "/assets/depreciation": Assets,
   "/assets/depreciation/setup": DepreciationSetupForm,
   "/assets/depreciation/monthly": MonthlyDepreciationForm,
