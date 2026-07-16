@@ -7,29 +7,6 @@ import { serialize } from "../lib/helpers.js";
 const router = new Hono();
 
 // Helper to seed warehouses if empty
-async function ensureWarehouses() {
-  const db = getDb();
-  const count = await db.collection("inventory_warehouses").countDocuments();
-  if (count === 0) {
-    await db.collection("inventory_warehouses").insertMany([
-      { id: "WH-001", name: "انبار مرکزی", code: "WH-001", location: "ساختمان مرکزی" },
-      { id: "WH-002", name: "انبار ملزومات", code: "WH-002", location: "طبقه همکف" }
-    ]);
-  }
-}
-
-// GET /api/inventory/warehouses
-router.get("/warehouses", async (c) => {
-  try {
-    await ensureWarehouses();
-    const db = getDb();
-    const list = await db.collection("inventory_warehouses").find().toArray();
-    return c.json({ success: true, data: list });
-  } catch (error: any) {
-    return c.json({ success: false, message: error.message }, 500);
-  }
-});
-
 // GET /api/inventory/assets (Registered Assets)
 router.get("/assets", async (c) => {
   try {
@@ -474,6 +451,27 @@ const SEED_DATA: Record<string, any[]> = {
   suppliers: [
     { id: 1, code: "S-01", name: "شرکت رایان سیستم", tel: "021-88888888", manager: "احمدی", active: true },
     { id: 2, code: "S-02", name: "صنایع چوب نیلپر", tel: "021-77777777", manager: "رضایی", active: true },
+  ],
+  items: [
+    { id: 1, code: "IT-001", name: "کاغذ A4 کپی‌مکس", category: "ملزومات اداری", unit: "عدد", minStock: 10, currentStock: 50, price: 1500000 },
+    { id: 2, code: "IT-002", name: "پوشه مقوایی", category: "ملزومات اداری", unit: "عدد", minStock: 100, currentStock: 450, price: 50000 },
+    { id: 3, code: "IT-003", name: "خودکار کیان آبی", category: "ملزومات اداری", unit: "عدد", minStock: 50, currentStock: 200, price: 30000 },
+  ],
+  requests: [
+    { id: 1, requestCode: "REQ-001", requesterName: "علی احمدی", department: "امور مالی", itemCode: "IT-001", quantity: 5, date: "1403/04/10", status: "pending" },
+    { id: 2, requestCode: "REQ-002", requesterName: "زهرا حسینی", department: "کارگزینی", itemCode: "IT-003", quantity: 10, date: "1403/04/12", status: "approved" },
+  ],
+  transfers: [
+    { id: 1, transferCode: "TR-001", itemCode: "IT-001", fromStoreCode: "WH-001", toStoreCode: "WH-002", quantity: 20, date: "1403/04/15", status: "confirmed" },
+  ],
+  warehouses: [
+    { id: 1, code: "WH-001", name: "انبار مرکزی", location: "ساختمان مرکزی", manager: "حمید رضایی" },
+    { id: 2, code: "WH-002", name: "انبار ملزومات", location: "طبقه همکف", manager: "مریم علوی" }
+  ],
+  employees: [
+    { id: 1, code: "EMP-001", name: "علی رضایی", department: "فناوری اطلاعات" },
+    { id: 2, code: "EMP-002", name: "مریم احمدی", department: "حسابداری" },
+    { id: 3, code: "EMP-003", name: "حسن محمدی", department: "آموزش" }
   ]
 };
 
@@ -484,7 +482,13 @@ const collections = [
   "natures",
   "units",
   "locations",
-  "suppliers"
+  "suppliers",
+  "items",
+  "requests",
+  "transfers",
+  "warehouses",
+  "employees",
+  "audits"
 ];
 
 collections.forEach((name) => {

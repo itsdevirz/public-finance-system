@@ -520,6 +520,7 @@ export const PAGE_COMPONENTS = {
   "/warehouse/suppliers": Warehouse,
   "/warehouse/suppliers/list": Warehouse,
   "/warehouse/suppliers/new": Warehouse,
+  "/warehouse/employees": Warehouse,
   "/warehouse/reports": Warehouse,
   "/warehouse/reports/stock": Warehouse,
   "/warehouse/reports/stock-by-store": Warehouse,

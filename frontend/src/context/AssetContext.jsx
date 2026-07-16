@@ -18,6 +18,16 @@ export function AssetProvider({ children }) {
   const [locations, setLocations] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
 
+  // Warehouse states
+  const [items, setItems] = useState([]);
+  const [requests, setRequests] = useState([]);
+  const [transfers, setTransfers] = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
+  const [receipts, setReceipts] = useState([]);
+  const [issues, setIssues] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [audits, setAudits] = useState([]);
+
   const refreshAssets = async () => {
     if (!user) {
       setLoading(false);
@@ -40,8 +50,14 @@ export function AssetProvider({ children }) {
   const refreshAllConfigs = async () => {
     if (!user) return;
     try {
-      const names = ["groups", "subgroups", "types", "natures", "units", "locations", "suppliers"];
-      const setters = [setGroups, setSubgroups, setTypes, setNatures, setUnits, setLocations, setSuppliers];
+      const names = [
+        "groups", "subgroups", "types", "natures", "units", "locations",
+        "suppliers", "items", "requests", "transfers", "warehouses", "receipts", "issues", "employees", "audits"
+      ];
+      const setters = [
+        setGroups, setSubgroups, setTypes, setNatures, setUnits, setLocations,
+        setSuppliers, setItems, setRequests, setTransfers, setWarehouses, setReceipts, setIssues, setEmployees, setAudits
+      ];
       await Promise.all(names.map(async (name, idx) => {
         const res = await api.get(`/api/inventory/${name}`);
         if (res.data?.success) {
@@ -135,6 +151,7 @@ export function AssetProvider({ children }) {
     <AssetContext.Provider value={{
       assets, addAsset, updateAsset, deleteAsset, loading, refreshAssets,
       groups, subgroups, types, natures, units, locations, suppliers,
+      items, requests, transfers, warehouses, receipts, issues, employees, audits,
       addConfig, updateConfig, deleteConfig, refreshAllConfigs
     }}>
       {children}

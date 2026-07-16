@@ -288,52 +288,15 @@ export const TOP_NAV = [
   {
     to: "/warehouse", label: "سیستم انبار", num: 9, subItems: [
       { to: "/warehouse/dashboard", label: "داشبورد انبار" },
-      { to: "/warehouse/items", label: "مدیریت کالاها", children: [
-        { to: "/warehouse/items/list",       label: "لیست کالاها" },
-        { to: "/warehouse/items/new",        label: "ثبت کالای جدید" },
-        { to: "/warehouse/items/categories", label: "دسته‌بندی کالاها" },
-        { to: "/warehouse/items/barcodes",   label: "بارکد و QR Code" },
-      ]},
-      { to: "/warehouse/stores", label: "مدیریت انبارها", children: [
-        { to: "/warehouse/stores/list",  label: "لیست انبارها" },
-        { to: "/warehouse/stores/new",   label: "ثبت انبار جدید" },
-        { to: "/warehouse/stores/stock", label: "موجودی کالا در انبار" },
-      ]},
-      { to: "/warehouse/receipts", label: "ورود کالا (رسید)", children: [
-        { to: "/warehouse/receipts/new",         label: "رسید جدید" },
-        { to: "/warehouse/receipts/list",        label: "لیست رسیدها" },
-        { to: "/warehouse/receipts/purchase",    label: "رسید خرید" },
-        { to: "/warehouse/receipts/return",      label: "برگشت از مصرف" },
-        { to: "/warehouse/receipts/transfer-in", label: "رسید انتقال از انبار دیگر" },
-      ]},
-      { to: "/warehouse/issues", label: "خروج کالا (حواله)", children: [
-        { to: "/warehouse/issues/new",         label: "حواله جدید" },
-        { to: "/warehouse/issues/list",        label: "لیست حواله‌ها" },
-        { to: "/warehouse/issues/consumption", label: "مصرف داخلی" },
-        { to: "/warehouse/issues/delivery",    label: "تحویل به پرسنل" },
-        { to: "/warehouse/issues/scrap",       label: "اسقاط" },
-      ]},
-      { to: "/warehouse/requests", label: "درخواست کالا", children: [
-        { to: "/warehouse/requests/new",     label: "درخواست جدید" },
-        { to: "/warehouse/requests/list",    label: "لیست درخواست‌ها" },
-        { to: "/warehouse/requests/pending", label: "در انتظار تایید" },
-        { to: "/warehouse/requests/approve", label: "تایید درخواست‌ها" },
-      ]},
-      { to: "/warehouse/transfers", label: "انتقال بین انبارها", children: [
-        { to: "/warehouse/transfers/new",     label: "انتقال جدید" },
-        { to: "/warehouse/transfers/list",    label: "لیست انتقالات" },
-        { to: "/warehouse/transfers/confirm", label: "تایید دریافت" },
-      ]},
-      { to: "/warehouse/inventory", label: "انبارگردانی", children: [
-        { to: "/warehouse/inventory/new",         label: "شروع انبارگردانی" },
-        { to: "/warehouse/inventory/count",       label: "ثبت شمارش" },
-        { to: "/warehouse/inventory/discrepancy", label: "گزارش مغایرت" },
-        { to: "/warehouse/inventory/history",     label: "تاریخچه انبارگردانی" },
-      ]},
-      { to: "/warehouse/suppliers", label: "تامین‌کنندگان", children: [
-        { to: "/warehouse/suppliers/list", label: "لیست تامین‌کنندگان" },
-        { to: "/warehouse/suppliers/new",  label: "ثبت تامین‌کننده" },
-      ]},
+      { to: "/warehouse/items", label: "مدیریت کالاها" },
+      { to: "/warehouse/stores", label: "مدیریت انبارها" },
+      { to: "/warehouse/receipts", label: "ورود کالا (رسید)" },
+      { to: "/warehouse/issues", label: "خروج کالا (حواله)" },
+      { to: "/warehouse/requests", label: "درخواست کالا" },
+      { to: "/warehouse/transfers", label: "انتقال بین انبارها" },
+      { to: "/warehouse/inventory", label: "انبارگردانی" },
+      { to: "/warehouse/suppliers", label: "تامین‌کنندگان" },
+      { to: "/warehouse/employees", label: "تعریف کارکنان" },
       { to: "/warehouse/reports", label: "گزارش‌ها", children: [
         { to: "/warehouse/reports/stock",          label: "موجودی لحظه‌ای" },
         { to: "/warehouse/reports/stock-by-store", label: "موجودی هر انبار" },
