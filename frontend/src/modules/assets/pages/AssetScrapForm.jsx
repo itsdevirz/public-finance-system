@@ -12,6 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAssets } from "@/context/AssetContext";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 
 // ─── دلایل اسقاط ─────────────────────────────────────────────────────────────
 const SCRAP_REASONS = [
@@ -34,17 +35,6 @@ const STATUS_STYLE = {
   approved: { badge: "bg-emerald-100 text-emerald-700", icon: CheckCircle2 },
   rejected: { badge: "bg-red-100 text-red-700",       icon: AlertTriangle  },
 };
-
-// ─── نمونه داده اولیه ────────────────────────────────────────────────────────
-const SAMPLE_DATA = [
-  {
-    id: 1, assetCode: "A999", assetTitle: "رایانه قدیمی Pentium 4",
-    scrapReason: "obsolete", scrapDate: "1403/08/10",
-    commissionStatus: "approved", commissionDate: "1403/08/05",
-    commissionNumber: "K-1403-001", scrapValue: "500000",
-    disposalMethod: "auction", note: "فروش در مزایده عمومی",
-  },
-];
 
 const INITIAL_FORM = {
   assetCode: "", assetTitle: "", assetGroup: "", assetBrand: "", assetModel: "",
@@ -77,9 +67,8 @@ function Field({ label, required, children, col }) {
 }
 
 export default function AssetScrapForm() {
-  const { assets } = useAssets();
+  const { assets, updateAsset } = useAssets();
   const [form, setForm]         = useState(INITIAL_FORM);
-  const [list, setList]         = useState(SAMPLE_DATA);
   const [selected, setSelected] = useState(null);
   const [search, setSearch]     = useState("");
   const [saved, setSaved]       = useState(false);
@@ -110,48 +99,69 @@ export default function AssetScrapForm() {
     setSaved(false);
   }
 
-  function handleSave() {
-    if (!form.assetCode || !form.scrapDate.trim()) return;
-    const record = {
-      id: selected ?? Date.now(),
-      assetCode:        form.assetCode,
-      assetTitle:       form.assetTitle,
-      scrapReason:      form.scrapReason,
-      scrapDate:        form.scrapDate,
+  async function handleSave() {
+    if (!form.assetCode || !form.scrapDate?.trim()) return;
+
+    const asset = assets.find((a) => a.assetCode === form.assetCode);
+    if (!asset) return;
+
+    const updatedAsset = {
+      ...asset,
+      status: "scrap",
+      scrappedDate: form.scrapDate,
+      scrapValue: form.scrapValue,
+      scrapReason: form.scrapReason,
+      scrapLicense: form.commissionNumber,
       commissionStatus: form.commissionStatus,
-      commissionDate:   form.commissionDate,
+      commissionDate: form.commissionDate,
       commissionNumber: form.commissionNumber,
-      scrapValue:       form.scrapValue,
-      disposalMethod:   form.disposalMethod,
-      note:             form.note,
+      commissionMembers: form.commissionMembers,
+      disposalMethod: form.disposalMethod,
+      note: form.note,
     };
-    if (selected !== null) {
-      setList((l) => l.map((r) => (r.id === selected ? record : r)));
-    } else {
-      setList((l) => [...l, record]);
-    }
+
+    await updateAsset(updatedAsset);
     setSaved(true);
+    handleNew();
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (selected === null) return;
-    setList((l) => l.filter((r) => r.id !== selected));
+    const asset = assets.find((a) => a.assetCode === form.assetCode || a._id === selected || a.id === selected);
+    if (!asset) return;
+
+    const revertedAsset = {
+      ...asset,
+      status: "active",
+      scrappedDate: "",
+      scrapValue: "",
+      scrapReason: "",
+      scrapLicense: "",
+      commissionStatus: "",
+      commissionDate: "",
+      commissionNumber: "",
+      commissionMembers: "",
+      disposalMethod: "",
+      note: "",
+    };
+
+    await updateAsset(revertedAsset);
     handleNew();
   }
 
   function handleRowClick(row) {
-    setSelected(row.id);
+    setSelected(row._id || row.id);
     const asset = assets.find((a) => a.assetCode === row.assetCode);
     setForm({
       assetCode:        row.assetCode        ?? "",
-      assetTitle:       row.assetTitle       ?? "",
-      assetGroup:       asset?.assetGroup    ?? "",
-      assetBrand:       asset?.brand         ?? "",
-      assetModel:       asset?.model         ?? "",
-      purchaseAmount:   asset?.purchaseAmount ?? "",
+      assetTitle:       row.assetName        ?? "",
+      assetGroup:       row.assetGroup       ?? "",
+      assetBrand:       row.brand            ?? "",
+      assetModel:       row.model            ?? "",
+      purchaseAmount:   row.purchaseAmount   ?? "",
       bookValue:        row.bookValue        ?? "",
       scrapReason:      row.scrapReason      ?? "worn",
-      scrapDate:        row.scrapDate        ?? "",
+      scrapDate:        row.scrappedDate     ?? row.scrapDate ?? "",
       commissionStatus: row.commissionStatus ?? "pending",
       commissionDate:   row.commissionDate   ?? "",
       commissionNumber: row.commissionNumber ?? "",
@@ -163,21 +173,32 @@ export default function AssetScrapForm() {
     setSaved(false);
   }
 
-  const filtered = list.filter(
+  const scrappedAssetsList = useMemo(() => {
+    return assets.filter((a) => a.status === "scrap" || a.status === "اسقاط");
+  }, [assets]);
+
+  const selectOptions = useMemo(() => {
+    // Show active assets or the currently selected asset in editing mode
+    return assets
+      .filter((a) => (a.status !== "scrap" && a.status !== "اسقاط") || a.assetCode === form.assetCode)
+      .map((a) => ({ value: a.assetCode, label: `${a.assetCode} — ${a.assetName}` }));
+  }, [assets, form.assetCode]);
+
+  const filtered = scrappedAssetsList.filter(
     (r) => !search ||
       r.assetCode?.includes(search) ||
-      r.assetTitle?.includes(search) ||
+      r.assetName?.includes(search) ||
       r.commissionNumber?.includes(search)
   );
 
   // آمار
   const stats = useMemo(() => ({
-    pending:  list.filter((r) => r.commissionStatus === "pending").length,
-    approved: list.filter((r) => r.commissionStatus === "approved").length,
-    rejected: list.filter((r) => r.commissionStatus === "rejected").length,
-  }), [list]);
+    pending:  scrappedAssetsList.filter((r) => r.commissionStatus === "pending" || !r.commissionStatus).length,
+    approved: scrappedAssetsList.filter((r) => r.commissionStatus === "approved").length,
+    rejected: scrappedAssetsList.filter((r) => r.commissionStatus === "rejected").length,
+  }), [scrappedAssetsList]);
 
-  const canSave = form.assetCode && form.scrapDate.trim();
+  const canSave = form.assetCode && form.scrapDate?.trim();
 
   return (
     <PageShell>
@@ -203,13 +224,13 @@ export default function AssetScrapForm() {
           <Button variant="outline" size="sm" onClick={handleDelete}
             disabled={selected === null}
             className="gap-1.5 text-destructive hover:text-destructive">
-            <Trash2 className="h-4 w-4" />حذف
+            <Trash2 className="h-4 w-4" />حذف اسقاط
           </Button>
           {saved && <span className="text-sm font-medium text-emerald-600 animate-in fade-in">✓ ذخیره شد</span>}
         </div>
         <div className="text-right">
           <h1 className="text-xl font-bold">اسقاط مال</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">ثبت و پایش فرآیند اسقاط اموال دولتی</p>
+          <p className="text-xs text-muted-foreground mt-0.5">ثبت و پایش فرآیند اسقاط اموال دولتی در دیتابیس واقعی</p>
         </div>
       </div>
 
@@ -252,7 +273,7 @@ export default function AssetScrapForm() {
                   }));
                   setSaved(false);
                 }}
-                options={assets.map((a) => ({ value: a.assetCode, label: `${a.assetCode} — ${a.assetName}` }))}
+                options={selectOptions}
                 placeholder="انتخاب مال"
               />
             </Field>
@@ -289,8 +310,14 @@ export default function AssetScrapForm() {
             <div className="grid grid-cols-2 gap-x-8 gap-y-4 md:grid-cols-4" dir="rtl">
 
               <Field label="تاریخ اسقاط" required>
-                <Input value={form.scrapDate} onChange={set("scrapDate")}
-                  className="h-9 text-sm" placeholder="۱۴۰۳/۰۸/۱۰" />
+                <PersianDatePicker
+                  value={form.scrapDate}
+                  onChange={(e) => {
+                    setForm((f) => ({ ...f, scrapDate: e.target.value }));
+                    setSaved(false);
+                  }}
+                  placeholder="۱۴۰۳/۰۸/۱۰"
+                />
               </Field>
 
               <Field label="ارزش کارشناسی اسقاط (ریال)">
@@ -315,8 +342,14 @@ export default function AssetScrapForm() {
               </Field>
 
               <Field label="تاریخ تشکیل کمیسیون">
-                <Input value={form.commissionDate} onChange={set("commissionDate")}
-                  className="h-9 text-sm" placeholder="۱۴۰۳/۰۸/۰۵" />
+                <PersianDatePicker
+                  value={form.commissionDate}
+                  onChange={(e) => {
+                    setForm((f) => ({ ...f, commissionDate: e.target.value }));
+                    setSaved(false);
+                  }}
+                  placeholder="۱۴۰۳/۰۸/۰۵"
+                />
               </Field>
 
               <Field label="شماره صورت‌جلسه">
@@ -378,21 +411,21 @@ export default function AssetScrapForm() {
                   const st = STATUS_STYLE[row.commissionStatus] ?? STATUS_STYLE.pending;
                   const StatusIcon = st.icon;
                   return (
-                    <TableRow key={row.id} onClick={() => handleRowClick(row)}
+                    <TableRow key={row._id || row.id} onClick={() => handleRowClick(row)}
                       className={cn("cursor-pointer transition-colors",
-                        selected === row.id ? "bg-primary/10 hover:bg-primary/15" : "hover:bg-muted/40")}>
+                        selected === (row._id || row.id) ? "bg-primary/10 hover:bg-primary/15" : "hover:bg-muted/40")}>
                       <TableCell>
-                        <div className="text-sm font-medium">{row.assetTitle}</div>
+                        <div className="text-sm font-medium">{row.assetName}</div>
                         <div className="text-xs text-muted-foreground font-mono">{row.assetCode}</div>
                       </TableCell>
                       <TableCell className="text-xs">
                         {SCRAP_REASONS.find((r) => r.value === row.scrapReason)?.label ?? row.scrapReason}
                       </TableCell>
-                      <TableCell className="text-xs font-mono">{row.scrapDate}</TableCell>
+                      <TableCell className="text-xs font-mono">{row.scrappedDate || row.scrapDate}</TableCell>
                       <TableCell>
                         <Badge variant="secondary" className={cn("text-xs gap-1", st.badge)}>
                           <StatusIcon className="h-3 w-3" />
-                          {COMMISSION_STATUS.find((s) => s.value === row.commissionStatus)?.label}
+                          {COMMISSION_STATUS.find((s) => s.value === row.commissionStatus)?.label || row.commissionStatus}
                         </Badge>
                       </TableCell>
                       <TableCell className="font-mono text-xs text-muted-foreground">

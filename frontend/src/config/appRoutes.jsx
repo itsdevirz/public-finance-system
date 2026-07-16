@@ -50,6 +50,7 @@ const ContractAddendumForm = lazy(() => import("@/pages/ContractAddendumForm"));
 const ContractCard = lazy(() => import("@/pages/ContractCard"));
 const ContractChanges25Form = lazy(() => import("@/pages/ContractChanges25Form"));
 const Assets = lazy(() => import("@/modules/assets/pages/Assets"));
+const AssetReports = lazy(() => import("@/modules/assets/pages/AssetReports"));
 const AssetGroupForm = lazy(() => import("@/modules/assets/pages/AssetGroupForm"));
 const AssetSubGroupForm = lazy(() => import("@/modules/assets/pages/AssetSubGroupForm"));
 const AssetTypeForm = lazy(() => import("@/modules/assets/pages/AssetTypeForm"));
@@ -461,20 +462,20 @@ export const PAGE_COMPONENTS = {
   "/assets/warehouse/issue": AssetWarehouseIssue,
   "/assets/warehouse/balance": AssetWarehouseBalance,
   "/assets/warehouse/min-stock": AssetWarehouseMinStock,
-  "/assets/reports": Assets,
-  "/assets/reports/all": Assets,
-  "/assets/reports/by-unit": Assets,
-  "/assets/reports/by-employee": Assets,
-  "/assets/reports/labeled": Assets,
-  "/assets/reports/unlabeled": Assets,
-  "/assets/reports/depreciation-monthly": Assets,
-  "/assets/reports/depreciation-annual": Assets,
-  "/assets/reports/depreciation-cumulative": Assets,
-  "/assets/reports/book-value": Assets,
-  "/assets/reports/lost": Assets,
-  "/assets/reports/scrapped": Assets,
-  "/assets/reports/in-repair": Assets,
-  "/assets/reports/transferred": Assets,
+  "/assets/reports": AssetReports,
+  "/assets/reports/all": AssetReports,
+  "/assets/reports/by-unit": AssetReports,
+  "/assets/reports/by-employee": AssetReports,
+  "/assets/reports/labeled": AssetReports,
+  "/assets/reports/unlabeled": AssetReports,
+  "/assets/reports/depreciation-monthly": AssetReports,
+  "/assets/reports/depreciation-annual": AssetReports,
+  "/assets/reports/depreciation-cumulative": AssetReports,
+  "/assets/reports/book-value": AssetReports,
+  "/assets/reports/lost": AssetReports,
+  "/assets/reports/scrapped": AssetReports,
+  "/assets/reports/in-repair": AssetReports,
+  "/assets/reports/transferred": AssetReports,
   "/warehouse": Warehouse,
   "/warehouse/dashboard": WarehouseDashboard,
   "/warehouse/items": Warehouse,
@@ -571,6 +572,28 @@ export function buildLayoutRoutes(HomePage) {
     routes.push({
       path,
       element: Component ? <Component /> : <Placeholder label={label} />,
+    });
+  }
+
+  // Register asset report sub-routes to avoid rendering Placeholder for them
+  const assetReportSubRoutes = [
+    "/assets/reports/all",
+    "/assets/reports/by-unit",
+    "/assets/reports/by-employee",
+    "/assets/reports/labeled",
+    "/assets/reports/unlabeled",
+    "/assets/reports/depreciation-cumulative",
+    "/assets/reports/book-value",
+    "/assets/reports/lost",
+    "/assets/reports/scrapped",
+    "/assets/reports/in-repair",
+    "/assets/reports/transferred"
+  ];
+
+  for (const path of assetReportSubRoutes) {
+    routes.push({
+      path,
+      element: <AssetReports />
     });
   }
 

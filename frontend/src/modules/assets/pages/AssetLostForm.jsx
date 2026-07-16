@@ -12,6 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAssets } from "@/context/AssetContext";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 
 const LOST_REASONS = [
   { value: "theft",    label: "سرقت" },
@@ -33,15 +34,6 @@ const STATUS_STYLE = {
   recovered: { badge: "bg-emerald-100 text-emerald-700", icon: CheckCircle2  },
   closed:    { badge: "bg-slate-100 text-slate-600",     icon: Pencil        },
 };
-
-const SAMPLE_DATA = [
-  {
-    id: 1, assetCode: "A001", assetTitle: "لپ‌تاپ Dell Latitude 5520",
-    lostReason: "theft", lostDate: "1403/07/20",
-    followStatus: "police", policeReportNumber: "PR-1403-045",
-    responsiblePerson: "علی رضایی", note: "سرقت از دفتر طبقه اول",
-  },
-];
 
 const INITIAL_FORM = {
   assetCode: "", assetTitle: "", assetGroup: "", assetBrand: "", assetModel: "",
@@ -66,9 +58,8 @@ function Field({ label, required, children, col }) {
 }
 
 export default function AssetLostForm() {
-  const { assets } = useAssets();
+  const { assets, updateAsset } = useAssets();
   const [form, setForm]         = useState(INITIAL_FORM);
-  const [list, setList]         = useState(SAMPLE_DATA);
   const [selected, setSelected] = useState(null);
   const [search, setSearch]     = useState("");
   const [saved, setSaved]       = useState(false);
@@ -94,35 +85,63 @@ export default function AssetLostForm() {
 
   function handleNew() { setForm(INITIAL_FORM); setSelected(null); setSaved(false); }
 
-  function handleSave() {
-    if (!form.assetCode || !form.lostDate.trim()) return;
-    const record = { id: selected ?? Date.now(), ...form,
-      assetTitle: assets.find((a) => a.assetCode === form.assetCode)?.assetName ?? form.assetCode,
+  async function handleSave() {
+    if (!form.assetCode || !form.lostDate?.trim()) return;
+
+    const asset = assets.find((a) => a.assetCode === form.assetCode);
+    if (!asset) return;
+
+    const updatedAsset = {
+      ...asset,
+      status: "lost",
+      lostReason: form.lostReason,
+      lostDate: form.lostDate,
+      followStatus: form.followStatus,
+      policeReportNumber: form.policeReportNumber,
+      responsiblePerson: form.responsiblePerson,
+      responsibleCode: form.responsibleCode,
+      insuranceClaim: form.insuranceClaim,
+      insuranceNumber: form.insuranceClaim ? form.insuranceNumber : "",
+      note: form.note,
     };
-    if (selected !== null) {
-      setList((l) => l.map((r) => (r.id === selected ? record : r)));
-    } else {
-      setList((l) => [...l, record]);
-    }
+
+    await updateAsset(updatedAsset);
     setSaved(true);
+    handleNew();
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (selected === null) return;
-    setList((l) => l.filter((r) => r.id !== selected));
+    const asset = assets.find((a) => a.assetCode === form.assetCode || a._id === selected || a.id === selected);
+    if (!asset) return;
+
+    const revertedAsset = {
+      ...asset,
+      status: "active",
+      lostReason: "",
+      lostDate: "",
+      followStatus: "",
+      policeReportNumber: "",
+      responsiblePerson: "",
+      responsibleCode: "",
+      insuranceClaim: false,
+      insuranceNumber: "",
+      note: "",
+    };
+
+    await updateAsset(revertedAsset);
     handleNew();
   }
 
   function handleRowClick(row) {
-    setSelected(row.id);
-    const asset = assets.find((a) => a.assetCode === row.assetCode);
+    setSelected(row._id || row.id);
     setForm({
       assetCode:          row.assetCode          ?? "",
-      assetTitle:         row.assetTitle         ?? "",
-      assetGroup:         asset?.assetGroup      ?? "",
-      assetBrand:         asset?.brand           ?? "",
-      assetModel:         asset?.model           ?? "",
-      purchaseAmount:     asset?.purchaseAmount  ?? "",
+      assetTitle:         row.assetName          ?? "",
+      assetGroup:         row.assetGroup         ?? "",
+      assetBrand:         row.brand              ?? "",
+      assetModel:         row.model              ?? "",
+      purchaseAmount:     row.purchaseAmount     ?? "",
       lostReason:         row.lostReason         ?? "missing",
       lostDate:           row.lostDate           ?? "",
       followStatus:       row.followStatus       ?? "reported",
@@ -131,22 +150,33 @@ export default function AssetLostForm() {
       responsibleCode:    row.responsibleCode    ?? "",
       insuranceClaim:     row.insuranceClaim     ?? false,
       insuranceNumber:    row.insuranceNumber    ?? "",
-      note:               row.note              ?? "",
+      note:               row.note               ?? "",
     });
     setSaved(false);
   }
 
-  const filtered = list.filter((r) =>
-    !search || r.assetCode?.includes(search) || r.assetTitle?.includes(search) ||
+  const lostAssetsList = useMemo(() => {
+    return assets.filter((a) => a.status === "lost" || a.status === "مفقود");
+  }, [assets]);
+
+  const selectOptions = useMemo(() => {
+    // Show assets that are not lost, or the currently selected asset in the form
+    return assets
+      .filter((a) => (a.status !== "lost" && a.status !== "مفقود") || a.assetCode === form.assetCode)
+      .map((a) => ({ value: a.assetCode, label: `${a.assetCode} — ${a.assetName}` }));
+  }, [assets, form.assetCode]);
+
+  const filtered = lostAssetsList.filter((r) =>
+    !search || r.assetCode?.includes(search) || r.assetName?.includes(search) ||
     r.responsiblePerson?.includes(search) || r.policeReportNumber?.includes(search)
   );
 
   const stats = useMemo(() => ({
-    reported:  list.filter((r) => r.followStatus === "reported").length,
-    police:    list.filter((r) => r.followStatus === "police").length,
-    recovered: list.filter((r) => r.followStatus === "recovered").length,
-    closed:    list.filter((r) => r.followStatus === "closed").length,
-  }), [list]);
+    reported:  lostAssetsList.filter((r) => r.followStatus === "reported" || !r.followStatus).length,
+    police:    lostAssetsList.filter((r) => r.followStatus === "police").length,
+    recovered: lostAssetsList.filter((r) => r.followStatus === "recovered").length,
+    closed:    lostAssetsList.filter((r) => r.followStatus === "closed").length,
+  }), [lostAssetsList]);
 
   return (
     <PageShell>
@@ -160,7 +190,7 @@ export default function AssetLostForm() {
 
       <div className="mb-4 flex items-center justify-between" dir="rtl">
         <div className="flex items-center gap-2">
-          <Button size="sm" onClick={handleSave} disabled={!form.assetCode || !form.lostDate.trim()}
+          <Button size="sm" onClick={handleSave} disabled={!form.assetCode || !form.lostDate?.trim()}
             className="gap-1.5 bg-amber-600 hover:bg-amber-700 text-white">
             <Save className="h-4 w-4" />ثبت مفقودی
           </Button>
@@ -169,13 +199,13 @@ export default function AssetLostForm() {
           </Button>
           <Button variant="outline" size="sm" onClick={handleDelete}
             disabled={selected === null} className="gap-1.5 text-destructive hover:text-destructive">
-            <Trash2 className="h-4 w-4" />حذف
+            <Trash2 className="h-4 w-4" />حذف مفقودی
           </Button>
           {saved && <span className="text-sm font-medium text-emerald-600 animate-in fade-in">✓ ذخیره شد</span>}
         </div>
         <div className="text-right">
           <h1 className="text-xl font-bold">ثبت مفقودی</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">ثبت و پیگیری اموال مفقود یا مسروقه</p>
+          <p className="text-xs text-muted-foreground mt-0.5">ثبت و پیگیری اموال مفقود یا مسروقه در دیتابیس</p>
         </div>
       </div>
 
@@ -213,7 +243,7 @@ export default function AssetLostForm() {
                   }));
                   setSaved(false);
                 }}
-                options={assets.map((a) => ({ value: a.assetCode, label: `${a.assetCode} — ${a.assetName}` }))}
+                options={selectOptions}
                 placeholder="انتخاب مال"
               />
             </Field>
@@ -250,8 +280,14 @@ export default function AssetLostForm() {
                 <SearchableSelect value={form.lostReason} onChange={v => { setForm(f => ({...f, lostReason: v})); setSaved(false); }} options={LOST_REASONS} />
               </Field>
               <Field label="تاریخ مفقودی" required>
-                <Input value={form.lostDate} onChange={set("lostDate")}
-                  className="h-9 text-sm" placeholder="۱۴۰۳/۰۷/۲۰" />
+                <PersianDatePicker
+                  value={form.lostDate}
+                  onChange={(e) => {
+                    setForm((f) => ({ ...f, lostDate: e.target.value }));
+                    setSaved(false);
+                  }}
+                  placeholder="۱۴۰۳/۰۷/۲۰"
+                />
               </Field>
               <Field label="شماره گزارش به مراجع قضایی">
                 <Input value={form.policeReportNumber} onChange={set("policeReportNumber")}
@@ -315,7 +351,7 @@ export default function AssetLostForm() {
                 <TableRow className="bg-muted/50">
                   <TableHead className="text-xs font-bold text-right">مال</TableHead>
                   <TableHead className="text-xs font-bold text-right">دلیل</TableHead>
-                  <TableHead className="text-xs font-bold text-right w-28">تاریخ</TableHead>
+                  <TableHead className="text-xs font-bold text-right w-28">تاریخ مفقودی</TableHead>
                   <TableHead className="text-xs font-bold text-right">مسئول</TableHead>
                   <TableHead className="text-xs font-bold text-right">وضعیت پیگیری</TableHead>
                   <TableHead className="w-10"></TableHead>
@@ -328,20 +364,20 @@ export default function AssetLostForm() {
                   const st = STATUS_STYLE[row.followStatus] ?? STATUS_STYLE.reported;
                   const Icon = st.icon;
                   return (
-                    <TableRow key={row.id} onClick={() => handleRowClick(row)}
+                    <TableRow key={row._id || row.id} onClick={() => handleRowClick(row)}
                       className={cn("cursor-pointer transition-colors",
-                        selected === row.id ? "bg-primary/10 hover:bg-primary/15" : "hover:bg-muted/40")}>
+                        selected === (row._id || row.id) ? "bg-primary/10 hover:bg-primary/15" : "hover:bg-muted/40")}>
                       <TableCell>
-                        <div className="text-sm font-medium">{row.assetTitle}</div>
+                        <div className="text-sm font-medium">{row.assetName}</div>
                         <div className="text-xs text-muted-foreground font-mono">{row.assetCode}</div>
                       </TableCell>
-                      <TableCell className="text-xs">{LOST_REASONS.find((r) => r.value === row.lostReason)?.label}</TableCell>
+                      <TableCell className="text-xs">{LOST_REASONS.find((r) => r.value === row.lostReason)?.label || row.lostReason}</TableCell>
                       <TableCell className="text-xs font-mono">{row.lostDate}</TableCell>
                       <TableCell className="text-sm">{row.responsiblePerson || "—"}</TableCell>
                       <TableCell>
                         <Badge variant="secondary" className={cn("text-xs gap-1", st.badge)}>
                           <Icon className="h-3 w-3" />
-                          {FOLLOW_STATUSES.find((s) => s.value === row.followStatus)?.label}
+                          {FOLLOW_STATUSES.find((s) => s.value === row.followStatus)?.label || row.followStatus}
                         </Badge>
                       </TableCell>
                       <TableCell><Pencil className="h-3.5 w-3.5 text-muted-foreground" /></TableCell>
