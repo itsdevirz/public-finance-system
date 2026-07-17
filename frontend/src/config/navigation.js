@@ -297,16 +297,7 @@ export const TOP_NAV = [
       { to: "/warehouse/inventory", label: "انبارگردانی" },
       { to: "/warehouse/suppliers", label: "تامین‌کنندگان" },
       { to: "/warehouse/employees", label: "تعریف کارکنان" },
-      { to: "/warehouse/reports", label: "گزارش‌ها", children: [
-        { to: "/warehouse/reports/stock",          label: "موجودی لحظه‌ای" },
-        { to: "/warehouse/reports/stock-by-store", label: "موجودی هر انبار" },
-        { to: "/warehouse/reports/stock-by-group", label: "موجودی هر گروه" },
-        { to: "/warehouse/reports/turnover",       label: "گردش ورود و خروج" },
-        { to: "/warehouse/reports/transfers",      label: "گزارش انتقالات" },
-        { to: "/warehouse/reports/shortage",       label: "کالاهای کمتر از نقطه سفارش" },
-        { to: "/warehouse/reports/discrepancy",    label: "مغایرت‌های انبار" },
-        { to: "/warehouse/reports/audit",          label: "تاریخچه عملیات (Audit)" },
-      ]},
+      { to: "/warehouse/reports", label: "گزارش‌ها" },
     ],
   },
 
