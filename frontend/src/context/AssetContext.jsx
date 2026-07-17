@@ -33,6 +33,9 @@ export function AssetProvider({ children }) {
   const [employeeMissions, setEmployeeMissions] = useState([]);
   const [payrollCalculations, setPayrollCalculations] = useState([]);
   const [audits, setAudits] = useState([]);
+  const [insuranceSettings, setInsuranceSettings] = useState([]);
+  const [employeeLoans, setEmployeeLoans] = useState([]);
+  const [employeeAdvances, setEmployeeAdvances] = useState([]);
 
   const refreshAssets = async () => {
     if (!user) {
@@ -59,12 +62,12 @@ export function AssetProvider({ children }) {
       const names = [
         "groups", "subgroups", "types", "natures", "units", "locations",
         "suppliers", "items", "requests", "transfers", "warehouses", "receipts", "issues",
-        "employees", "employee_contracts", "employee_decrees", "attendance_records", "employee_leaves", "employee_missions", "payroll_calculations", "audits"
+        "employees", "employee_contracts", "employee_decrees", "attendance_records", "employee_leaves", "employee_missions", "payroll_calculations", "insurance_settings", "employee_loans", "employee_advances", "audits"
       ];
       const setters = [
         setGroups, setSubgroups, setTypes, setNatures, setUnits, setLocations,
         setSuppliers, setItems, setRequests, setTransfers, setWarehouses, setReceipts, setIssues,
-        setEmployees, setEmployeeContracts, setEmployeeDecrees, setAttendanceRecords, setEmployeeLeaves, setEmployeeMissions, setPayrollCalculations, setAudits
+        setEmployees, setEmployeeContracts, setEmployeeDecrees, setAttendanceRecords, setEmployeeLeaves, setEmployeeMissions, setPayrollCalculations, setInsuranceSettings, setEmployeeLoans, setEmployeeAdvances, setAudits
       ];
       await Promise.all(names.map(async (name, idx) => {
         const res = await api.get(`/api/inventory/${name}`);
@@ -159,7 +162,7 @@ export function AssetProvider({ children }) {
     <AssetContext.Provider value={{
       assets, addAsset, updateAsset, deleteAsset, loading, refreshAssets,
       groups, subgroups, types, natures, units, locations, suppliers,
-      items, requests, transfers, warehouses, receipts, issues, employees, employeeContracts, employeeDecrees, attendanceRecords, employeeLeaves, employeeMissions, payrollCalculations, audits,
+      items, requests, transfers, warehouses, receipts, issues, employees, employeeContracts, employeeDecrees, attendanceRecords, employeeLeaves, employeeMissions, payrollCalculations, insuranceSettings, employeeLoans, employeeAdvances, audits,
       addConfig, updateConfig, deleteConfig, refreshAllConfigs
     }}>
       {children}

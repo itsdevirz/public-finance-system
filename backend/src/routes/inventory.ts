@@ -468,7 +468,10 @@ const SEED_DATA: Record<string, any[]> = {
     { id: 1, code: "WH-001", name: "انبار مرکزی", location: "ساختمان مرکزی", manager: "حمید رضایی" },
     { id: 2, code: "WH-002", name: "انبار ملزومات", location: "طبقه همکف", manager: "مریم علوی" }
   ],
-  employees: []
+  employees: [],
+  insurance_settings: [],
+  employee_loans: [],
+  employee_advances: []
 };
 
 const collections = [
@@ -492,6 +495,9 @@ const collections = [
   "payroll_calculations",
   "payroll_settings",
   "tax_tables",
+  "insurance_settings",
+  "employee_loans",
+  "employee_advances",
   "audits"
 ];
 

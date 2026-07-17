@@ -56,7 +56,7 @@ const INS_EMPLOYEE_RATE = 0.07;   // سهم کارمند 7%
 const INS_EMPLOYER_RATE = 0.20;   // سهم کارفرما 20%
 const INS_UNEMPLOY_RATE = 0.03;   // بیمه بیکاری 3%
 
-function calcPayrollRow(emp, decree, attRec) {
+function calcPayrollRow(emp, decree, attRec, advances, loans, selectedYear, selectedMonth) {
   const DAYS_IN_MONTH = 30;
 
   // حقوق پایه ماهانه از آخرین حکم
@@ -104,8 +104,41 @@ function calcPayrollRow(emp, decree, attRec) {
   const annualGross    = grossSalary * 12;
   const monthlyTax     = calcTax(annualGross);
 
+  // محاسبه کسر مساعده
+  const empId = emp._id || emp.id;
+  const empAdvances = (advances || []).filter(
+    a => String(a.employeeId) === String(empId) &&
+         String(a.year) === String(selectedYear) &&
+         String(a.month) === String(selectedMonth) &&
+         a.active !== false
+  );
+  const advanceDeduct = empAdvances.reduce((s, a) => s + (Number(a.amount) || 0), 0);
+
+  // محاسبه کسر قسط وام فعال
+  const empLoans = (loans || []).filter(
+    l => String(l.employeeId) === String(empId) &&
+         l.active !== false
+  );
+  let loanDeduct = 0;
+  empLoans.forEach(loan => {
+    const startY = Number(loan.startYear) || 1405;
+    const startM = Number(loan.startMonth) || 1;
+    const count = Number(loan.installmentsCount) || 12;
+    const paidCount = Number(loan.paidInstallmentsCount) || 0;
+    
+    const currentY = Number(selectedYear);
+    const currentM = Number(selectedMonth);
+    
+    const startTotalMonths = startY * 12 + startM;
+    const currentTotalMonths = currentY * 12 + currentM;
+    
+    if (currentTotalMonths >= startTotalMonths && paidCount < count) {
+      loanDeduct += Number(loan.monthlyInstallment) || 0;
+    }
+  });
+
   // جمع کسورات
-  const totalDeductions = insEmployee + monthlyTax + tardinessDeduct + absenceDeduct;
+  const totalDeductions = insEmployee + monthlyTax + tardinessDeduct + absenceDeduct + advanceDeduct + loanDeduct;
 
   // خالص قابل پرداخت
   const netSalary      = Math.max(0, grossSalary - totalDeductions);
@@ -138,6 +171,8 @@ function calcPayrollRow(emp, decree, attRec) {
     monthlyTax,
     tardinessDeduct,
     absenceDeduct,
+    advanceDeduct,
+    loanDeduct,
     totalDeductions,
     // خالص
     netSalary,
@@ -152,7 +187,7 @@ const fmt = (n) => Number(n || 0).toLocaleString("fa-IR");
 export default function PayrollCalculate() {
   const {
     employees, employeeDecrees, attendanceRecords,
-    payrollCalculations, addConfig, updateConfig, refreshAllConfigs
+    payrollCalculations, employeeLoans, employeeAdvances, addConfig, updateConfig, refreshAllConfigs
   } = useAssets();
 
   const [selectedYear,  setSelectedYear]  = useState("1405");
@@ -199,12 +234,12 @@ export default function PayrollCalculate() {
              r.employeeId === empId
       ) || null;
 
-      return calcPayrollRow(emp, decree, attRec);
+      return calcPayrollRow(emp, decree, attRec, employeeAdvances, employeeLoans, selectedYear, selectedMonth);
     });
 
     setRows(result);
     setIsCalculated(true);
-  }, [employees, employeeDecrees, attendanceRecords, selectedYear, selectedMonth]);
+  }, [employees, employeeDecrees, attendanceRecords, employeeAdvances, employeeLoans, selectedYear, selectedMonth]);
 
   // ذخیره نتایج محاسبه در پایگاه‌داده
   async function handleSaveAll() {
@@ -470,19 +505,18 @@ export default function PayrollCalculate() {
                   <TableHead className="text-left font-mono text-white">مسکن + خوار</TableHead>
                   <TableHead className="text-left font-mono text-white">اضافه‌کار</TableHead>
                   <TableHead className="text-left font-mono font-bold text-white">ناخالص</TableHead>
-                  <Separator orientation="vertical" />
-                  <TableHead className="text-left font-mono text-white">بیمه کارمند</TableHead>
+                  <TableHead className="text-left font-mono text-white border-r border-slate-200/50 pr-3">بیمه کارمند</TableHead>
                   <TableHead className="text-left font-mono text-white">بیمه کارفرما<br/><span className="font-normal text-[9px]">(برای اطلاع)</span></TableHead>
                   <TableHead className="text-left font-mono text-white">مالیات</TableHead>
                   <TableHead className="text-left font-mono text-white">کسر کارکرد</TableHead>
-                  <TableHead className="text-left font-mono font-bold text-white">خالص پرداخت</TableHead>
+                  <TableHead className="text-left font-mono font-bold text-white border-r border-slate-200/50 pr-3">خالص پرداخت</TableHead>
                   <TableHead className="text-center text-white">وضعیت</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredRows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={13} className="py-8 text-center text-xs text-muted-foreground">
+                    <TableCell colSpan={12} className="py-8 text-center text-xs text-muted-foreground">
                       نتیجه‌ای یافت نشد.
                     </TableCell>
                   </TableRow>
@@ -500,13 +534,15 @@ export default function PayrollCalculate() {
                     <TableCell className="text-left font-mono text-slate-500">{fmt(r.housingAllow + r.groceryAllow)}</TableCell>
                     <TableCell className="text-left font-mono text-amber-600">{r.overtimePay > 0 ? fmt(r.overtimePay) : "—"}</TableCell>
                     <TableCell className="text-left font-mono font-bold text-indigo-700">{fmt(r.grossSalary)}</TableCell>
-                    <TableCell className="text-left font-mono text-blue-600">{fmt(r.insEmployee)}</TableCell>
+                    <TableCell className="text-left font-mono text-blue-600 border-r border-slate-100 dark:border-slate-800 pr-3">{fmt(r.insEmployee)}</TableCell>
                     <TableCell className="text-left font-mono text-orange-500 text-[10px]">{fmt(r.insEmployer)}</TableCell>
                     <TableCell className="text-left font-mono text-rose-600">{fmt(r.monthlyTax)}</TableCell>
                     <TableCell className="text-left font-mono text-slate-500">
-                      {(r.tardinessDeduct + r.absenceDeduct) > 0 ? fmt(r.tardinessDeduct + r.absenceDeduct) : "—"}
+                      {(r.tardinessDeduct + r.absenceDeduct + (r.advanceDeduct || 0) + (r.loanDeduct || 0)) > 0 
+                        ? fmt(r.tardinessDeduct + r.absenceDeduct + (r.advanceDeduct || 0) + (r.loanDeduct || 0)) 
+                        : "—"}
                     </TableCell>
-                    <TableCell className="text-left font-mono font-bold text-emerald-700 text-sm">{fmt(r.netSalary)}</TableCell>
+                    <TableCell className="text-left font-mono font-bold text-emerald-700 text-sm border-r border-slate-100 dark:border-slate-800 pr-3">{fmt(r.netSalary)}</TableCell>
                     <TableCell className="text-center">
                       {!r.hasDecree
                         ? <Badge className="bg-amber-100 text-amber-700 text-[9px]">فاقد حکم</Badge>
@@ -521,11 +557,11 @@ export default function PayrollCalculate() {
                 <TableRow className="bg-slate-100 dark:bg-slate-800 font-bold text-xs border-t-2">
                   <TableCell colSpan={5} className="text-right">جمع کل ({filteredRows.length} نفر)</TableCell>
                   <TableCell className="text-left font-mono text-indigo-800">{fmt(totals.gross)}</TableCell>
-                  <TableCell className="text-left font-mono text-blue-700">{fmt(totals.insEmp)}</TableCell>
+                  <TableCell className="text-left font-mono text-blue-700 border-r border-slate-200 dark:border-slate-700 pr-3">{fmt(totals.insEmp)}</TableCell>
                   <TableCell className="text-left font-mono text-orange-600">{fmt(totals.insEmpr)}</TableCell>
                   <TableCell className="text-left font-mono text-rose-700">{fmt(totals.tax)}</TableCell>
                   <TableCell className="text-left font-mono text-slate-600">{fmt(totals.deductions - totals.insEmp - totals.tax)}</TableCell>
-                  <TableCell className="text-left font-mono text-emerald-800 text-sm">{fmt(totals.net)}</TableCell>
+                  <TableCell className="text-left font-mono text-emerald-800 text-sm border-r border-slate-200 dark:border-slate-700 pr-3">{fmt(totals.net)}</TableCell>
                   <TableCell></TableCell>
                 </TableRow>
               </TableBody>

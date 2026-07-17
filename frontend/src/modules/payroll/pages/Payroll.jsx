@@ -53,9 +53,31 @@ import EmployeeMissions from "./EmployeeMissions";
 import PayrollCalculate from "./PayrollCalculate";
 import PayrollSettings from "./PayrollSettings";
 import TaxTables from "./TaxTables";
+import InsuranceSettings from "./InsuranceSettings";
+import PayslipForm from "./PayslipForm";
+import LoanRegisterForm from "./LoanRegisterForm";
+import LoanList from "./LoanList";
+import SalaryAdvanceForm from "./SalaryAdvanceForm";
+import PayrollReports from "./PayrollReports";
 
 export default function Payroll() {
   const { pathname } = useLocation();
+
+  if (pathname === "/payroll/reports") {
+    return <PayrollReports />;
+  }
+
+  if (pathname === "/payroll/loans/new") {
+    return <LoanRegisterForm />;
+  }
+
+  if (pathname === "/payroll/loans/list") {
+    return <LoanList />;
+  }
+
+  if (pathname === "/payroll/loans/advance") {
+    return <SalaryAdvanceForm />;
+  }
 
   if (pathname === "/payroll/employees/new") {
     return <EmployeeRegisterForm />;
@@ -99,6 +121,14 @@ export default function Payroll() {
 
   if (pathname === "/payroll/calculate/tax" || pathname === "/payroll/calculate/tax-table") {
     return <TaxTables />;
+  }
+
+  if (pathname === "/payroll/calculate/insurance") {
+    return <InsuranceSettings />;
+  }
+
+  if (pathname === "/payroll/payslip") {
+    return <PayslipForm />;
   }
 
   const title = ROUTE_LABELS[pathname] ?? "سیستم حقوق و دستمزد";
