@@ -52,6 +52,7 @@ const INITIAL_FORM = {
   department: "اداری",
   jobTitle: "",
   insuranceNo: "",
+  retirementInsuranceNo: "",
   branchName: "شعبه مرکزی",
   taxStatus: "taxable",
 
@@ -70,6 +71,10 @@ const INITIAL_FORM = {
   accountNo: "",
   cardNumber: "",
   shebaNo: "",
+  bankName2: "",
+  accountNo2: "",
+  cardNumber2: "",
+  shebaNo2: "",
 };
 
 // Iranian Labor Law Constants 1405
@@ -436,7 +441,11 @@ export default function EmployeeRegisterForm() {
                     </div>
                     <div>
                       <Label className="text-xs font-semibold">شماره بیمه تامین اجتماعی</Label>
-                      <Input value={form.insuranceNo} onChange={e => handleChange("insuranceNo", e.target.value)} className="h-9 text-xs mt-1.5 font-mono text-left" placeholder="مثال: ۱۰۲۳۴۵۶۷" maxLength={10} />
+                      <Input value={form.insuranceNo || ""} onChange={e => handleChange("insuranceNo", e.target.value)} className="h-9 text-xs mt-1.5 font-mono text-left" placeholder="مثال: ۱۰۲۳۴۵۶۷" maxLength={10} disabled={!!form.retirementInsuranceNo} />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold">شماره بیمه صندوق بازنشستگی کشوری</Label>
+                      <Input value={form.retirementInsuranceNo || ""} onChange={e => handleChange("retirementInsuranceNo", e.target.value)} className="h-9 text-xs mt-1.5 font-mono text-left" placeholder="مثال: ۱۲۳۴۵۶۷۸" maxLength={10} disabled={!!form.insuranceNo} />
                     </div>
                     <div>
                       <Label className="text-xs font-semibold">وضعیت مالیاتی کارمند</Label>
@@ -545,27 +554,54 @@ export default function EmployeeRegisterForm() {
             {activeTab === "bank" && (
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-xs font-bold text-slate-800 dark:text-slate-300 flex items-center gap-2 mb-4 border-r-4 border-amber-600 pr-2">اطلاعات حساب واریز حقوق و دستمزد</h3>
+                  <h3 className="text-xs font-bold text-slate-800 dark:text-slate-300 flex items-center gap-2 mb-4 border-r-4 border-amber-600 pr-2">اطلاعات حساب بانکی اول (حساب اصلی)</h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-right">
                     <div>
-                      <Label className="text-xs font-semibold">نام بانک</Label>
-                      <Input value={form.bankName} onChange={e => handleChange("bankName", e.target.value)} className="h-9 text-xs mt-1.5" placeholder="مثال: بانک ملی، بانک ملت" />
+                      <Label className="text-xs font-semibold">نام بانک اول</Label>
+                      <Input value={form.bankName || ""} onChange={e => handleChange("bankName", e.target.value)} className="h-9 text-xs mt-1.5" placeholder="مثال: بانک ملی، بانک ملت" />
                     </div>
                     <div>
-                      <Label className="text-xs font-semibold">شماره حساب بانکی</Label>
-                      <Input value={form.accountNo} onChange={e => handleChange("accountNo", e.target.value)} className="h-9 text-xs mt-1.5 font-mono text-left" placeholder="مثال: ۰۱۰۲۳۴۵۶۷۸" />
+                      <Label className="text-xs font-semibold">شماره حساب بانکی اول</Label>
+                      <Input value={form.accountNo || ""} onChange={e => handleChange("accountNo", e.target.value)} className="h-9 text-xs mt-1.5 font-mono text-left" placeholder="مثال: ۰۱۰۲۳۴۵۶۷۸" />
                     </div>
                     <div>
-                      <Label className="text-xs font-semibold">شماره کارت بانکی (۱۶ رقم)</Label>
-                      <Input value={form.cardNumber} onChange={e => handleChange("cardNumber", e.target.value)} className="h-9 text-xs mt-1.5 font-mono text-left" placeholder="6037-9911-2222-3333" maxLength={19} />
+                      <Label className="text-xs font-semibold">شماره کارت بانکی اول (۱۶ رقم)</Label>
+                      <Input value={form.cardNumber || ""} onChange={e => handleChange("cardNumber", e.target.value)} className="h-9 text-xs mt-1.5 font-mono text-left" placeholder="6037-9911-2222-3333" maxLength={19} />
                     </div>
                     <div className="md:col-span-2">
-                      <Label className="text-xs font-semibold">شماره شبا (۲۴ رقم بدون حروف IR)</Label>
+                      <Label className="text-xs font-semibold">شماره شبا اول (۲۴ رقم بدون حروف IR)</Label>
                       <div className="relative mt-1.5">
-                        <Input value={form.shebaNo} onChange={e => handleChange("shebaNo", e.target.value)} className="h-9 text-xs font-mono text-left pl-8" placeholder="120170000000102345678901" maxLength={24} />
+                        <Input value={form.shebaNo || ""} onChange={e => handleChange("shebaNo", e.target.value)} className="h-9 text-xs font-mono text-left pl-8" placeholder="120170000000102345678901" maxLength={24} />
                         <span className="absolute left-3 top-2.5 text-xs text-muted-foreground font-mono font-bold select-none">IR</span>
                       </div>
-                      <span className="text-[10px] text-muted-foreground mt-1 block">جهت تهیه فایل الکترونیکی حواله بین‌بانکی پایا/ساتنا برای پرداخت حقوق گروهی بانک‌ها</span>
+                    </div>
+                  </div>
+                </div>
+
+                <Separator className="my-2" />
+
+                <div>
+                  <h3 className="text-xs font-bold text-slate-800 dark:text-slate-300 flex items-center gap-2 mb-4 border-r-4 border-blue-600 pr-2">اطلاعات حساب بانکی دوم (حساب فرعی / پشتیبان)</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-right">
+                    <div>
+                      <Label className="text-xs font-semibold">نام بانک دوم</Label>
+                      <Input value={form.bankName2 || ""} onChange={e => handleChange("bankName2", e.target.value)} className="h-9 text-xs mt-1.5" placeholder="مثال: بانک تجارت، بانک سپه" />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold">شماره حساب بانکی دوم</Label>
+                      <Input value={form.accountNo2 || ""} onChange={e => handleChange("accountNo2", e.target.value)} className="h-9 text-xs mt-1.5 font-mono text-left" placeholder="مثال: ۰۱۰۲۳۴۵۶۷۸" />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold">شماره کارت بانکی دوم (۱۶ رقم)</Label>
+                      <Input value={form.cardNumber2 || ""} onChange={e => handleChange("cardNumber2", e.target.value)} className="h-9 text-xs mt-1.5 font-mono text-left" placeholder="6037-9911-2222-3333" maxLength={19} />
+                    </div>
+                    <div className="md:col-span-2">
+                      <Label className="text-xs font-semibold">شماره شبا دوم (۲۴ رقم بدون حروف IR)</Label>
+                      <div className="relative mt-1.5">
+                        <Input value={form.shebaNo2 || ""} onChange={e => handleChange("shebaNo2", e.target.value)} className="h-9 text-xs font-mono text-left pl-8" placeholder="120170000000102345678901" maxLength={24} />
+                        <span className="absolute left-3 top-2.5 text-xs text-muted-foreground font-mono font-bold select-none">IR</span>
+                      </div>
+                      <span className="text-[10px] text-muted-foreground mt-1 block">ارائه حساب دوم جهت تکمیل پرونده پرسنلی و پرداخت‌های حمایتی/رفاهی یا پشتیبان</span>
                     </div>
                   </div>
                 </div>

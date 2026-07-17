@@ -210,7 +210,8 @@ export default function EmployeeDecrees() {
       nationalId: emp ? emp.nationalId : "—",
       fatherName: emp ? emp.fatherName : "—",
       birthDate: emp ? emp.birthDate : "—",
-      insuranceNo: emp ? emp.insuranceNo || emp.insuranceCode || "—" : "—",
+      insuranceNo: emp ? emp.retirementInsuranceNo || emp.insuranceNo || emp.insuranceCode || "—" : "—",
+      insuranceLabel: emp ? (emp.retirementInsuranceNo ? "شماره بیمه صندوق بازنشستگی کشوری" : "شماره بیمه تامین اجتماعی") : "شماره بیمه",
       education: emp ? emp.education || "—" : "—"
     });
   }
@@ -427,7 +428,7 @@ export default function EmployeeDecrees() {
                   <div className="p-2">نام پدر: <strong>{selectedDecreeForPrint.fatherName}</strong></div>
                   
                   <div className="p-2 border-t border-r border-slate-950">تاریخ تولد: <strong>{selectedDecreeForPrint.birthDate}</strong></div>
-                  <div className="p-2 border-t border-r border-slate-950">شماره بیمه: <strong>{selectedDecreeForPrint.insuranceNo}</strong></div>
+                  <div className="p-2 border-t border-r border-slate-950">{selectedDecreeForPrint.insuranceLabel || "شماره بیمه"}: <strong>{selectedDecreeForPrint.insuranceNo}</strong></div>
                   <div className="p-2 border-t border-r border-slate-950">مدرک تحصیلی: <strong>{selectedDecreeForPrint.education}</strong></div>
                   <div className="p-2 border-t">سمت شغلی: <strong className="font-bold">{selectedDecreeForPrint.jobTitle || "—"}</strong></div>
 

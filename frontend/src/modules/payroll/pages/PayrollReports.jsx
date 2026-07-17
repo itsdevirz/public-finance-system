@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   FileText, Printer, Search, Calculator, ShieldCheck, DollarSign, Calendar, Clock, HelpCircle,
-  Percent, ChevronLeft, Award, HelpCircle as HelpIcon
+  Percent, ChevronLeft, Award, HelpCircle as HelpIcon, FileDown, BarChart2, User
 } from "lucide-react";
 import { toPersianDigits } from "./InsuranceSettings";
 
@@ -19,14 +19,15 @@ const MONTHS = [
 ];
 
 const REPORT_TYPES = [
-  { id: "list",      label: "لیست حقوق ماهانه",  desc: "مشاهده جامع دریافتی، کسورات و خالص پرسنل", icon: FileText,      color: "text-indigo-600 border-indigo-200" },
-  { id: "insurance", label: "لیست بیمه",         desc: "سهم ۷٪ کارمند، ۲۰٪ کارفرما و ۳٪ بیکاری",   icon: ShieldCheck,   color: "text-blue-600 border-blue-200" },
-  { id: "tax",       label: "لیست مالیات",        desc: "درآمد مشمول مالیات و مالیات کسر شده پرسنل", icon: Percent,       color: "text-rose-600 border-rose-200" },
-  { id: "overtime",  label: "گزارش اضافه‌کاری",    desc: "ساعات و مبالغ پرداختی اضافه‌کاری کارکنان", icon: Clock,         color: "text-amber-600 border-amber-200" },
-  { id: "absence",   label: "گزارش غیبت و تأخیر",   desc: "کسورات ناشی از تأخیر ورود و غیبت ماهانه",  icon: HelpIcon,      color: "text-slate-600 border-slate-200" },
-  { id: "leave",     label: "گزارش مرخصی پرسنل",   desc: "مرخصی استحقاقی استفاده شده و مانده سالانه", icon: Calendar,      color: "text-emerald-600 border-emerald-200" },
-  { id: "annual",    label: "گزارش سالانه حقوق",   desc: "جمع کارکرد و دریافتی کل ماه‌های سال مالی",  icon: DollarSign,    color: "text-cyan-600 border-cyan-200" },
-  { id: "eid",       label: "گزارش عیدی و سنوات",  desc: "محاسبه عیدی و ذخیره سنوات پایان خدمت پرسنل",icon: Award,         color: "text-violet-600 border-violet-200" }
+  { id: "list",         label: "لیست حقوق ماهانه",  desc: "مشاهده جامع دریافتی، کسورات و خالص پرسنل", icon: FileText,      color: "text-indigo-600 border-indigo-200" },
+  { id: "insurance",    label: "لیست بیمه",         desc: "سهم ۷٪ کارمند، ۲۰٪ کارفرما و ۳٪ بیکاری",   icon: ShieldCheck,   color: "text-blue-600 border-blue-200" },
+  { id: "tax",          label: "لیست مالیات",        desc: "درآمد مشمول مالیات و مالیات کسر شده پرسنل", icon: Percent,       color: "text-rose-600 border-rose-200" },
+  { id: "overtime",     label: "گزارش اضافه‌کاری",    desc: "ساعات و مبالغ پرداختی اضافه‌کاری کارکنان", icon: Clock,         color: "text-amber-600 border-amber-200" },
+  { id: "absence",      label: "گزارش غیبت و تأخیر",   desc: "کسورات ناشی از تأخیر ورود و غیبت ماهانه",  icon: HelpIcon,      color: "text-slate-600 border-slate-200" },
+  { id: "leave",        label: "گزارش مرخصی پرسنل",   desc: "مرخصی استحقاقی استفاده شده و مانده سالانه", icon: Calendar,      color: "text-emerald-600 border-emerald-200" },
+  { id: "annual",       label: "گزارش سالانه حقوق",   desc: "جمع کارکرد و دریافتی کل ماه‌های سال مالی",  icon: DollarSign,    color: "text-cyan-600 border-cyan-200" },
+  { id: "eid",          label: "گزارش عیدی و سنوات",  desc: "محاسبه عیدی و ذخیره سنوات پایان خدمت پرسنل",icon: Award,         color: "text-violet-600 border-violet-200" },
+  { id: "cumulative",   label: "گزارش تجمیعی پرسنل",  desc: "جمع‌بندی خلاصه دریافتی، مالیات و بیمه یک کارمند در بازه زمانی دلخواه", icon: BarChart2,     color: "text-fuchsia-600 border-fuchsia-200" }
 ];
 
 const fmt = (n) => Number(n || 0).toLocaleString("fa-IR");
@@ -40,6 +41,23 @@ export default function PayrollReports() {
   const [selectedYear, setSelectedYear] = useState("1405");
   const [selectedMonth, setSelectedMonth] = useState("01");
   const [search, setSearch] = useState("");
+
+  // فیلترهای گزارش تجمیعی
+  const [cumEmpId, setCumEmpId] = useState("");       // شناسه کارمند انتخاب شده
+  const [cumFromYear, setCumFromYear] = useState("1404");  // سال شروع
+  const [cumFromMonth, setCumFromMonth] = useState("01"); // ماه شروع
+  const [cumToYear, setCumToYear] = useState("1405");    // سال پایان
+  const [cumToMonth, setCumToMonth] = useState("12");    // ماه پایان
+
+  const customFields = useMemo(() => {
+    try {
+      const saved = localStorage.getItem("payroll_settings");
+      if (saved) {
+        return JSON.parse(saved).customAllowances || [];
+      }
+    } catch (_) {}
+    return [];
+  }, []);
 
   const monthLabel = MONTHS.find(m => m.value === selectedMonth)?.label || "";
 
@@ -73,7 +91,8 @@ export default function PayrollReports() {
       const name = `${emp.firstName || ""} ${emp.lastName || ""}`.trim();
       const code = emp.code || "—";
       const nationalId = emp.nationalId || "—";
-      const insuranceNo = emp.insuranceNo || "—";
+      const insuranceNo = emp.retirementInsuranceNo || emp.insuranceNo || "—";
+      const insuranceLabel = emp.retirementInsuranceNo ? "صندوق بازنشستگی" : "تامین اجتماعی";
       const jobTitle = emp.jobTitle || emp.role || "—";
 
       // آخرین حکم کارگزینی فعال
@@ -107,6 +126,7 @@ export default function PayrollReports() {
         code,
         nationalId,
         insuranceNo,
+        insuranceLabel,
         jobTitle,
         decree,
         calc,
@@ -127,6 +147,9 @@ export default function PayrollReports() {
       insEmp: 0,
       insEmployer: 0,
       insUnemploy: 0,
+      healthInsEmp: 0,
+      healthInsEmployer: 0,
+      healthInsGovt: 0,
       tax: 0,
       deductions: 0,
       net: 0,
@@ -152,6 +175,9 @@ export default function PayrollReports() {
         res.insEmp += Number(r.calc.insEmployee || 0);
         res.insEmployer += Number(r.calc.insEmployer || 0);
         res.insUnemploy += Number(r.calc.insUnemploy || 0);
+        res.healthInsEmp += Number(r.calc.healthInsEmployee || 0);
+        res.healthInsEmployer += Number(r.calc.healthInsEmployer || 0);
+        res.healthInsGovt += Number(r.calc.healthInsGovt || 0);
         res.tax += Number(r.calc.monthlyTax || 0);
         res.deductions += Number(r.calc.totalDeductions || 0);
         res.net += Number(r.calc.netSalary || 0);
@@ -182,6 +208,91 @@ export default function PayrollReports() {
     return res;
   }, [reportData]);
 
+  // ==========================================
+  // گزارش تجمیعی: محاسبه داده‌های بازه زمانی
+  // ==========================================
+  const cumulativeData = useMemo(() => {
+    if (activeReport !== "cumulative") return { rows: [], totals: {}, emp: null };
+
+    // تبدیل بازه به عدد قابل مقایسه (year*100 + month)
+    const fromNum = Number(cumFromYear) * 100 + Number(cumFromMonth);
+    const toNum   = Number(cumToYear)   * 100 + Number(cumToMonth);
+
+    // پیدا کردن کارمند انتخاب شده
+    const selEmp = cumEmpId
+      ? (employees || []).find(e => (e._id || e.id) === cumEmpId)
+      : null;
+
+    // تعیین کارمندان هدف: اگر انتخاب شده فقط او، وگرنه همه
+    const targetEmps = cumEmpId && selEmp
+      ? [selEmp]
+      : (employees || []);
+
+    // فیلتر محاسبات در بازه زمانی
+    const rangeCalcs = (payrollCalculations || []).filter(c => {
+      const num = Number(c.year) * 100 + Number(c.month);
+      return num >= fromNum && num <= toNum;
+    });
+
+    // برای هر کارمند، یک ردیف به ازای هر ماه
+    const rows = [];
+    targetEmps.forEach(emp => {
+      const empId = emp._id || emp.id;
+      const name = `${emp.firstName || ""} ${emp.lastName || ""}`.trim();
+      const code = emp.code || "—";
+
+      const empCalcs = rangeCalcs
+        .filter(c => c.employeeId === empId)
+        .sort((a, b) => {
+          const na = Number(a.year) * 100 + Number(a.month);
+          const nb = Number(b.year) * 100 + Number(b.month);
+          return na - nb;
+        });
+
+      empCalcs.forEach(c => {
+        const mLabel = MONTHS.find(m => m.value === String(c.month).padStart(2, "0"))?.label || c.month;
+        rows.push({
+          empId, name, code,
+          year: c.year, month: c.month, mLabel,
+          earnedBaseSalary: c.earnedBaseSalary || 0,
+          housingAllow: c.housingAllow || 0,
+          groceryAllow: c.groceryAllow || 0,
+          childAllow: c.childAllow || 0,
+          overtimePay: c.overtimePay || 0,
+          grossSalary: c.grossSalary || 0,
+          insEmployee: c.insEmployee || 0,
+          healthInsEmployee: c.healthInsEmployee || 0,
+          monthlyTax: c.monthlyTax || 0,
+          advanceDeduct: c.advanceDeduct || 0,
+          loanDeduct: c.loanDeduct || 0,
+          totalDeductions: c.totalDeductions || 0,
+          netSalary: c.netSalary || 0,
+          workedDays: c.workedDays || 30
+        });
+      });
+    });
+
+    // جمع کل
+    const totals = rows.reduce((acc, r) => ({
+      earnedBaseSalary: acc.earnedBaseSalary + r.earnedBaseSalary,
+      overtimePay: acc.overtimePay + r.overtimePay,
+      grossSalary: acc.grossSalary + r.grossSalary,
+      insEmployee: acc.insEmployee + r.insEmployee,
+      healthInsEmployee: acc.healthInsEmployee + r.healthInsEmployee,
+      monthlyTax: acc.monthlyTax + r.monthlyTax,
+      advanceDeduct: acc.advanceDeduct + r.advanceDeduct,
+      loanDeduct: acc.loanDeduct + r.loanDeduct,
+      totalDeductions: acc.totalDeductions + r.totalDeductions,
+      netSalary: acc.netSalary + r.netSalary,
+    }), {
+      earnedBaseSalary: 0, overtimePay: 0, grossSalary: 0,
+      insEmployee: 0, healthInsEmployee: 0, monthlyTax: 0,
+      advanceDeduct: 0, loanDeduct: 0, totalDeductions: 0, netSalary: 0
+    });
+
+    return { rows, totals, emp: selEmp };
+  }, [activeReport, cumEmpId, cumFromYear, cumFromMonth, cumToYear, cumToMonth, employees, payrollCalculations]);
+
   // پرینت گزارش بر اساس استایل رسمی مرورگر
   function handlePrint() {
     const orgName = localStorage.getItem("org_name") || "سازمان امور دولتی";
@@ -198,16 +309,18 @@ export default function PayrollReports() {
       orientation = "A4 landscape";
       headersHtml = `
         <th>ردیف</th><th>کد پرسنلی</th><th>نام و نام خانوادگی</th><th>کارکرد</th>
-        <th>حقوق پایه کارکرد</th><th>حق مسکن و خواربار</th><th>حقوق اضافه‌کاری</th>
+        <th>حقوق پایه کارکرد</th><th>مزایای رفاهی و جانبی</th><th>حقوق اضافه‌کاری</th>
         <th>جمع ناخالص حقوق</th><th>بیمه سهم کارمند</th><th>مالیات کسر شده</th>
         <th>سایر کسورات (مساعده/وام)</th><th>خالص قابل پرداخت</th>
       `;
-      bodyHtml = reportData.map((r, i) => `
+      bodyHtml = reportData.map((r, i) => {
+        const customSum = customFields.reduce((sum, f) => sum + Number(r.calc?.[f.key] || 0), 0);
+        return `
         <tr>
           <td class="c">${i + 1}</td><td class="c mono">${r.code}</td><td><b>${r.name}</b></td>
           <td class="c">${toPersianDigits(r.attRec?.workedDays || 30)} روز</td>
           <td class="r mono">${fmt(r.calc?.earnedBaseSalary)}</td>
-          <td class="r mono">${fmt((r.calc?.housingAllow || 0) + (r.calc?.groceryAllow || 0))}</td>
+          <td class="r mono">${fmt((r.calc?.housingAllow || 0) + (r.calc?.groceryAllow || 0) + (r.calc?.childAllow || 0) + customSum)}</td>
           <td class="r mono">${fmt(r.calc?.overtimePay)}</td>
           <td class="r mono b">${fmt(r.calc?.grossSalary)}</td>
           <td class="r mono">${fmt(r.calc?.insEmployee)}</td>
@@ -215,7 +328,8 @@ export default function PayrollReports() {
           <td class="r mono">${fmt((r.calc?.advanceDeduct || 0) + (r.calc?.loanDeduct || 0))}</td>
           <td class="r mono b text-emerald">${fmt(r.calc?.netSalary || 0)}</td>
         </tr>
-      `).join("");
+        `;
+      }).join("");
       footerHtml = `
         <tr class="total-row">
           <td colspan="4">جمع کل (${toPersianDigits(reportData.length)} نفر)</td>
@@ -233,24 +347,33 @@ export default function PayrollReports() {
       orientation = "A4 landscape";
       headersHtml = `
         <th>ردیف</th><th>کد ملی</th><th>شماره بیمه</th><th>نام و نام خانوادگی</th><th>کارکرد</th>
-        <th>دستمزد روزانه</th><th>دستمزد مشمول</th><th>سهم کارمند (۷٪)</th>
-        <th>سهم کارفرما (۲۰٪)</th><th>بیمه بیکاری (۳٪)</th><th>جمع کل حق بیمه (۳۰٪)</th>
+        <th>دستمزد روزانه</th><th>دستمزد مشمول</th><th>بیمه ت.ا کارمند (۷٪)</th>
+        <th>بیمه درمان کارمند (۲٪)</th><th>بیمه ت.ا کارفرما (۲۰٪)</th>
+        <th>بیمه درمان دستگاه (۲٪)</th><th>بیمه بیکاری (۳٪)</th><th>سهم دولت درمان (۳٪)</th>
+        <th>جمع ت.ا (۳۰٪)</th><th>جمع درمان (۷٪)</th>
       `;
       bodyHtml = reportData.map((r, i) => {
         const base = r.calc?.earnedBaseSalary || 0;
         const daily = Math.round(base / 30);
-        const insBase = base; // در مدل ما دستمزد مبنا مشمول است
+        const insBase = base;
+        const hInsEmp = r.calc?.healthInsEmployee || 0;
+        const hInsEmp2 = r.calc?.healthInsEmployer || 0;
+        const hInsGovt = r.calc?.healthInsGovt || 0;
         return `
           <tr>
             <td class="c">${i + 1}</td><td class="c mono">${toPersianDigits(r.nationalId)}</td>
-            <td class="c mono">${toPersianDigits(r.insuranceNo)}</td><td><b>${r.name}</b></td>
+            <td class="c mono">${toPersianDigits(r.insuranceNo)}${r.insuranceNo !== "—" ? `<br/><span style="font-size: 8px; font-family: sans-serif; color: #666;">(${r.insuranceLabel})</span>` : ""}</td><td><b>${r.name}</b></td>
             <td class="c">${toPersianDigits(r.attRec?.workedDays || 30)} روز</td>
             <td class="r mono">${fmt(daily)}</td>
             <td class="r mono">${fmt(insBase)}</td>
             <td class="r mono">${fmt(r.calc?.insEmployee)}</td>
+            <td class="r mono">${fmt(hInsEmp)}</td>
             <td class="r mono">${fmt(r.calc?.insEmployer)}</td>
+            <td class="r mono">${fmt(hInsEmp2)}</td>
             <td class="r mono">${fmt(r.calc?.insUnemploy)}</td>
+            <td class="r mono">${fmt(hInsGovt)}</td>
             <td class="r mono b">${fmt((r.calc?.insEmployee || 0) + (r.calc?.insEmployer || 0) + (r.calc?.insUnemploy || 0))}</td>
+            <td class="r mono b">${fmt(hInsEmp + hInsEmp2 + hInsGovt)}</td>
           </tr>
         `;
       }).join("");
@@ -260,9 +383,13 @@ export default function PayrollReports() {
           <td class="r mono">—</td>
           <td class="r mono">${fmt(reportTotals.baseSalary)}</td>
           <td class="r mono">${fmt(reportTotals.insEmp)}</td>
+          <td class="r mono">${fmt(reportTotals.healthInsEmp)}</td>
           <td class="r mono">${fmt(reportTotals.insEmployer)}</td>
+          <td class="r mono">${fmt(reportTotals.healthInsEmployer)}</td>
           <td class="r mono">${fmt(reportTotals.insUnemploy)}</td>
+          <td class="r mono">${fmt(reportTotals.healthInsGovt)}</td>
           <td class="r mono b">${fmt(reportTotals.insEmp + reportTotals.insEmployer + reportTotals.insUnemploy)}</td>
+          <td class="r mono b">${fmt(reportTotals.healthInsEmp + reportTotals.healthInsEmployer + reportTotals.healthInsGovt)}</td>
         </tr>
       `;
     } else if (activeReport === "tax") {
@@ -509,6 +636,116 @@ export default function PayrollReports() {
     win.document.close();
   }
 
+  // خروجی اکسل برای همه گزارش‌ها
+  function handleExcelExport() {
+    const orgName = localStorage.getItem("org_name") || "سازمان";
+    const reportName = REPORT_TYPES.find(r => r.id === activeReport)?.label || "گزارش";
+    const period = (activeReport === "annual" || activeReport === "eid")
+      ? `سال ${selectedYear}`
+      : `${monthLabel} ${selectedYear}`;
+
+    let headers = [];
+    let rows = [];
+
+    if (activeReport === "list") {
+      headers = ["ردیف","کد پرسنلی","نام","کارکرد","حقوق پایه","مزایا","اضافه‌کاری","ناخالص","بیمه کارمند","مالیات","سایر کسورات","خالص پرداختی"];
+      rows = reportData.map((r, i) => {
+        const customSum = customFields.reduce((sum, f) => sum + Number(r.calc?.[f.key] || 0), 0);
+        return [
+          i + 1, r.code, r.name,
+          (r.attRec?.workedDays || 30) + " روز",
+          r.calc?.earnedBaseSalary || 0,
+          (r.calc?.housingAllow || 0) + (r.calc?.groceryAllow || 0) + (r.calc?.childAllow || 0) + customSum,
+          r.calc?.overtimePay || 0,
+          r.calc?.grossSalary || 0,
+          r.calc?.insEmployee || 0,
+          r.calc?.monthlyTax || 0,
+          (r.calc?.advanceDeduct || 0) + (r.calc?.loanDeduct || 0),
+          r.calc?.netSalary || 0
+        ];
+      });
+    } else if (activeReport === "insurance") {
+      headers = ["ردیف","نام","شماره بیمه","نوع بیمه","کد ملی","کارکرد","دستمزد روزانه","مشمول بیمه","بیمه کارمند(۷%)","بیمه کارفرما(۲۰%)","بیمه بیکاری(۳%)","جمع ۳۰%"];
+      rows = reportData.map((r, i) => {
+        const base = r.calc?.earnedBaseSalary || 0;
+        const daily = Math.round(base / 30);
+        return [
+          i + 1, r.name, r.insuranceNo, r.insuranceLabel, r.nationalId,
+          (r.attRec?.workedDays || 30) + " روز",
+          daily, base,
+          r.calc?.insEmployee || 0,
+          r.calc?.insEmployer || 0,
+          r.calc?.insUnemploy || 0,
+          (r.calc?.insEmployee || 0) + (r.calc?.insEmployer || 0) + (r.calc?.insUnemploy || 0)
+        ];
+      });
+    } else if (activeReport === "tax") {
+      headers = ["ردیف","نام","کد ملی","ناخالص مستمر","معافیت پایه","مشمول مالیات","مالیات کسر شده"];
+      rows = reportData.map((r, i) => {
+        const gross = r.calc?.grossSalary || 0;
+        const tax = r.calc?.monthlyTax || 0;
+        const taxable = tax > 0 ? Math.max(0, gross - 120_000_000) : 0;
+        const exempt = tax > 0 ? 120_000_000 : gross;
+        return [i + 1, r.name, r.nationalId, gross, exempt, taxable, tax];
+      });
+    } else if (activeReport === "overtime") {
+      headers = ["ردیف","نام","عنوان شغل","کارکرد موظف","ساعات اضافه‌کاری","نرخ ساعتی","ناخالص اضافه‌کاری"];
+      rows = reportData.map((r, i) => {
+        const hours = r.attRec?.overtimeHours || 0;
+        const base = r.decree?.baseSalary || 0;
+        const rate = Math.round(base / 176);
+        return [i + 1, r.name, r.jobTitle, (r.attRec?.workedDays || 30) + " روز", hours + " ساعت", rate, r.calc?.overtimePay || 0];
+      });
+    } else if (activeReport === "absence") {
+      headers = ["ردیف","نام","روزهای غیبت","ساعات تأخیر","کسر غیبت","کسر تأخیر","جمع کسورات انضباطی"];
+      rows = reportData.map((r, i) => {
+        const abs = r.attRec?.absenceDays || 0;
+        const tard = r.attRec?.tardinessHours || 0;
+        const base = r.decree?.baseSalary || 0;
+        const daily = Math.round(base / 30);
+        const hourly = Math.round(base / 176);
+        return [i + 1, r.name, abs + " روز", tard + " ساعت", daily * abs, hourly * tard, daily * abs + hourly * tard];
+      });
+    } else if (activeReport === "leave") {
+      headers = ["ردیف","نام","سمت شغلی","مرخصی استفاده شده","سقف مجاز سالانه","مانده استحقاقی"];
+      rows = reportData.map((r, i) => {
+        const used = r.leaves.reduce((s, l) => s + (Number(l.daysCount) || 0), 0);
+        const remaining = Math.max(0, 30 - used);
+        return [i + 1, r.name, r.jobTitle, used + " روز", "30 روز", remaining + " روز"];
+      });
+    } else if (activeReport === "annual") {
+      headers = ["ردیف","کد پرسنلی","نام","ماه‌های کارکرد","ناخالص سالانه","مالیات سالانه","خالص سالانه"];
+      rows = reportData.map((r, i) => {
+        const months = r.yearCalcs.length;
+        const annualGross = r.yearCalcs.reduce((s, c) => s + (c.grossSalary || 0), 0);
+        const annualTax = r.yearCalcs.reduce((s, c) => s + (c.monthlyTax || 0), 0);
+        const annualNet = r.yearCalcs.reduce((s, c) => s + (c.netSalary || 0), 0);
+        return [i + 1, r.code, r.name, months + " ماه", annualGross, annualTax, annualNet];
+      });
+    } else if (activeReport === "eid") {
+      headers = ["ردیف","نام","سمت شغلی","حقوق مبنا","عیدی ناخالص","ذخیره سنوات"];
+      rows = reportData.map((r, i) => {
+        const base = Number(r.decree?.baseSalary || 0);
+        return [i + 1, r.name, r.jobTitle, base, base * 2, base];
+      });
+    }
+
+    // ساخت محتوای CSV با BOM برای پشتیبانی اکسل از UTF-8
+    const BOM = "\uFEFF";
+    const headerLine = `"${reportName} - ${period} - ${orgName}"`;
+    const subHeader = headers.map(h => `"${h}"`).join(",");
+    const bodyLines = rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(","));
+    const csvContent = BOM + [headerLine, subHeader, ...bodyLines].join("\r\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${reportName}_${period}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="space-y-5 text-right pb-10" dir="rtl">
       {/* هدر */}
@@ -603,10 +840,14 @@ export default function PayrollReports() {
               </div>
             </div>
 
-            <div>
+            <div className="flex gap-2">
+              <Button onClick={handleExcelExport}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-9 text-xs gap-1.5 shadow w-full">
+                <FileDown className="h-4 w-4" /> خروجی اکسل
+              </Button>
               <Button onClick={handlePrint}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-9 text-xs gap-1.5 shadow w-full">
-                <Printer className="h-4 w-4" /> چاپ گزارش رسمی
+                <Printer className="h-4 w-4" /> چاپ گزارش
               </Button>
             </div>
           </div>
@@ -630,38 +871,41 @@ export default function PayrollReports() {
           {/* لیست حقوق ماهانه */}
           {activeReport === "list" && (
             <Table>
-              <TableHeader className="bg-slate-50 dark:bg-slate-800">
-                <TableRow className="text-[10px]">
-                  <TableHead className="text-right">کد پرسنلی / نام</TableHead>
-                  <TableHead className="text-center">کارکرد</TableHead>
-                  <TableHead className="text-left font-mono">پایه کارکرد</TableHead>
-                  <TableHead className="text-left font-mono">مزایا</TableHead>
-                  <TableHead className="text-left font-mono">اضافه‌کار</TableHead>
-                  <TableHead className="text-left font-mono font-bold text-indigo-700">ناخالص</TableHead>
-                  <TableHead className="text-left font-mono text-blue-600">بیمه ۷٪</TableHead>
-                  <TableHead className="text-left font-mono text-rose-600">مالیات</TableHead>
-                  <TableHead className="text-left font-mono">سایر کسورات</TableHead>
-                  <TableHead className="text-left font-mono font-bold text-emerald-700">خالص پرداختی</TableHead>
+              <TableHeader className="bg-teal-700 dark:bg-teal-900">
+                <TableRow className="text-[10px] hover:bg-teal-700">
+                  <TableHead className="text-right text-white font-bold">کد پرسنلی / نام</TableHead>
+                  <TableHead className="text-center text-white font-bold">کارکرد</TableHead>
+                  <TableHead className="text-left font-mono text-white font-bold">پایه کارکرد</TableHead>
+                  <TableHead className="text-left font-mono text-white font-bold">مزایا</TableHead>
+                  <TableHead className="text-left font-mono text-white font-bold">اضافه‌کار</TableHead>
+                  <TableHead className="text-left font-mono font-bold text-white">ناخالص</TableHead>
+                  <TableHead className="text-left font-mono text-white font-bold">بیمه ۷٪</TableHead>
+                  <TableHead className="text-left font-mono text-white font-bold">مالیات</TableHead>
+                  <TableHead className="text-left font-mono text-white font-bold">سایر کسورات</TableHead>
+                  <TableHead className="text-left font-mono font-bold text-white">خالص پرداختی</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody className="text-[10px] font-mono">
-                {reportData.map(r => (
-                  <TableRow key={r.empId} className="h-8">
-                    <TableCell className="text-right font-sans">
-                      <div className="font-bold">{r.name}</div>
-                      <div className="text-[9px] text-slate-400">{r.code}</div>
-                    </TableCell>
-                    <TableCell className="text-center font-sans">{toPersianDigits(r.attRec?.workedDays || 30)} روز</TableCell>
-                    <TableCell className="text-left">{fmt(r.calc?.earnedBaseSalary)}</TableCell>
-                    <TableCell className="text-left">{fmt((r.calc?.housingAllow || 0) + (r.calc?.groceryAllow || 0) + (r.calc?.childAllow || 0))}</TableCell>
-                    <TableCell className="text-left text-amber-600">{fmt(r.calc?.overtimePay)}</TableCell>
-                    <TableCell className="text-left font-bold text-indigo-700">{fmt(r.calc?.grossSalary)}</TableCell>
-                    <TableCell className="text-left text-blue-600">{fmt(r.calc?.insEmployee)}</TableCell>
-                    <TableCell className="text-left text-rose-600">{fmt(r.calc?.monthlyTax)}</TableCell>
-                    <TableCell className="text-left">{fmt((r.calc?.advanceDeduct || 0) + (r.calc?.loanDeduct || 0))}</TableCell>
-                    <TableCell className="text-left font-bold text-emerald-700 text-xs font-sans">{fmt(r.calc?.netSalary)}</TableCell>
-                  </TableRow>
-                ))}
+                {reportData.map(r => {
+                  const customSum = customFields.reduce((sum, f) => sum + Number(r.calc?.[f.key] || 0), 0);
+                  return (
+                    <TableRow key={r.empId} className="h-8">
+                      <TableCell className="text-right font-sans">
+                        <div className="font-bold">{r.name}</div>
+                        <div className="text-[9px] text-slate-400">{r.code}</div>
+                      </TableCell>
+                      <TableCell className="text-center font-sans">{toPersianDigits(r.attRec?.workedDays || 30)} روز</TableCell>
+                      <TableCell className="text-left">{fmt(r.calc?.earnedBaseSalary)}</TableCell>
+                      <TableCell className="text-left">{fmt((r.calc?.housingAllow || 0) + (r.calc?.groceryAllow || 0) + (r.calc?.childAllow || 0) + customSum)}</TableCell>
+                      <TableCell className="text-left text-amber-600">{fmt(r.calc?.overtimePay)}</TableCell>
+                      <TableCell className="text-left font-bold text-indigo-700">{fmt(r.calc?.grossSalary)}</TableCell>
+                      <TableCell className="text-left text-blue-600">{fmt(r.calc?.insEmployee)}</TableCell>
+                      <TableCell className="text-left text-rose-600">{fmt(r.calc?.monthlyTax)}</TableCell>
+                      <TableCell className="text-left">{fmt((r.calc?.advanceDeduct || 0) + (r.calc?.loanDeduct || 0))}</TableCell>
+                      <TableCell className="text-left font-bold text-emerald-700 text-xs font-sans">{fmt(r.calc?.netSalary)}</TableCell>
+                    </TableRow>
+                  );
+                })}
                 <TableRow className="bg-slate-100/50 dark:bg-slate-800/40 font-bold border-t-2">
                   <TableCell colSpan={2} className="text-right font-sans">جمع کل</TableCell>
                   <TableCell className="text-left">{fmt(reportTotals.baseSalary)}</TableCell>
@@ -680,17 +924,21 @@ export default function PayrollReports() {
           {/* لیست بیمه */}
           {activeReport === "insurance" && (
             <Table>
-              <TableHeader className="bg-slate-50 dark:bg-slate-800">
-                <TableRow className="text-[10px]">
-                  <TableHead className="text-right">کارمند</TableHead>
-                  <TableHead className="text-center font-mono">شماره بیمه / کدملی</TableHead>
-                  <TableHead className="text-center">کارکرد</TableHead>
-                  <TableHead className="text-left font-mono">دستمزد روزانه</TableHead>
-                  <TableHead className="text-left font-mono">مشمول بیمه</TableHead>
-                  <TableHead className="text-left font-mono text-blue-600">بیمه کارمند (۷٪)</TableHead>
-                  <TableHead className="text-left font-mono text-orange-600">بیمه کارفرما (۲۰٪)</TableHead>
-                  <TableHead className="text-left font-mono text-slate-500">بیمه بیکاری (۳٪)</TableHead>
-                  <TableHead className="text-left font-mono font-bold text-slate-800 dark:text-slate-100">مجموع ۳۰٪</TableHead>
+              <TableHeader className="bg-teal-700 dark:bg-teal-900">
+                <TableRow className="text-[10px] hover:bg-teal-700">
+                  <TableHead className="text-right text-white font-bold">کارمند</TableHead>
+                  <TableHead className="text-center font-mono text-white font-bold">شماره بیمه / کدملی</TableHead>
+                  <TableHead className="text-center text-white font-bold">کارکرد</TableHead>
+                  <TableHead className="text-left font-mono text-white font-bold">دستمزد روزانه</TableHead>
+                  <TableHead className="text-left font-mono text-white font-bold">مشمول بیمه</TableHead>
+                  <TableHead className="text-left font-mono text-white font-bold">ت.ا کارمند (۷٪)</TableHead>
+                  <TableHead className="text-left font-mono text-white font-bold">درمان کارمند (۲٪)</TableHead>
+                  <TableHead className="text-left font-mono text-white font-bold">ت.ا کارفرما (۲۰٪)</TableHead>
+                  <TableHead className="text-left font-mono text-white font-bold">درمان دستگاه (۲٪)</TableHead>
+                  <TableHead className="text-left font-mono text-white font-bold">بیکاری (۳٪)</TableHead>
+                  <TableHead className="text-left font-mono text-white font-bold">درمان دولت (۳٪)</TableHead>
+                  <TableHead className="text-left font-mono font-bold text-white">جمع ت.ا</TableHead>
+                  <TableHead className="text-left font-mono font-bold text-white">جمع درمان</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody className="text-[10px] font-mono">
@@ -698,20 +946,34 @@ export default function PayrollReports() {
                   const base = r.calc?.earnedBaseSalary || 0;
                   const daily = Math.round(base / 30);
                   const totalIns = (r.calc?.insEmployee || 0) + (r.calc?.insEmployer || 0) + (r.calc?.insUnemploy || 0);
+                  const hInsEmp = r.calc?.healthInsEmployee || 0;
+                  const hInsEmp2 = r.calc?.healthInsEmployer || 0;
+                  const hInsGovt = r.calc?.healthInsGovt || 0;
+                  const totalHealth = hInsEmp + hInsEmp2 + hInsGovt;
                   return (
                     <TableRow key={r.empId} className="h-8">
                       <TableCell className="text-right font-sans">
                         <div className="font-bold">{r.name}</div>
                         <div className="text-[9px] text-slate-400">{r.code}</div>
                       </TableCell>
-                      <TableCell className="text-center">{toPersianDigits(r.insuranceNo)}<br/>{toPersianDigits(r.nationalId)}</TableCell>
+                      <TableCell className="text-center">
+                        <div>{toPersianDigits(r.insuranceNo)}</div>
+                        {r.insuranceNo !== "—" && (
+                          <div className="text-[9px] text-slate-400">({r.insuranceLabel})</div>
+                        )}
+                        <div className="text-[9px] text-slate-400 mt-1">{toPersianDigits(r.nationalId)}</div>
+                      </TableCell>
                       <TableCell className="text-center font-sans">{toPersianDigits(r.attRec?.workedDays || 30)} روز</TableCell>
                       <TableCell className="text-left">{fmt(daily)}</TableCell>
                       <TableCell className="text-left">{fmt(base)}</TableCell>
                       <TableCell className="text-left text-blue-600">{fmt(r.calc?.insEmployee)}</TableCell>
+                      <TableCell className="text-left text-cyan-600 font-semibold">{fmt(hInsEmp)}</TableCell>
                       <TableCell className="text-left text-orange-600">{fmt(r.calc?.insEmployer)}</TableCell>
+                      <TableCell className="text-left text-teal-600 font-semibold">{fmt(hInsEmp2)}</TableCell>
                       <TableCell className="text-left text-slate-500">{fmt(r.calc?.insUnemploy)}</TableCell>
+                      <TableCell className="text-left text-purple-600 font-semibold">{fmt(hInsGovt)}</TableCell>
                       <TableCell className="text-left font-bold text-slate-800 dark:text-slate-100">{fmt(totalIns)}</TableCell>
+                      <TableCell className="text-left font-bold text-teal-700">{fmt(totalHealth)}</TableCell>
                     </TableRow>
                   );
                 })}
@@ -720,9 +982,13 @@ export default function PayrollReports() {
                   <TableCell className="text-left">—</TableCell>
                   <TableCell className="text-left">{fmt(reportTotals.baseSalary)}</TableCell>
                   <TableCell className="text-left text-blue-600">{fmt(reportTotals.insEmp)}</TableCell>
+                  <TableCell className="text-left text-cyan-600">{fmt(reportTotals.healthInsEmp)}</TableCell>
                   <TableCell className="text-left text-orange-600">{fmt(reportTotals.insEmployer)}</TableCell>
+                  <TableCell className="text-left text-teal-600">{fmt(reportTotals.healthInsEmployer)}</TableCell>
                   <TableCell className="text-left text-slate-500">{fmt(reportTotals.insUnemploy)}</TableCell>
+                  <TableCell className="text-left text-purple-600">{fmt(reportTotals.healthInsGovt)}</TableCell>
                   <TableCell className="text-left font-black">{fmt(reportTotals.insEmp + reportTotals.insEmployer + reportTotals.insUnemploy)}</TableCell>
+                  <TableCell className="text-left text-teal-700 font-black">{fmt(reportTotals.healthInsEmp + reportTotals.healthInsEmployer + reportTotals.healthInsGovt)}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
@@ -731,14 +997,14 @@ export default function PayrollReports() {
           {/* لیست مالیات */}
           {activeReport === "tax" && (
             <Table>
-              <TableHeader className="bg-slate-50 dark:bg-slate-800">
-                <TableRow className="text-[10px]">
-                  <TableHead className="text-right">نام پرسنل</TableHead>
-                  <TableHead className="text-center font-mono">کد ملی</TableHead>
-                  <TableHead className="text-left font-mono">ناخالص دریافتی مستمر</TableHead>
-                  <TableHead className="text-left font-mono">معافیت پایه</TableHead>
-                  <TableHead className="text-left font-mono">درآمد مشمول مالیات</TableHead>
-                  <TableHead className="text-left font-mono font-bold text-rose-600">مالیات کسر شده</TableHead>
+              <TableHeader className="bg-teal-700 dark:bg-teal-900">
+                <TableRow className="text-[10px] hover:bg-teal-700">
+                  <TableHead className="text-right text-white font-bold">نام پرسنل</TableHead>
+                  <TableHead className="text-center font-mono text-white font-bold">کد ملی</TableHead>
+                  <TableHead className="text-left font-mono text-white font-bold">ناخالص دریافتی مستمر</TableHead>
+                  <TableHead className="text-left font-mono text-white font-bold">معافیت پایه</TableHead>
+                  <TableHead className="text-left font-mono text-white font-bold">درآمد مشمول مالیات</TableHead>
+                  <TableHead className="text-left font-mono font-bold text-white">مالیات کسر شده</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody className="text-[10px] font-mono">
@@ -775,13 +1041,13 @@ export default function PayrollReports() {
           {/* گزارش اضافه‌کاری */}
           {activeReport === "overtime" && (
             <Table>
-              <TableHeader className="bg-slate-50 dark:bg-slate-800">
-                <TableRow className="text-[10px]">
-                  <TableHead className="text-right">پرسنل</TableHead>
-                  <TableHead className="text-center">ساعات حضور موظف</TableHead>
-                  <TableHead className="text-center font-bold text-amber-600">ساعات اضافه‌کاری</TableHead>
-                  <TableHead className="text-left font-mono">نرخ پایه ساعتی</TableHead>
-                  <TableHead className="text-left font-mono font-bold text-slate-800 dark:text-slate-100">ناخالص اضافه‌کاری</TableHead>
+              <TableHeader className="bg-teal-700 dark:bg-teal-900">
+                <TableRow className="text-[10px] hover:bg-teal-700">
+                  <TableHead className="text-right text-white font-bold">پرسنل</TableHead>
+                  <TableHead className="text-center text-white font-bold">ساعات حضور موظف</TableHead>
+                  <TableHead className="text-center font-bold text-white">ساعات اضافه‌کاری</TableHead>
+                  <TableHead className="text-left font-mono text-white font-bold">نرخ پایه ساعتی</TableHead>
+                  <TableHead className="text-left font-mono font-bold text-white">ناخالص اضافه‌کاری</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody className="text-[10px] font-mono">
@@ -815,14 +1081,14 @@ export default function PayrollReports() {
           {/* گزارش غیبت */}
           {activeReport === "absence" && (
             <Table>
-              <TableHeader className="bg-slate-50 dark:bg-slate-800">
-                <TableRow className="text-[10px]">
-                  <TableHead className="text-right">نام پرسنل</TableHead>
-                  <TableHead className="text-center text-rose-600 font-bold">تعداد روزهای غیبت</TableHead>
-                  <TableHead className="text-center text-rose-500">ساعات تأخیر ورود</TableHead>
-                  <TableHead className="text-left font-mono">کسر بابت غیبت</TableHead>
-                  <TableHead className="text-left font-mono">کسر بابت تأخیر</TableHead>
-                  <TableHead className="text-left font-mono font-bold text-rose-700">جمع کسورات انضباطی</TableHead>
+              <TableHeader className="bg-teal-700 dark:bg-teal-900">
+                <TableRow className="text-[10px] hover:bg-teal-700">
+                  <TableHead className="text-right text-white font-bold">نام پرسنل</TableHead>
+                  <TableHead className="text-center text-white font-bold">تعداد روزهای غیبت</TableHead>
+                  <TableHead className="text-center text-white font-bold">ساعات تأخیر ورود</TableHead>
+                  <TableHead className="text-left font-mono text-white font-bold">کسر بابت غیبت</TableHead>
+                  <TableHead className="text-left font-mono text-white font-bold">کسر بابت تأخیر</TableHead>
+                  <TableHead className="text-left font-mono font-bold text-white">جمع کسورات انضباطی</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody className="text-[10px] font-mono">
@@ -866,13 +1132,13 @@ export default function PayrollReports() {
           {/* گزارش مرخصی */}
           {activeReport === "leave" && (
             <Table>
-              <TableHeader className="bg-slate-50 dark:bg-slate-800">
-                <TableRow className="text-[10px]">
-                  <TableHead className="text-right">نام پرسنل</TableHead>
-                  <TableHead className="text-right">سمت شغلی</TableHead>
-                  <TableHead className="text-center text-rose-600 font-bold">مرخصی استفاده شده (امسال)</TableHead>
-                  <TableHead className="text-center">سقف مجاز سالانه</TableHead>
-                  <TableHead className="text-center text-emerald-600 font-bold">مانده مرخصی استحقاقی</TableHead>
+              <TableHeader className="bg-teal-700 dark:bg-teal-900">
+                <TableRow className="text-[10px] hover:bg-teal-700">
+                  <TableHead className="text-right text-white font-bold">نام پرسنل</TableHead>
+                  <TableHead className="text-right text-white font-bold">سمت شغلی</TableHead>
+                  <TableHead className="text-center text-white font-bold">مرخصی استفاده شده (امسال)</TableHead>
+                  <TableHead className="text-center text-white font-bold">سقف مجاز سالانه</TableHead>
+                  <TableHead className="text-center text-white font-bold">مانده مرخصی استحقاقی</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody className="text-[10px] font-sans">
@@ -899,13 +1165,13 @@ export default function PayrollReports() {
           {/* گزارش سالانه حقوق */}
           {activeReport === "annual" && (
             <Table>
-              <TableHeader className="bg-slate-50 dark:bg-slate-800">
-                <TableRow className="text-[10px]">
-                  <TableHead className="text-right">کد پرسنلی / نام</TableHead>
-                  <TableHead className="text-center">ماه‌های کارکرد محاسبه شده</TableHead>
-                  <TableHead className="text-left font-mono">جمع ناخالص سالانه</TableHead>
-                  <TableHead className="text-left font-mono text-rose-600">جمع مالیات سالانه</TableHead>
-                  <TableHead className="text-left font-mono font-bold text-emerald-700">جمع خالص دریافتی سالانه</TableHead>
+              <TableHeader className="bg-teal-700 dark:bg-teal-900">
+                <TableRow className="text-[10px] hover:bg-teal-700">
+                  <TableHead className="text-right text-white font-bold">کد پرسنلی / نام</TableHead>
+                  <TableHead className="text-center text-white font-bold">ماه‌های کارکرد محاسبه شده</TableHead>
+                  <TableHead className="text-left font-mono text-white font-bold">جمع ناخالص سالانه</TableHead>
+                  <TableHead className="text-left font-mono text-white font-bold">جمع مالیات سالانه</TableHead>
+                  <TableHead className="text-left font-mono font-bold text-white">جمع خالص دریافتی سالانه</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody className="text-[10px] font-mono">
@@ -940,13 +1206,13 @@ export default function PayrollReports() {
           {/* گزارش عیدی و سنوات */}
           {activeReport === "eid" && (
             <Table>
-              <TableHeader className="bg-slate-50 dark:bg-slate-800">
-                <TableRow className="text-[10px]">
-                  <TableHead className="text-right">نام پرسنل</TableHead>
-                  <TableHead className="text-left font-mono">آخرین حقوق مبنا</TableHead>
-                  <TableHead className="text-center">مدت زمان کارکرد سالانه</TableHead>
-                  <TableHead className="text-left font-mono font-bold text-indigo-700">عیدی ناخالص پایان سال</TableHead>
-                  <TableHead className="text-left font-mono font-bold text-emerald-700">ذخیره سنوات خدمت</TableHead>
+              <TableHeader className="bg-teal-700 dark:bg-teal-900">
+                <TableRow className="text-[10px] hover:bg-teal-700">
+                  <TableHead className="text-right text-white font-bold">نام پرسنل</TableHead>
+                  <TableHead className="text-left font-mono text-white font-bold">آخرین حقوق مبنا</TableHead>
+                  <TableHead className="text-center text-white font-bold">مدت زمان کارکرد سالانه</TableHead>
+                  <TableHead className="text-left font-mono font-bold text-white">عیدی ناخالص پایان سال</TableHead>
+                  <TableHead className="text-left font-mono font-bold text-white">ذخیره سنوات خدمت</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody className="text-[10px] font-mono">
@@ -972,6 +1238,197 @@ export default function PayrollReports() {
                 </TableRow>
               </TableBody>
             </Table>
+          )}
+
+          {/* ===== گزارش تجمیعی ===== */}
+          {activeReport === "cumulative" && (
+            <div className="space-y-5">
+              {/* فیلترهای مخصوص گزارش تجمیعی */}
+              <div className="bg-fuchsia-50 dark:bg-fuchsia-950/20 border border-fuchsia-100 dark:border-fuchsia-900/30 rounded-2xl p-4 space-y-4">
+                <h4 className="text-xs font-extrabold text-fuchsia-800 dark:text-fuchsia-300 flex items-center gap-2">
+                  <BarChart2 className="h-4 w-4" />
+                  تنظیمات گزارش تجمیعی پرسنلی
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* انتخاب کارمند */}
+                  <div className="md:col-span-1 space-y-1.5">
+                    <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                      <User className="h-3.5 w-3.5 text-fuchsia-500" />
+                      انتخاب کارمند (اختیاری - برای همه خالی بگذارید)
+                    </label>
+                    <select
+                      value={cumEmpId}
+                      onChange={e => setCumEmpId(e.target.value)}
+                      className="flex h-9 w-full rounded-md border border-fuchsia-200 bg-white dark:bg-slate-900 px-3 py-1 text-xs shadow-sm focus:ring-2 focus:ring-fuchsia-400"
+                    >
+                      <option value="">-- همه کارمندان --</option>
+                      {(employees || []).map(emp => (
+                        <option key={emp._id || emp.id} value={emp._id || emp.id}>
+                          {emp.firstName} {emp.lastName} {emp.code ? `(${emp.code})` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {/* بازه زمانی */}
+                  <div className="md:col-span-2 grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">از ماه / سال</label>
+                      <div className="flex gap-2">
+                        <select value={cumFromMonth} onChange={e => setCumFromMonth(e.target.value)}
+                          className="flex h-9 flex-1 rounded-md border border-fuchsia-200 bg-white dark:bg-slate-900 px-2 py-1 text-xs shadow-sm">
+                          {MONTHS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                        </select>
+                        <select value={cumFromYear} onChange={e => setCumFromYear(e.target.value)}
+                          className="flex h-9 w-24 rounded-md border border-fuchsia-200 bg-white dark:bg-slate-900 px-2 py-1 text-xs shadow-sm">
+                          <option value="1403">۱۴۰۳</option>
+                          <option value="1404">۱۴۰۴</option>
+                          <option value="1405">۱۴۰۵</option>
+                          <option value="1406">۱۴۰۶</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">تا ماه / سال</label>
+                      <div className="flex gap-2">
+                        <select value={cumToMonth} onChange={e => setCumToMonth(e.target.value)}
+                          className="flex h-9 flex-1 rounded-md border border-fuchsia-200 bg-white dark:bg-slate-900 px-2 py-1 text-xs shadow-sm">
+                          {MONTHS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                        </select>
+                        <select value={cumToYear} onChange={e => setCumToYear(e.target.value)}
+                          className="flex h-9 w-24 rounded-md border border-fuchsia-200 bg-white dark:bg-slate-900 px-2 py-1 text-xs shadow-sm">
+                          <option value="1403">۱۴۰۳</option>
+                          <option value="1404">۱۴۰۴</option>
+                          <option value="1405">۱۴۰۵</option>
+                          <option value="1406">۱۴۰۶</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                {/* خلاصه انتخاب */}
+                <div className="flex flex-wrap gap-3 pt-1 border-t border-fuchsia-100">
+                  <span className="text-[11px] bg-fuchsia-100 dark:bg-fuchsia-900/40 text-fuchsia-800 dark:text-fuchsia-300 px-3 py-1 rounded-full font-bold">
+                    📅 بازه: {MONTHS.find(m=>m.value===cumFromMonth)?.label} {toPersianDigits(cumFromYear)} تا {MONTHS.find(m=>m.value===cumToMonth)?.label} {toPersianDigits(cumToYear)}
+                  </span>
+                  <span className="text-[11px] bg-fuchsia-100 dark:bg-fuchsia-900/40 text-fuchsia-800 dark:text-fuchsia-300 px-3 py-1 rounded-full font-bold">
+                    👤 {cumEmpId && cumulativeData.emp ? `${cumulativeData.emp.firstName} ${cumulativeData.emp.lastName}` : "همه پرسنل"}
+                  </span>
+                  <span className="text-[11px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-3 py-1 rounded-full">
+                    {toPersianDigits(cumulativeData.rows.length)} رکورد حقوقی یافت شد
+                  </span>
+                  {/* دکمه‌های چاپ و اکسل */}
+                  <div className="mr-auto flex gap-2">
+                    <Button size="xs" onClick={() => {
+                      // Excel export
+                      const headers = ["ردیف", "نام پرسنل", "کد پرسنلی", "سال", "ماه", "حقوق پایه", "اضافه‌کاری", "ناخالص", "بیمه ت.ا (۷٪)", "بیمه درمان (۲٪)", "مالیات", "مساعده", "اقساط وام", "جمع کسورات", "خالص دریافتی"];
+                      const rows = cumulativeData.rows.map((r, i) => [
+                        i+1, r.name, r.code, r.year,
+                        MONTHS.find(m=>m.value===String(r.month).padStart(2,"0"))?.label || r.month,
+                        r.earnedBaseSalary, r.overtimePay, r.grossSalary,
+                        r.insEmployee, r.healthInsEmployee, r.monthlyTax,
+                        r.advanceDeduct, r.loanDeduct, r.totalDeductions, r.netSalary
+                      ]);
+                      const orgName = localStorage.getItem("org_name") || "سازمان";
+                      const BOM = "\uFEFF";
+                      const title = `"گزارش تجمیعی - ${cumEmpId && cumulativeData.emp ? `${cumulativeData.emp.firstName} ${cumulativeData.emp.lastName}` : "همه پرسنل"} - ${MONTHS.find(m=>m.value===cumFromMonth)?.label} ${cumFromYear} تا ${MONTHS.find(m=>m.value===cumToMonth)?.label} ${cumToYear} - ${orgName}"`;
+                      const csv = BOM + [title, headers.map(h=>`"${h}"`).join(","), ...rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(","))].join("\r\n");
+                      const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url; a.download = "گزارش_تجمیعی.csv"; a.click();
+                      URL.revokeObjectURL(url);
+                    }} className="bg-emerald-600 hover:bg-emerald-700 text-white h-8 text-[11px] px-3 gap-1.5">
+                      <FileDown className="h-3.5 w-3.5" /> اکسل
+                    </Button>
+                    <Button size="xs" onClick={() => {
+                      const orgName = localStorage.getItem("org_name") || "سازمان امور دولتی";
+                      const empLabel = cumEmpId && cumulativeData.emp
+                        ? `${cumulativeData.emp.firstName} ${cumulativeData.emp.lastName}`
+                        : "همه پرسنل";
+                      const periodLabel = `${MONTHS.find(m=>m.value===cumFromMonth)?.label} ${cumFromYear} تا ${MONTHS.find(m=>m.value===cumToMonth)?.label} ${cumToYear}`;
+                      const win = window.open("", "_blank", "width=1300,height=900");
+                      if (!win) return;
+                      const thead = `<tr><th>ردیف</th><th>نام پرسنل</th><th>سال/ماه</th><th>حقوق پایه</th><th>اضافه‌کاری</th><th>ناخالص</th><th>بیمه ت.ا</th><th>بیمه درمان</th><th>مالیات</th><th>مساعده</th><th>اقساط وام</th><th>جمع کسورات</th><th class="em">خالص دریافتی</th></tr>`;
+                      const tbody = cumulativeData.rows.map((r, i) => `<tr><td>${i+1}</td><td><b>${r.name}</b><br/><small>${r.code}</small></td><td>${r.mLabel} ${r.year}</td><td class="r">${fmt(r.earnedBaseSalary)}</td><td class="r">${fmt(r.overtimePay)}</td><td class="r b">${fmt(r.grossSalary)}</td><td class="r">${fmt(r.insEmployee)}</td><td class="r">${fmt(r.healthInsEmployee)}</td><td class="r">${fmt(r.monthlyTax)}</td><td class="r">${fmt(r.advanceDeduct)}</td><td class="r">${fmt(r.loanDeduct)}</td><td class="r">${fmt(r.totalDeductions)}</td><td class="r em b">${fmt(r.netSalary)}</td></tr>`).join("");
+                      const tfoot = `<tr class="tot"><td colspan="3">جمع کل (${toPersianDigits(cumulativeData.rows.length)} رکورد)</td><td class="r">${fmt(cumulativeData.totals.earnedBaseSalary)}</td><td class="r">${fmt(cumulativeData.totals.overtimePay)}</td><td class="r b">${fmt(cumulativeData.totals.grossSalary)}</td><td class="r">${fmt(cumulativeData.totals.insEmployee)}</td><td class="r">${fmt(cumulativeData.totals.healthInsEmployee)}</td><td class="r">${fmt(cumulativeData.totals.monthlyTax)}</td><td class="r">${fmt(cumulativeData.totals.advanceDeduct)}</td><td class="r">${fmt(cumulativeData.totals.loanDeduct)}</td><td class="r">${fmt(cumulativeData.totals.totalDeductions)}</td><td class="r em b">${fmt(cumulativeData.totals.netSalary)}</td></tr>`;
+                      win.document.write(`<!DOCTYPE html><html dir="rtl" lang="fa"><head><meta charset="UTF-8"/><title>گزارش تجمیعی</title><style>@page{size:A3 landscape;margin:8mm 10mm}body{font-family:Tahoma,sans-serif;font-size:9.5px;color:#111;direction:rtl}.hdr{display:flex;justify-content:space-between;border-bottom:2px solid #333;padding-bottom:8px;margin-bottom:14px}.hdr h1{font-size:14px;font-weight:900;margin:0}table{width:100%;border-collapse:collapse}th,td{border:1px solid #444;padding:4px 6px;font-size:9px}thead th{background:#1e3a8a;color:#fff;font-weight:bold;text-align:center}.r{text-align:left;font-family:Courier,monospace}.b{font-weight:bold}.em{color:#065f46;font-weight:bold}.tot td{background:#f0fdf4!important;font-weight:bold;border-top:2px solid #1e3a8a}</style></head><body><div class="hdr"><div><h1>گزارش تجمیعی حقوق و دستمزد</h1><div style="font-size:10px;margin-top:4px;color:#444">سازمان: <strong>${orgName}</strong> | پرسنل: <strong>${empLabel}</strong> | دوره: <strong>${periodLabel}</strong></div></div><div style="font-size:9px;text-align:left">تاریخ چاپ: ${toPersianDigits(new Date().toLocaleDateString("fa-IR"))}<br/>تعداد رکورد: ${toPersianDigits(cumulativeData.rows.length)}</div></div><table><thead>${thead}</thead><tbody>${tbody}${tfoot}</tbody></table><script>window.onload=function(){setTimeout(function(){window.print();window.close();},300);}<\/script></body></html>`);
+                      win.document.close();
+                    }} className="bg-fuchsia-600 hover:bg-fuchsia-700 text-white h-8 text-[11px] px-3 gap-1.5">
+                      <Printer className="h-3.5 w-3.5" /> چاپ
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* جدول گزارش تجمیعی */}
+              {cumulativeData.rows.length === 0 ? (
+                <div className="text-center py-14 text-slate-400 text-xs">
+                  <BarChart2 className="h-12 w-12 mx-auto mb-3 stroke-1 text-slate-300" />
+                  <p className="font-bold text-slate-500">داده‌ای برای بازه زمانی انتخاب‌شده یافت نشد</p>
+                  <p className="mt-1 text-slate-400">ابتدا از بخش «محاسبه حقوق» محاسبات را ثبت کنید.</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader className="bg-fuchsia-700 dark:bg-fuchsia-900">
+                    <TableRow className="text-[10px] hover:bg-fuchsia-700">
+                      <TableHead className="text-right text-white font-bold">نام پرسنل</TableHead>
+                      <TableHead className="text-center text-white font-bold">سال / ماه</TableHead>
+                      <TableHead className="text-left font-mono text-white font-bold">حقوق پایه</TableHead>
+                      <TableHead className="text-left font-mono text-white font-bold">اضافه‌کاری</TableHead>
+                      <TableHead className="text-left font-mono text-white font-bold">ناخالص</TableHead>
+                      <TableHead className="text-left font-mono text-white font-bold">بیمه ت.ا (۷٪)</TableHead>
+                      <TableHead className="text-left font-mono text-white font-bold">بیمه درمان (۲٪)</TableHead>
+                      <TableHead className="text-left font-mono text-white font-bold">مالیات</TableHead>
+                      <TableHead className="text-left font-mono text-white font-bold">مساعده</TableHead>
+                      <TableHead className="text-left font-mono text-white font-bold">اقساط وام</TableHead>
+                      <TableHead className="text-left font-mono text-white font-bold">جمع کسورات</TableHead>
+                      <TableHead className="text-left font-mono font-bold text-white">خالص دریافتی</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody className="text-[10px] font-mono">
+                    {cumulativeData.rows.map((r, i) => (
+                      <TableRow key={`${r.empId}-${r.year}-${r.month}`} className={`h-8 ${i % 2 === 0 ? "" : "bg-slate-50/40 dark:bg-slate-800/20"}`}>
+                        <TableCell className="text-right font-sans">
+                          <div className="font-bold text-slate-800 dark:text-slate-100">{r.name}</div>
+                          <div className="text-[9px] text-slate-400">{r.code}</div>
+                        </TableCell>
+                        <TableCell className="text-center font-sans text-slate-600 dark:text-slate-400">
+                          <span className="bg-fuchsia-50 dark:bg-fuchsia-950/30 text-fuchsia-700 dark:text-fuchsia-400 px-2 py-0.5 rounded-full text-[9px] font-bold">
+                            {r.mLabel} {toPersianDigits(r.year)}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-left">{fmt(r.earnedBaseSalary)}</TableCell>
+                        <TableCell className="text-left text-amber-600">{r.overtimePay > 0 ? fmt(r.overtimePay) : "—"}</TableCell>
+                        <TableCell className="text-left font-bold text-indigo-700">{fmt(r.grossSalary)}</TableCell>
+                        <TableCell className="text-left text-blue-600">{fmt(r.insEmployee)}</TableCell>
+                        <TableCell className="text-left text-cyan-600">{r.healthInsEmployee > 0 ? fmt(r.healthInsEmployee) : "—"}</TableCell>
+                        <TableCell className="text-left text-rose-600">{r.monthlyTax > 0 ? fmt(r.monthlyTax) : "—"}</TableCell>
+                        <TableCell className="text-left text-orange-500">{r.advanceDeduct > 0 ? fmt(r.advanceDeduct) : "—"}</TableCell>
+                        <TableCell className="text-left text-slate-500">{r.loanDeduct > 0 ? fmt(r.loanDeduct) : "—"}</TableCell>
+                        <TableCell className="text-left text-rose-700 font-semibold">{fmt(r.totalDeductions)}</TableCell>
+                        <TableCell className="text-left font-bold text-emerald-700 text-xs font-sans">{fmt(r.netSalary)}</TableCell>
+                      </TableRow>
+                    ))}
+                    {/* ردیف جمع کل */}
+                    <TableRow className="bg-fuchsia-50 dark:bg-fuchsia-950/30 font-bold border-t-2 border-fuchsia-300">
+                      <TableCell colSpan={2} className="text-right font-sans text-fuchsia-800 dark:text-fuchsia-300 font-black">
+                        جمع کل ({toPersianDigits(cumulativeData.rows.length)} رکورد)
+                      </TableCell>
+                      <TableCell className="text-left text-indigo-800 font-black">{fmt(cumulativeData.totals.earnedBaseSalary)}</TableCell>
+                      <TableCell className="text-left text-amber-700 font-black">{fmt(cumulativeData.totals.overtimePay)}</TableCell>
+                      <TableCell className="text-left text-indigo-900 font-black text-xs font-sans">{fmt(cumulativeData.totals.grossSalary)}</TableCell>
+                      <TableCell className="text-left text-blue-700 font-black">{fmt(cumulativeData.totals.insEmployee)}</TableCell>
+                      <TableCell className="text-left text-cyan-700 font-black">{fmt(cumulativeData.totals.healthInsEmployee)}</TableCell>
+                      <TableCell className="text-left text-rose-700 font-black">{fmt(cumulativeData.totals.monthlyTax)}</TableCell>
+                      <TableCell className="text-left text-orange-600 font-black">{fmt(cumulativeData.totals.advanceDeduct)}</TableCell>
+                      <TableCell className="text-left text-slate-600 font-black">{fmt(cumulativeData.totals.loanDeduct)}</TableCell>
+                      <TableCell className="text-left text-rose-800 font-black">{fmt(cumulativeData.totals.totalDeductions)}</TableCell>
+                      <TableCell className="text-left text-emerald-800 font-black text-xs font-sans">{fmt(cumulativeData.totals.netSalary)}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              )}
+            </div>
           )}
         </CardContent>
       </Card>

@@ -74,6 +74,16 @@ export default function PayslipForm() {
   const [selectedEmpId, setSelectedEmpId] = useState(null);
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+
+  const customFields = useMemo(() => {
+    try {
+      const saved = localStorage.getItem("payroll_settings");
+      if (saved) {
+        return JSON.parse(saved).customAllowances || [];
+      }
+    } catch (_) {}
+    return [];
+  }, []);
   
   // شبیه‌سازی صدور فیش‌ها با localStorage
   const [issuedPeriods, setIssuedPeriods] = useState(() => {
@@ -213,6 +223,15 @@ export default function PayslipForm() {
     const emp = details?.emp;
     const dec = details?.decree;
 
+    // بارگذاری مزایای سفارشی از تنظیمات حقوق
+    let customAllowances = [];
+    try {
+      const savedSettings = localStorage.getItem("payroll_settings");
+      if (savedSettings) {
+        customAllowances = JSON.parse(savedSettings).customAllowances || [];
+      }
+    } catch (_) {}
+
     // اقلام پرداختنی
     const earnings = [
       { label: "حقوق پایه (دستمزد مبنا)", val: calc.earnedBaseSalary },
@@ -224,13 +243,22 @@ export default function PayslipForm() {
       { label: "فوق‌العاده تخصصی", val: calc.expertise || 0 },
       { label: "حقوق اضافه‌کاری", val: calc.overtimePay || 0 },
       { label: "سایر مزایا و کارکردها", val: calc.other || 0 },
-    ].filter(x => x.val > 0);
+    ];
+
+    customAllowances.forEach(f => {
+      if (calc[f.key] && Number(calc[f.key]) > 0) {
+        earnings.push({ label: f.label, val: Number(calc[f.key]) });
+      }
+    });
+
+    const activeEarnings = earnings.filter(x => x.val > 0);
 
     const totalEarnings = calc.grossSalary;
 
     // اقلام کسورات
     const deductions = [
-      { label: "بیمه سهم کارمند (۷٪)", val: calc.insEmployee },
+      { label: "بیمه تامین اجتماعی سهم کارمند (۷٪)", val: calc.insEmployee },
+      { label: "بیمه درمان سهم کارمند (۲٪)", val: calc.healthInsEmployee || 0 },
       { label: "مالیات حقوق ماهانه", val: calc.monthlyTax || 0 },
       { label: "کسر کارکرد تأخیر ورود", val: calc.tardinessDeduct || 0 },
       { label: "کسر غیبت ماهانه", val: calc.absenceDeduct || 0 },
@@ -261,8 +289,9 @@ export default function PayslipForm() {
             <div><strong>نام و نام خانوادگی:</strong> ${calc.employeeName}</div>
             <div><strong>کد ملی:</strong> ${toPersianDigits(emp?.nationalId || "—")}</div>
             <div><strong>عنوان شغل:</strong> ${calc.jobTitle}</div>
-            <div><strong>شماره بیمه:</strong> ${toPersianDigits(emp?.insuranceNo || "—")}</div>
-            <div><strong>شماره حساب:</strong> ${toPersianDigits(emp?.bankAccount || emp?.accountNo || "—")}</div>
+            <div><strong>${emp?.retirementInsuranceNo ? "شماره بیمه صندوق بازنشستگی کشوری" : "شماره بیمه تامین اجتماعی"}:</strong> ${toPersianDigits(emp?.retirementInsuranceNo || emp?.insuranceNo || "—")}</div>
+            <div><strong>شماره حساب اصلی:</strong> ${toPersianDigits(emp?.bankAccount || emp?.accountNo || "—")}</div>
+            ${emp?.accountNo2 ? `<div><strong>شماره حساب فرعی (${emp.bankName2 || "بانک دوم"}):</strong> ${toPersianDigits(emp.accountNo2)}</div>` : ""}
             <div><strong>روزهای کارکرد موظف:</strong> ${toPersianDigits(calc.workedDays)} روز</div>
             <div><strong>اضافه‌کاری:</strong> ${toPersianDigits(calc.overtimeHours)} ساعت</div>
           </div>
@@ -274,9 +303,9 @@ export default function PayslipForm() {
               <table>
                 <thead><tr><th>مزایا و ناخالص پرداختی</th><th>مبلغ (ریال)</th></tr></thead>
                 <tbody>
-                  ${earnings.map(e => `<tr><td>${e.label}</td><td class="r mono">${fmt(e.val)}</td></tr>`).join("")}
+                  ${activeEarnings.map(e => `<tr><td>${e.label}</td><td class="r mono">${fmt(e.val)}</td></tr>`).join("")}
                   <!-- پرکننده فضا برای هم‌ارتفاع شدن ستون‌ها -->
-                  ${Array(Math.max(0, deductions.length - earnings.length)).fill(0).map(() => `<tr><td>&nbsp;</td><td></td></tr>`).join("")}
+                  ${Array(Math.max(0, deductions.length - activeEarnings.length)).fill(0).map(() => `<tr><td>&nbsp;</td><td></td></tr>`).join("")}
                   <tr class="total-row"><td>جمع ناخالص حقوق</td><td class="r mono">${fmt(totalEarnings)}</td></tr>
                 </tbody>
               </table>
@@ -664,8 +693,11 @@ export default function PayslipForm() {
                     <div><span className="text-slate-500">نام و نام خانوادگی:</span> <strong>{selectedCalc.employeeName}</strong></div>
                     <div><span className="text-slate-500">کد ملی:</span> <strong className="font-mono">{toPersianDigits(selectedDetails?.emp?.nationalId || "—")}</strong></div>
                     <div><span className="text-slate-500">سمت شغلی:</span> <strong>{selectedCalc.jobTitle}</strong></div>
-                    <div><span className="text-slate-500">شماره بیمه:</span> <strong className="font-mono">{toPersianDigits(selectedDetails?.emp?.insuranceNo || "—")}</strong></div>
-                    <div><span className="text-slate-500">شماره حساب:</span> <strong className="font-mono">{toPersianDigits(selectedDetails?.emp?.bankAccount || selectedDetails?.emp?.accountNo || "—")}</strong></div>
+                    <div><span className="text-slate-500">{selectedDetails?.emp?.retirementInsuranceNo ? "شماره بیمه صندوق بازنشستگی کشوری" : "شماره بیمه تامین اجتماعی"}:</span> <strong className="font-mono">{toPersianDigits(selectedDetails?.emp?.retirementInsuranceNo || selectedDetails?.emp?.insuranceNo || "—")}</strong></div>
+                    <div><span className="text-slate-500">شماره حساب اصلی:</span> <strong className="font-mono">{toPersianDigits(selectedDetails?.emp?.bankAccount || selectedDetails?.emp?.accountNo || "—")}</strong></div>
+                    {selectedDetails?.emp?.accountNo2 && (
+                      <div><span className="text-slate-500">شماره حساب فرعی ({selectedDetails?.emp?.bankName2 || "بانک دوم"}):</span> <strong className="font-mono">{toPersianDigits(selectedDetails?.emp?.accountNo2)}</strong></div>
+                    )}
                     <div><span className="text-slate-500">روزهای کارکرد:</span> <strong>{toPersianDigits(selectedCalc.workedDays)} روز</strong></div>
                     <div><span className="text-slate-500">اضافه‌کاری:</span> <strong>{toPersianDigits(selectedCalc.overtimeHours)} ساعت</strong></div>
                   </div>
@@ -691,6 +723,16 @@ export default function PayslipForm() {
                           {selectedCalc.expertise > 0 && <TableRow className="h-7"><TableCell className="py-1">فوق‌العاده تخصصی</TableCell><TableCell className="text-left font-mono py-1">{fmt(selectedCalc.expertise)}</TableCell></TableRow>}
                           {selectedCalc.overtimePay > 0 && <TableRow className="h-7"><TableCell className="py-1">اضافه‌کاری</TableCell><TableCell className="text-left font-mono py-1">{fmt(selectedCalc.overtimePay)}</TableCell></TableRow>}
                           {selectedCalc.other > 0 && <TableRow className="h-7"><TableCell className="py-1">سایر مزایا</TableCell><TableCell className="text-left font-mono py-1">{fmt(selectedCalc.other)}</TableCell></TableRow>}
+                          {customFields.map(f => {
+                            const val = selectedCalc[f.key];
+                            if (!val || val <= 0) return null;
+                            return (
+                              <TableRow key={f.key} className="h-7">
+                                <TableCell className="py-1">{f.label}</TableCell>
+                                <TableCell className="text-left font-mono py-1">{fmt(val)}</TableCell>
+                              </TableRow>
+                            );
+                          })}
                           <TableRow className="bg-slate-50 dark:bg-slate-800/20 font-bold border-t border-slate-300">
                             <TableCell className="py-1.5">جمع ناخالص پرداختنی</TableCell>
                             <TableCell className="text-left font-mono py-1.5">{fmt(selectedCalc.grossSalary)}</TableCell>
@@ -709,7 +751,8 @@ export default function PayslipForm() {
                           </TableRow>
                         </TableHeader>
                         <TableBody className="text-[10px]">
-                          <TableRow className="h-7"><TableCell className="py-1">حقوق بیمه سهم پرسنل (۷٪)</TableCell><TableCell className="text-left font-mono py-1">{fmt(selectedCalc.insEmployee)}</TableCell></TableRow>
+                          <TableRow className="h-7"><TableCell className="py-1">حقوق بیمه تامین اجتماعی سهم پرسنل (۷٪)</TableCell><TableCell className="text-left font-mono py-1">{fmt(selectedCalc.insEmployee)}</TableCell></TableRow>
+                          {(selectedCalc.healthInsEmployee || 0) > 0 && <TableRow className="h-7"><TableCell className="py-1">بیمه درمان سهم پرسنل (۲٪)</TableCell><TableCell className="text-left font-mono py-1">{fmt(selectedCalc.healthInsEmployee)}</TableCell></TableRow>}
                           {selectedCalc.monthlyTax > 0 && <TableRow className="h-7"><TableCell className="py-1">مالیات حقوق</TableCell><TableCell className="text-left font-mono py-1">{fmt(selectedCalc.monthlyTax)}</TableCell></TableRow>}
                           {selectedCalc.tardinessDeduct > 0 && <TableRow className="h-7"><TableCell className="py-1">کسر کارکرد تأخیر ورود</TableCell><TableCell className="text-left font-mono py-1">{fmt(selectedCalc.tardinessDeduct)}</TableCell></TableRow>}
                           {selectedCalc.absenceDeduct > 0 && <TableRow className="h-7"><TableCell className="py-1">کسر غیبت</TableCell><TableCell className="text-left font-mono py-1">{fmt(selectedCalc.absenceDeduct)}</TableCell></TableRow>}

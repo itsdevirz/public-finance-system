@@ -9,8 +9,15 @@ import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   ReceiptText, Plus, Pencil, Trash2, Printer, Save, X, Calculator,
-  Info, CheckCircle, AlertCircle, ChevronDown, ChevronUp
+  Info, CheckCircle, AlertCircle, ChevronDown, ChevronUp, Download, Upload
 } from "lucide-react";
+
+const MONTHS = [
+  { value: "01", label: "فروردین" }, { value: "02", label: "اردیبهشت" }, { value: "03", label: "خرداد" },
+  { value: "04", label: "تیر" },     { value: "05", label: "مرداد" },     { value: "06", label: "شهریور" },
+  { value: "07", label: "مهر" },     { value: "08", label: "آبان" },      { value: "09", label: "آذر" },
+  { value: "10", label: "دی" },      { value: "11", label: "بهمن" },      { value: "12", label: "اسفند" }
+];
 
 // جدول مالیات پیش‌فرض ۱۴۰۵
 const DEFAULT_1405 = {
@@ -55,7 +62,7 @@ const INITIAL_FORM = {
 const fmt = n => Number(n || 0).toLocaleString("fa-IR");
 
 export default function TaxTables() {
-  const { addConfig, updateConfig, deleteConfig, refreshAllConfigs } = useAssets();
+  const { addConfig, updateConfig, deleteConfig, refreshAllConfigs, employees, payrollCalculations } = useAssets();
 
   // ذخیره جداول مالیاتی در localStorage
   const [tables, setTables] = useState(() => {
@@ -65,6 +72,12 @@ export default function TaxTables() {
     } catch (_) {}
     return [DEFAULT_1405];
   });
+
+  const [activeTab, setActiveTab]     = useState("tables"); // tables | integration
+  const [integYear, setIntegYear]     = useState("1405");
+  const [integMonth, setIntegMonth]   = useState("01");
+  const [uploadedFile, setUploadedFile] = useState(null);
+  const [uploadSummary, setUploadSummary] = useState(null);
 
   const [showForm, setShowForm]       = useState(false);
   const [editingIdx, setEditingIdx]   = useState(null);
@@ -113,6 +126,165 @@ export default function TaxTables() {
       const next = tables.filter((_, i) => i !== idx);
       saveTables(next);
     }
+  }
+
+  // دانلود فایل متنی کمکی
+  function downloadTextFile(filename, text) {
+    const element = document.createElement("a");
+    const file = new Blob([text], {type: 'text/plain;charset=utf-8'});
+    element.href = URL.createObjectURL(file);
+    element.download = filename;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  }
+
+  // خروجی فایل پرسنلی (WP)
+  function exportPersonnelFile() {
+    setErrorMsg("");
+    setSuccessMsg("");
+    if (!employees || employees.length === 0) {
+      setErrorMsg("هیچ کارمندی در سیستم ثبت نشده است.");
+      return;
+    }
+    const lines = employees.map(emp => {
+      return [
+        emp.nationalId || "",
+        emp.firstName || "",
+        emp.lastName || "",
+        emp.fatherName || "",
+        emp.birthDate || "",
+        emp.insuranceNo || emp.retirementInsuranceNo || "",
+        emp.code || ""
+      ].join("|");
+    });
+    const content = lines.join("\n");
+    downloadTextFile(`WP_${integYear}_${integMonth}.txt`, content);
+    setSuccessMsg("فایل اطلاعات پرسنلی پرسنل (WP) با موفقیت تولید و دانلود شد.");
+  }
+
+  // خروجی فایل مالیاتی حقوق (WH)
+  function exportFinancialFile() {
+    setErrorMsg("");
+    setSuccessMsg("");
+    const periodCalcs = (payrollCalculations || []).filter(
+      c => String(c.year) === String(integYear) && String(c.month) === String(integMonth)
+    );
+    if (periodCalcs.length === 0) {
+      setErrorMsg("هیچ محاسبه حقوقی برای این دوره یافت نشد. ابتدا حقوق این دوره را در صفحه محاسبه حقوق ثبت کنید.");
+      return;
+    }
+    const lines = periodCalcs.map(c => {
+      return [
+        c.employeeCode || "",
+        c.year || "",
+        c.month || "",
+        c.earnedBaseSalary || 0,
+        c.housingAllow || 0,
+        c.groceryAllow || 0,
+        c.childAllow || 0,
+        c.overtimePay || 0,
+        c.grossSalary || 0,
+        c.monthlyTax || 0
+      ].join("|");
+    });
+    const content = lines.join("\n");
+    downloadTextFile(`WH_${integYear}_${integMonth}.txt`, content);
+    setSuccessMsg("فایل خلاصه فیش و مالیات (WH) با موفقیت تولید و دانلود شد.");
+  }
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setUploadedFile(file);
+    }
+  };
+
+  // پردازش و اعمال فایل مالیاتی برگشتی
+  function processTaxReturnFile() {
+    setErrorMsg("");
+    setSuccessMsg("");
+    setUploadSummary(null);
+    if (!uploadedFile) {
+      setErrorMsg("لطفاً ابتدا فایل برگشتی مالیات را انتخاب کنید.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const text = event.target.result;
+        const lines = text.split("\n");
+        let successCount = 0;
+        let failCount = 0;
+        const updatedList = [];
+
+        for (const line of lines) {
+          const cleaned = line.trim();
+          if (!cleaned) continue;
+          const parts = cleaned.split(/[|,]/);
+          if (parts.length < 2) {
+            failCount++;
+            continue;
+          }
+          const idToken = parts[0].trim();
+          const taxVal = parts[1].replace(/[^0-9.-]/g, "");
+          const taxAmount = Math.round(Number(taxVal));
+
+          if (isNaN(taxAmount)) {
+            failCount++;
+            continue;
+          }
+
+          // پیدا کردن کارمند بر اساس کد ملی یا کد پرسنلی
+          const emp = (employees || []).find(e => e.code === idToken || e.nationalId === idToken);
+          if (!emp) {
+            failCount++;
+            continue;
+          }
+
+          const empId = emp._id || emp.id;
+          const calc = (payrollCalculations || []).find(
+            c => String(c.year) === String(integYear) && 
+                 String(c.month) === String(integMonth) && 
+                 String(c.employeeId) === String(empId)
+          );
+
+          if (calc) {
+            const monthlyTax = taxAmount;
+            const totalDeductions = (calc.insEmployee || 0) + monthlyTax + (calc.tardinessDeduct || 0) + (calc.absenceDeduct || 0) + (calc.advanceDeduct || 0) + (calc.loanDeduct || 0);
+            const netSalary = Math.max(0, (calc.grossSalary || 0) - totalDeductions);
+
+            updatedList.push({
+              ...calc,
+              monthlyTax,
+              totalDeductions,
+              netSalary
+            });
+            successCount++;
+          } else {
+            failCount++;
+          }
+        }
+
+        if (updatedList.length > 0) {
+          setIsSaving(true);
+          await Promise.all(updatedList.map(async item => {
+            await updateConfig("payroll_calculations", item);
+          }));
+          await refreshAllConfigs();
+          setIsSaving(false);
+          setSuccessMsg(`فایل مالیاتی با موفقیت پردازش شد. اطلاعات مالیاتی ${successCount} پرسنل به‌روزرسانی گردید.`);
+          setUploadSummary({ successCount, failCount });
+        } else {
+          setErrorMsg("هیچ کارمندی منطبق با کدهای موجود در فایل در محاسبات حقوق این دوره یافت نشد.");
+        }
+      } catch (err) {
+        console.error(err);
+        setErrorMsg("خطا در پردازش و بارگذاری فایل. ساختار فایل را بررسی کنید.");
+      }
+    };
+    reader.readAsText(uploadedFile);
   }
 
   function handleSave(e) {
@@ -250,12 +422,36 @@ export default function TaxTables() {
             تعریف و مدیریت جداول مالیاتی پلکانی موضوع ماده ۸۵ قانون مالیات‌های مستقیم به تفکیک سال.
           </p>
         </div>
-        {!showForm && (
+        {!showForm && activeTab === "tables" && (
           <Button size="sm" onClick={openNew}
             className="bg-rose-600 hover:bg-rose-700 text-white font-bold h-9 text-xs gap-1.5 shadow">
             <Plus className="h-4 w-4" /> تعریف جدول جدید
           </Button>
         )}
+      </div>
+
+      {/* تب‌ها */}
+      <div className="flex gap-2 border-b border-slate-200 dark:border-slate-800 pb-px">
+        <button
+          onClick={() => { setActiveTab("tables"); setShowForm(false); setErrorMsg(""); setSuccessMsg(""); }}
+          className={`pb-2.5 px-4 text-xs font-bold transition-all relative ${
+            activeTab === "tables"
+              ? "text-rose-600 border-b-2 border-rose-600"
+              : "text-slate-500 hover:text-slate-800"
+          }`}
+        >
+          جداول محاسباتی مالیات
+        </button>
+        <button
+          onClick={() => { setActiveTab("integration"); setShowForm(false); setErrorMsg(""); setSuccessMsg(""); }}
+          className={`pb-2.5 px-4 text-xs font-bold transition-all relative ${
+            activeTab === "integration"
+              ? "text-rose-600 border-b-2 border-rose-600"
+              : "text-slate-500 hover:text-slate-800"
+          }`}
+        >
+          ارسال و دریافت فایل مالیات (سازمان امور مالیاتی)
+        </button>
       </div>
 
       {/* پیام‌ها */}
@@ -271,7 +467,7 @@ export default function TaxTables() {
       )}
 
       {/* فرم تعریف / ویرایش */}
-      {showForm && (
+      {activeTab === "tables" && showForm && (
         <Card className="border-rose-100">
           <CardHeader className="border-b pb-3">
             <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-2">
@@ -388,7 +584,7 @@ export default function TaxTables() {
       )}
 
       {/* لیست جداول مالیاتی */}
-      {!showForm && (
+      {activeTab === "tables" && !showForm && (
         <div className="space-y-3">
           {tables.length === 0 && (
             <div className="text-center py-10 text-xs text-muted-foreground">
@@ -527,6 +723,130 @@ export default function TaxTables() {
               </Card>
             );
           })}
+        </div>
+      )}
+
+      {/* بخش تب ارسال و دریافت فایل مالیاتی */}
+      {activeTab === "integration" && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* بخش خروجی اطلاعات */}
+          <Card className="border-slate-100 shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                <Download className="h-4 w-4 text-rose-600" />
+                تولید و دریافت فایل‌های مالیات حقوق (خروجی)
+              </CardTitle>
+              <CardDescription className="text-[10px]">
+                تهیه فایل‌های متنی استاندارد جهت ارائه به سامانه سازمان امور مالیاتی کشور.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-[11px] font-semibold">سال مالیاتی</Label>
+                  <select value={integYear} onChange={e => setIntegYear(e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-xs shadow-sm mt-1.5">
+                    <option value="1403">۱۴۰۳</option>
+                    <option value="1404">۱۴۰۴</option>
+                    <option value="1405">۱۴۰۵</option>
+                    <option value="1406">۱۴۰۶</option>
+                  </select>
+                </div>
+                <div>
+                  <Label className="text-[11px] font-semibold">ماه مالیاتی</Label>
+                  <select value={integMonth} onChange={e => setIntegMonth(e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-xs shadow-sm mt-1.5">
+                    {MONTHS.map(m => (
+                      <option key={m.value} value={m.value}>{m.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <Separator className="my-2" />
+
+              <div className="space-y-3">
+                <div className="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800">
+                  <div>
+                    <div className="text-xs font-bold">۱. فایل اطلاعات پرسنلی (WP)</div>
+                    <div className="text-[9px] text-slate-400 mt-1">شامل اطلاعات هویتی، کدملی، شماره بیمه و پرسنلی کارکنان</div>
+                  </div>
+                  <Button size="sm" onClick={exportPersonnelFile} className="bg-rose-600 hover:bg-rose-700 text-white gap-1.5 text-xs h-8">
+                    <Download className="h-3.5 w-3.5" /> دانلود فایل WP
+                  </Button>
+                </div>
+
+                <div className="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800">
+                  <div>
+                    <div className="text-xs font-bold">۲. فایل خلاصه فیش مالیاتی (WH)</div>
+                    <div className="text-[9px] text-slate-400 mt-1">شامل بندهای درآمد مشمول مالیات، حقوق پایه و محاسبات مالیاتی</div>
+                  </div>
+                  <Button size="sm" onClick={exportFinancialFile} className="bg-rose-600 hover:bg-rose-700 text-white gap-1.5 text-xs h-8">
+                    <Download className="h-3.5 w-3.5" /> دانلود فایل WH
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* بخش بارگذاری اطلاعات برگشتی */}
+          <Card className="border-slate-100 shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                <Upload className="h-4 w-4 text-emerald-600" />
+                بارگذاری فایل نهایی سازمان مالیاتی (ورودی)
+              </CardTitle>
+              <CardDescription className="text-[10px]">
+                اعمال نتایج نهایی مالیات بر حقوق پس از ارائه فایل‌ها به سازمان مالیاتی و دریافت فایل برگشتی.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="p-4 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-lg flex flex-col items-center justify-center gap-2 text-center">
+                <Upload className="h-6 w-6 text-slate-400" />
+                <span className="text-xs font-semibold text-slate-700">فایل برگشتی مالیات (txt یا csv) را انتخاب کنید</span>
+                <input
+                  type="file"
+                  accept=".txt,.csv"
+                  onChange={handleFileUpload}
+                  className="block w-full text-xs text-slate-500 mt-2 file:mr-4 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-[10px] file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200"
+                />
+                {uploadedFile && (
+                  <Badge variant="secondary" className="mt-2 text-[10px] bg-slate-100 text-slate-800 border-none font-bold">
+                    {uploadedFile.name} ({Math.round(uploadedFile.size / 1024)} KB)
+                  </Badge>
+                )}
+              </div>
+
+              <div className="bg-amber-50 dark:bg-amber-950/20 p-3 rounded-lg border border-amber-100 dark:border-amber-900/50 flex gap-2">
+                <Info className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                <div className="text-[10px] text-amber-800 dark:text-amber-300 leading-relaxed">
+                  <strong>قالب مجاز فایل:</strong> هر خط باید شامل <code>شناسه پرسنلی (یا کدملی) | مبلغ مالیات مصوب</code> باشد.
+                  جداکننده می‌تواند کاراکتر ویرگول <code>,</code> یا خط عمودی <code>|</code> باشد. پس از بارگذاری، محاسبات فیش حقوقی برای این دوره مجدداً واریز و ثبت خواهد شد.
+                </div>
+              </div>
+
+              <Button
+                size="sm"
+                onClick={processTaxReturnFile}
+                disabled={!uploadedFile || isSaving}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-9 text-xs gap-1.5 shadow"
+              >
+                <Upload className="h-4 w-4" />
+                {isSaving ? "در حال اعمال مالیات..." : "اعمال مالیات فایل به فیش‌های حقوقی"}
+              </Button>
+
+              {uploadSummary && (
+                <div className="grid grid-cols-2 gap-2 text-center text-xs mt-3 pt-3 border-t">
+                  <div className="bg-emerald-50 dark:bg-emerald-950/20 p-2 rounded-lg border border-emerald-100 dark:border-emerald-900/30">
+                    <div className="text-emerald-700 font-bold">موفق</div>
+                    <div className="text-[14px] font-black mt-1 font-mono text-emerald-800">{uploadSummary.successCount} رکورد</div>
+                  </div>
+                  <div className="bg-slate-50 dark:bg-slate-900 p-2 rounded-lg border">
+                    <div className="text-slate-500 font-bold">ناموفق / نامنطبق</div>
+                    <div className="text-[14px] font-black mt-1 font-mono text-slate-700">{uploadSummary.failCount} رکورد</div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       )}
     </div>

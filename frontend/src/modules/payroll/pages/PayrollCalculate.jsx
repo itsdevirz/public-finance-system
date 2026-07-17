@@ -52,9 +52,14 @@ function calcTax(annualGross) {
 // ========================
 // محاسبه حق بیمه تامین اجتماعی
 // ========================
-const INS_EMPLOYEE_RATE = 0.07;   // سهم کارمند 7%
-const INS_EMPLOYER_RATE = 0.20;   // سهم کارفرما 20%
+const INS_EMPLOYEE_RATE = 0.07;   // سهم کارمند بیمه تامین اجتماعی 7%
+const INS_EMPLOYER_RATE = 0.20;   // سهم کارفرما بیمه تامین اجتماعی 20%
 const INS_UNEMPLOY_RATE = 0.03;   // بیمه بیکاری 3%
+
+// نرخ‌های بیمه درمان
+const HEALTH_INS_EMPLOYEE_RATE = 0.02;  // سهم کارمند بیمه درمان 2%
+const HEALTH_INS_EMPLOYER_RATE = 0.02;  // سهم کارفرما/دستگاه بیمه درمان 2%
+const HEALTH_INS_GOVT_RATE     = 0.03;  // سهم دولت بیمه درمان 3%
 
 function calcPayrollRow(emp, decree, attRec, advances, loans, selectedYear, selectedMonth) {
   const DAYS_IN_MONTH = 30;
@@ -89,9 +94,24 @@ function calcPayrollRow(emp, decree, attRec, advances, loans, selectedYear, sele
   // کسر غیبت
   const absenceDeduct   = Math.round(dailyRate * absenceDays);
 
+  // بارگذاری مزایای سفارشی از تنظیمات حقوق
+  let customAllowances = [];
+  try {
+    const savedSettings = localStorage.getItem("payroll_settings");
+    if (savedSettings) {
+      customAllowances = JSON.parse(savedSettings).customAllowances || [];
+    }
+  } catch (_) {}
+
+  const customAllowancesSum = customAllowances.reduce((sum, allow) => sum + Number(allow.defaultValue || 0), 0);
+  const customFieldsData = {};
+  customAllowances.forEach(allow => {
+    customFieldsData[allow.key] = Number(allow.defaultValue || 0);
+  });
+
   // جمع ناخالص حقوق
   const grossSalary = earnedBaseSalary + housingAllow + groceryAllow + childAllow
-                    + seniority + responsibility + expertise + other + overtimePay;
+                    + seniority + responsibility + expertise + other + overtimePay + customAllowancesSum;
 
   // مبنای بیمه (حقوق پایه + مزایای مشمول بیمه)
   const insBase        = earnedBaseSalary + seniority + responsibility + expertise;
@@ -99,6 +119,11 @@ function calcPayrollRow(emp, decree, attRec, advances, loans, selectedYear, sele
   const insEmployer    = Math.round(insBase * INS_EMPLOYER_RATE);
   const insUnemploy    = Math.round(insBase * INS_UNEMPLOY_RATE);
   const totalInsurance = insEmployee + insEmployer + insUnemploy;
+
+  // بیمه درمان (مبنا = حقوق ناخالص)
+  const healthInsEmployee = Math.round(grossSalary * HEALTH_INS_EMPLOYEE_RATE);
+  const healthInsEmployer = Math.round(grossSalary * HEALTH_INS_EMPLOYER_RATE);
+  const healthInsGovt     = Math.round(grossSalary * HEALTH_INS_GOVT_RATE);
 
   // مالیات ماهانه (بر اساس ناخالص سالانه)
   const annualGross    = grossSalary * 12;
@@ -138,7 +163,7 @@ function calcPayrollRow(emp, decree, attRec, advances, loans, selectedYear, sele
   });
 
   // جمع کسورات
-  const totalDeductions = insEmployee + monthlyTax + tardinessDeduct + absenceDeduct + advanceDeduct + loanDeduct;
+  const totalDeductions = insEmployee + healthInsEmployee + monthlyTax + tardinessDeduct + absenceDeduct + advanceDeduct + loanDeduct;
 
   // خالص قابل پرداخت
   const netSalary      = Math.max(0, grossSalary - totalDeductions);
@@ -168,6 +193,9 @@ function calcPayrollRow(emp, decree, attRec, advances, loans, selectedYear, sele
     insEmployee,
     insEmployer,
     insUnemploy,
+    healthInsEmployee,
+    healthInsEmployer,
+    healthInsGovt,
     monthlyTax,
     tardinessDeduct,
     absenceDeduct,
@@ -176,6 +204,8 @@ function calcPayrollRow(emp, decree, attRec, advances, loans, selectedYear, sele
     totalDeductions,
     // خالص
     netSalary,
+    // فیلدهای سفارشی
+    ...customFieldsData,
     // پشتیبانی
     hasDecree:  !!decree,
     hasAttRec:  !!attRec

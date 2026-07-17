@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import {
   Settings, Save, RefreshCw, ShieldCheck, ReceiptText, Calculator,
-  AlertCircle, CheckCircle, Info, Percent, Clock, Calendar, Banknote, Users
+  AlertCircle, CheckCircle, Info, Percent, Clock, Calendar, Banknote, Users, Plus, X
 } from "lucide-react";
 
 // ==========================
@@ -44,6 +44,7 @@ const DEFAULTS = {
   childAllowancePerChild: 9000000,   // اولاد (هر فرزند)
   maxChildrenCount: 2,
   seniorityRatePerYear: 3,          // % به‌ازای هر سال سابقه
+  customAllowances: [],
 
   // سایر
   yearFiscal: "1405"
@@ -109,6 +110,36 @@ export default function PayrollSettings() {
 
   function set(field, val) {
     setSettings(prev => ({ ...prev, [field]: val }));
+    setSuccessMsg("");
+    setErrorMsg("");
+  }
+
+  function addCustomAllowance() {
+    setSettings(prev => {
+      const list = prev.customAllowances ? [...prev.customAllowances] : [];
+      const newKey = `custom_${Date.now()}`;
+      list.push({ key: newKey, label: "مزایای سفارشی جدید", defaultValue: 0 });
+      return { ...prev, customAllowances: list };
+    });
+    setSuccessMsg("");
+    setErrorMsg("");
+  }
+
+  function handleUpdateCustomAllowance(idx, field, value) {
+    setSettings(prev => {
+      const list = [...(prev.customAllowances || [])];
+      list[idx] = { ...list[idx], [field]: value };
+      return { ...prev, customAllowances: list };
+    });
+    setSuccessMsg("");
+    setErrorMsg("");
+  }
+
+  function handleRemoveCustomAllowance(idx) {
+    setSettings(prev => {
+      const list = (prev.customAllowances || []).filter((_, i) => i !== idx);
+      return { ...prev, customAllowances: list };
+    });
     setSuccessMsg("");
     setErrorMsg("");
   }
@@ -271,6 +302,49 @@ export default function PayrollSettings() {
             <Separator className="my-3" />
 
             <SettingField label="نرخ فوق‌العاده سنوات (هر سال)" hint="درصد حقوق پایه به ازای هر سال سابقه" value={settings.seniorityRatePerYear} onChange={v => set("seniorityRatePerYear", v)} unit="٪ / سال" step="0.5" min={0} max={10} />
+
+            <Separator className="my-3" />
+            
+            <div className="flex justify-between items-center mb-3">
+              <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300">مزایای سفارشی و رفاهیات اضافی</h4>
+              <Button type="button" size="sm" variant="outline" onClick={addCustomAllowance}
+                className="h-7 text-[11px] gap-1 border-indigo-200 text-indigo-700 hover:bg-indigo-50">
+                <Plus className="h-3.5 w-3.5" /> افزودن مزایای سفارشی
+              </Button>
+            </div>
+
+            <div className="space-y-3">
+              {(settings.customAllowances || []).map((allow, idx) => (
+                <div key={idx} className="flex items-center justify-between gap-3 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg border">
+                  <div className="flex-1 space-y-1">
+                    <Label className="text-[10px] font-semibold text-slate-400">نام مزایا (مثال: رفاهیات، مناسبتی)</Label>
+                    <Input
+                      value={allow.label}
+                      onChange={e => handleUpdateCustomAllowance(idx, "label", e.target.value)}
+                      className="h-7 text-xs"
+                      placeholder="عنوان..."
+                    />
+                  </div>
+                  <div className="w-36 space-y-1">
+                    <Label className="text-[10px] font-semibold text-slate-400">مبلغ پیش‌فرض (ریال)</Label>
+                    <Input
+                      type="number"
+                      value={allow.defaultValue}
+                      onChange={e => handleUpdateCustomAllowance(idx, "defaultValue", Number(e.target.value))}
+                      className="h-7 text-xs font-mono text-left"
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => handleRemoveCustomAllowance(idx)}
+                    className="h-7 w-7 p-0 text-rose-500 hover:bg-rose-50 self-end"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
 

@@ -17,7 +17,6 @@ const LOAN_TYPES = [
   { value: "housing", label: "وام مسکن" },
   { value: "car", label: "وام خودرو" },
   { value: "marriage", label: "وام ازدواج" },
-  { value: "advance", label: "مساعده حقوق" },
   { value: "other", label: "سایر وام‌ها" }
 ];
 
