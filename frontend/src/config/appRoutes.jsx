@@ -50,6 +50,7 @@ const ContractAddendumForm = lazy(() => import("@/pages/ContractAddendumForm"));
 const ContractCard = lazy(() => import("@/pages/ContractCard"));
 const ContractChanges25Form = lazy(() => import("@/pages/ContractChanges25Form"));
 const Assets = lazy(() => import("@/modules/assets/pages/Assets"));
+const AssetDashboard = lazy(() => import("@/modules/assets/pages/AssetDashboard"));
 const AssetReports = lazy(() => import("@/modules/assets/pages/AssetReports"));
 const AssetGroupForm = lazy(() => import("@/modules/assets/pages/AssetGroupForm"));
 const AssetSubGroupForm = lazy(() => import("@/modules/assets/pages/AssetSubGroupForm"));
@@ -438,7 +439,8 @@ export const PAGE_COMPONENTS = {
   "/deposits/manual-form": DepositManualForm,
   "/deposits/treasury": Deposits,
   "/deposits/search": Deposits,
-  "/assets": Assets,
+  "/assets": AssetDashboard,
+  "/assets/dashboard": AssetDashboard,
   "/assets/basic-info": Assets,
   "/assets/basic-info/asset-groups": AssetGroupForm,
   "/assets/basic-info/asset-subgroups": AssetSubGroupForm,
@@ -571,6 +573,7 @@ export const PAGE_COMPONENTS = {
 export function buildLayoutRoutes(HomePage) {
   const menuRoutes = getAllMenuRoutes();
   const routes = [{ path: "/", element: <HomePage /> }];
+  const registeredPaths = new Set(["/"]);
 
   for (const { path, label } of menuRoutes) {
     const Component = PAGE_COMPONENTS[path];
@@ -578,28 +581,19 @@ export function buildLayoutRoutes(HomePage) {
       path,
       element: Component ? <Component /> : <Placeholder label={label} />,
     });
+    registeredPaths.add(path);
   }
 
-  // Register asset report sub-routes to avoid rendering Placeholder for them
-  const assetReportSubRoutes = [
-    "/assets/reports/all",
-    "/assets/reports/by-unit",
-    "/assets/reports/by-employee",
-    "/assets/reports/labeled",
-    "/assets/reports/unlabeled",
-    "/assets/reports/depreciation-cumulative",
-    "/assets/reports/book-value",
-    "/assets/reports/lost",
-    "/assets/reports/scrapped",
-    "/assets/reports/in-repair",
-    "/assets/reports/transferred"
-  ];
-
-  for (const path of assetReportSubRoutes) {
-    routes.push({
-      path,
-      element: <AssetReports />
-    });
+  // Register all other routes defined in PAGE_COMPONENTS to ensure sub-routes are fully accessible
+  for (const path in PAGE_COMPONENTS) {
+    if (!registeredPaths.has(path)) {
+      const Component = PAGE_COMPONENTS[path];
+      routes.push({
+        path,
+        element: <Component />,
+      });
+      registeredPaths.add(path);
+    }
   }
 
   return routes;

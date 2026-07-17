@@ -230,6 +230,20 @@ export const TOP_NAV = [
     ],
   },
 
+  // ۱۱ — مدیریت اعتبارات
+  {
+    to: "/credits",
+    label: "مدیریت اعتبارات",
+    num: 11,
+    subItems: [
+      { to: "/credits", label: "داشبورد اعتبارات" },
+      { to: "/credits/agreements", label: "ثبت موافقت‌نامه" },
+      { to: "/credits/allocation-no-doc", label: "تخصیص اعتبار" },
+      { to: "/credits/requests", label: "درخواست وجه" },
+      { to: "/credits/notification/request", label: "ابلاغ و انتقال اعتبار" },
+    ]
+  },
+
   // ۷ — دستیار هوش مصنوعی
   {
     to: "/ai", label: "دستیار هوشمند مالی (AI)", num: 7, subItems: [
@@ -304,6 +318,7 @@ export const TOP_NAV = [
   // ۹ — سیستم اموال
   {
     to: "/assets", label: "سیستم اموال", num: 10, subItems: [
+      { to: "/assets/dashboard", label: "داشبورد اموال" },
       { to: "/assets/basic-info", label: "اطلاعات پایه", children: [
         { to: "/assets/basic-info/asset-groups",          label: "تعریف گروه اموال" },
         { to: "/assets/basic-info/asset-subgroups",       label: "تعریف زیرگروه اموال" },
@@ -337,20 +352,6 @@ export const TOP_NAV = [
       ]},
       { to: "/assets/reports", label: "گزارش‌ها" },
     ],
-  },
-
-  // ۱۱ — مدیریت اعتبارات
-  {
-    to: "/credits",
-    label: "مدیریت اعتبارات",
-    num: 11,
-    subItems: [
-      { to: "/credits", label: "داشبورد اعتبارات" },
-      { to: "/credits/agreements", label: "ثبت موافقت‌نامه" },
-      { to: "/credits/allocation-no-doc", label: "تخصیص اعتبار" },
-      { to: "/credits/requests", label: "درخواست وجه" },
-      { to: "/credits/notification/request", label: "ابلاغ و انتقال اعتبار" },
-    ]
   },
 ];
 
