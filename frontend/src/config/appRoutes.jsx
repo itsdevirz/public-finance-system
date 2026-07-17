@@ -545,7 +545,7 @@ export const PAGE_COMPONENTS = {
   "/payroll/attendance/leave": Payroll,
   "/payroll/attendance/mission": Payroll,
   "/payroll/calculate": Payroll,
-  "/payroll/calculate/monthly": PayrollCalculate,
+  "/payroll/calculate/monthly": Payroll,
   "/payroll/calculate/settings": Payroll,
   "/payroll/calculate/tax-table": Payroll,
   "/payroll/calculate/insurance": Payroll,

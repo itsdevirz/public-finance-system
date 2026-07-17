@@ -42,11 +42,74 @@ const ROUTE_LABELS = {
   "/payroll/reports/eid": "گزارش عیدی و سنوات",
 };
 
+import EmployeeRegisterForm from "./EmployeeRegisterForm";
+import EmployeeList from "./EmployeeList";
+import EmployeeContracts from "./EmployeeContracts";
+import EmployeeDecrees from "./EmployeeDecrees";
+import AttendanceRegister from "./AttendanceRegister";
+import AttendanceList from "./AttendanceList";
+import EmployeeLeaves from "./EmployeeLeaves";
+import EmployeeMissions from "./EmployeeMissions";
+import PayrollCalculate from "./PayrollCalculate";
+import PayrollSettings from "./PayrollSettings";
+import TaxTables from "./TaxTables";
+
 export default function Payroll() {
   const { pathname } = useLocation();
+
+  if (pathname === "/payroll/employees/new") {
+    return <EmployeeRegisterForm />;
+  }
+
+  if (pathname === "/payroll/employees/list" || pathname === "/payroll/employees") {
+    return <EmployeeList />;
+  }
+
+  if (pathname === "/payroll/employees/contracts") {
+    return <EmployeeContracts />;
+  }
+
+  if (pathname === "/payroll/employees/decrees") {
+    return <EmployeeDecrees />;
+  }
+
+  if (pathname === "/payroll/attendance/register" || pathname === "/payroll/attendance") {
+    return <AttendanceRegister />;
+  }
+
+  if (pathname === "/payroll/attendance/list") {
+    return <AttendanceList />;
+  }
+
+  if (pathname === "/payroll/attendance/leave") {
+    return <EmployeeLeaves />;
+  }
+
+  if (pathname === "/payroll/attendance/mission") {
+    return <EmployeeMissions />;
+  }
+
+  if (pathname === "/payroll/calculate" || pathname === "/payroll/calculate/monthly") {
+    return <PayrollCalculate />;
+  }
+
+  if (pathname === "/payroll/calculate/settings") {
+    return <PayrollSettings />;
+  }
+
+  if (pathname === "/payroll/calculate/tax" || pathname === "/payroll/calculate/tax-table") {
+    return <TaxTables />;
+  }
+
   const title = ROUTE_LABELS[pathname] ?? "سیستم حقوق و دستمزد";
   return (
     <PageShell>
+      <div className="mb-3 flex items-center gap-1 text-xs text-muted-foreground" dir="rtl">
+        <span className="text-blue-600 hover:underline">سیستم حقوق</span>
+        <span>/</span>
+        <span>{title}</span>
+      </div>
+
       <PageHeader title={title} description="سیستم مدیریت حقوق و دستمزد" />
       <Card className="animate-in fade-in zoom-in-95 duration-500">
         <CardContent>

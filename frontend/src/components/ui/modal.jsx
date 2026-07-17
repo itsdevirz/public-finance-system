@@ -45,7 +45,7 @@ export function Modal({ open, onClose, title, description, children, size = "md"
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
             className={cn(
-              "relative w-full rounded-2xl border bg-card shadow-elevated",
+              "relative w-full rounded-2xl border bg-card shadow-elevated max-h-[90vh] overflow-y-auto",
               sizes[size]
             )}
           >

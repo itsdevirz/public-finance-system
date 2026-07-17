@@ -1,311 +1,546 @@
-import { useState, useMemo } from "react";
-import { Calculator, Save, Printer, ChevronDown, ChevronUp, AlertCircle } from "lucide-react";
-import { PageShell, PageHeader } from "@/components/layout/PageShell";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { printTable } from "@/lib/printUtils";
+import { useState, useMemo, useCallback } from "react";
+import { useAssets } from "@/context/AssetContext";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { Separator } from "@/components/ui/separator";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Calculator, Printer, Save, RefreshCw, Search, TrendingUp, DollarSign,
+  Users, ShieldCheck, Info, CheckCircle, AlertCircle, FileText
+} from "lucide-react";
 
-// ── جدول مالیات سال ۱۴۰۳ ─────────────────────────────────────────────────
-const TAX_BRACKETS = [
-  { from: 0,           to: 5_000_000,   rate: 0   },
-  { from: 5_000_000,   to: 10_000_000,  rate: 0.10 },
-  { from: 10_000_000,  to: 20_000_000,  rate: 0.15 },
-  { from: 20_000_000,  to: 40_000_000,  rate: 0.20 },
-  { from: 40_000_000,  to: Infinity,    rate: 0.25 },
+const MONTHS = [
+  { value: "01", label: "فروردین" }, { value: "02", label: "اردیبهشت" }, { value: "03", label: "خرداد" },
+  { value: "04", label: "تیر" },     { value: "05", label: "مرداد" },     { value: "06", label: "شهریور" },
+  { value: "07", label: "مهر" },     { value: "08", label: "آبان" },      { value: "09", label: "آذر" },
+  { value: "10", label: "دی" },      { value: "11", label: "بهمن" },      { value: "12", label: "اسفند" }
 ];
 
-const INSURANCE_RATE = 0.07; // سهم کارگر
+// ========================
+// محاسبه مالیات حقوق 1405
+// ========================
+function calcTax(annualGross) {
+  // معافیت سالانه مالیاتی سال 1405
+  const EXEMPTION = 1_440_000_000; // 1 میلیارد و 440 میلیون ریال
+  const taxableAnnual = Math.max(0, annualGross - EXEMPTION);
 
-function calcTax(gross) {
   let tax = 0;
-  for (const b of TAX_BRACKETS) {
-    if (gross <= b.from) break;
-    const taxable = Math.min(gross, b.to) - b.from;
-    tax += taxable * b.rate;
+  const brackets = [
+    { limit: 500_000_000,  rate: 0.10 },
+    { limit: 1_000_000_000, rate: 0.15 },
+    { limit: 2_000_000_000, rate: 0.20 },
+    { limit: Infinity,      rate: 0.25 }
+  ];
+
+  let remaining = taxableAnnual;
+  let prev = 0;
+  for (const b of brackets) {
+    const slice = Math.min(remaining, b.limit - prev);
+    if (slice <= 0) break;
+    tax += slice * b.rate;
+    remaining -= slice;
+    prev = b.limit;
+    if (remaining <= 0) break;
   }
-  return Math.round(tax);
+
+  return Math.round(tax / 12); // مالیات ماهانه
 }
 
-function parseNum(v) {
-  if (!v && v !== 0) return 0;
-  const n = Number(String(v).replace(/[۰-۹]/g, c => c.charCodeAt(0) - 0x06F0).replace(/,/g, ""));
-  return isNaN(n) ? 0 : n;
+// ========================
+// محاسبه حق بیمه تامین اجتماعی
+// ========================
+const INS_EMPLOYEE_RATE = 0.07;   // سهم کارمند 7%
+const INS_EMPLOYER_RATE = 0.20;   // سهم کارفرما 20%
+const INS_UNEMPLOY_RATE = 0.03;   // بیمه بیکاری 3%
+
+function calcPayrollRow(emp, decree, attRec) {
+  const DAYS_IN_MONTH = 30;
+
+  // حقوق پایه ماهانه از آخرین حکم
+  const baseSalary     = Number(decree?.baseSalary     ?? 0);
+  const housingAllow   = Number(decree?.housingAllowance   ?? 30_000_000);
+  const groceryAllow   = Number(decree?.groceryAllowance   ?? 22_000_000);
+  const childAllow     = Number(decree?.childAllowance     ?? 0);
+  const seniority      = Number(decree?.seniorityPay       ?? 0);
+  const responsibility = Number(decree?.responsibilityAllowance ?? 0);
+  const expertise      = Number(decree?.expertiseAllowance ?? 0);
+  const other          = Number(decree?.otherAllowances    ?? 0);
+
+  // کارکرد از رکورد حضور/غیاب
+  const workedDays     = attRec ? Number(attRec.workedDays     ?? DAYS_IN_MONTH) : DAYS_IN_MONTH;
+  const overtimeHours  = attRec ? Number(attRec.overtimeHours  ?? 0) : 0;
+  const absenceDays    = attRec ? Number(attRec.absenceDays    ?? 0) : 0;
+  const tardinessHours = attRec ? Number(attRec.tardinessHours ?? 0) : 0;
+
+  // حقوق پایه بر اساس کارکرد واقعی
+  const dailyRate       = baseSalary / DAYS_IN_MONTH;
+  const earnedBaseSalary = Math.round(dailyRate * workedDays);
+
+  // اضافه‌کار: 1.4 × نرخ ساعتی × ساعات (نرخ ساعتی = حقوق پایه / 176)
+  const hourlyRate      = baseSalary / 176;
+  const overtimePay     = Math.round(hourlyRate * 1.4 * overtimeHours);
+
+  // کسر تأخیر: 1 × نرخ ساعتی
+  const tardinessDeduct = Math.round(hourlyRate * tardinessHours);
+
+  // کسر غیبت
+  const absenceDeduct   = Math.round(dailyRate * absenceDays);
+
+  // جمع ناخالص حقوق
+  const grossSalary = earnedBaseSalary + housingAllow + groceryAllow + childAllow
+                    + seniority + responsibility + expertise + other + overtimePay;
+
+  // مبنای بیمه (حقوق پایه + مزایای مشمول بیمه)
+  const insBase        = earnedBaseSalary + seniority + responsibility + expertise;
+  const insEmployee    = Math.round(insBase * INS_EMPLOYEE_RATE);
+  const insEmployer    = Math.round(insBase * INS_EMPLOYER_RATE);
+  const insUnemploy    = Math.round(insBase * INS_UNEMPLOY_RATE);
+  const totalInsurance = insEmployee + insEmployer + insUnemploy;
+
+  // مالیات ماهانه (بر اساس ناخالص سالانه)
+  const annualGross    = grossSalary * 12;
+  const monthlyTax     = calcTax(annualGross);
+
+  // جمع کسورات
+  const totalDeductions = insEmployee + monthlyTax + tardinessDeduct + absenceDeduct;
+
+  // خالص قابل پرداخت
+  const netSalary      = Math.max(0, grossSalary - totalDeductions);
+
+  return {
+    empId: emp._id || emp.id,
+    employeeCode: emp.code || "—",
+    employeeName: `${emp.firstName || ""} ${emp.lastName || ""}`.trim(),
+    jobTitle: emp.jobTitle || emp.role || "—",
+    // کارکرد
+    workedDays,
+    overtimeHours,
+    absenceDays,
+    tardinessHours,
+    // اقلام حقوقی
+    earnedBaseSalary,
+    housingAllow,
+    groceryAllow,
+    childAllow,
+    seniority,
+    responsibility,
+    expertise,
+    other,
+    overtimePay,
+    grossSalary,
+    // کسورات
+    insEmployee,
+    insEmployer,
+    insUnemploy,
+    monthlyTax,
+    tardinessDeduct,
+    absenceDeduct,
+    totalDeductions,
+    // خالص
+    netSalary,
+    // پشتیبانی
+    hasDecree:  !!decree,
+    hasAttRec:  !!attRec
+  };
 }
 
-function fmt(n) { return parseNum(n).toLocaleString("fa-IR"); }
-
-const SAMPLE_EMPLOYEES = [
-  { id: 1, code: "P001", name: "علی احمدی",   position: "کارشناس IT",    dept: "فناوری اطلاعات", base: 15_000_000, children: 2, married: true,  insured: true },
-  { id: 2, code: "P002", name: "مریم حسینی",  position: "حسابدار",       dept: "مالی",            base: 12_000_000, children: 1, married: true,  insured: true },
-  { id: 3, code: "P003", name: "رضا کریمی",   position: "مدیر اداری",    dept: "اداری",           base: 22_000_000, children: 0, married: false, insured: true },
-];
-
-const INIT_ATTENDANCE = { workDays: "26", overtimeH: "0", nightH: "0", holidayH: "0", missionDays: "0", absenceDays: "0", unpaidLeave: "0" };
-const INIT_BENEFITS   = { housing: "900000", food: "2200000", childAllowance: "1500000", marriage: "400000", hardship: "0", special: "0" };
-const INIT_DEDUCTIONS = { loan: "0", advance: "0", other: "0" };
-
-function Section({ title, open, onToggle, children }) {
-  return (
-    <div className="rounded-xl border overflow-hidden">
-      <button onClick={onToggle} className="flex w-full items-center justify-between bg-muted/30 px-4 py-3 hover:bg-muted/50 transition-colors">
-        <span className="text-sm font-semibold">{title}</span>
-        {open ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-      </button>
-      {open && <div className="p-4">{children}</div>}
-    </div>
-  );
-}
-
-function FRow({ label, value, highlight, sub }) {
-  return (
-    <div className={cn("flex items-center justify-between py-1.5 text-sm border-b last:border-0", highlight && "font-bold text-primary", sub && "text-muted-foreground text-xs pr-4")}>
-      <span>{label}</span>
-      <span className="font-mono">{fmt(value)} ریال</span>
-    </div>
-  );
-}
+const fmt = (n) => Number(n || 0).toLocaleString("fa-IR");
 
 export default function PayrollCalculate() {
-  const [selectedEmp,  setSelectedEmp]  = useState(SAMPLE_EMPLOYEES[0]);
-  const [attendance,   setAttendance]   = useState(INIT_ATTENDANCE);
-  const [benefits,     setBenefits]     = useState(INIT_BENEFITS);
-  const [deductions,   setDeductions]   = useState(INIT_DEDUCTIONS);
-  const [sections,     setSections]     = useState({ attendance: true, benefits: true, deductions: true, result: true });
-  const [saved,        setSaved]        = useState(false);
+  const {
+    employees, employeeDecrees, attendanceRecords,
+    payrollCalculations, addConfig, updateConfig, refreshAllConfigs
+  } = useAssets();
 
-  function setA(f) { return e => setAttendance(p => ({ ...p, [f]: e.target.value })); }
-  function setB(f) { return e => setBenefits(p => ({ ...p, [f]: e.target.value })); }
-  function setD(f) { return e => setDeductions(p => ({ ...p, [f]: e.target.value })); }
-  function toggle(k) { setSections(s => ({ ...s, [k]: !s[k] })); }
+  const [selectedYear,  setSelectedYear]  = useState("1405");
+  const [selectedMonth, setSelectedMonth] = useState("01");
+  const [search,        setSearch]        = useState("");
+  const [isSaving,      setIsSaving]      = useState(false);
+  const [isCalculated,  setIsCalculated]  = useState(false);
+  const [rows,          setRows]          = useState([]);
+  const [successMsg,    setSuccessMsg]    = useState("");
+  const [errorMsg,      setErrorMsg]      = useState("");
 
-  const calc = useMemo(() => {
-    const base        = selectedEmp.base;
-    const dailyWage   = Math.round(base / 30);
-    const hourlyWage  = Math.round(base / 220);
+  const monthLabel = MONTHS.find(m => m.value === selectedMonth)?.label || "";
 
-    const workDays    = parseNum(attendance.workDays);
-    const overtimeH   = parseNum(attendance.overtimeH);
-    const nightH      = parseNum(attendance.nightH);
-    const holidayH    = parseNum(attendance.holidayH);
-    const missionDays = parseNum(attendance.missionDays);
-    const absenceDays = parseNum(attendance.absenceDays);
+  // بررسی آیا این دوره قبلاً محاسبه و ذخیره شده
+  const savedCalcKey = `${selectedYear}-${selectedMonth}`;
+  const savedCalcs = useMemo(() => {
+    return (payrollCalculations || []).filter(
+      c => String(c.year) === String(selectedYear) && String(c.month) === String(selectedMonth)
+    );
+  }, [payrollCalculations, selectedYear, selectedMonth]);
 
-    // کارکرد
-    const earnedBase  = dailyWage * workDays;
-    // اضافه کاری: نرخ ساعت × 1.4 × ساعات
-    const overtime    = Math.round(hourlyWage * 1.4 * overtimeH);
-    // شب کاری: نرخ ساعت × 1.35
-    const nightWork   = Math.round(hourlyWage * 1.35 * nightH);
-    // تعطیل کاری: نرخ ساعت × 1.4
-    const holidayWork = Math.round(hourlyWage * 1.4 * holidayH);
-    // مأموریت: روزانه × تعداد روز
-    const mission     = dailyWage * missionDays;
-    // جریمه غیبت
-    const absencePenalty = dailyWage * absenceDays;
+  // اجرای محاسبه حقوق
+  const runCalculation = useCallback(() => {
+    if (!employees || employees.length === 0) {
+      setErrorMsg("هیچ کارمندی در سیستم ثبت نشده است.");
+      return;
+    }
+    setErrorMsg("");
+    setSuccessMsg("");
 
-    // مزایا
-    const housing     = parseNum(benefits.housing);
-    const food        = parseNum(benefits.food);
-    const childAllow  = parseNum(benefits.childAllowance) * selectedEmp.children;
-    const marriage    = selectedEmp.married ? parseNum(benefits.marriage) : 0;
-    const hardship    = parseNum(benefits.hardship);
-    const special     = parseNum(benefits.special);
-    const totalBenefits = housing + food + childAllow + marriage + hardship + special;
+    const result = employees.map(emp => {
+      const empId = emp._id || emp.id;
 
-    // ناخالص
-    const gross = earnedBase + overtime + nightWork + holidayWork + mission + totalBenefits;
+      // آخرین حکم کارگزینی معتبر
+      const decree = [...(employeeDecrees || [])]
+        .filter(d => d.employeeId === empId)
+        .sort((a, b) => (b.issueDate || "").localeCompare(a.issueDate || ""))
+        [0] || null;
 
-    // کسورات
-    const insurance   = selectedEmp.insured ? Math.round(gross * INSURANCE_RATE) : 0;
-    const tax         = calcTax(gross);
-    const loan        = parseNum(deductions.loan);
-    const advance     = parseNum(deductions.advance);
-    const otherDed    = parseNum(deductions.other);
-    const totalDeductions = insurance + tax + loan + advance + otherDed + absencePenalty;
+      // رکورد کارکرد این ماه
+      const attRec = (attendanceRecords || []).find(
+        r => String(r.year) === String(selectedYear) &&
+             String(r.month) === String(selectedMonth) &&
+             r.employeeId === empId
+      ) || null;
 
-    const net = gross - totalDeductions;
+      return calcPayrollRow(emp, decree, attRec);
+    });
 
-    return {
-      dailyWage, hourlyWage,
-      earnedBase, overtime, nightWork, holidayWork, mission,
-      housing, food, childAllow, marriage, hardship, special, totalBenefits,
-      gross, insurance, tax, loan, advance, otherDed, absencePenalty,
-      totalDeductions, net,
-    };
-  }, [selectedEmp, attendance, benefits, deductions]);
+    setRows(result);
+    setIsCalculated(true);
+  }, [employees, employeeDecrees, attendanceRecords, selectedYear, selectedMonth]);
 
-  function handleSave() { setSaved(true); setTimeout(() => setSaved(false), 2000); }
+  // ذخیره نتایج محاسبه در پایگاه‌داده
+  async function handleSaveAll() {
+    if (rows.length === 0) return;
+    try {
+      setIsSaving(true);
+      setErrorMsg("");
+      setSuccessMsg("");
 
-  const F = ({ label, field, setter }) => (
-    <div className="space-y-1">
-      <Label className="text-xs">{label}</Label>
-      <Input value={field} onChange={setter} className="h-8 text-sm" />
-    </div>
-  );
+      await Promise.all(rows.map(async row => {
+        const existing = savedCalcs.find(c => c.employeeId === row.empId);
+        const payload = {
+          year: Number(selectedYear),
+          month: selectedMonth,
+          employeeId: row.empId,
+          employeeCode: row.employeeCode,
+          employeeName: row.employeeName,
+          ...row
+        };
+        if (existing) {
+          await updateConfig("payroll_calculations", { ...payload, id: existing._id || existing.id, _id: existing._id || existing.id });
+        } else {
+          await addConfig("payroll_calculations", payload);
+        }
+      }));
+
+      await refreshAllConfigs();
+      setSuccessMsg(`محاسبه حقوق ${monthLabel} ${selectedYear} با موفقیت ذخیره شد و آماده صدور فیش حقوقی است.`);
+    } catch (err) {
+      console.error(err);
+      setErrorMsg("خطا در ذخیره‌سازی محاسبات حقوق.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  const filteredRows = useMemo(() => {
+    const q = search.toLowerCase();
+    return rows.filter(r => !q || r.employeeName.toLowerCase().includes(q) || r.employeeCode.toLowerCase().includes(q));
+  }, [rows, search]);
+
+  // آمار خلاصه
+  const totals = useMemo(() => ({
+    gross:      rows.reduce((s, r) => s + r.grossSalary, 0),
+    insEmp:     rows.reduce((s, r) => s + r.insEmployee, 0),
+    insEmpr:    rows.reduce((s, r) => s + r.insEmployer, 0),
+    insUnemp:   rows.reduce((s, r) => s + r.insUnemploy, 0),
+    tax:        rows.reduce((s, r) => s + r.monthlyTax, 0),
+    deductions: rows.reduce((s, r) => s + r.totalDeductions, 0),
+    net:        rows.reduce((s, r) => s + r.netSalary, 0),
+    noDecree:   rows.filter(r => !r.hasDecree).length,
+    noAttRec:   rows.filter(r => !r.hasAttRec).length
+  }), [rows]);
+
+  // چاپ خلاصه لیست حقوق (A4 Landscape)
+  function printSummary() {
+    const orgName = localStorage.getItem("org_name") || "سازمان";
+    const win = window.open("", "_blank", "width=1200,height=900");
+    if (!win) return;
+
+    const tableRows = filteredRows.map((r, i) => `
+      <tr class="${i % 2 === 1 ? "alt" : ""}">
+        <td class="c">${i + 1}</td>
+        <td class="c mono">${r.employeeCode}</td>
+        <td class="b">${r.employeeName}</td>
+        <td class="c">${r.workedDays}/${r.overtimeHours}ساعت</td>
+        <td class="r mono">${fmt(r.grossSalary)}</td>
+        <td class="r mono">${fmt(r.insEmployee)}</td>
+        <td class="r mono">${fmt(r.monthlyTax)}</td>
+        <td class="r mono">${fmt(r.totalDeductions)}</td>
+        <td class="r mono b">${fmt(r.netSalary)}</td>
+        <td class="c">${!r.hasDecree ? "⚠ فاقد حکم" : !r.hasAttRec ? "پیش‌فرض" : "✓"}</td>
+      </tr>
+    `).join("");
+
+    win.document.write(`<!DOCTYPE html>
+<html dir="rtl" lang="fa">
+<head>
+  <meta charset="UTF-8"/>
+  <title>لیست حقوق ${monthLabel} ${selectedYear}</title>
+  <style>
+    @page { size: A4 landscape; margin: 8mm 10mm; }
+    body { font-family: Tahoma, sans-serif; font-size: 10px; color: #111; direction: rtl; }
+    .hdr { display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #222; padding-bottom:8px; margin-bottom:10px; }
+    .hdr h1 { font-size:13px; font-weight:900; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { border:1px solid #555; padding:4px 5px; }
+    thead th { background:#e0e0e0!important; font-weight:bold; text-align:center; }
+    .c { text-align:center; } .r { text-align:left; } .b { font-weight:bold; } .mono { font-family:Courier; }
+    .alt { background:#f8f8f8; }
+    .total-row td { background:#ddeeff!important; font-weight:bold; }
+    .footer { display:grid; grid-template-columns:1fr 1fr 1fr; text-align:center; margin-top:30px; }
+    .footer-col { border-top:1px solid #333; padding-top:5px; font-weight:bold; }
+  </style>
+</head>
+<body>
+  <div class="hdr">
+    <div>${orgName}</div>
+    <h1>لیست حقوق و دستمزد — ${monthLabel} ماه ${selectedYear}</h1>
+    <div>تاریخ چاپ: ${new Date().toLocaleDateString("fa-IR")}</div>
+  </div>
+  <table>
+    <thead><tr>
+      <th>ردیف</th><th>کد</th><th>نام پرسنل</th>
+      <th>کارکرد/اضافه‌کار</th>
+      <th>ناخالص حقوق</th><th>بیمه(سهم کارمند)</th><th>مالیات</th>
+      <th>جمع کسورات</th><th>خالص قابل پرداخت</th><th>توضیح</th>
+    </tr></thead>
+    <tbody>
+      ${tableRows}
+      <tr class="total-row">
+        <td colspan="4" class="c b">جمع کل (${filteredRows.length} نفر)</td>
+        <td class="r mono b">${fmt(totals.gross)}</td>
+        <td class="r mono b">${fmt(totals.insEmp)}</td>
+        <td class="r mono b">${fmt(totals.tax)}</td>
+        <td class="r mono b">${fmt(totals.deductions)}</td>
+        <td class="r mono b">${fmt(totals.net)}</td>
+        <td></td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="footer">
+    <div class="footer-col">محاسبه‌کننده: امور مالی</div>
+    <div class="footer-col">تأییدکننده: رئیس حسابداری</div>
+    <div class="footer-col">تأیید نهایی: مدیر منابع انسانی</div>
+  </div>
+  <script>window.onload=function(){setTimeout(function(){window.print();window.close();},300);}</script>
+</body></html>`);
+    win.document.close();
+  }
 
   return (
-    <PageShell>
-      <PageHeader title="محاسبه حقوق ماهانه" description="محاسبه خودکار حقوق بر اساس کارکرد و مزایا">
-        {saved && <span className="text-sm font-medium text-emerald-600 animate-in fade-in duration-200">✓ ذخیره شد</span>}
-      </PageHeader>
+    <div className="space-y-4 text-right" dir="rtl">
 
-      {/* انتخاب کارمند */}
-      <Card className="mb-4">
-        <CardContent className="pt-4">
-          <div className="flex flex-wrap gap-2">
-            {SAMPLE_EMPLOYEES.map((emp) => (
-              <button key={emp.id} onClick={() => setSelectedEmp(emp)}
-                className={cn("rounded-xl border px-4 py-2 text-sm transition-all duration-200",
-                  selectedEmp.id === emp.id ? "bg-primary text-primary-foreground border-primary" : "hover:bg-accent")}>
-                <span className="font-medium">{emp.name}</span>
-                <span className="mr-2 text-xs opacity-70">{emp.position}</span>
-              </button>
-            ))}
-          </div>
-          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4 text-sm">
-            {[
-              { label: "کد پرسنلی",    value: selectedEmp.code },
-              { label: "واحد",          value: selectedEmp.dept },
-              { label: "حقوق پایه",    value: fmt(selectedEmp.base) + " ریال" },
-              { label: "تعداد فرزند",  value: selectedEmp.children },
-            ].map((i) => (
-              <div key={i.label} className="rounded-lg bg-muted/30 px-3 py-2">
-                <p className="text-xs text-muted-foreground">{i.label}</p>
-                <p className="font-medium font-mono">{i.value}</p>
+      {/* هدر */}
+      <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
+        <div>
+          <h2 className="text-md font-extrabold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+            <Calculator className="h-5 w-5 text-indigo-600" />
+            محاسبه حقوق و دستمزد ماهانه پرسنل
+          </h2>
+          <p className="text-[11px] text-muted-foreground mt-1">
+            محاسبه خودکار ناخالص، بیمه تأمین اجتماعی، مالیات حقوق و خالص قابل پرداخت بر اساس احکام و کارکرد ثبت‌شده.
+          </p>
+        </div>
+      </div>
+
+      {/* پیام‌ها */}
+      {errorMsg && (
+        <div className="bg-rose-50 border border-rose-100 text-rose-700 text-xs p-3 rounded-xl flex items-center gap-2">
+          <AlertCircle className="h-4 w-4 shrink-0" /><span>{errorMsg}</span>
+        </div>
+      )}
+      {successMsg && (
+        <div className="bg-emerald-50 border border-emerald-100 text-emerald-700 text-xs p-3 rounded-xl flex items-center gap-2">
+          <CheckCircle className="h-4 w-4 shrink-0" /><span>{successMsg}</span>
+        </div>
+      )}
+
+      {/* انتخاب دوره */}
+      <Card className="border-slate-100 shadow-sm">
+        <CardContent className="pt-4 pb-3">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <div>
+              <Label className="text-xs font-semibold">سال مالی</Label>
+              <select value={selectedYear} onChange={e => { setSelectedYear(e.target.value); setIsCalculated(false); setRows([]); }}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-xs shadow-sm mt-1.5">
+                <option value="1405">۱۴۰۵</option>
+                <option value="1404">۱۴۰۴</option>
+                <option value="1403">۱۴۰۳</option>
+              </select>
+            </div>
+            <div>
+              <Label className="text-xs font-semibold">ماه</Label>
+              <select value={selectedMonth} onChange={e => { setSelectedMonth(e.target.value); setIsCalculated(false); setRows([]); }}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-xs shadow-sm mt-1.5">
+                {MONTHS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+              </select>
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={runCalculation}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-9 text-xs gap-1.5 shadow flex-1">
+                <Calculator className="h-4 w-4" /> اجرای محاسبه حقوق
+              </Button>
+            </div>
+            {isCalculated && (
+              <div className="flex gap-2">
+                <Button onClick={handleSaveAll} disabled={isSaving}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-9 text-xs gap-1.5 shadow flex-1">
+                  <Save className="h-4 w-4" /> {isSaving ? "در حال ذخیره..." : "ذخیره محاسبات"}
+                </Button>
+                <Button variant="outline" size="sm" onClick={printSummary} className="h-9 text-xs gap-1.5">
+                  <Printer className="h-4 w-4" /> چاپ لیست
+                </Button>
               </div>
-            ))}
+            )}
           </div>
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="space-y-3">
-          {/* کارکرد */}
-          <Section title="کارکرد ماه" open={sections.attendance} onToggle={() => toggle("attendance")}>
-            <div className="form-grid">
-              <F label="روز کارکرد"         field={attendance.workDays}    setter={setA("workDays")} />
-              <F label="اضافه‌کاری (ساعت)"  field={attendance.overtimeH}   setter={setA("overtimeH")} />
-              <F label="شب‌کاری (ساعت)"     field={attendance.nightH}      setter={setA("nightH")} />
-              <F label="تعطیل‌کاری (ساعت)"  field={attendance.holidayH}    setter={setA("holidayH")} />
-              <F label="مأموریت (روز)"      field={attendance.missionDays} setter={setA("missionDays")} />
-              <F label="غیبت (روز)"         field={attendance.absenceDays} setter={setA("absenceDays")} />
-            </div>
-            <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-              <div className="rounded-lg bg-muted/40 p-2">
-                <p className="text-muted-foreground">مزد روزانه</p>
-                <p className="font-mono font-semibold">{fmt(calc.dailyWage)} ریال</p>
-              </div>
-              <div className="rounded-lg bg-muted/40 p-2">
-                <p className="text-muted-foreground">نرخ ساعتی</p>
-                <p className="font-mono font-semibold">{fmt(calc.hourlyWage)} ریال</p>
-              </div>
-            </div>
-          </Section>
-
-          {/* مزایا */}
-          <Section title="مزایا" open={sections.benefits} onToggle={() => toggle("benefits")}>
-            <div className="form-grid">
-              <F label="حق مسکن"         field={benefits.housing}        setter={setB("housing")} />
-              <F label="بن کارگری"       field={benefits.food}           setter={setB("food")} />
-              <F label="حق اولاد (هر فرزند)" field={benefits.childAllowance} setter={setB("childAllowance")} />
-              <F label="حق تأهل"         field={benefits.marriage}       setter={setB("marriage")} />
-              <F label="سختی کار"        field={benefits.hardship}       setter={setB("hardship")} />
-              <F label="فوق‌العاده ویژه" field={benefits.special}        setter={setB("special")} />
-            </div>
-            {selectedEmp.children > 0 && (
-              <p className="mt-2 text-xs text-blue-600 bg-blue-50 rounded-lg px-3 py-1.5">
-                حق اولاد × {selectedEmp.children} فرزند = {fmt(calc.childAllow)} ریال
-              </p>
-            )}
-          </Section>
-
-          {/* کسورات */}
-          <Section title="کسورات اضافی" open={sections.deductions} onToggle={() => toggle("deductions")}>
-            <div className="form-grid">
-              <F label="اقساط وام"  field={deductions.loan}    setter={setD("loan")} />
-              <F label="مساعده"     field={deductions.advance} setter={setD("advance")} />
-              <F label="سایر"       field={deductions.other}   setter={setD("other")} />
-            </div>
-          </Section>
+      {/* هشدار دوره قبلاً ذخیره شده */}
+      {savedCalcs.length > 0 && !isCalculated && (
+        <div className="bg-blue-50 border border-blue-100 text-blue-700 text-xs p-3 rounded-xl flex items-center gap-2">
+          <Info className="h-4 w-4 shrink-0" />
+          <span>محاسبه حقوق <strong>{monthLabel} {selectedYear}</strong> قبلاً برای <strong>{savedCalcs.length}</strong> نفر ذخیره شده است. برای مشاهده مجدد دکمه «اجرای محاسبه» را بزنید.</span>
         </div>
+      )}
 
-        {/* فیش حقوقی */}
-        <div>
-          <Card className="sticky top-4" id="payroll-print-area">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Calculator className="h-4 w-4 text-primary" />
-                  فیش حقوقی — {selectedEmp.name}
-                </CardTitle>
-                <Badge variant="secondary" className="text-xs">
-                  {new Date().toLocaleDateString("fa-IR", { year: "numeric", month: "long" })}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {/* مزایا */}
-              <p className="mb-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">مزایا</p>
-              <div className="mb-3 rounded-xl bg-muted/20 p-3">
-                <FRow label="حقوق پایه (کارکرد)"      value={calc.earnedBase}    />
-                <FRow label="حق مسکن"                  value={calc.housing}       sub />
-                <FRow label="بن کارگری"                value={calc.food}          sub />
-                {calc.childAllow > 0 && <FRow label={`حق اولاد (${selectedEmp.children} فرزند)`} value={calc.childAllow} sub />}
-                {calc.marriage   > 0 && <FRow label="حق تأهل"        value={calc.marriage}    sub />}
-                {calc.hardship   > 0 && <FRow label="سختی کار"       value={calc.hardship}    sub />}
-                {calc.special    > 0 && <FRow label="فوق‌العاده ویژه" value={calc.special}    sub />}
-                {calc.overtime   > 0 && <FRow label="اضافه‌کاری"     value={calc.overtime}    sub />}
-                {calc.nightWork  > 0 && <FRow label="شب‌کاری"        value={calc.nightWork}   sub />}
-                {calc.holidayWork> 0 && <FRow label="تعطیل‌کاری"     value={calc.holidayWork} sub />}
-                {calc.mission    > 0 && <FRow label="مأموریت"        value={calc.mission}     sub />}
-              </div>
-
-              <div className="mb-3 flex items-center justify-between rounded-xl bg-primary/10 px-4 py-2.5">
-                <span className="font-semibold text-sm">جمع ناخالص</span>
-                <span className="font-mono font-bold text-primary">{fmt(calc.gross)} ریال</span>
-              </div>
-
-              {/* کسورات */}
-              <p className="mb-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">کسورات</p>
-              <div className="mb-3 rounded-xl bg-muted/20 p-3">
-                {selectedEmp.insured && <FRow label={`بیمه (${(INSURANCE_RATE * 100).toFixed(0)}٪)`} value={calc.insurance} />}
-                <FRow label="مالیات"           value={calc.tax}           />
-                {calc.loan         > 0 && <FRow label="اقساط وام"   value={calc.loan}        sub />}
-                {calc.advance      > 0 && <FRow label="مساعده"       value={calc.advance}     sub />}
-                {calc.absencePenalty>0 && <FRow label="جریمه غیبت"  value={calc.absencePenalty} sub />}
-                {calc.otherDed     > 0 && <FRow label="سایر"         value={calc.otherDed}    sub />}
-              </div>
-
-              <div className="mb-4 flex items-center justify-between rounded-xl bg-rose-50 px-4 py-2.5">
-                <span className="font-semibold text-sm">جمع کسورات</span>
-                <span className="font-mono font-bold text-destructive">{fmt(calc.totalDeductions)} ریال</span>
-              </div>
-
-              <Separator className="mb-4" />
-
-              <div className="flex items-center justify-between rounded-2xl bg-emerald-600 px-5 py-3.5">
-                <span className="font-bold text-white">خالص پرداختی</span>
-                <span className="font-mono text-xl font-bold text-white">{fmt(calc.net)} ریال</span>
-              </div>
-
-              <div className="mt-4 flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1"
-                  onClick={() => printTable("#payroll-print-area", `فیش حقوقی — ${selectedEmp.name}`)}>
-                  <Printer className="h-4 w-4" /> چاپ فیش
-                </Button>
-                <Button size="sm" className="flex-1" onClick={handleSave}>
-                  <Save className="h-4 w-4" /> ذخیره
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+      {/* کارت‌های آمار */}
+      {isCalculated && rows.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[
+            { label: "ناخالص کل حقوق",           value: fmt(totals.gross) + " ر",     icon: DollarSign,  color: "text-indigo-600",  bg: "bg-indigo-50 dark:bg-indigo-950/40" },
+            { label: "جمع بیمه (کارمند)",         value: fmt(totals.insEmp) + " ر",    icon: ShieldCheck, color: "text-blue-600",    bg: "bg-blue-50 dark:bg-blue-950/40" },
+            { label: "جمع مالیات",                value: fmt(totals.tax) + " ر",       icon: FileText,    color: "text-rose-600",    bg: "bg-rose-50 dark:bg-rose-950/40" },
+            { label: "خالص قابل پرداخت",          value: fmt(totals.net) + " ر",       icon: TrendingUp,  color: "text-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-950/40" },
+          ].map((s, i) => (
+            <Card key={i} className={`border-0 shadow-sm ${s.bg}`}>
+              <CardContent className="pt-4 pb-3 text-center">
+                <s.icon className={`h-5 w-5 mx-auto mb-1 ${s.color}`} />
+                <div className={`text-sm font-black ${s.color} font-mono`}>{s.value}</div>
+                <div className="text-[10px] text-muted-foreground mt-0.5">{s.label}</div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
-      </div>
-    </PageShell>
+      )}
+
+      {/* هشدارهای کیفیت داده */}
+      {isCalculated && (totals.noDecree > 0 || totals.noAttRec > 0) && (
+        <div className="bg-amber-50 border border-amber-100 text-amber-700 text-xs p-3 rounded-xl flex items-start gap-2">
+          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+          <div className="space-y-0.5">
+            {totals.noDecree > 0 && <p>⚠ <strong>{totals.noDecree}</strong> نفر فاقد حکم کارگزینی معتبر هستند. حقوق آنها بر اساس صفر محاسبه شده.</p>}
+            {totals.noAttRec > 0 && <p>⚠ <strong>{totals.noAttRec}</strong> نفر رکورد کارکرد این ماه ندارند. کارکرد کامل (۳۰ روز) پیش‌فرض گرفته شده.</p>}
+          </div>
+        </div>
+      )}
+
+      {/* جدول محاسبه */}
+      {isCalculated && (
+        <Card className="border-slate-100 shadow-sm">
+          <CardHeader className="text-right border-b pb-3 flex flex-row justify-between items-center space-y-0">
+            <div>
+              <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <Calculator className="h-4 w-4 text-indigo-600" />
+                جزئیات محاسبه حقوق — {monthLabel} {selectedYear} ({rows.length} نفر)
+              </CardTitle>
+              <CardDescription className="text-xs mt-1">واحد: ریال. بیمه کارفرما برای اطلاع نمایش داده می‌شود و از حقوق کسر نمی‌گردد.</CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <Search className="h-4 w-4 text-slate-400" />
+              <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="جستجو پرسنل..." className="h-8 text-xs w-44" />
+            </div>
+          </CardHeader>
+          <CardContent className="pt-3 overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/40 text-[10px]">
+                  <TableHead className="text-right text-white">کد / نام</TableHead>
+                  <TableHead className="text-center text-white">کارکرد<br/><span className="font-normal text-[9px]">(روز / اضافه‌کار)</span></TableHead>
+                  <TableHead className="text-left font-mono text-white">حقوق پایه<br/><span className="font-normal text-[9px]">بر اساس کارکرد</span></TableHead>
+                  <TableHead className="text-left font-mono text-white">مسکن + خوار</TableHead>
+                  <TableHead className="text-left font-mono text-white">اضافه‌کار</TableHead>
+                  <TableHead className="text-left font-mono font-bold text-white">ناخالص</TableHead>
+                  <Separator orientation="vertical" />
+                  <TableHead className="text-left font-mono text-white">بیمه کارمند</TableHead>
+                  <TableHead className="text-left font-mono text-white">بیمه کارفرما<br/><span className="font-normal text-[9px]">(برای اطلاع)</span></TableHead>
+                  <TableHead className="text-left font-mono text-white">مالیات</TableHead>
+                  <TableHead className="text-left font-mono text-white">کسر کارکرد</TableHead>
+                  <TableHead className="text-left font-mono font-bold text-white">خالص پرداخت</TableHead>
+                  <TableHead className="text-center text-white">وضعیت</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredRows.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={13} className="py-8 text-center text-xs text-muted-foreground">
+                      نتیجه‌ای یافت نشد.
+                    </TableCell>
+                  </TableRow>
+                ) : filteredRows.map(r => (
+                  <TableRow key={r.empId} className={`text-[11px] ${!r.hasDecree ? "bg-amber-50/40 dark:bg-amber-950/10" : ""}`}>
+                    <TableCell>
+                      <div className="font-bold text-slate-900 dark:text-white">{r.employeeName}</div>
+                      <div className="text-[10px] text-slate-400 font-mono">{r.employeeCode} · {r.jobTitle}</div>
+                    </TableCell>
+                    <TableCell className="text-center font-mono">
+                      <div className="font-bold">{r.workedDays} روز</div>
+                      {r.overtimeHours > 0 && <div className="text-[10px] text-amber-600">+{r.overtimeHours}ساعت</div>}
+                    </TableCell>
+                    <TableCell className="text-left font-mono text-slate-700">{fmt(r.earnedBaseSalary)}</TableCell>
+                    <TableCell className="text-left font-mono text-slate-500">{fmt(r.housingAllow + r.groceryAllow)}</TableCell>
+                    <TableCell className="text-left font-mono text-amber-600">{r.overtimePay > 0 ? fmt(r.overtimePay) : "—"}</TableCell>
+                    <TableCell className="text-left font-mono font-bold text-indigo-700">{fmt(r.grossSalary)}</TableCell>
+                    <TableCell className="text-left font-mono text-blue-600">{fmt(r.insEmployee)}</TableCell>
+                    <TableCell className="text-left font-mono text-orange-500 text-[10px]">{fmt(r.insEmployer)}</TableCell>
+                    <TableCell className="text-left font-mono text-rose-600">{fmt(r.monthlyTax)}</TableCell>
+                    <TableCell className="text-left font-mono text-slate-500">
+                      {(r.tardinessDeduct + r.absenceDeduct) > 0 ? fmt(r.tardinessDeduct + r.absenceDeduct) : "—"}
+                    </TableCell>
+                    <TableCell className="text-left font-mono font-bold text-emerald-700 text-sm">{fmt(r.netSalary)}</TableCell>
+                    <TableCell className="text-center">
+                      {!r.hasDecree
+                        ? <Badge className="bg-amber-100 text-amber-700 text-[9px]">فاقد حکم</Badge>
+                        : !r.hasAttRec
+                        ? <Badge className="bg-slate-100 text-slate-500 text-[9px]">کارکرد پیش‌فرض</Badge>
+                        : <Badge className="bg-emerald-100 text-emerald-700 text-[9px]">تکمیل</Badge>}
+                    </TableCell>
+                  </TableRow>
+                ))}
+
+                {/* ردیف جمع کل */}
+                <TableRow className="bg-slate-100 dark:bg-slate-800 font-bold text-xs border-t-2">
+                  <TableCell colSpan={5} className="text-right">جمع کل ({filteredRows.length} نفر)</TableCell>
+                  <TableCell className="text-left font-mono text-indigo-800">{fmt(totals.gross)}</TableCell>
+                  <TableCell className="text-left font-mono text-blue-700">{fmt(totals.insEmp)}</TableCell>
+                  <TableCell className="text-left font-mono text-orange-600">{fmt(totals.insEmpr)}</TableCell>
+                  <TableCell className="text-left font-mono text-rose-700">{fmt(totals.tax)}</TableCell>
+                  <TableCell className="text-left font-mono text-slate-600">{fmt(totals.deductions - totals.insEmp - totals.tax)}</TableCell>
+                  <TableCell className="text-left font-mono text-emerald-800 text-sm">{fmt(totals.net)}</TableCell>
+                  <TableCell></TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+
+            {/* خلاصه بیمه کارفرما برای اطلاع */}
+            <div className="mt-4 bg-orange-50 dark:bg-orange-950/20 border border-orange-100 dark:border-orange-900 rounded-lg p-3 text-xs text-orange-800 dark:text-orange-200 flex flex-wrap gap-4">
+              <span className="font-bold">🏦 بار مالی کارفرما (برای اطلاع):</span>
+              <span>بیمه سهم کارفرما: <strong>{fmt(totals.insEmpr)}</strong> ریال</span>
+              <span>بیمه بیکاری: <strong>{fmt(totals.insUnemp)}</strong> ریال</span>
+              <span>جمع بار کارفرما: <strong>{fmt(totals.insEmpr + totals.insUnemp)}</strong> ریال</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
   );
 }
