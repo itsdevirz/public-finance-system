@@ -45,7 +45,7 @@ export default function SanamaExport() {
 
       <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4" dir="rtl">
         <div className="text-right">
-          <h1 className="text-xl font-bold text-slate-800">تهیه فایل خروجی سناما (سازمان امور مالیاتی)</h1>
+          <h1 className="text-xl font-bold text-slate-800">تهیه فایل خروجی سناما (وزارت امور اقتصادی و دارایی)</h1>
           <p className="text-xs text-muted-foreground mt-0.5">تبدیل اطلاعات مالی و ثبت اسناد به ساختار استاندارد گزارشات سناما</p>
         </div>
       </div>

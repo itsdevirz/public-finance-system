@@ -164,9 +164,6 @@ router.get("/sanama-xml", async (c) => {
           } else {
             val = defaultValues[attr] || "0";
           }
-          if (val === "0" || val === "۰") {
-            val = "";
-          }
           resolvedFields[attr] = val;
         }
 
@@ -189,7 +186,7 @@ router.get("/sanama-xml", async (c) => {
 
     // Generate XML output
     let xml = `<?xml version="1.0" encoding="utf-8"?>`;
-    xml += `<SanamaInfo ProtocolName="SANAMA" ProtocolVer="3.1" ProtocolType="MonthlyProtocol" MainOrgID="" MainOrgCode=" 400367" Year="1404" Month="15" Co="شرکت مهندسی تحلیلگران اطلاعات پویا، TahlilgaranCo.ir، Tel:021-44204750، تاریخ ایجاد فایل:1405/02/30, کاربر ایجاد کننده فایل:Admin">`;
+    xml += `<SanamaInfo ProtocolName="SANAMA" ProtocolVer="3.1" ProtocolType="MonthlyProtocol" MainOrgID="" MainOrgCode=" 400367" Year="1404" Month="15" Co="نگاران سیستم، تاریخ ایجاد فایل:1405/02/30، کاربر ایجاد کننده فایل:Admin">`;
 
     // 1. Render Report List
     for (const group of Object.values(reportGroups)) {
