@@ -796,63 +796,65 @@ export default function PayrollReports() {
       </div>
 
       {/* فیلترها */}
-      <Card className="border-slate-100 shadow-sm">
-        <CardContent className="pt-4 pb-3">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-            <div>
-              <Label className="text-xs font-semibold">سال مالی</Label>
-              <select
-                value={selectedYear}
-                onChange={e => setSelectedYear(e.target.value)}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-xs shadow-sm mt-1.5"
-              >
-                <option value="1405">۱۴۰۵</option>
-                <option value="1404">۱۴۰۴</option>
-                <option value="1403">۱۴۰۳</option>
-              </select>
-            </div>
-            
-            {/* ماه فقط برای گزارش‌های غیر سالانه نمایش داده می‌شود */}
-            {activeReport !== "annual" && activeReport !== "eid" && (
+      {activeReport !== "cumulative" && (
+        <Card className="border-slate-100 shadow-sm">
+          <CardContent className="pt-4 pb-3">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
               <div>
-                <Label className="text-xs font-semibold">ماه گزارش</Label>
+                <Label className="text-xs font-semibold">سال مالی</Label>
                 <select
-                  value={selectedMonth}
-                  onChange={e => setSelectedMonth(e.target.value)}
+                  value={selectedYear}
+                  onChange={e => setSelectedYear(e.target.value)}
                   className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-xs shadow-sm mt-1.5"
                 >
-                  {MONTHS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                  <option value="1405">۱۴۰۵</option>
+                  <option value="1404">۱۴۰۴</option>
+                  <option value="1403">۱۴۰۳</option>
                 </select>
               </div>
-            )}
+              
+              {/* ماه فقط برای گزارش‌های غیر سالانه نمایش داده می‌شود */}
+              {activeReport !== "annual" && activeReport !== "eid" && (
+                <div>
+                  <Label className="text-xs font-semibold">ماه گزارش</Label>
+                  <select
+                    value={selectedMonth}
+                    onChange={e => setSelectedMonth(e.target.value)}
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-xs shadow-sm mt-1.5"
+                  >
+                    {MONTHS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                  </select>
+                </div>
+              )}
 
-            <div className={`${activeReport === "annual" || activeReport === "eid" ? "md:col-span-2" : "md:col-span-1"}`}>
-              <Label className="text-xs font-semibold">جستجو در پرسنل</Label>
-              <div className="relative mt-1.5">
-                <Search className="absolute right-2.5 top-2.5 h-4 w-4 text-slate-400" />
-                <Input
-                  type="text"
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  placeholder="کد پرسنلی یا نام کارمند..."
-                  className="h-9 pr-9 text-xs"
-                />
+              <div className={`${activeReport === "annual" || activeReport === "eid" ? "md:col-span-2" : "md:col-span-1"}`}>
+                <Label className="text-xs font-semibold">جستجو در پرسنل</Label>
+                <div className="relative mt-1.5">
+                  <Search className="absolute right-2.5 top-2.5 h-4 w-4 text-slate-400" />
+                  <Input
+                    type="text"
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    placeholder="کد پرسنلی یا نام کارمند..."
+                    className="h-9 pr-9 text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <Button onClick={handleExcelExport}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-9 text-xs gap-1.5 shadow w-full">
+                  <FileDown className="h-4 w-4" /> خروجی اکسل
+                </Button>
+                <Button onClick={handlePrint}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-9 text-xs gap-1.5 shadow w-full">
+                  <Printer className="h-4 w-4" /> چاپ گزارش
+                </Button>
               </div>
             </div>
-
-            <div className="flex gap-2">
-              <Button onClick={handleExcelExport}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-9 text-xs gap-1.5 shadow w-full">
-                <FileDown className="h-4 w-4" /> خروجی اکسل
-              </Button>
-              <Button onClick={handlePrint}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-9 text-xs gap-1.5 shadow w-full">
-                <Printer className="h-4 w-4" /> چاپ گزارش
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* جدول نمایش گزارش */}
       <Card className="border-slate-100 shadow-sm overflow-hidden">

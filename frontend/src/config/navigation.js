@@ -84,87 +84,40 @@ export const TOP_NAV = [
   // ۳ — گزارشات
   {
     to: "/reports", label: "گزارشات", num: 3, subItems: [
-      // ۱. مرور حساب — دست نخورده
+      // ۱. مرور حساب
       {
         to: "/bookkeeping/ledger-reports/account-review",
         label: "مرور حساب",
-        children: [
-          { to: "/bookkeeping/ledger-reports/account-review",        label: "حساب معین" },
-          { to: "/bookkeeping/ledger-reports/account-review-main",   label: "حساب کل" },
-          { to: "/bookkeeping/ledger-reports/account-review-group",  label: "گروه حساب" },
-          { to: "/bookkeeping/ledger-reports/account-review-person", label: "اشخاص" },
-        ],
       },
       // ۲. گزارش‌های اسناد حسابداری
       {
         to: "/reports/documents",
         label: "گزارش‌های اسناد حسابداری",
-        children: [
-          { to: "/reports/documents/list",        label: "فهرست اسناد حسابداری" },
-          { to: "/reports/documents/journal",     label: "دفتر روزنامه" },
-          { to: "/reports/documents/general-ledger", label: "دفتر کل" },
-          { to: "/reports/documents/moein-ledger",   label: "دفتر معین" },
-          { to: "/reports/documents/turnover",    label: "گردش اسناد" },
-          { to: "/reports/documents/status",      label: "وضعیت اسناد (موقت، تأییدشده، قطعی)" },
-        ],
       },
       // ۳. گزارش‌های حساب‌ها
       {
         to: "/reports/accounts",
         label: "گزارش‌های حساب‌ها",
-        children: [
-          { to: "/reports/accounts/trial-balance",     label: "تراز آزمایشی" },
-          { to: "/reports/accounts/turnover",          label: "گردش حساب‌ها" },
-          { to: "/reports/accounts/balance",           label: "مانده حساب‌ها" },
-          { to: "/reports/accounts/detail-turnover",   label: "ریز گردش حساب" },
-          { to: "/reports/accounts/no-turnover",       label: "گزارش حساب‌های فاقد گردش" },
-        ],
       },
       // ۴. گزارش‌های بودجه
       {
         to: "/reports/budget",
         label: "گزارش‌های بودجه",
-        children: [
-          { to: "/reports/budget/performance",     label: "عملکرد بودجه" },
-          { to: "/reports/budget/comparison",      label: "مقایسه بودجه مصوب با عملکرد" },
-          { to: "/reports/budget/remaining",       label: "مانده اعتبارات" },
-          { to: "/reports/budget/allocation",      label: "گزارش تخصیص و مصرف اعتبارات" },
-        ],
       },
       // ۵. گزارش‌های دریافت و پرداخت
       {
         to: "/reports/payments",
         label: "گزارش‌های دریافت و پرداخت",
-        children: [
-          { to: "/reports/payments/receipts",         label: "گزارش دریافت‌ها" },
-          { to: "/reports/payments/payments",         label: "گزارش پرداخت‌ها" },
-          { to: "/reports/payments/cash-turnover",    label: "گردش صندوق" },
-          { to: "/reports/payments/bank-turnover",    label: "گردش بانک" },
-          { to: "/reports/payments/bank-reconcile",   label: "مغایرت بانکی" },
-          { to: "/reports/payments/checks",           label: "وضعیت چک‌ها" },
-        ],
       },
       // ۶. گزارش‌های مالی
       {
         to: "/reports/financial",
         label: "گزارش‌های مالی",
-        children: [
-          { to: "/reports/financial/balance-sheet",     label: "ترازنامه" },
-          { to: "/reports/financial/income-statement",  label: "صورت عملکرد مالی" },
-          { to: "/reports/financial/revenue-expense",   label: "صورت درآمد و هزینه" },
-          { to: "/reports/financial/cash-flow",         label: "صورت جریان وجوه نقد" },
-        ],
       },
       // ۷. گزارش‌های مدیریتی
       {
         to: "/reports/management",
         label: "گزارش‌های مدیریتی",
-        children: [
-          { to: "/reports/management/dashboard",        label: "داشبورد مدیریتی" },
-          { to: "/reports/management/analytical",       label: "گزارش‌های تحلیلی" },
-          { to: "/reports/management/period-compare",   label: "مقایسه دوره‌های مالی" },
-          { to: "/reports/management/cost-analysis",    label: "تحلیل درآمد، هزینه و اعتبارات" },
-        ],
       },
       // ۸. گزارش قراردادها
       {
@@ -230,11 +183,11 @@ export const TOP_NAV = [
     ],
   },
 
-  // ۱۱ — مدیریت اعتبارات
+  // ۷ — مدیریت اعتبارات
   {
     to: "/credits",
     label: "مدیریت اعتبارات",
-    num: 11,
+    num: 7,
     subItems: [
       { to: "/credits", label: "داشبورد اعتبارات" },
       { to: "/credits/agreements", label: "ثبت موافقت‌نامه" },
@@ -244,16 +197,16 @@ export const TOP_NAV = [
     ]
   },
 
-  // ۷ — دستیار هوش مصنوعی
+  // ۸ — دستیار هوش مصنوعی
   {
-    to: "/ai", label: "دستیار هوشمند مالی (AI)", num: 7, subItems: [
+    to: "/ai", label: "دستیار هوشمند مالی (AI)", num: 8, subItems: [
       { to: "/ai/chat", label: "گفتگو با دستیار" },
     ],
   },
 
-  // ۷ — سیستم حقوق و دستمزد
+  // ۹ — سیستم حقوق و دستمزد
   {
-    to: "/payroll", label: "سیستم حقوق و دستمزد", num: 8, subItems: [
+    to: "/payroll", label: "سیستم حقوق و دستمزد", num: 9, subItems: [
       { to: "/payroll/dashboard", label: "داشبورد حقوق" },
       { to: "/payroll/employees", label: "اطلاعات کارکنان", children: [
         { to: "/payroll/employees/list",      label: "لیست کارکنان" },
@@ -283,9 +236,9 @@ export const TOP_NAV = [
     ],
   },
 
-  // ۸ — سیستم انبار
+  // ۱۰ — سیستم انبار
   {
-    to: "/warehouse", label: "سیستم انبار", num: 9, subItems: [
+    to: "/warehouse", label: "سیستم انبار", num: 10, subItems: [
       { to: "/warehouse/dashboard", label: "داشبورد انبار" },
       { to: "/warehouse/items", label: "مدیریت کالاها" },
       { to: "/warehouse/stores", label: "مدیریت انبارها" },
@@ -300,9 +253,9 @@ export const TOP_NAV = [
     ],
   },
 
-  // ۹ — سیستم اموال
+  // ۱۱ — سیستم اموال
   {
-    to: "/assets", label: "سیستم اموال", num: 10, subItems: [
+    to: "/assets", label: "سیستم اموال", num: 11, subItems: [
       { to: "/assets/dashboard", label: "داشبورد اموال" },
       { to: "/assets/basic-info", label: "اطلاعات پایه", children: [
         { to: "/assets/basic-info/asset-groups",          label: "تعریف گروه اموال" },

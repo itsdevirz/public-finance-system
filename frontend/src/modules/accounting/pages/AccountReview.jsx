@@ -21,7 +21,6 @@ const SIDEBAR_SECTIONS = [
       { id: "main",   label: "حساب کل (۳ رقم)",    mode: "grouped", xmlCode: "main"   },
       { id: "group",  label: "گروه حساب (۱ رقم)",  mode: "grouped", xmlCode: "group"  },
       { id: "person", label: "اشخاص",               mode: "persons", xmlCode: "person" },
-      { id: "detail", label: "حساب تفصیلی",         mode: "lines",   xmlCode: "detail" },
     ],
   },
   {
@@ -156,8 +155,8 @@ function NatureBadge({ nature }) {
 
 // ─── SidebarSection ───────────────────────────────────────────────────────────
 function SidebarSection({ section, activeId, onSelect }) {
-  const [open, setOpen] = useState(true);
   const hasActive = section.items.some((i) => i.id === activeId);
+  const [open, setOpen] = useState(() => hasActive || section.id !== "sanama");
   return (
     <div className="mb-1">
       <button

@@ -96,13 +96,6 @@ const BudgetReport     = lazy(() => import("@/modules/reports/pages/BudgetReport
 const PaymentsReport   = lazy(() => import("@/modules/reports/pages/PaymentsReport"));
 const FinancialReport  = lazy(() => import("@/modules/reports/pages/FinancialReport"));
 const ManagementReport = lazy(() => import("@/modules/reports/pages/ManagementReport"));
-const TrialBalance     = lazy(() => import("@/modules/reports/pages/TrialBalance"));
-const GeneralLedger    = lazy(() => import("@/modules/reports/pages/GeneralLedger"));
-const JournalReport    = lazy(() => import("@/modules/reports/pages/JournalReport"));
-const MoeinLedger      = lazy(() => import("@/modules/reports/pages/MoeinLedger"));
-const AccountTurnover  = lazy(() => import("@/modules/reports/pages/AccountTurnover"));
-const DocumentTurnover = lazy(() => import("@/modules/reports/pages/DocumentTurnover"));
-const DocumentStatus   = lazy(() => import("@/modules/reports/pages/DocumentStatus"));
 const SanamaExport     = lazy(() => import("@/modules/reports/pages/SanamaExport"));
 
 // Contract Reports
@@ -122,15 +115,15 @@ export const PAGE_COMPONENTS = {
   // گزارش‌های اسناد حسابداری
   "/reports/documents":                DocumentsReport,
   "/reports/documents/list":           DocumentsReport,
-  "/reports/documents/journal":        JournalReport,
-  "/reports/documents/general-ledger": GeneralLedger,
-  "/reports/documents/moein-ledger":   MoeinLedger,
-  "/reports/documents/turnover":       DocumentTurnover,
-  "/reports/documents/status":         DocumentStatus,
+  "/reports/documents/journal":        DocumentsReport,
+  "/reports/documents/general-ledger": DocumentsReport,
+  "/reports/documents/moein-ledger":   DocumentsReport,
+  "/reports/documents/turnover":       DocumentsReport,
+  "/reports/documents/status":         DocumentsReport,
   // گزارش‌های حساب‌ها
   "/reports/accounts":                 AccountsReport,
-  "/reports/accounts/trial-balance":   TrialBalance,
-  "/reports/accounts/turnover":        AccountTurnover,
+  "/reports/accounts/trial-balance":   AccountsReport,
+  "/reports/accounts/turnover":        AccountsReport,
   "/reports/accounts/balance":         AccountsReport,
   "/reports/accounts/detail-turnover": AccountsReport,
   "/reports/accounts/no-turnover":     AccountsReport,
