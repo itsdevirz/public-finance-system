@@ -44,6 +44,7 @@ const INITIAL_FORM = {
   remarks: "این ضمانتنامه در وجه کارفرما و قابل تمدید می‌باشد.",
 
   renewals: [],
+  attachments: [],
 };
 
 function Field({ label, required, children }) {
@@ -72,6 +73,9 @@ export default function ContractGuaranteeForm() {
   // New renewal state for inline adding
   const [newRenewal, setNewRenewal] = useState({ num: "", date: "", newExpiry: "", duration: 30, status: "فعال" });
   const [showAddRenewalForm, setShowAddRenewalForm] = useState(false);
+
+  // New simulated attachment state
+  const [newAttachment, setNewAttachment] = useState({ name: "", type: "تصویر ضمانت‌نامه", size: "" });
 
   const fetchContracts = async () => {
     try {
@@ -255,8 +259,35 @@ export default function ContractGuaranteeForm() {
       description: guar.description || "",
       remarks: guar.remarks || "",
       renewals: guar.renewals || [],
+      attachments: guar.attachments || [],
     });
     setShowSearchModal(false);
+  };
+
+  const handleAddAttachment = () => {
+    if (!newAttachment.name) return;
+    const item = {
+      row_num: (form.attachments || []).length + 1,
+      name: newAttachment.name,
+      type: newAttachment.type,
+      size: newAttachment.size || "1.0 MB",
+      date: form.issue_date || "1403/05/15"
+    };
+    setForm(prev => ({
+      ...prev,
+      attachments: [...(prev.attachments || []), item]
+    }));
+    setNewAttachment({ name: "", type: "تصویر ضمانت‌نامه", size: "" });
+  };
+
+  const handleDeleteAttachment = (idx) => {
+    setForm(prev => {
+      const list = prev.attachments.filter((_, i) => i !== idx).map((item, i) => ({
+        ...item,
+        row_num: i + 1
+      }));
+      return { ...prev, attachments: list };
+    });
   };
 
   const addRenewal = () => {
@@ -496,7 +527,7 @@ export default function ContractGuaranteeForm() {
         {/* بدنه فرم ضمانت نامه */}
         <Card className="border-border/80 shadow-sm">
           <div className="border-b border-border/80 px-4 py-1.5 bg-muted/20 flex flex-wrap gap-4">
-            {["main", "guarantor", "attachments", "renewals", "notes"].map((tab) => (
+            {["main", "attachments", "renewals"].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -506,10 +537,8 @@ export default function ContractGuaranteeForm() {
                 )}
               >
                 {tab === "main" && "اطلاعات اصلی"}
-                {tab === "guarantor" && "اطلاعات ضامن"}
                 {tab === "attachments" && "پیوست‌ها"}
                 {tab === "renewals" && "سابقه تمدید"}
-                {tab === "notes" && "یادداشت‌ها"}
               </button>
             ))}
           </div>
@@ -520,7 +549,7 @@ export default function ContractGuaranteeForm() {
                 
                 {/* ستون راست - اطلاعات ضمانت‌نامه */}
                 <div className="space-y-4">
-                  <Field label="شماره ضمانت‌نامه">
+                  <Field label="شماره ضمانت‌نامه" required>
                     <Input
                       type="text"
                       value={form.guarantee_number}
@@ -530,7 +559,7 @@ export default function ContractGuaranteeForm() {
                     />
                   </Field>
 
-                  <Field label="نوع ضمانت">
+                  <Field label="نوع ضمانت" required>
                     <select
                       value={form.guarantee_type}
                       onChange={(e) => setForm((prev) => ({ ...prev, guarantee_type: e.target.value }))}
@@ -546,7 +575,7 @@ export default function ContractGuaranteeForm() {
                     </select>
                   </Field>
 
-                  <Field label="شماره قرارداد">
+                  <Field label="شماره قرارداد" required>
                     <select
                       value={form.contract_id}
                       onChange={(e) => handleContractChange(e.target.value)}
@@ -711,16 +740,219 @@ export default function ContractGuaranteeForm() {
               </div>
             )}
 
-            {activeTab !== "main" && (
-              <div className="py-8 text-center text-xs text-muted-foreground bg-muted/5 border rounded-lg border-dashed">
-                اطلاعات تب پس از تکمیل فاز اصلی پیاده‌سازی فعال خواهد شد.
+            {activeTab === "attachments" && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-right">
+                {/* لیست پیوست‌ها */}
+                <div className="lg:col-span-2 space-y-4">
+                  <h3 className="text-xs font-bold text-foreground">لیست اسناد و پیوست‌های بارگذاری شده</h3>
+                  <div className="overflow-x-auto rounded border">
+                    <Table>
+                      <TableHeader className="bg-muted/30">
+                        <TableRow>
+                          <TableHead className="text-right text-xs w-10">ردیف</TableHead>
+                          <TableHead className="text-right text-xs">نام فایل</TableHead>
+                          <TableHead className="text-center text-xs">نوع فایل</TableHead>
+                          <TableHead className="text-center text-xs">حجم</TableHead>
+                          <TableHead className="text-center text-xs">تاریخ بارگذاری</TableHead>
+                          <TableHead className="text-center text-xs w-20">عملیات</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(form.attachments || []).map((att, idx) => (
+                          <TableRow key={idx}>
+                            <TableCell className="font-mono text-xs text-center">{idx + 1}</TableCell>
+                            <TableCell className="text-right text-xs font-mono" dir="ltr">{att.name}</TableCell>
+                            <TableCell className="text-center text-xs">{att.type}</TableCell>
+                            <TableCell className="text-center text-xs font-mono">{att.size}</TableCell>
+                            <TableCell className="text-center text-xs font-mono">{att.date}</TableCell>
+                            <TableCell className="text-center p-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeleteAttachment(idx)}
+                                className="h-7 w-7 text-destructive hover:text-destructive/80"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {(form.attachments || []).length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={6} className="text-center text-xs py-6 text-muted-foreground">هیچ فایلی ضمیمه نشده است.</TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+
+                {/* فرم شبیه‌ساز بارگذاری ضمیمه */}
+                <div className="space-y-3 p-4 border rounded-lg bg-muted/10 h-fit">
+                  <h3 className="text-xs font-bold text-foreground">بارگذاری ضمیمه جدید</h3>
+                  <div className="space-y-3">
+                    <Field label="فایل ضمیمه">
+                      <div className="flex gap-2">
+                        <Input
+                          type="text"
+                          readOnly
+                          placeholder="فایلی انتخاب نشده است..."
+                          value={newAttachment.name}
+                          className="h-8 text-xs text-right bg-muted/50 text-muted-foreground flex-1"
+                        />
+                        <input
+                          type="file"
+                          id="guarantee-file-upload"
+                          className="hidden"
+                          onChange={(e) => {
+                            if (e.target.files?.[0]) {
+                              const file = e.target.files[0];
+                              const sizeInMb = (file.size / (1024 * 1024)).toFixed(2) + " MB";
+                              setNewAttachment((prev) => ({
+                                ...prev,
+                                name: file.name,
+                                size: sizeInMb,
+                              }));
+                            }
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-8 text-xs px-2 border-border hover:bg-muted"
+                          onClick={() => document.getElementById("guarantee-file-upload").click()}
+                        >
+                          جستجو...
+                        </Button>
+                      </div>
+                    </Field>
+                    <Field label="نوع فایل">
+                      <select
+                        value={newAttachment.type}
+                        onChange={(e) => setNewAttachment(prev => ({ ...prev, type: e.target.value }))}
+                        className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+                      >
+                        <option value="تصویر ضمانت‌نامه">تصویر ضمانت‌نامه</option>
+                        <option value="نامه درخواستی">نامه درخواستی</option>
+                        <option value="قبض پرداخت کارمزد">قبض پرداخت کارمزد</option>
+                        <option value="سایر">سایر</option>
+                      </select>
+                    </Field>
+                    <Button
+                      onClick={handleAddAttachment}
+                      disabled={!newAttachment.name}
+                      className="w-full text-xs h-8 bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      افزودن ضمیمه
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === "renewals" && (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center border-b pb-2">
+                  <h3 className="text-xs font-bold text-foreground">اطلاعات و سابقه تمدید ضمانت‌نامه</h3>
+                  <Button onClick={() => setShowAddRenewalForm(!showAddRenewalForm)} size="xs" variant="outline" className="text-blue-500 gap-1 border-blue-500/20 text-[10px] h-7">
+                    <Plus className="h-3 w-3" />
+                    جدید
+                  </Button>
+                </div>
+
+                {/* فرم افزودن تمدید */}
+                {showAddRenewalForm && (
+                  <div className="border p-3 rounded-lg bg-muted/10 space-y-3 max-w-xl">
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="شماره تمدید">
+                        <Input
+                          value={newRenewal.num}
+                          onChange={(e) => setNewRenewal(prev => ({ ...prev, num: e.target.value }))}
+                          className="h-8 text-xs text-center"
+                          placeholder="مثلا: 9801234567-1"
+                        />
+                      </Field>
+                      <Field label="مدت (روز)">
+                        <Input
+                          type="number"
+                          value={newRenewal.duration}
+                          onChange={(e) => setNewRenewal(prev => ({ ...prev, duration: e.target.value }))}
+                          className="h-8 text-xs text-center"
+                        />
+                      </Field>
+                      <Field label="تاریخ تمدید">
+                        <PersianDatePicker
+                          value={newRenewal.date}
+                          onChange={(e) => setNewRenewal(prev => ({ ...prev, date: e.target.value }))}
+                          className="h-8 text-xs"
+                        />
+                      </Field>
+                      <Field label="تاریخ انقضاء جدید">
+                        <PersianDatePicker
+                          value={newRenewal.newExpiry}
+                          onChange={(e) => setNewRenewal(prev => ({ ...prev, newExpiry: e.target.value }))}
+                          className="h-8 text-xs"
+                        />
+                      </Field>
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button onClick={() => setShowAddRenewalForm(false)} variant="ghost" size="xs" className="text-xs">انصراف</Button>
+                      <Button onClick={addRenewal} size="xs" className="text-xs bg-blue-600 text-white hover:bg-blue-700">ثبت تمدید</Button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="overflow-x-auto rounded border">
+                  <Table>
+                    <TableHeader className="bg-muted/30">
+                      <TableRow>
+                        <TableHead className="text-right text-xs py-2 w-10">ردیف</TableHead>
+                        <TableHead className="text-center text-xs py-2">شماره تمدید</TableHead>
+                        <TableHead className="text-center text-xs py-2">تاریخ تمدید</TableHead>
+                        <TableHead className="text-center text-xs py-2">تاریخ انقضاء جدید</TableHead>
+                        <TableHead className="text-center text-xs py-2">مدت (روز)</TableHead>
+                        <TableHead className="text-center text-xs py-2 w-10"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(form.renewals || []).map((item, idx) => (
+                        <TableRow key={idx}>
+                          <TableCell className="text-[11px] py-2">{idx + 1}</TableCell>
+                          <TableCell className="text-center text-[11px] font-semibold py-2">{item.renewal_number}</TableCell>
+                          <TableCell className="text-center text-[11px] font-mono py-2">{item.renewal_date}</TableCell>
+                          <TableCell className="text-center text-[11px] font-mono py-2">{item.new_expiry_date}</TableCell>
+                          <TableCell className="text-center text-[11px] font-mono py-2">{item.duration_days}</TableCell>
+                          <TableCell className="text-center py-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => deleteRenewal(idx)}
+                              className="h-6 w-6 text-destructive hover:bg-destructive/10"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {(form.renewals || []).length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center text-xs py-4 text-muted-foreground">سابقه تمدیدی ثبت نشده است.</TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+                <div className="text-[11px] text-muted-foreground text-left">
+                  جمع تمدیدها: {(form.renewals || []).length}
+                </div>
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* بخش پایین: جدول ضمانت‌نامه‌ها + جدول سابقه تمدید */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" dir="rtl">
+        {/* بخش پایین: جدول ضمانت‌نامه‌ها */}
+        <div className="grid grid-cols-1 gap-6" dir="rtl">
           
           {/* جدول ضمانت‌نامه‌های مرتبط با قرارداد */}
           <Card className="border-border/80 shadow-sm">
@@ -774,105 +1006,6 @@ export default function ContractGuaranteeForm() {
                     )}
                   </TableBody>
                 </Table>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* جدول سابقه تمدید ضمانت‌نامه */}
-          <Card className="border-border/80 shadow-sm">
-            <div className="border-b border-border/80 px-4 py-3 bg-muted/10 font-bold text-xs text-right flex justify-between items-center">
-              <span>اطلاعات تمدید ضمانت‌نامه</span>
-              <Button onClick={() => setShowAddRenewalForm(!showAddRenewalForm)} size="xs" variant="outline" className="text-blue-500 gap-1 border-blue-500/20 text-[10px] h-7">
-                <Plus className="h-3 w-3" />
-                جدید
-              </Button>
-            </div>
-            <CardContent className="p-3 space-y-4">
-              
-              {/* فرم افزودن تمدید */}
-              {showAddRenewalForm && (
-                <div className="border p-3 rounded-lg bg-muted/10 space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <Field label="شماره تمدید">
-                      <Input
-                        value={newRenewal.num}
-                        onChange={(e) => setNewRenewal(prev => ({ ...prev, num: e.target.value }))}
-                        className="h-8 text-xs text-center"
-                        placeholder="مثلا: 9801234567-1"
-                      />
-                    </Field>
-                    <Field label="مدت (روز)">
-                      <Input
-                        type="number"
-                        value={newRenewal.duration}
-                        onChange={(e) => setNewRenewal(prev => ({ ...prev, duration: e.target.value }))}
-                        className="h-8 text-xs text-center"
-                      />
-                    </Field>
-                    <Field label="تاریخ تمدید">
-                      <PersianDatePicker
-                        value={newRenewal.date}
-                        onChange={(e) => setNewRenewal(prev => ({ ...prev, date: e.target.value }))}
-                        className="h-8 text-xs"
-                      />
-                    </Field>
-                    <Field label="تاریخ انقضاء جدید">
-                      <PersianDatePicker
-                        value={newRenewal.newExpiry}
-                        onChange={(e) => setNewRenewal(prev => ({ ...prev, newExpiry: e.target.value }))}
-                        className="h-8 text-xs"
-                      />
-                    </Field>
-                  </div>
-                  <div className="flex justify-end gap-2">
-                    <Button onClick={() => setShowAddRenewalForm(false)} variant="ghost" size="xs" className="text-xs">انصراف</Button>
-                    <Button onClick={addRenewal} size="xs" className="text-xs bg-blue-600 text-white hover:bg-blue-700">ثبت تمدید</Button>
-                  </div>
-                </div>
-              )}
-
-              <div className="overflow-x-auto rounded border">
-                <Table>
-                  <TableHeader className="bg-muted/30">
-                    <TableRow>
-                      <TableHead className="text-right text-xs py-2 w-10">ردیف</TableHead>
-                      <TableHead className="text-center text-xs py-2">شماره تمدید</TableHead>
-                      <TableHead className="text-center text-xs py-2">تاریخ تمدید</TableHead>
-                      <TableHead className="text-center text-xs py-2">تاریخ انقضاء جدید</TableHead>
-                      <TableHead className="text-center text-xs py-2">مدت (روز)</TableHead>
-                      <TableHead className="text-center text-xs py-2 w-10"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {(form.renewals || []).map((item, idx) => (
-                      <TableRow key={idx}>
-                        <TableCell className="text-[11px] py-2">{idx + 1}</TableCell>
-                        <TableCell className="text-center text-[11px] font-semibold py-2">{item.renewal_number}</TableCell>
-                        <TableCell className="text-center text-[11px] font-mono py-2">{item.renewal_date}</TableCell>
-                        <TableCell className="text-center text-[11px] font-mono py-2">{item.new_expiry_date}</TableCell>
-                        <TableCell className="text-center text-[11px] font-mono py-2">{item.duration_days}</TableCell>
-                        <TableCell className="text-center py-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => deleteRenewal(idx)}
-                            className="h-6 w-6 text-destructive hover:bg-destructive/10"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {(form.renewals || []).length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center text-xs py-4 text-muted-foreground">سابقه تمدیدی ثبت نشده است.</TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-              <div className="text-[11px] text-muted-foreground text-left">
-                جمع تمدیدها: {(form.renewals || []).length}
               </div>
             </CardContent>
           </Card>

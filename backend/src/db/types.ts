@@ -521,6 +521,14 @@ export interface ContractGuarantee {
     status: string;
   }[];
 
+  attachments?: {
+    row_num: number;
+    name: string;
+    type: string;
+    size: string;
+    date: string;
+  }[];
+
   createdAt?: string;
   updatedAt?: string;
 }
