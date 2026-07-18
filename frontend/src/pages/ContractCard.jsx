@@ -113,10 +113,24 @@ export default function ContractCard() {
     }
   };
 
+  const [contractTypes, setContractTypes] = useState([]);
+
+  const fetchContractTypes = async () => {
+    try {
+      const res = await api.get("/api/contract-types");
+      if (res.data?.success) {
+        setContractTypes(res.data.data || []);
+      }
+    } catch (err) {
+      console.error("Error fetching contract types:", err);
+    }
+  };
+
   useEffect(() => {
     fetchContracts();
     fetchCards();
     getSuggestedNumber();
+    fetchContractTypes();
   }, []);
 
   const handleContractChange = (contractId) => {
@@ -540,7 +554,11 @@ export default function ContractCard() {
                       onChange={(e) => setForm((prev) => ({ ...prev, contract_type: e.target.value }))}
                       className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-right"
                     >
-                      {CONTRACT_TYPES.map((t) => (
+                      <option value="">انتخاب نوع قرارداد</option>
+                      {contractTypes.map((t) => (
+                        <option key={t._id} value={t.title}>{t.title}</option>
+                      ))}
+                      {contractTypes.length === 0 && CONTRACT_TYPES.map((t) => (
                         <option key={t} value={t}>{t}</option>
                       ))}
                     </select>

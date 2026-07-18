@@ -211,11 +211,39 @@ export default function ContractPaymentForm() {
     }
   };
 
+  const [deductionTypes, setDeductionTypes] = useState([]);
+  const [moeinAccounts, setMoeinAccounts] = useState([]);
+
+  const fetchDeductionTypes = async () => {
+    try {
+      const res = await api.get("/api/deduction-types");
+      if (res.data?.success) {
+        setDeductionTypes(res.data.data || []);
+      }
+    } catch (err) {
+      console.error("Error fetching deduction types:", err);
+    }
+  };
+
+  const fetchMoeinAccounts = async () => {
+    try {
+      const res = await api.get("/api/account-heads?flat=true");
+      if (res.data?.success) {
+        const filtered = (res.data.data || []).filter(acc => acc.level === "معین");
+        setMoeinAccounts(filtered);
+      }
+    } catch (err) {
+      console.error("Error fetching moein accounts:", err);
+    }
+  };
+
   useEffect(() => {
     fetchContracts();
     fetchBills();
     fetchPayments();
     getSuggestedNumber();
+    fetchDeductionTypes();
+    fetchMoeinAccounts();
   }, []);
 
   // Filter bills list for selected contract
@@ -886,7 +914,11 @@ export default function ContractPaymentForm() {
                       onChange={(e) => setForm((prev) => ({ ...prev, accounting_moein_code: e.target.value }))}
                       className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-right"
                     >
-                      {MOEIN_ACCOUNTS.map((m) => (
+                      <option value="">انتخاب حساب معین...</option>
+                      {moeinAccounts.map((m) => (
+                        <option key={m._id} value={`${m.code} - ${m.title}`}>{m.code} - {m.title}</option>
+                      ))}
+                      {moeinAccounts.length === 0 && MOEIN_ACCOUNTS.map((m) => (
                         <option key={m} value={m}>{m}</option>
                       ))}
                     </select>
@@ -1048,10 +1080,27 @@ export default function ContractPaymentForm() {
                               <TableCell className="p-1">
                                 <select
                                   value={item.deduction_type}
-                                  onChange={(e) => handleDeductionChange(idx, "deduction_type", e.target.value)}
+                                  onChange={(e) => {
+                                    const selectedDeduction = deductionTypes.find(dt => dt.title === e.target.value);
+                                    if (selectedDeduction) {
+                                      handleDeductionChange(idx, "deduction_type", e.target.value);
+                                      handleDeductionChange(idx, "calc_method", selectedDeduction.calcMethod);
+                                      if (selectedDeduction.calcMethod === "درصدی") {
+                                        handleDeductionChange(idx, "percent", selectedDeduction.rate || 0);
+                                      } else {
+                                        handleDeductionChange(idx, "amount", selectedDeduction.amount || 0);
+                                      }
+                                    } else {
+                                      handleDeductionChange(idx, "deduction_type", e.target.value);
+                                    }
+                                  }}
                                   className="h-8 rounded border px-2 text-xs text-right w-full bg-transparent"
                                 >
-                                  {DEDUCTION_TYPES.map((t) => (
+                                  <option value="">انتخاب کسورات...</option>
+                                  {deductionTypes.map((t) => (
+                                    <option key={t._id} value={t.title}>{t.title}</option>
+                                  ))}
+                                  {deductionTypes.length === 0 && DEDUCTION_TYPES.map((t) => (
                                     <option key={t} value={t}>{t}</option>
                                   ))}
                                 </select>

@@ -132,15 +132,16 @@ export default function ContractDashboardReport() {
   // Contract value by status (Donut Chart data)
   const statusData = useMemo(() => {
     const statuses = {
+      "پیش‌نویس": 0,
+      "ثبت شده": 0,
+      "تایید شده": 0,
       "در حال اجرا": 0,
-      "تکمیل شده": 0,
-      "توقف شده": 0,
-      "فسخ شده": 0,
-      "خاتمه یافته": 0
+      "خاتمه یافته": 0,
+      "تسویه شده": 0
     };
     
     contracts.forEach((c) => {
-      const st = c.status || "در حال اجرا";
+      const st = c.status || "پیش‌نویس";
       const initial = Number(String(c.amount || "0").replace(/,/g, "")) || 0;
       const inc = Number(String(c.increase_amount || "0").replace(/,/g, "")) || 0;
       const dec = Number(String(c.decrease_amount || "0").replace(/,/g, "")) || 0;
@@ -148,25 +149,26 @@ export default function ContractDashboardReport() {
       if (statuses[st] !== undefined) {
         statuses[st] += amt;
       } else {
-        statuses["در حال اجرا"] += amt;
+        statuses["پیش‌نویس"] += amt;
       }
     });
 
     const total = Object.values(statuses).reduce((sum, v) => sum + v, 0);
     
     const colors = {
+      "پیش‌نویس": "#6b7280", // gray
+      "ثبت شده": "#3b82f6", // blue
+      "تایید شده": "#8b5cf6", // purple
       "در حال اجرا": "#10b981", // green
-      "تکمیل شده": "#3b82f6", // blue
-      "توقف شده": "#f59e0b", // yellow
-      "فسخ شده": "#8b5cf6", // purple
-      "خاتمه یافته": "#ef4444" // red
+      "خاتمه یافته": "#ef4444", // red
+      "تسویه شده": "#f59e0b" // amber
     };
 
     return Object.entries(statuses).map(([name, value]) => ({
       name,
       value,
       percent: total > 0 ? Number(((value / total) * 100).toFixed(1)) : 0,
-      color: colors[name],
+      color: colors[name] || "#3b82f6",
     }));
   }, [contracts]);
 

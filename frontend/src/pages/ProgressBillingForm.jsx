@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Save, Plus, Trash2, Printer, LogOut, CheckCircle, CreditCard, Search, X, RefreshCw, Undo2
@@ -41,18 +41,15 @@ const INITIAL_FORM = {
   payable_remaining: 0,
 
   // Items list
-  items: [
-    { row_num: 1, description: "عملیات خاکبرداری", unit: "متر مکعب", quantity: 1000, unit_price: 250000, total_amount: 250000000 },
-    { row_num: 2, description: "اجرای بتن مگر", unit: "متر مکعب", quantity: 800, unit_price: 350000, total_amount: 280000000 },
-    { row_num: 3, description: "اجرای اسکلت فلزی", unit: "کیلوگرم", quantity: 5000, unit_price: 120000, total_amount: 600000000 },
-  ],
+  items: [],
 
   // Summaries
-  items_sum: 1130000000,
+  items_sum: 0,
   adjustment_factor: 0,
-  total_sum: 1130000000,
+  total_sum: 0,
   deductions: 0,
-  payable_amount: 1130000000,
+  payable_amount: 0,
+  attachments: [],
 };
 
 function Field({ label, required, children }) {
@@ -77,6 +74,48 @@ export default function ProgressBillingForm() {
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const fileInputRef = useRef(null);
+
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    files.forEach((file) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const fileObj = {
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          content: reader.result,
+          uploadedAt: new Date().toLocaleDateString("fa-IR"),
+        };
+        setForm((prev) => ({
+          ...prev,
+          attachments: [...(prev.attachments || []), fileObj],
+        }));
+      };
+      reader.readAsDataURL(file);
+    });
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleRemoveFile = (index) => {
+    setForm((prev) => ({
+      ...prev,
+      attachments: (prev.attachments || []).filter((_, idx) => idx !== index),
+    }));
+  };
+
+  const handleBrowseClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
 
   const fetchContracts = async () => {
     try {
@@ -309,6 +348,7 @@ export default function ProgressBillingForm() {
       total_sum: bill.total_sum || 0,
       deductions: bill.deductions || 0,
       payable_amount: bill.payable_amount || 0,
+      attachments: bill.attachments || [],
     });
     setShowSearchModal(false);
   };
@@ -772,12 +812,81 @@ export default function ProgressBillingForm() {
             )}
 
             {activeTab === "files" && (
-              <div className="py-8 text-center text-xs text-muted-foreground bg-muted/5 border rounded-lg border-dashed">
-                <span className="text-3xl block mb-2">📁</span>
-                پیوست فایل‌ها و اسناد نقشه‌های کارگاهی صورت وضعیت
-                <div className="mt-3 flex justify-center">
-                  <Button variant="outline" size="sm" className="text-xs h-8">بارگذاری سند جدید</Button>
+              <div className="space-y-6 text-right animate-in fade-in duration-300">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  className="hidden"
+                  multiple
+                />
+                
+                <div className="py-8 text-center text-xs text-muted-foreground bg-muted/5 border rounded-lg border-dashed flex flex-col items-center justify-center">
+                  <span className="text-3xl block mb-2">📁</span>
+                  <span className="font-bold text-foreground mb-1">پیوست فایل‌ها و اسناد نقشه‌های کارگاهی صورت وضعیت</span>
+                  <p className="text-[10px] text-muted-foreground mb-4">می‌توانید اسناد، تصاویر، فایل‌های PDF یا فاکتورها را به این صورت وضعیت پیوست کنید.</p>
+                  <Button
+                    type="button"
+                    onClick={handleBrowseClick}
+                    className="text-xs h-9 gap-1 bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    بارگذاری سند جدید
+                  </Button>
                 </div>
+
+                {(form.attachments || []).length > 0 && (
+                  <div className="border rounded-lg overflow-hidden bg-card">
+                    <div className="border-b p-2.5 font-bold text-xs bg-muted/10">
+                      لیست اسناد و پیوست‌های بارگذاری شده ({form.attachments.length})
+                    </div>
+                    <Table>
+                      <TableHeader className="bg-muted/40">
+                        <TableRow>
+                          <TableHead className="text-right text-xs">ردیف</TableHead>
+                          <TableHead className="text-right text-xs">نام فایل</TableHead>
+                          <TableHead className="text-center text-xs">سایز</TableHead>
+                          <TableHead className="text-center text-xs">تاریخ بارگذاری</TableHead>
+                          <TableHead className="text-center text-xs w-24">عملیات</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {form.attachments.map((file, idx) => (
+                          <TableRow key={idx}>
+                            <TableCell className="font-mono text-xs text-center">{idx + 1}</TableCell>
+                            <TableCell className="text-right text-xs font-semibold text-foreground max-w-md truncate">
+                              {file.name}
+                            </TableCell>
+                            <TableCell className="font-mono text-xs text-center">
+                              {Math.round(file.size / 1024)} KB
+                            </TableCell>
+                            <TableCell className="font-mono text-xs text-center">
+                              {file.uploadedAt}
+                            </TableCell>
+                            <TableCell className="text-center p-1 flex justify-center gap-1">
+                              {file.content && (
+                                <a
+                                  href={file.content}
+                                  download={file.name}
+                                  className="inline-flex h-7 px-2.5 items-center justify-center rounded bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 text-[10px] font-bold"
+                                >
+                                  دانلود
+                                </a>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleRemoveFile(idx)}
+                                className="h-7 w-7 text-destructive hover:text-destructive/80"
+                              >
+                                <Trash2 className="h-4.5 w-4.5" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
               </div>
             )}
           </CardContent>

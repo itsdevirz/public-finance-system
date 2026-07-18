@@ -87,9 +87,24 @@ export default function DeductionTypesForm() {
     }
   };
 
+  const [moeinAccounts, setMoeinAccounts] = useState([]);
+
+  const fetchMoeinAccounts = async () => {
+    try {
+      const res = await api.get("/api/account-heads?flat=true");
+      if (res.data?.success) {
+        const filtered = (res.data.data || []).filter(acc => acc.level === "معین");
+        setMoeinAccounts(filtered);
+      }
+    } catch (err) {
+      console.error("Error fetching moein accounts:", err);
+    }
+  };
+
   useEffect(() => {
     fetchList();
     getSuggestedCode();
+    fetchMoeinAccounts();
   }, []);
 
   const handleNew = () => {
@@ -394,13 +409,18 @@ export default function DeductionTypesForm() {
                 )}
 
                 <Field label="حساب معین مرتبط">
-                  <Input
-                    type="text"
+                  <select
                     value={form.moeinAccount}
                     onChange={(e) => setForm(prev => ({ ...prev, moeinAccount: e.target.value }))}
-                    placeholder="کد حساب یا عنوان حساب معین..."
-                    className="h-10 text-sm text-right"
-                  />
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-right focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <option value="">انتخاب حساب معین مرتبط...</option>
+                    {moeinAccounts.map((acc) => (
+                      <option key={acc._id} value={`${acc.code} - ${acc.title}`}>
+                        {acc.code} - {acc.title}
+                      </option>
+                    ))}
+                  </select>
                 </Field>
 
                 <Field label="وضعیت کسور" required>

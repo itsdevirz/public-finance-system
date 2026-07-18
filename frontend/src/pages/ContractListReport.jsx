@@ -6,6 +6,25 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Search, FileText } from "lucide-react";
 
+const getStatusBadgeClass = (status) => {
+  switch (status) {
+    case "پیش‌نویس":
+      return "px-2 py-0.5 rounded text-[10px] font-bold bg-gray-500/10 text-gray-500 border border-gray-500/20";
+    case "ثبت شده":
+      return "px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-500 border border-blue-500/20";
+    case "تایید شده":
+      return "px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/10 text-purple-500 border border-purple-500/20";
+    case "در حال اجرا":
+      return "px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20";
+    case "خاتمه یافته":
+      return "px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/10 text-rose-500 border border-rose-500/20";
+    case "تسویه شده":
+      return "px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20";
+    default:
+      return "px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-500 border border-blue-500/20";
+  }
+};
+
 export default function ContractListReport() {
   const [contracts, setContracts] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -105,8 +124,8 @@ export default function ContractListReport() {
                           </TableCell>
                           <TableCell className="font-mono text-xs text-center font-bold text-blue-600">{currentAmt.toLocaleString()}</TableCell>
                           <TableCell className="text-center">
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-500">
-                              {c.status}
+                            <span className={getStatusBadgeClass(c.status || "پیش‌نویس")}>
+                              {c.status || "پیش‌نویس"}
                             </span>
                           </TableCell>
                         </TableRow>

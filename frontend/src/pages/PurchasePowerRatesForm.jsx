@@ -13,6 +13,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 
 const INITIAL_FORM = {
   code: "",
@@ -376,26 +377,16 @@ export default function PurchasePowerRatesForm() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <Field label="تاریخ شروع اعتبار" required>
-                    <Input
-                      type="text"
+                    <PersianDatePicker
                       value={form.startDate}
                       onChange={(e) => setForm(prev => ({ ...prev, startDate: e.target.value }))}
-                      placeholder="۱۴۰۳/۰۱/۰۱"
-                      className="h-10 text-sm text-center font-mono"
-                      dir="ltr"
-                      required
                     />
                   </Field>
 
                   <Field label="تاریخ پایان اعتبار" required>
-                    <Input
-                      type="text"
+                    <PersianDatePicker
                       value={form.endDate}
                       onChange={(e) => setForm(prev => ({ ...prev, endDate: e.target.value }))}
-                      placeholder="۱۴۰۳/۱۲/۲۹"
-                      className="h-10 text-sm text-center font-mono"
-                      dir="ltr"
-                      required
                     />
                   </Field>
                 </div>

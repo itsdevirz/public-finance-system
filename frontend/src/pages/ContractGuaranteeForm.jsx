@@ -107,10 +107,24 @@ export default function ContractGuaranteeForm() {
     }
   };
 
+  const [guaranteeTypes, setGuaranteeTypes] = useState([]);
+
+  const fetchGuaranteeTypes = async () => {
+    try {
+      const res = await api.get("/api/guarantee-types");
+      if (res.data?.success) {
+        setGuaranteeTypes(res.data.data || []);
+      }
+    } catch (err) {
+      console.error("Error fetching guarantee types:", err);
+    }
+  };
+
   useEffect(() => {
     fetchContracts();
     fetchGuarantees();
     getSuggestedNumber();
+    fetchGuaranteeTypes();
   }, []);
 
   const handleContractChange = (contractId) => {
@@ -520,9 +534,13 @@ export default function ContractGuaranteeForm() {
                     <select
                       value={form.guarantee_type}
                       onChange={(e) => setForm((prev) => ({ ...prev, guarantee_type: e.target.value }))}
-                      className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+                      className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-right font-medium"
                     >
-                      {GUARANTEE_TYPES.map((t) => (
+                      <option value="">انتخاب نوع ضمانت...</option>
+                      {guaranteeTypes.map((t) => (
+                        <option key={t._id} value={t.title}>{t.title}</option>
+                      ))}
+                      {guaranteeTypes.length === 0 && GUARANTEE_TYPES.map((t) => (
                         <option key={t} value={t}>{t}</option>
                       ))}
                     </select>

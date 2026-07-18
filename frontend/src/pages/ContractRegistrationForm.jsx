@@ -15,6 +15,25 @@ import {
 import { cn } from "@/lib/utils";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 
+export const getStatusBadgeClass = (status) => {
+  switch (status) {
+    case "پیش‌نویس":
+      return "bg-gray-500/10 text-gray-500 border border-gray-500/20";
+    case "ثبت شده":
+      return "bg-blue-500/10 text-blue-500 border border-blue-500/20";
+    case "تایید شده":
+      return "bg-purple-500/10 text-purple-500 border border-purple-500/20";
+    case "در حال اجرا":
+      return "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20";
+    case "خاتمه یافته":
+      return "bg-rose-500/10 text-rose-500 border border-rose-500/20";
+    case "تسویه شده":
+      return "bg-amber-500/10 text-amber-500 border border-amber-500/20";
+    default:
+      return "bg-blue-500/10 text-blue-500 border border-blue-500/20";
+  }
+};
+
 const PROJECT_LIST = [
   { value: "ساختمان اداری مرکزی", label: "ساختمان اداری مرکزی" },
   { value: "توسعه پارک فناوری", label: "توسعه پارک فناوری" },
@@ -78,7 +97,7 @@ const INITIAL_FORM = {
   increase_amount: 0,
   decrease_amount: 0,
   progress_percent: 0,
-  status: "در حال اجرا",
+  status: "پیش‌نویس",
 
   // Guarantee fields
   guarantee_status: "معتبر",
@@ -118,6 +137,7 @@ export default function ContractRegistrationForm() {
   const [form, setForm] = useState(INITIAL_FORM);
   const [parties, setParties] = useState([]);
   const [contractsList, setContractsList] = useState([]);
+  const [contractTypes, setContractTypes] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [activeTab, setActiveTab] = useState("main");
   const [showSearchModal, setShowSearchModal] = useState(false);
@@ -152,6 +172,17 @@ export default function ContractRegistrationForm() {
     }
   };
 
+  const fetchContractTypes = async () => {
+    try {
+      const res = await api.get("/api/contract-types");
+      if (res.data?.success) {
+        setContractTypes(res.data.data || []);
+      }
+    } catch (err) {
+      console.error("Error fetching contract types:", err);
+    }
+  };
+
   const getSuggestedNumber = async () => {
     try {
       const res = await api.get("/api/contracts/suggest-number");
@@ -167,6 +198,7 @@ export default function ContractRegistrationForm() {
     fetchParties();
     fetchContracts();
     getSuggestedNumber();
+    fetchContractTypes();
   }, []);
 
   // Recalculate computed financial fields whenever sub-items change
@@ -334,7 +366,7 @@ export default function ContractRegistrationForm() {
       increase_amount: contract.increase_amount || 0,
       decrease_amount: contract.decrease_amount || 0,
       progress_percent: contract.progress_percent || 0,
-      status: contract.status || "در حال اجرا",
+      status: contract.status || "پیش‌نویس",
       guarantee_status: contract.guarantee_status || "معتبر",
       guarantee_expiry_date: contract.guarantee_expiry_date || "",
       last_statement: contract.last_statement || "",
@@ -591,10 +623,18 @@ export default function ContractRegistrationForm() {
                       onChange={(e) => setForm((prev) => ({ ...prev, contract_type: e.target.value }))}
                       className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-right"
                     >
-                      <option value="پیمانکاری">پیمانکاری</option>
-                      <option value="خرید خدمات">خرید خدمات</option>
-                      <option value="مشاوره">مشاوره</option>
-                      <option value="خرید کالا">خرید کالا</option>
+                      <option value="">انتخاب نوع قرارداد</option>
+                      {contractTypes.map((t) => (
+                        <option key={t._id} value={t.title}>{t.title}</option>
+                      ))}
+                      {contractTypes.length === 0 && (
+                        <>
+                          <option value="پیمانکاری">پیمانکاری</option>
+                          <option value="خرید خدمات">خرید خدمات</option>
+                          <option value="مشاوره">مشاوره</option>
+                          <option value="خرید کالا">خرید کالا</option>
+                        </>
+                      )}
                     </select>
                   </Field>
 
@@ -1181,15 +1221,51 @@ export default function ContractRegistrationForm() {
           {/* پنل وضعیت قرارداد */}
           <Card className="border-border/80 shadow-sm text-right bg-card">
             <div className="border-b border-border/80 p-2.5 font-bold text-xs bg-muted/10 text-muted-foreground text-center">
-              وضعیت قرارداد
+              گردش کار و وضعیت قرارداد
             </div>
             <div className="p-4 space-y-4 text-xs">
-              <div className="flex justify-between items-center py-1 border-b border-border/50">
-                <span className="text-muted-foreground">وضعیت قرارداد:</span>
-                <span className="px-2.5 py-0.5 rounded text-[11px] font-bold bg-blue-500/10 text-blue-500">
-                  {form.status}
-                </span>
+              <div className="space-y-3 py-1">
+                <div className="flex justify-between items-center border-b border-border/50 pb-2">
+                  <span className="text-muted-foreground">مرحله گردش کار:</span>
+                  <span className={cn("px-2.5 py-0.5 rounded text-[10px] font-bold", getStatusBadgeClass(form.status || "پیش‌نویس"))}>
+                    {form.status || "پیش‌نویس"}
+                  </span>
+                </div>
+                
+                {/* Stepper progress indicator */}
+                <div className="flex justify-between items-center gap-1 text-[10px] pt-1">
+                  {["پیش‌نویس", "ثبت شده", "تایید شده", "در حال اجرا", "خاتمه یافته", "تسویه شده"].map((st, idx) => {
+                    const isActive = (form.status || "پیش‌نویس") === st;
+                    return (
+                      <button
+                        key={st}
+                        type="button"
+                        onClick={() => setForm((prev) => ({ ...prev, status: st }))}
+                        className={cn(
+                          "flex-1 py-1 rounded transition-all font-mono font-bold border",
+                          isActive
+                            ? "bg-blue-600 text-white border-blue-600 shadow-sm scale-105"
+                            : "bg-background text-muted-foreground border-border hover:bg-muted/80"
+                        )}
+                        title={st}
+                      >
+                        {idx + 1}
+                      </button>
+                    );
+                  })}
+                </div>
+                
+                {/* Status Names List under buttons */}
+                <div className="grid grid-cols-6 gap-0.5 text-[8px] text-center text-muted-foreground font-medium">
+                  <span>پیش‌نویس</span>
+                  <span>ثبت</span>
+                  <span>تایید</span>
+                  <span>اجرا</span>
+                  <span>خاتمه</span>
+                  <span>تسویه</span>
+                </div>
               </div>
+
               <div className="space-y-1.5 pt-1">
                 <div className="flex justify-between text-[11px] text-muted-foreground">
                   <span>درصد پیشرفت</span>
@@ -1352,8 +1428,8 @@ export default function ContractRegistrationForm() {
                         <TableCell className="text-right text-xs">{c.contractor_name}</TableCell>
                         <TableCell className="text-center text-xs font-mono">{Number(c.amount).toLocaleString()} ریال</TableCell>
                         <TableCell className="text-center">
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-500">
-                            {c.status}
+                          <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold", getStatusBadgeClass(c.status || "پیش‌نویس"))}>
+                            {c.status || "پیش‌نویس"}
                           </span>
                         </TableCell>
                       </TableRow>
