@@ -138,6 +138,11 @@ export const TOP_NAV = [
         to: "/reports/sanama-export",
         label: "خروجی سناما",
       },
+      // ۱۰. فرم‌های استاندارد سناما
+      {
+        to: "/reports/sanama-forms",
+        label: "فرم‌های استاندارد سناما",
+      },
     ],
   },
 
@@ -161,7 +166,10 @@ export const TOP_NAV = [
         { to: "/bookkeeping/bank-reconciliation/account-info-read",     label: "خواندن اطلاعات حساب‌ها" },
         { to: "/bookkeeping/bank-reconciliation/account-reconciliation",label: "مغایرت حساب‌ها" },
       ]},
-      { to: "/bookkeeping/smart-control", label: "کنترل هوشمند" },
+      { to: "/bookkeeping/smart-control", label: "کنترل هوشمند", children: [
+        { to: "/bookkeeping/smart-control/sanama-performance", label: "کنترل فرم عملکرد (سناما)" },
+      ]},
+      { to: "/system-management/sanama-file-check", label: "ممیزی فرم عملکرد سناما" },
       { to: "/bookkeeping/account-setup", label: "تنظیم حساب" },
       { to: "/system-management/backup",            label: "پشتیبان‌گیری" },
       { to: "/system-management/report-signature",  label: "تنظیم امضای گزارشات" },

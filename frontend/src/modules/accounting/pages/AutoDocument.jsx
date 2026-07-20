@@ -119,6 +119,11 @@ function AccountSanamaBlock({ line, lineIdx, sanamaValues, onSanamaChange }) {
       {/* فیلدهای الزامی */}
       <div className="p-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {requiredRows.map((rowNum) => {
+          if (rowNum === 15) {
+            const creditTypeKey = `l${lineIdx}_s5`;
+            const creditTypeValue = sanamaValues[creditTypeKey];
+            if (creditTypeValue !== "2" && creditTypeValue !== "ابلاغی") return null;
+          }
           const rowDef = getSubAccountTitle(rowNum);
           if (!rowDef) return null;
           const key = `l${lineIdx}_s${rowNum}`;
@@ -241,7 +246,13 @@ export default function AutoDocument() {
 
     // اعتبارسنجی همه الزامات سناما
     for (const { line, idx, rows } of linesWithSanama) {
+      const creditTypeKey = `l${idx}_s5`;
+      const creditTypeValue = sanamaValues[creditTypeKey];
+      const isNotifiedCredit = creditTypeValue === "2" || creditTypeValue === "ابلاغی";
+
       for (const rowNum of rows) {
+        if (rowNum === 15 && !isNotifiedCredit) continue;
+
         const key = `l${idx}_s${rowNum}`;
         const val = sanamaValues[key];
         if (!val || String(val).trim() === "") {

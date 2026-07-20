@@ -483,8 +483,9 @@ function SanamaExtraFields({ row, onSanamaChange }) {
           const rowDef = getSubAccountTitle(rowNum);
           if (!rowDef) return null;
 
-          // اگر نوع اعتبار "مصوب" انتخاب شده، ردیف ۱۵ (ابلاغ دهنده) را نشان نده
-          if (rowNum === 15 && creditTypeValue === "1") return null;
+          // اگر نوع اعتبار "مصوب" است (یا ابلاغی نیست)، ردیف ۱۵ (ابلاغ دهنده) نشان داده نمی‌شود و الزامی نیست
+          const isNotifiedCredit = creditTypeValue === "2" || creditTypeValue === "ابلاغی";
+          if (rowNum === 15 && !isNotifiedCredit) return null;
 
           const optional  = OPTIONAL_ROWS.has(rowNum);
           const fieldKey  = `sanama_${rowNum}`;
@@ -707,7 +708,13 @@ export default function ManualDocument() {
       const r = rows[i];
       if (r.group && r.account && r.subAccount) {
         const requiredRows = getRequiredRows(r.subAccount);
+        const creditTypeValue = r.sanamaFields?.["sanama_5"];
+        const isNotifiedCredit = creditTypeValue === "2" || creditTypeValue === "ابلاغی";
+
         for (const rowNum of requiredRows) {
+          // ردیف ۱۵ (ابلاغ دهنده) فقط برای اعتبار ابلاغی الزامی است
+          if (rowNum === 15 && !isNotifiedCredit) continue;
+
           const rowDef = getSubAccountTitle(rowNum);
           const fieldKey = `sanama_${rowNum}`;
           const isOptional = OPTIONAL_ROWS.has(rowNum);

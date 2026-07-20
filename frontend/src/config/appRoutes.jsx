@@ -106,10 +106,16 @@ const ContractGuaranteesReport = lazy(() => import("@/pages/ContractGuaranteesRe
 const ContractDeductionsReport = lazy(() => import("@/pages/ContractDeductionsReport"));
 const ContractChangesReport = lazy(() => import("@/pages/ContractChangesReport"));
 const ContractPartiesReport = lazy(() => import("@/pages/ContractPartiesReport"));
+const SanamaPerformanceControls = lazy(() => import("@/modules/accounting/pages/SanamaPerformanceControls"));
+const SanamaFormsViewer = lazy(() => import("@/modules/accounting/pages/SanamaFormsViewer"));
 
 /** صفحاتی که پیاده‌سازی شده‌اند — بقیه خودکار Placeholder می‌شوند */
 export const PAGE_COMPONENTS = {
   "/ai/chat": AiChat,
+  "/bookkeeping/smart-control": SanamaPerformanceControls,
+  "/bookkeeping/smart-control/sanama-performance": SanamaPerformanceControls,
+  "/system-management/sanama-file-check": SanamaPerformanceControls,
+  "/reports/sanama-forms": SanamaFormsViewer,
   // ─── گزارشات ─────────────────────────────────────────────────────────────
   "/reports": DocumentsReport,
   // گزارش‌های اسناد حسابداری
@@ -358,7 +364,6 @@ export const PAGE_COMPONENTS = {
   "/bookkeeping/financial-statements/reports-settings": Bookkeeping,
   "/bookkeeping/accountant-agents": Bookkeeping,
   "/bookkeeping/document-notification": Bookkeeping,
-  "/bookkeeping/smart-control": Bookkeeping,
   "/bookkeeping/petty-cash": Bookkeeping,
   "/bookkeeping/open-items": Bookkeeping,
   "/bookkeeping/resource-forms": Bookkeeping,
@@ -411,7 +416,6 @@ export const PAGE_COMPONENTS = {
   "/system-management/cartable": SystemManagement,
   "/system-management/credit-settings": SystemManagement,
   "/system-management/revoke-e-transfer": SystemManagement,
-  "/system-management/sanama-file-check": SystemManagement,
   "/system-management/doc-requirements": SystemManagement,
   "/guarantees": Guarantees,
   "/guarantees/types": Guarantees,
