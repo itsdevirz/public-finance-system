@@ -3,6 +3,7 @@ import {
   FileSpreadsheet, Download, Save, CheckCircle2, AlertTriangle,
   RefreshCw, Layers, Calculator, HelpCircle, Eye, Printer, Filter, ShieldCheck
 } from "lucide-react";
+import api from "@/api";
 import { PageShell, PageHeader } from "@/components/layout/PageShell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,76 +13,113 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { validateSanamaPerformanceForms } from "@/lib/sanamaPerformanceValidation";
 
+// ─── توابع کمکی تبدیل و نمایش اعداد به فارسی ──────────────────────────────────────────
+export function toPersianDigits(n) {
+  if (n === null || n === undefined) return "";
+  return String(n).replace(/[0-9]/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[d]);
+}
+
+export function formatPersianAmount(val) {
+  if (val === null || val === undefined || val === "") return "۰";
+  const num = Number(val);
+  if (isNaN(num)) return toPersianDigits(val);
+  return toPersianDigits(num.toLocaleString("fa-IR"));
+}
+
+export function PersianAmountInput({ value, onChange, className = "", disabled = false, textColor = "" }) {
+  const displayVal = (value !== undefined && value !== null && value !== "")
+    ? toPersianDigits(Number(value).toLocaleString("fa-IR"))
+    : "۰";
+
+  return (
+    <Input
+      type="text"
+      dir="ltr"
+      disabled={disabled}
+      value={displayVal}
+      onChange={(e) => {
+        const raw = e.target.value
+          .replace(/[۰-۹]/g, (d) => "۰۱۲۳۴۵۶۷۸۹".indexOf(d))
+          .replace(/,/g, "")
+          .replace(/\D/g, "");
+        const num = raw ? Number(raw) : 0;
+        onChange(num);
+      }}
+      className={cn("h-8 text-xs font-mono text-center font-bold", textColor, className)}
+    />
+  );
+}
+
 // ─── ثوابت و مقادیر اولیه فرم‌های سناما ──────────────────────────────────────────
 
 const INITIAL_FORM1 = {
-  initialBudget: 1000000000,
-  increase: 100000000,
-  decrease: 50000000,
-  drafts: 800000000,
+  initialBudget: 0,
+  increase: 0,
+  decrease: 0,
+  drafts: 0,
   legalAdjustments: 0,
 };
 
 const INITIAL_FORM_4_6_EXPENSE = [
-  { id: 1, title: "بودجه اعتبار نهایی", accountType: "h", creditType: "مصوب / ابلاغی", moeinCodes: "91001 / -94001", approvedAmount: 250000000 },
-  { id: 2, title: "اعتبار تخصیص یافته", accountType: "h", creditType: "مصوب / ابلاغی", moeinCodes: "93001 / 97001 / 98001 / 99001 / 92501 / 93501", approvedAmount: 200000000 },
-  { id: 3, title: "دریافتی از محل اعتبارات تخصیص یافته / درآمدهای اختصاصی", accountType: "h", creditType: "مصوب / ابلاغی", moeinCodes: "41001 / 41005 / 41006 / 81010 / 81017 / 81019 / -94001", approvedAmount: 180000000 },
-  { id: 4, title: "اعتبار مصرف شده", accountType: "h", creditType: "مصوب-ابلاغی", moeinCodes: "99001", approvedAmount: 150000000 },
-  { id: 5, title: "پیش پرداخت", accountType: "h", creditType: "مصوب-ابلاغی", moeinCodes: "98001", approvedAmount: 10000000 },
+  { id: 1, title: "بودجه اعتبار نهایی", accountType: "h", creditType: "مصوب / ابلاغی", moeinCodes: "91001 / -94001", approvedAmount: 0 },
+  { id: 2, title: "اعتبار تخصیص یافته", accountType: "h", creditType: "مصوب / ابلاغی", moeinCodes: "93001 / 97001 / 98001 / 99001 / 92501 / 93501", approvedAmount: 0 },
+  { id: 3, title: "دریافتی از محل اعتبارات تخصیص یافته / درآمدهای اختصاصی", accountType: "h", creditType: "مصوب / ابلاغی", moeinCodes: "41001 / 41005 / 41006 / 81010 / 81017 / 81019 / -94001", approvedAmount: 0 },
+  { id: 4, title: "اعتبار مصرف شده", accountType: "h", creditType: "مصوب-ابلاغی", moeinCodes: "99001", approvedAmount: 0 },
+  { id: 5, title: "پیش پرداخت", accountType: "h", creditType: "مصوب-ابلاغی", moeinCodes: "98001", approvedAmount: 0 },
   { id: 6, title: "پیش پرداخت اعتبار اسنادی", accountType: "h", creditType: "مصوب-ابلاغی", moeinCodes: "98001", approvedAmount: 0 },
-  { id: 7, title: "علی‌الحساب", accountType: "h", creditType: "مصوب-ابلاغی", moeinCodes: "98001", approvedAmount: 10000000 },
+  { id: 7, title: "علی‌الحساب", accountType: "h", creditType: "مصوب-ابلاغی", moeinCodes: "98001", approvedAmount: 0 },
   { id: 8, title: "اسناد واخواهی", accountType: "h", creditType: "مصوب-ابلاغی", moeinCodes: "92501", approvedAmount: 0 },
   { id: 9, title: "کسری ابواب جمعی", accountType: "h", creditType: "مصوب-ابلاغی", moeinCodes: "81007 / 93501", approvedAmount: 0 },
-  { id: 10, title: "وجوه انتقالی (محاسباتی)", accountType: "h", creditType: "مصوب-ابلاغی", moeinCodes: "محاسباتی", approvedAmount: 10000000, isCalculated: true },
+  { id: 10, title: "وجوه انتقالی (محاسباتی)", accountType: "h", creditType: "مصوب-ابلاغی", moeinCodes: "محاسباتی", approvedAmount: 0, isCalculated: true },
   { id: 11, title: "اوراق انتقالی", accountType: "h", creditType: "مصوب-ابلاغی", moeinCodes: "81010 / 81019", approvedAmount: 0 },
 ];
 
 const INITIAL_FORM_7_5_CAPITAL = [
-  { id: 1, title: "بودجه اعتبار نهایی", accountType: "t", creditType: "مصوب / ابلاغی", moeinCodes: "91002 / -94002", approvedAmount: 500000000 },
-  { id: 2, title: "اعتبار تخصیص یافته", accountType: "t", creditType: "مصوب / ابلاغی", moeinCodes: "93002 / 97002 / 98002 / 99002 / 92502 / 93502", approvedAmount: 400000000 },
-  { id: 3, title: "دریافتی از محل اعتبارات تخصیص یافته / درآمدهای اختصاصی", accountType: "t", creditType: "مصوب / ابلاغی", moeinCodes: "41003 / 81010 / 81017 / 81019 / -94002", approvedAmount: 380000000 },
-  { id: 4, title: "اعتبار مصرف شده", accountType: "t", creditType: "مصوب-ابلاغی", moeinCodes: "99002", approvedAmount: 300000000 },
-  { id: 5, title: "موجودی‌ها", accountType: "t", creditType: "مصوب-ابلاغی", moeinCodes: "98002", approvedAmount: 20000000 },
-  { id: 6, title: "پیش پرداخت", accountType: "t", creditType: "مصوب-ابلاغی", moeinCodes: "98002", approvedAmount: 30000000 },
+  { id: 1, title: "بودجه اعتبار نهایی", accountType: "t", creditType: "مصوب / ابلاغی", moeinCodes: "91002 / -94002", approvedAmount: 0 },
+  { id: 2, title: "اعتبار تخصیص یافته", accountType: "t", creditType: "مصوب / ابلاغی", moeinCodes: "93002 / 97002 / 98002 / 99002 / 92502 / 93502", approvedAmount: 0 },
+  { id: 3, title: "دریافتی از محل اعتبارات تخصیص یافته / درآمدهای اختصاصی", accountType: "t", creditType: "مصوب / ابلاغی", moeinCodes: "41003 / 81010 / 81017 / 81019 / -94002", approvedAmount: 0 },
+  { id: 4, title: "اعتبار مصرف شده", accountType: "t", creditType: "مصوب-ابلاغی", moeinCodes: "99002", approvedAmount: 0 },
+  { id: 5, title: "موجودی‌ها", accountType: "t", creditType: "مصوب-ابلاغی", moeinCodes: "98002", approvedAmount: 0 },
+  { id: 6, title: "پیش پرداخت", accountType: "t", creditType: "مصوب-ابلاغی", moeinCodes: "98002", approvedAmount: 0 },
   { id: 7, title: "پیش پرداخت مواد و کالا", accountType: "t", creditType: "مصوب-ابلاغی", moeinCodes: "98002", approvedAmount: 0 },
   { id: 8, title: "پیش پرداخت اعتبار اسنادی", accountType: "t", creditType: "مصوب-ابلاغی", moeinCodes: "98002", approvedAmount: 0 },
-  { id: 9, title: "علی‌الحساب", accountType: "t", creditType: "مصوب-ابلاغی", moeinCodes: "98002", approvedAmount: 15000000 },
+  { id: 9, title: "علی‌الحساب", accountType: "t", creditType: "مصوب-ابلاغی", moeinCodes: "98002", approvedAmount: 0 },
   { id: 10, title: "اسناد واخواهی", accountType: "t", creditType: "مصوب-ابلاغی", moeinCodes: "92502", approvedAmount: 0 },
   { id: 11, title: "کسری ابواب جمعی", accountType: "t", creditType: "مصوب-ابلاغی", moeinCodes: "81007 / 93502", approvedAmount: 0 },
-  { id: 12, title: "وجوه انتقالی (محاسباتی)", accountType: "t", creditType: "مصوب-ابلاغی", moeinCodes: "محاسباتی", approvedAmount: 15000000, isCalculated: true },
+  { id: 12, title: "وجوه انتقالی (محاسباتی)", accountType: "t", creditType: "مصوب-ابلاغی", moeinCodes: "محاسباتی", approvedAmount: 0, isCalculated: true },
   { id: 13, title: "اوراق انتقالی", accountType: "t", creditType: "مصوب-ابلاغی", moeinCodes: "81010 / 81019", approvedAmount: 0 },
 ];
 
 const INITIAL_FORM_8_RESOURCES = [
-  { id: 1, resourceKind: "درآمد عمومی", expectedMoein: "81008", receivedMoein: "71001 / 81013", sentMoein: "71001 / 81013", expectedAmount: 1000000000, receivedAmount: 950000000, sentAmount: 950000000 },
-  { id: 2, resourceKind: "درآمد اختصاصی", expectedMoein: "81008", receivedMoein: "81013", sentMoein: "81013", expectedAmount: 200000000, receivedAmount: 180000000, sentAmount: 180000000 },
+  { id: 1, resourceKind: "درآمد عمومی", expectedMoein: "81008", receivedMoein: "71001 / 81013", sentMoein: "71001 / 81013", expectedAmount: 0, receivedAmount: 0, sentAmount: 0 },
+  { id: 2, resourceKind: "درآمد اختصاصی", expectedMoein: "81008", receivedMoein: "81013", sentMoein: "81013", expectedAmount: 0, receivedAmount: 0, sentAmount: 0 },
   { id: 3, resourceKind: "واگذاری دارایی مالی (عمومی)", expectedMoein: "81008", receivedMoein: "63001 / 81013", sentMoein: "63001 / 81013", expectedAmount: 0, receivedAmount: 0, sentAmount: 0 },
-  { id: 4, resourceKind: "واگذاری دارایی سرمایه‌ای (عمومی)", expectedMoein: "81008", receivedMoein: "63001 / 81013", sentMoein: "63001 / 81013", expectedAmount: 500000000, receivedAmount: 480000000, sentAmount: 480000000 },
+  { id: 4, resourceKind: "واگذاری دارایی سرمایه‌ای (عمومی)", expectedMoein: "81008", receivedMoein: "63001 / 81013", sentMoein: "63001 / 81013", expectedAmount: 0, receivedAmount: 0, sentAmount: 0 },
   { id: 5, resourceKind: "واگذاری دارایی سرمایه‌ای (اختصاصی)", expectedMoein: "81008", receivedMoein: "81013", sentMoein: "81013", expectedAmount: 0, receivedAmount: 0, sentAmount: 0 },
 ];
 
 const INITIAL_FORM_9 = {
-  prepayments: { initialBalance: 100000000, consumedTransferred: 40000000, inventory: 0, objectionTransferred: 0, deficitTransferred: 0, sentToTreasury: 10000000, yearEndBalance: 50000000, moeinExpense: "98003", moeinCapital: "98004" },
-  inventories: { initialBalance: 50000000, consumedTransferred: 20000000, objectionTransferred: 0, deficitTransferred: 0, sentToTreasury: 5000000, yearEndBalance: 25000000, moeinExpense: "98003", moeinCapital: "98004" },
-  onAccounts: { initialBalance: 60000000, consumedTransferred: 30000000, inventory: 0, objectionTransferred: 0, deficitTransferred: 0, sentToTreasury: 10000000, yearEndBalance: 20000000, moeinExpense: "98003", moeinCapital: "98004" }
+  prepayments: { initialBalance: 0, consumedTransferred: 0, inventory: 0, objectionTransferred: 0, deficitTransferred: 0, sentToTreasury: 0, yearEndBalance: 0, moeinExpense: "98003", moeinCapital: "98004" },
+  inventories: { initialBalance: 0, consumedTransferred: 0, objectionTransferred: 0, deficitTransferred: 0, sentToTreasury: 0, yearEndBalance: 0, moeinExpense: "98003", moeinCapital: "98004" },
+  onAccounts: { initialBalance: 0, consumedTransferred: 0, inventory: 0, objectionTransferred: 0, deficitTransferred: 0, sentToTreasury: 0, yearEndBalance: 0, moeinExpense: "98003", moeinCapital: "98004" }
 };
 
 const INITIAL_FORM_10 = [
-  { id: 1, section: "وجوه انتقالی", initialBalance: 150000000, nonFinalPrevYears: 20000000, objectionDeficitPrevYears: 0, investmentsPrevYears: 0, transferredDraftsExpense: 94003, transferredDraftsCapital: 94004, receivedNotifiedBonds: "81010 / 81019 / 81017", consumedTransferred: 100000000, prepayments: 10000000, onAccounts: 10000000, sentToTreasury: 10000000, objectionTransferred: 92503, deficitTransferred: 93503, yearEndMoeinApproved: "91501 / 97003", yearEndMoeinNotified: "95003" },
-  { id: 2, section: "سرمایه‌گذاری", initialBalance: 50000000, transferredFunds: 50000000, deficitTransferred: 93503, yearEndBalance: 0 }
+  { id: 1, section: "وجوه انتقالی", initialBalance: 0, nonFinalPrevYears: 0, objectionDeficitPrevYears: 0, investmentsPrevYears: 0, transferredDraftsExpense: 94003, transferredDraftsCapital: 94004, receivedNotifiedBonds: "81010 / 81019 / 81017", consumedTransferred: 0, prepayments: 0, onAccounts: 0, sentToTreasury: 0, objectionTransferred: 92503, deficitTransferred: 93503, yearEndMoeinApproved: "91501 / 97003", yearEndMoeinNotified: "95003" },
+  { id: 2, section: "سرمایه‌گذاری", initialBalance: 0, transferredFunds: 0, deficitTransferred: 93503, yearEndBalance: 0 }
 ];
 
 const INITIAL_FORM_11 = [
-  { id: 1, rowType: "سطر اسناد واخواهی شده", initialBalance: 30000000, consumedTransferred: 10000000, sentToTreasury: 5000000, deficit: 0, moeinExpense: "92503", moeinCapital: "92504" },
-  { id: 2, rowType: "سطر کسری ابواب جمعی (دارای مانده)", initialBalance: 15000000, consumedTransferred: 5000000, sentToTreasury: 0, yearEndMoeinExpense: "93503", yearEndMoeinCapital: "93504" },
-  { id: 3, rowType: "سطر کسری ابواب جمعی برداشتی", initialBalance: 10000000, consumedTransferred: 0, sentToTreasury: 0, yearEndMoeinExpense: "81007", yearEndMoeinCapital: "81007" },
+  { id: 1, rowType: "سطر اسناد واخواهی شده", initialBalance: 0, consumedTransferred: 0, sentToTreasury: 0, deficit: 0, moeinExpense: "92503", moeinCapital: "92504" },
+  { id: 2, rowType: "سطر کسری ابواب جمعی (دارای مانده)", initialBalance: 0, consumedTransferred: 0, sentToTreasury: 0, yearEndMoeinExpense: "93503", yearEndMoeinCapital: "93504" },
+  { id: 3, rowType: "سطر کسری ابواب جمعی برداشتی", initialBalance: 0, consumedTransferred: 0, sentToTreasury: 0, yearEndMoeinExpense: "81007", yearEndMoeinCapital: "81007" },
 ];
 
 const INITIAL_FORM_13 = [
-  { id: 1, rowType: "اوراق دریافتی", accountType: "o", creditType: "مصوب / ابلاغی", moeinExpenseApproved: "41001 / 41006 / 81010 / 81017 / -94001", moeinExpenseNotified: "81010 / 81017", moeinCapitalApproved: "41003 / 81010 / 81017 / -94002", moeinCapitalNotified: "81010 / 81017", amount: 500000000 },
-  { id: 2, rowType: "اوراق واگذار شده", accountType: "o", creditType: "مصوب - ابلاغی", moeinExpenseApproved: "99001 / 98001 / 92501 / 93501", moeinExpenseNotified: "", moeinCapitalApproved: "99002 / 98002 / 92502 / 93502", moeinCapitalNotified: "", amount: 450000000 },
+  { id: 1, rowType: "اوراق دریافتی", accountType: "o", creditType: "مصوب / ابلاغی", moeinExpenseApproved: "41001 / 41006 / 81010 / 81017 / -94001", moeinExpenseNotified: "81010 / 81017", moeinCapitalApproved: "41003 / 81010 / 81017 / -94002", moeinCapitalNotified: "81010 / 81017", amount: 0 },
+  { id: 2, rowType: "اوراق واگذار شده", accountType: "o", creditType: "مصوب - ابلاغی", moeinExpenseApproved: "99001 / 98001 / 92501 / 93501", moeinExpenseNotified: "", moeinCapitalApproved: "99002 / 98002 / 92502 / 93502", moeinCapitalNotified: "", amount: 0 },
   { id: 3, rowType: "اوراق مصرف نشده (قفل)", accountType: "o", creditType: "مصوب - ابلاغی", moeinExpenseApproved: "قفل شده", moeinExpenseNotified: "", moeinCapitalApproved: "قفل شده", moeinCapitalNotified: "", amount: 0 },
-  { id: 4, rowType: "اوراق انتقالی", accountType: "o", creditType: "مصوب - ابلاغی", moeinExpenseApproved: "81010", moeinExpenseNotified: "81010", moeinCapitalApproved: "81010", moeinCapitalNotified: "81010", amount: 50000000 },
+  { id: 4, rowType: "اوراق انتقالی", accountType: "o", creditType: "مصوب - ابلاغی", moeinExpenseApproved: "81010", moeinExpenseNotified: "81010", moeinCapitalApproved: "81010", moeinCapitalNotified: "81010", amount: 0 },
 ];
 
 export default function SanamaFormsViewer() {
@@ -95,6 +133,29 @@ export default function SanamaFormsViewer() {
   const [form11Data, setForm11Data] = useState(INITIAL_FORM_11);
   const [form13Data, setForm13Data] = useState(INITIAL_FORM_13);
   const [auditErrors, setAuditErrors] = useState([]);
+
+  // بارگذاری فرم‌های ذخیره‌شده از دیتابیس واقعی
+  useEffect(() => {
+    const loadSavedForms = async () => {
+      try {
+        const res = await api.get("/api/credits/sanama-forms");
+        if (res.data?.data) {
+          const d = res.data.data;
+          if (d.form1Data) setForm1Data(d.form1Data);
+          if (d.form46Data) setForm46Data(d.form46Data);
+          if (d.form75CapData || d.form75Data) setForm75Data(d.form75CapData || d.form75Data);
+          if (d.form8Data) setForm8Data(d.form8Data);
+          if (d.form9Data) setForm9Data(d.form9Data);
+          if (d.form10Data) setForm10Data(d.form10Data);
+          if (d.form11Data) setForm11Data(d.form11Data);
+          if (d.form13Data) setForm13Data(d.form13Data);
+        }
+      } catch (e) {
+        console.error("خطا در دریافت فرم‌های سناما از دیتابیس:", e);
+      }
+    };
+    loadSavedForms();
+  }, []);
 
   // فرمول‌های محاسباتی فرم ۱
   const calculatedForm1Final = form1Data.initialBudget + form1Data.legalAdjustments + form1Data.increase - form1Data.decrease - form1Data.drafts;
@@ -152,12 +213,235 @@ export default function SanamaFormsViewer() {
     setAuditErrors(errs);
   }, [form1Data, form46Data, form75Data, form9Data]);
 
+  const handleExportExcel = () => {
+    let title = "";
+    let headers = [];
+    let rows = [];
+
+    if (activeTab === "form1") {
+      title = "فرم ۱ — موافقت‌نامه / بودجه اعتبار نهایی هزینه";
+      headers = ["عنوان ستون", "نوع حساب", "حساب معین", "سطوح تفصیلی", "مبلغ (ریال)"];
+      rows = [
+        ["بودجه اعتبار اولیه", "هزینه", "قابل ویرایش", "تکمیل توسط کاربر", form1Data.initialBudget],
+        ["افزایش (+)", "هزینه", "قابل ویرایش", "تکمیل توسط کاربر", form1Data.increase],
+        ["کاهش (-)", "هزینه", "قابل ویرایش", "تکمیل توسط کاربر", form1Data.decrease],
+        ["حواله (-)", "هزینه", "94001", "سطوح تفصیلی مطابق الزامات سناما", form1Data.drafts],
+        ["بودجه اعتبار نهایی (محاسباتی)", "هزینه", "91001 / -94001", "مطابق الزامات پروتکل تبادل الکترونیکی", calculatedForm1Final]
+      ];
+    } else if (activeTab === "form46") {
+      title = "فرم ۴-۶ — اعتبارات هزینه (جدول ۱۱ ردیفی)";
+      headers = ["ردیف", "عنوان ستون", "نوع حساب", "اعتبار", "حساب معین", "مبلغ (ریال)"];
+      rows = form46Data.map(r => [r.id, r.title, r.accountType, r.creditType, r.moeinCodes, r.isCalculated ? calculatedF46Transferred : r.approvedAmount]);
+    } else if (activeTab === "form75") {
+      title = "فرم ۵-۷ — اعتبارات سرمایه‌ای (نوع حساب t)";
+      headers = ["ردیف", "عنوان ستون", "نوع حساب", "اعتبار", "حساب معین سناما", "مبلغ مصوب (ریال)"];
+      rows = form75Data.map(r => [r.id, r.title, r.accountType, r.creditType, r.moeinCodes, r.approvedAmount]);
+    } else if (activeTab === "form8") {
+      title = "فرم ۸ — منابع و درآمدهای عمومی و اختصاصی";
+      headers = ["ردیف", "ماهیت منابع", "معین پیش‌بینی", "معین وصول", "معین ارسال به خزانه", "پیش‌بینی", "وصول", "ارسال به خزانه"];
+      rows = form8Data.map(r => [r.id, r.resourceKind, r.expectedMoein, r.receivedMoein, r.sentMoein, r.expectedAmount, r.receivedAmount, r.sentAmount]);
+    } else if (activeTab === "form9") {
+      title = "فرم ۹ — سطر پیش‌پرداخت‌ها، موجودی‌ها و علی‌الحساب";
+      headers = ["عنوان", "مانده ابتدای سال", "اعتبار انتقالی مصرف شده", "وجوه ارسالی به خزانه", "وجوه انتقالی (محاسباتی)", "مانده پایان سال"];
+      rows = [
+        ["پیش‌پرداخت‌ها", form9Data.prepayments.initialBalance, form9Data.prepayments.consumedTransferred, form9Data.prepayments.sentToTreasury, calculateForm9Transferred(form9Data.prepayments), form9Data.prepayments.yearEndBalance],
+        ["موجودی‌ها", form9Data.inventories.initialBalance, form9Data.inventories.consumedTransferred, form9Data.inventories.sentToTreasury, calculateForm9Transferred(form9Data.inventories), form9Data.inventories.yearEndBalance],
+        ["علی‌الحساب", form9Data.onAccounts.initialBalance, form9Data.onAccounts.consumedTransferred, form9Data.onAccounts.sentToTreasury, calculateForm9Transferred(form9Data.onAccounts), form9Data.onAccounts.yearEndBalance],
+      ];
+    } else if (activeTab === "form10") {
+      title = "فرم ۱۰ — وجوه انتقالی و سرمایه‌گذاری‌ها";
+      headers = ["عنوان بخش", "حواله انتقالی", "دریافتی از اعتبار انتقالی", "اعتبار مصرف شده", "مانده پایان سال"];
+      rows = form10Data.map(r => [r.section, r.transferredDraftsExpense || r.transferredFunds, r.receivedNotifiedBonds || "-", r.consumedTransferred || "-", r.yearEndMoeinApproved || r.yearEndBalance || "-"]);
+    } else if (activeTab === "form11") {
+      title = "فرم ۱۱ — اسناد واخواهی شده و کسری ابواب جمعی";
+      headers = ["عنوان سطر", "معین هزینه‌ای", "معین سرمایه‌ای", "مانده ابتدای سال", "مصرف شده", "ارسال به خزانه"];
+      rows = form11Data.map(r => [r.rowType, r.moeinExpense || r.yearEndMoeinExpense, r.moeinCapital || r.yearEndMoeinCapital, r.initialBalance, r.consumedTransferred, r.sentToTreasury]);
+    } else if (activeTab === "form13") {
+      title = "فرم ۱۳ — اوراق مالی، واگذار شده و انتقالی";
+      headers = ["عنوان ستون", "نوع حساب", "معین هزینه‌ای مصوب", "معین سرمایه‌ای مصوب", "مبلغ اوراق (ریال)"];
+      rows = form13Data.map(r => [r.rowType, r.accountType, r.moeinExpenseApproved, r.moeinCapitalApproved, r.amount]);
+    }
+
+    let csvContent = "\uFEFF";
+    csvContent += `${title}\n\n`;
+    csvContent += headers.map(h => `"${h}"`).join(",") + "\n";
+
+    rows.forEach(r => {
+      csvContent += r.map(c => {
+        if (typeof c === "number") return `"${toPersianDigits(c.toLocaleString("fa-IR"))}"`;
+        return `"${toPersianDigits(c)}"`;
+      }).join(",") + "\n";
+    });
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `Sanama_${activeTab}_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+  };
+
+  const handleExportPDF = () => {
+    let title = "";
+    let headers = [];
+    let rows = [];
+
+    if (activeTab === "form1") {
+      title = "فرم ۱ — موافقت‌نامه / بودجه اعتبار نهایی هزینه";
+      headers = ["عنوان ستون", "نوع حساب", "حساب معین", "سطوح تفصیلی", "مبلغ (ریال)"];
+      rows = [
+        ["بودجه اعتبار اولیه", "هزینه", "قابل ویرایش", "تکمیل توسط کاربر", form1Data.initialBudget],
+        ["افزایش (+)", "هزینه", "قابل ویرایش", "تکمیل توسط کاربر", form1Data.increase],
+        ["کاهش (-)", "هزینه", "قابل ویرایش", "تکمیل توسط کاربر", form1Data.decrease],
+        ["حواله (-)", "هزینه", "94001", "سطوح تفصیلی مطابق الزامات سناما", form1Data.drafts],
+        ["بودجه اعتبار نهایی (محاسباتی)", "هزینه", "91001 / -94001", "مطابق الزامات پروتکل تبادل الکترونیکی", calculatedForm1Final]
+      ];
+    } else if (activeTab === "form46") {
+      title = "فرم ۴-۶ — اعتبارات هزینه (جدول ۱۱ ردیفی)";
+      headers = ["ردیف", "عنوان ستون", "نوع حساب", "اعتبار", "حساب معین", "مبلغ (ریال)"];
+      rows = form46Data.map(r => [r.id, r.title, r.accountType, r.creditType, r.moeinCodes, r.isCalculated ? calculatedF46Transferred : r.approvedAmount]);
+    } else if (activeTab === "form75") {
+      title = "فرم ۵-۷ — اعتبارات سرمایه‌ای (نوع حساب t)";
+      headers = ["ردیف", "عنوان ستون", "نوع حساب", "اعتبار", "حساب معین سناما", "مبلغ مصوب (ریال)"];
+      rows = form75Data.map(r => [r.id, r.title, r.accountType, r.creditType, r.moeinCodes, r.approvedAmount]);
+    } else if (activeTab === "form8") {
+      title = "فرم ۸ — منابع و درآمدهای عمومی و اختصاصی";
+      headers = ["ردیف", "ماهیت منابع", "معین پیش‌بینی", "معین وصول", "معین ارسال به خزانه", "پیش‌بینی", "وصول", "ارسال به خزانه"];
+      rows = form8Data.map(r => [r.id, r.resourceKind, r.expectedMoein, r.receivedMoein, r.sentMoein, r.expectedAmount, r.receivedAmount, r.sentAmount]);
+    } else if (activeTab === "form9") {
+      title = "فرم ۹ — سطر پیش‌پرداخت‌ها، موجودی‌ها و علی‌الحساب";
+      headers = ["عنوان", "مانده ابتدای سال", "اعتبار انتقالی مصرف شده", "وجوه ارسالی به خزانه", "وجوه انتقالی (محاسباتی)", "مانده پایان سال"];
+      rows = [
+        ["پیش‌پرداخت‌ها", form9Data.prepayments.initialBalance, form9Data.prepayments.consumedTransferred, form9Data.prepayments.sentToTreasury, calculateForm9Transferred(form9Data.prepayments), form9Data.prepayments.yearEndBalance],
+        ["موجودی‌ها", form9Data.inventories.initialBalance, form9Data.inventories.consumedTransferred, form9Data.inventories.sentToTreasury, calculateForm9Transferred(form9Data.inventories), form9Data.inventories.yearEndBalance],
+        ["علی‌الحساب", form9Data.onAccounts.initialBalance, form9Data.onAccounts.consumedTransferred, form9Data.onAccounts.sentToTreasury, calculateForm9Transferred(form9Data.onAccounts), form9Data.onAccounts.yearEndBalance],
+      ];
+    } else if (activeTab === "form10") {
+      title = "فرم ۱۰ — وجوه انتقالی و سرمایه‌گذاری‌ها";
+      headers = ["عنوان بخش", "حواله انتقالی", "دریافتی از اعتبار انتقالی", "اعتبار مصرف شده", "مانده پایان سال"];
+      rows = form10Data.map(r => [r.section, r.transferredDraftsExpense || r.transferredFunds, r.receivedNotifiedBonds || "-", r.consumedTransferred || "-", r.yearEndMoeinApproved || r.yearEndBalance || "-"]);
+    } else if (activeTab === "form11") {
+      title = "فرم ۱۱ — اسناد واخواهی شده و کسری ابواب جمعی";
+      headers = ["عنوان سطر", "معین هزینه‌ای", "معین سرمایه‌ای", "مانده ابتدای سال", "مصرف شده", "ارسال به خزانه"];
+      rows = form11Data.map(r => [r.rowType, r.moeinExpense || r.yearEndMoeinExpense, r.moeinCapital || r.yearEndMoeinCapital, r.initialBalance, r.consumedTransferred, r.sentToTreasury]);
+    } else if (activeTab === "form13") {
+      title = "فرم ۱۳ — اوراق مالی، واگذار شده و انتقالی";
+      headers = ["عنوان ستون", "نوع حساب", "معین هزینه‌ای مصوب", "معین سرمایه‌ای مصوب", "مبلغ اوراق (ریال)"];
+      rows = form13Data.map(r => [r.rowType, r.accountType, r.moeinExpenseApproved, r.moeinCapitalApproved, r.amount]);
+    }
+
+    const win = window.open("", "_blank");
+    if (!win) return;
+
+    const tableHeadHtml = headers.map(h => `<th>${h}</th>`).join("");
+    const tableRowsHtml = rows.map(r => `<tr>${r.map(c => `<td>${typeof c === 'number' ? toPersianDigits(c.toLocaleString('fa-IR')) : toPersianDigits(c)}</td>`).join("")}</tr>`).join("");
+
+    win.document.write(`
+      <!DOCTYPE html>
+      <html dir="rtl" lang="fa">
+      <head>
+        <meta charset="UTF-8" />
+        <title>${title}</title>
+        <style>
+          @page { size: A4 landscape; margin: 10mm; }
+          body { font-family: Tahoma, Vazir, sans-serif; font-size: 11px; direction: rtl; color: #111; padding: 15px; }
+          .hdr { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #1e3a8a; padding-bottom: 10px; margin-bottom: 15px; }
+          .hdr h1 { font-size: 16px; margin: 0; color: #1e3a8a; font-weight: bold; }
+          .hdr p { font-size: 10px; color: #666; margin-top: 4px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+          th, td { border: 1px solid #94a3b8; padding: 8px 10px; text-align: right; font-size: 10px; }
+          th { background-color: #f1f5f9; color: #0f172a; font-weight: bold; }
+          tr:nth-child(even) { background-color: #f8fafc; }
+          .footer { margin-top: 25px; font-size: 9px; color: #64748b; text-align: left; }
+        </style>
+      </head>
+      <body>
+        <div class="hdr">
+          <div>
+            <h1>وزارت امور اقتصادی و دارایی - خزانه‌داری کل کشور</h1>
+            <p>سامانه نظارت آنی خزانه‌داری (سناما) — ${title}</p>
+          </div>
+          <div style="text-align: left;">
+            <div>تاریخ گزارش: ${toPersianDigits(new Date().toLocaleDateString("fa-IR"))}</div>
+            <div>ارز: ریال ایران</div>
+          </div>
+        </div>
+        <table>
+          <thead><tr>${tableHeadHtml}</tr></thead>
+          <tbody>${tableRowsHtml}</tbody>
+        </table>
+        <div class="footer">ایجاد شده توسط سیستم جامع مالی و حسابداری عمومی</div>
+        <script>
+          window.onload = function() {
+            setTimeout(function() { window.print(); window.close(); }, 350);
+          };
+        </script>
+    `);
+  };
+
+  const handleSaveForms = async () => {
+    try {
+      const payload = {
+        form1Data,
+        form46Data,
+        form75CapData: form75Data,
+        form8Data,
+        form9Data,
+        form10Data,
+        form11Data,
+        form13Data,
+      };
+      await api.post("/api/credits/sanama-forms", payload);
+      alert("اطلاعات فرم‌های سناما با موفقیت در پایگاه داده ذخیره شد.");
+    } catch (e) {
+      console.error(e);
+      alert("خطا در ذخیره‌سازی اطلاعات سناما در دیتابیس");
+    }
+  };
+
   return (
     <PageShell>
       <PageHeader
         title="فرم‌های جامع سناما (وزارت امور اقتصادی و دارایی)"
         description="مشاهده، تکمیل، محاسبه خودکار و ممیزی فرم‌های ۱، ۴-۶، ۵-۷، ۸، ۹، ۱۰، ۱۱ و ۱۳ سناما"
       />
+
+      {/* ─── نوار ابزار ذخیره، خروجی اکسل و پی‌دی‌اف ─── */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-4 bg-slate-100 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+        <div className="flex items-center gap-2">
+          <FileSpreadsheet className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+            عملیات خروجی و گزارش‌گیری فرم فعال سناما:
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            onClick={handleSaveForms}
+            className="text-xs font-bold gap-1.5 h-8 bg-blue-600 hover:bg-blue-700 text-white shadow"
+          >
+            <Save className="h-3.5 w-3.5" />
+            <span>ذخیره تغییرات در دیتابیس</span>
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleExportExcel}
+            className="text-xs font-bold gap-1.5 h-8 border-emerald-600 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+          >
+            <Download className="h-3.5 w-3.5" />
+            <span>خروجی اکسل (Excel)</span>
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleExportPDF}
+            className="text-xs font-bold gap-1.5 h-8 border-rose-600 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+          >
+            <Printer className="h-3.5 w-3.5" />
+            <span>خروجی PDF / چاپ</span>
+          </Button>
+        </div>
+      </div>
 
       {/* ─── هشدار ممیزی هوشمند ─── */}
       {auditErrors.length > 0 && (
@@ -229,11 +513,9 @@ export default function SanamaFormsViewer() {
                       <td className="p-3 font-mono font-semibold">قابل ویرایش</td>
                       <td className="p-3 text-slate-500">تکمیل توسط کاربر</td>
                       <td className="p-2">
-                        <Input
-                          type="number"
+                        <PersianAmountInput
                           value={form1Data.initialBudget}
-                          onChange={(e) => setForm1Data({ ...form1Data, initialBudget: Number(e.target.value) })}
-                          className="h-8 text-xs font-mono"
+                          onChange={(val) => setForm1Data({ ...form1Data, initialBudget: val })}
                         />
                       </td>
                     </tr>
@@ -243,11 +525,10 @@ export default function SanamaFormsViewer() {
                       <td className="p-3 font-mono font-semibold">قابل ویرایش</td>
                       <td className="p-3 text-slate-500">تکمیل توسط کاربر</td>
                       <td className="p-2">
-                        <Input
-                          type="number"
+                        <PersianAmountInput
                           value={form1Data.increase}
-                          onChange={(e) => setForm1Data({ ...form1Data, increase: Number(e.target.value) })}
-                          className="h-8 text-xs font-mono text-emerald-700"
+                          onChange={(val) => setForm1Data({ ...form1Data, increase: val })}
+                          textColor="text-emerald-700"
                         />
                       </td>
                     </tr>
@@ -257,35 +538,33 @@ export default function SanamaFormsViewer() {
                       <td className="p-3 font-mono font-semibold">قابل ویرایش</td>
                       <td className="p-3 text-slate-500">تکمیل توسط کاربر</td>
                       <td className="p-2">
-                        <Input
-                          type="number"
+                        <PersianAmountInput
                           value={form1Data.decrease}
-                          onChange={(e) => setForm1Data({ ...form1Data, decrease: Number(e.target.value) })}
-                          className="h-8 text-xs font-mono text-rose-700"
+                          onChange={(val) => setForm1Data({ ...form1Data, decrease: val })}
+                          textColor="text-rose-700"
                         />
                       </td>
                     </tr>
                     <tr className="hover:bg-lime-50/30">
                       <td className="p-3 font-bold text-blue-700">حواله (-)</td>
                       <td className="p-3 text-slate-600">هزینه</td>
-                      <td className="p-3 font-mono font-bold text-blue-800">94001</td>
+                      <td className="p-3 font-mono font-bold text-blue-800">{toPersianDigits("94001")}</td>
                       <td className="p-3 text-slate-500">سطوح تفصیلی مطابق الزامات سناما</td>
                       <td className="p-2">
-                        <Input
-                          type="number"
+                        <PersianAmountInput
                           value={form1Data.drafts}
-                          onChange={(e) => setForm1Data({ ...form1Data, drafts: Number(e.target.value) })}
-                          className="h-8 text-xs font-mono text-blue-700"
+                          onChange={(val) => setForm1Data({ ...form1Data, drafts: val })}
+                          textColor="text-blue-700"
                         />
                       </td>
                     </tr>
                     <tr className="bg-lime-200/60 font-black text-slate-900">
                       <td className="p-3">بودجه اعتبار نهایی (محاسباتی)</td>
                       <td className="p-3">هزینه</td>
-                      <td className="p-3 font-mono">91001 / -94001</td>
+                      <td className="p-3 font-mono">{toPersianDigits("91001 / -94001")}</td>
                       <td className="p-3 text-slate-700">مطابق الزامات پروتکل تبادل الکترونیکی</td>
                       <td className="p-3 font-mono text-sm text-lime-900">
-                        {calculatedForm1Final.toLocaleString("fa-IR")} ریال
+                        {formatPersianAmount(calculatedForm1Final)} ریال
                       </td>
                     </tr>
                   </tbody>
@@ -319,25 +598,20 @@ export default function SanamaFormsViewer() {
                   <tbody className="divide-y divide-slate-100">
                     {form46Data.map((row) => (
                       <tr key={row.id} className={cn("hover:bg-slate-50/50", row.isCalculated && "bg-amber-100/50 font-bold")}>
-                        <td className="p-3 text-center font-mono font-semibold">{row.id}</td>
+                        <td className="p-3 text-center font-mono font-semibold">{toPersianDigits(row.id)}</td>
                         <td className="p-3 font-semibold text-slate-800">{row.title}</td>
                         <td className="p-3 text-center font-mono">{row.accountType}</td>
                         <td className="p-3 text-center text-slate-600">{row.creditType}</td>
-                        <td className="p-3 font-mono text-blue-700 font-semibold">{row.moeinCodes}</td>
+                        <td className="p-3 font-mono text-blue-700 font-semibold">{toPersianDigits(row.moeinCodes)}</td>
                         <td className="p-2">
                           {row.isCalculated ? (
                             <div className="p-2 font-mono font-black text-amber-900 bg-amber-200/50 rounded text-center">
-                              {calculatedF46Transferred.toLocaleString("fa-IR")}
+                              {formatPersianAmount(calculatedF46Transferred)}
                             </div>
                           ) : (
-                            <Input
-                              type="number"
+                            <PersianAmountInput
                               value={row.approvedAmount}
-                              onChange={(e) => {
-                                const val = Number(e.target.value);
-                                setForm46Data(form46Data.map(r => r.id === row.id ? { ...r, approvedAmount: val } : r));
-                              }}
-                              className="h-8 text-xs font-mono"
+                              onChange={(val) => setForm46Data(form46Data.map(r => r.id === row.id ? { ...r, approvedAmount: val } : r))}
                             />
                           )}
                         </td>
@@ -374,20 +648,15 @@ export default function SanamaFormsViewer() {
                   <tbody className="divide-y divide-slate-100">
                     {form75Data.map((row) => (
                       <tr key={row.id} className="hover:bg-slate-50/50">
-                        <td className="p-3 text-center font-mono font-semibold">{row.id}</td>
+                        <td className="p-3 text-center font-mono font-semibold">{toPersianDigits(row.id)}</td>
                         <td className="p-3 font-semibold text-slate-800">{row.title}</td>
                         <td className="p-3 text-center font-mono">{row.accountType}</td>
                         <td className="p-3 text-center text-slate-600">{row.creditType}</td>
-                        <td className="p-3 font-mono text-emerald-700 font-semibold">{row.moeinCodes}</td>
+                        <td className="p-3 font-mono text-emerald-700 font-semibold">{toPersianDigits(row.moeinCodes)}</td>
                         <td className="p-2">
-                          <Input
-                            type="number"
+                          <PersianAmountInput
                             value={row.approvedAmount}
-                            onChange={(e) => {
-                              const val = Number(e.target.value);
-                              setForm75Data(form75Data.map(r => r.id === row.id ? { ...r, approvedAmount: val } : r));
-                            }}
-                            className="h-8 text-xs font-mono"
+                            onChange={(val) => setForm75Data(form75Data.map(r => r.id === row.id ? { ...r, approvedAmount: val } : r))}
                           />
                         </td>
                       </tr>
@@ -425,42 +694,29 @@ export default function SanamaFormsViewer() {
                   <tbody className="divide-y divide-slate-100">
                     {form8Data.map((row) => (
                       <tr key={row.id} className="hover:bg-slate-50/50">
-                        <td className="p-3 text-center font-mono font-semibold">{row.id}</td>
+                        <td className="p-3 text-center font-mono font-semibold">{toPersianDigits(row.id)}</td>
                         <td className="p-3 font-bold text-slate-800">{row.resourceKind}</td>
-                        <td className="p-3 font-mono text-slate-600">{row.expectedMoein}</td>
-                        <td className="p-3 font-mono text-blue-700 font-semibold">{row.receivedMoein}</td>
-                        <td className="p-3 font-mono text-emerald-700 font-semibold">{row.sentMoein}</td>
+                        <td className="p-3 font-mono text-slate-600">{toPersianDigits(row.expectedMoein)}</td>
+                        <td className="p-3 font-mono text-blue-700 font-semibold">{toPersianDigits(row.receivedMoein)}</td>
+                        <td className="p-3 font-mono text-emerald-700 font-semibold">{toPersianDigits(row.sentMoein)}</td>
                         <td className="p-2">
-                          <Input
-                            type="number"
+                          <PersianAmountInput
                             value={row.expectedAmount}
-                            onChange={(e) => {
-                              const val = Number(e.target.value);
-                              setForm8Data(form8Data.map(r => r.id === row.id ? { ...r, expectedAmount: val } : r));
-                            }}
-                            className="h-8 text-xs font-mono"
+                            onChange={(val) => setForm8Data(form8Data.map(r => r.id === row.id ? { ...r, expectedAmount: val } : r))}
                           />
                         </td>
                         <td className="p-2">
-                          <Input
-                            type="number"
+                          <PersianAmountInput
                             value={row.receivedAmount}
-                            onChange={(e) => {
-                              const val = Number(e.target.value);
-                              setForm8Data(form8Data.map(r => r.id === row.id ? { ...r, receivedAmount: val } : r));
-                            }}
-                            className="h-8 text-xs font-mono text-blue-700"
+                            onChange={(val) => setForm8Data(form8Data.map(r => r.id === row.id ? { ...r, receivedAmount: val } : r))}
+                            textColor="text-blue-700"
                           />
                         </td>
                         <td className="p-2">
-                          <Input
-                            type="number"
+                          <PersianAmountInput
                             value={row.sentAmount}
-                            onChange={(e) => {
-                              const val = Number(e.target.value);
-                              setForm8Data(form8Data.map(r => r.id === row.id ? { ...r, sentAmount: val } : r));
-                            }}
-                            className="h-8 text-xs font-mono text-emerald-700"
+                            onChange={(val) => setForm8Data(form8Data.map(r => r.id === row.id ? { ...r, sentAmount: val } : r))}
+                            textColor="text-emerald-700"
                           />
                         </td>
                       </tr>
@@ -484,55 +740,55 @@ export default function SanamaFormsViewer() {
 
               {/* پیش پرداخت‌ها */}
               <div className="border rounded-xl p-4 bg-purple-50/20">
-                <h4 className="font-bold text-xs text-purple-900 mb-3">سطر پیش پرداخت‌ها (معین ۹۸۰۰۳ / ۹۸۰۰۴)</h4>
+                <h4 className="font-bold text-xs text-purple-900 mb-3">سطر پیش پرداخت‌ها (معین {toPersianDigits("98003 / 98004")})</h4>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                   <div>
                     <label className="text-[11px] text-muted-foreground">مانده ابتدای سال</label>
-                    <Input type="number" value={form9Data.prepayments.initialBalance} onChange={e => setForm9Data({...form9Data, prepayments: {...form9Data.prepayments, initialBalance: Number(e.target.value)}})} className="h-8 font-mono mt-1" />
+                    <PersianAmountInput value={form9Data.prepayments.initialBalance} onChange={val => setForm9Data({...form9Data, prepayments: {...form9Data.prepayments, initialBalance: val}})} className="mt-1" />
                   </div>
                   <div>
                     <label className="text-[11px] text-muted-foreground">اعتبار انتقالی مصرف شده</label>
-                    <Input type="number" value={form9Data.prepayments.consumedTransferred} onChange={e => setForm9Data({...form9Data, prepayments: {...form9Data.prepayments, consumedTransferred: Number(e.target.value)}})} className="h-8 font-mono mt-1" />
+                    <PersianAmountInput value={form9Data.prepayments.consumedTransferred} onChange={val => setForm9Data({...form9Data, prepayments: {...form9Data.prepayments, consumedTransferred: val}})} className="mt-1" />
                   </div>
                   <div>
                     <label className="text-[11px] text-muted-foreground">وجوه ارسالی به خزانه</label>
-                    <Input type="number" value={form9Data.prepayments.sentToTreasury} onChange={e => setForm9Data({...form9Data, prepayments: {...form9Data.prepayments, sentToTreasury: Number(e.target.value)}})} className="h-8 font-mono mt-1" />
+                    <PersianAmountInput value={form9Data.prepayments.sentToTreasury} onChange={val => setForm9Data({...form9Data, prepayments: {...form9Data.prepayments, sentToTreasury: val}})} className="mt-1" />
                   </div>
                   <div>
-                    <label className="text-[11px] text-muted-foreground">مانده پایان سال (معین ۹۸۰۰۳/۹۸۰۰۴)</label>
-                    <Input type="number" value={form9Data.prepayments.yearEndBalance} onChange={e => setForm9Data({...form9Data, prepayments: {...form9Data.prepayments, yearEndBalance: Number(e.target.value)}})} className="h-8 font-mono mt-1 text-purple-700 font-bold" />
+                    <label className="text-[11px] text-muted-foreground">مانده پایان سال (معین {toPersianDigits("98003/98004")})</label>
+                    <PersianAmountInput value={form9Data.prepayments.yearEndBalance} onChange={val => setForm9Data({...form9Data, prepayments: {...form9Data.prepayments, yearEndBalance: val}})} className="mt-1" textColor="text-purple-700" />
                   </div>
                 </div>
                 <div className="mt-3 p-2 bg-purple-100 rounded text-xs font-mono font-bold text-purple-900 flex justify-between">
                   <span>ستون وجوه انتقالی (فرمول محاسباتی):</span>
-                  <span>{calculateForm9Transferred(form9Data.prepayments).toLocaleString("fa-IR")} ریال</span>
+                  <span>{formatPersianAmount(calculateForm9Transferred(form9Data.prepayments))} ریال</span>
                 </div>
               </div>
 
               {/* موجودی‌ها */}
               <div className="border rounded-xl p-4 bg-purple-50/20">
-                <h4 className="font-bold text-xs text-purple-900 mb-3">سطر موجودی‌ها (معین ۹۸۰۰۳ / ۹۸۰۰۴)</h4>
+                <h4 className="font-bold text-xs text-purple-900 mb-3">سطر موجودی‌ها (معین {toPersianDigits("98003 / 98004")})</h4>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                   <div>
                     <label className="text-[11px] text-muted-foreground">مانده ابتدای سال</label>
-                    <Input type="number" value={form9Data.inventories.initialBalance} onChange={e => setForm9Data({...form9Data, inventories: {...form9Data.inventories, initialBalance: Number(e.target.value)}})} className="h-8 font-mono mt-1" />
+                    <PersianAmountInput value={form9Data.inventories.initialBalance} onChange={val => setForm9Data({...form9Data, inventories: {...form9Data.inventories, initialBalance: val}})} className="mt-1" />
                   </div>
                   <div>
                     <label className="text-[11px] text-muted-foreground">اعتبار انتقالی مصرف شده</label>
-                    <Input type="number" value={form9Data.inventories.consumedTransferred} onChange={e => setForm9Data({...form9Data, inventories: {...form9Data.inventories, consumedTransferred: Number(e.target.value)}})} className="h-8 font-mono mt-1" />
+                    <PersianAmountInput value={form9Data.inventories.consumedTransferred} onChange={val => setForm9Data({...form9Data, inventories: {...form9Data.inventories, consumedTransferred: val}})} className="mt-1" />
                   </div>
                   <div>
                     <label className="text-[11px] text-muted-foreground">وجوه ارسالی به خزانه</label>
-                    <Input type="number" value={form9Data.inventories.sentToTreasury} onChange={e => setForm9Data({...form9Data, inventories: {...form9Data.inventories, sentToTreasury: Number(e.target.value)}})} className="h-8 font-mono mt-1" />
+                    <PersianAmountInput value={form9Data.inventories.sentToTreasury} onChange={val => setForm9Data({...form9Data, inventories: {...form9Data.inventories, sentToTreasury: val}})} className="mt-1" />
                   </div>
                   <div>
                     <label className="text-[11px] text-muted-foreground">مانده پایان سال</label>
-                    <Input type="number" value={form9Data.inventories.yearEndBalance} onChange={e => setForm9Data({...form9Data, inventories: {...form9Data.inventories, yearEndBalance: Number(e.target.value)}})} className="h-8 font-mono mt-1 text-purple-700 font-bold" />
+                    <PersianAmountInput value={form9Data.inventories.yearEndBalance} onChange={val => setForm9Data({...form9Data, inventories: {...form9Data.inventories, yearEndBalance: val}})} className="mt-1" textColor="text-purple-700" />
                   </div>
                 </div>
                 <div className="mt-3 p-2 bg-purple-100 rounded text-xs font-mono font-bold text-purple-900 flex justify-between">
                   <span>ستون وجوه انتقالی (فرمول محاسباتی):</span>
-                  <span>{calculateForm9Transferred(form9Data.inventories).toLocaleString("fa-IR")} ریال</span>
+                  <span>{formatPersianAmount(calculateForm9Transferred(form9Data.inventories))} ریال</span>
                 </div>
               </div>
 
@@ -564,10 +820,10 @@ export default function SanamaFormsViewer() {
                     {form10Data.map((row) => (
                       <tr key={row.id} className="hover:bg-slate-50">
                         <td className="p-3 font-bold text-slate-800">{row.section}</td>
-                        <td className="p-3 font-mono text-teal-700 font-semibold">{row.transferredDraftsExpense || row.transferredFunds}</td>
-                        <td className="p-3 font-mono text-blue-700 font-semibold">{row.receivedNotifiedBonds || "-"}</td>
-                        <td className="p-3 font-mono font-bold">{row.consumedTransferred?.toLocaleString("fa-IR") || "-"}</td>
-                        <td className="p-3 font-mono text-emerald-800 font-black">{row.yearEndMoeinApproved || row.yearEndBalance || "-"}</td>
+                        <td className="p-3 font-mono text-teal-700 font-semibold">{toPersianDigits(row.transferredDraftsExpense || row.transferredFunds)}</td>
+                        <td className="p-3 font-mono text-blue-700 font-semibold">{toPersianDigits(row.receivedNotifiedBonds || "-")}</td>
+                        <td className="p-3 font-mono font-bold">{formatPersianAmount(row.consumedTransferred)}</td>
+                        <td className="p-3 font-mono text-emerald-800 font-black">{toPersianDigits(row.yearEndMoeinApproved || row.yearEndBalance || "-")}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -602,11 +858,11 @@ export default function SanamaFormsViewer() {
                     {form11Data.map((row) => (
                       <tr key={row.id} className="hover:bg-slate-50">
                         <td className="p-3 font-bold text-slate-800">{row.rowType}</td>
-                        <td className="p-3 font-mono text-indigo-700 font-semibold">{row.moeinExpense || row.yearEndMoeinExpense}</td>
-                        <td className="p-3 font-mono text-indigo-700 font-semibold">{row.moeinCapital || row.yearEndMoeinCapital}</td>
-                        <td className="p-2 font-mono">{row.initialBalance.toLocaleString("fa-IR")}</td>
-                        <td className="p-2 font-mono">{row.consumedTransferred.toLocaleString("fa-IR")}</td>
-                        <td className="p-2 font-mono">{row.sentToTreasury.toLocaleString("fa-IR")}</td>
+                        <td className="p-3 font-mono text-indigo-700 font-semibold">{toPersianDigits(row.moeinExpense || row.yearEndMoeinExpense)}</td>
+                        <td className="p-3 font-mono text-indigo-700 font-semibold">{toPersianDigits(row.moeinCapital || row.yearEndMoeinCapital)}</td>
+                        <td className="p-2 font-mono">{formatPersianAmount(row.initialBalance)}</td>
+                        <td className="p-2 font-mono">{formatPersianAmount(row.consumedTransferred)}</td>
+                        <td className="p-2 font-mono">{formatPersianAmount(row.sentToTreasury)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -641,9 +897,9 @@ export default function SanamaFormsViewer() {
                       <tr key={row.id} className="hover:bg-slate-50">
                         <td className="p-3 font-bold text-slate-800">{row.rowType}</td>
                         <td className="p-3 text-center font-mono">{row.accountType}</td>
-                        <td className="p-3 font-mono text-cyan-700 font-semibold">{row.moeinExpenseApproved}</td>
-                        <td className="p-3 font-mono text-cyan-700 font-semibold">{row.moeinCapitalApproved}</td>
-                        <td className="p-3 font-mono font-bold text-cyan-900">{row.amount.toLocaleString("fa-IR")}</td>
+                        <td className="p-3 font-mono text-cyan-700 font-semibold">{toPersianDigits(row.moeinExpenseApproved)}</td>
+                        <td className="p-3 font-mono text-cyan-700 font-semibold">{toPersianDigits(row.moeinCapitalApproved)}</td>
+                        <td className="p-3 font-mono font-bold text-cyan-900">{formatPersianAmount(row.amount)}</td>
                       </tr>
                     ))}
                   </tbody>

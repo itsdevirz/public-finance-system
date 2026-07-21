@@ -8,7 +8,7 @@ const router = new Hono();
 // GET /api/users - List all users
 router.get("/", async (c) => {
   try {
-    const payload = c.get("jwtPayload");
+    const payload = (c.get as any)("jwtPayload") as any;
     const isAdmin = payload.role === "admin";
     const db = getDb();
 
@@ -29,7 +29,7 @@ router.get("/", async (c) => {
 // POST /api/users - Create a new user (Admin only)
 router.post("/", async (c) => {
   try {
-    const payload = c.get("jwtPayload");
+    const payload = (c.get as any)("jwtPayload") as any;
     if (payload.role !== "admin") {
       return c.json({ success: false, message: "دسترسی غیرمجاز. فقط مدیر سیستم مجاز به تعریف کاربر جدید است." }, 403);
     }
@@ -116,7 +116,7 @@ router.post("/", async (c) => {
 router.put("/:id", async (c) => {
   try {
     const id = c.req.param("id");
-    const payload = c.get("jwtPayload");
+    const payload = (c.get as any)("jwtPayload") as any;
     const isAdmin = payload.role === "admin";
 
     // Non-admin can only edit their own user
@@ -200,7 +200,7 @@ router.put("/:id", async (c) => {
 // DELETE /api/users/:id - Delete a user (Admin only)
 router.delete("/:id", async (c) => {
   try {
-    const payload = c.get("jwtPayload");
+    const payload = (c.get as any)("jwtPayload") as any;
     if (payload.role !== "admin") {
       return c.json({ success: false, message: "دسترسی غیرمجاز. فقط مدیر سیستم مجاز به حذف کاربر است." }, 403);
     }
@@ -245,7 +245,7 @@ router.delete("/:id", async (c) => {
 // GET /api/users/audit-logs - List activity logs (Admin only)
 router.get("/audit-logs", async (c) => {
   try {
-    const payload = c.get("jwtPayload");
+    const payload = (c.get as any)("jwtPayload") as any;
     if (payload.role !== "admin") {
       return c.json({ success: false, message: "دسترسی غیرمجاز. فقط مدیر سیستم مجاز به مشاهده تاریخچه عملکرد است." }, 403);
     }

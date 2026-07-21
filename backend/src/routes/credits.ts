@@ -218,6 +218,33 @@ router.delete("/delegations/:id", async (c) => {
   return c.json({ message: "تفویض اعتبار با موفقیت حذف شد" });
 });
 
+// ─── Sanama Performance Forms Store (ذخیره و بازیابی فرم‌های عملکرد سناما) ─────────
+
+router.get("/sanama-forms", async (c) => {
+  const doc = await getDb().collection("sanama_forms").findOne({ formKey: "sanama_performance_forms" });
+  if (!doc) {
+    return c.json({ data: null, message: "فرم‌های سناما خالی است" });
+  }
+  return c.json({ data: serialize(doc as Record<string, unknown>), message: "اطلاعات فرم‌های سناما" });
+});
+
+router.post("/sanama-forms", async (c) => {
+  const body = await c.req.json();
+  const { formKey = "sanama_performance_forms", ...formData } = body;
+  const result = await getDb().collection("sanama_forms").findOneAndUpdate(
+    { formKey },
+    {
+      $set: {
+        formKey,
+        ...formData,
+        updatedAt: new Date().toISOString(),
+      }
+    },
+    { upsert: true, returnDocument: "after" }
+  );
+  return c.json({ message: "اطلاعات فرم‌های سناما با موفقیت در دیتابیس ذخیره شد", data: serialize(result as Record<string, unknown>) });
+});
+
 // ─── Credit Definitions (تعریف اعتبار) ───────────────────────────────────────
 
 router.get("/definitions", async (c) => {
@@ -602,6 +629,9 @@ router.post("/sanama-performance-check", async (c) => {
     const items = Array.isArray(body.items) ? body.items : [body];
     const errors: Array<{ code: number; itemIndex: number; message: string }> = [];
 
+    const form9Titles = new Set<string>();
+    const form10Combos = new Set<string>();
+
     items.forEach((item: any, idx: number) => {
       const creditLocation = item.credit_location || (item.credit_type === "مصوب" ? "استانی" : item.credit_type === "ابلاغی" ? "متمرکز" : "");
       const receiptLocation = item.receipt_location || "";
@@ -613,14 +643,16 @@ router.post("/sanama-performance-check", async (c) => {
       }
       // کد ۱۲
       if (!creditType || !String(creditType).trim()) {
-        errors.push({ code: 12, itemIndex: idx, message: '"نوع اعتبار" تعیین نگردیده است.' });
+        if (![8, 9, 10, 11, 13].includes(item.form_type)) {
+          errors.push({ code: 12, itemIndex: idx, message: '"نوع اعتبار" تعیین نگردیده است.' });
+        }
       }
       // کد ۱۳۱
-      if (!item.program_number && !item.misc_row_number && !item.financial_assets_row_number) {
+      if (!item.program_number && !item.misc_row_number && !item.financial_assets_row_number && ![8, 9, 10, 11, 13].includes(item.form_type)) {
         errors.push({ code: 131, itemIndex: idx, message: 'شماره برنامه / ردیف (متفرقه / تملک دارایی‌های مالی) تعیین نگردیده است.' });
       }
       // کد ۱۳۲
-      if (!item.project_number && !item.misc_row_number && !item.financial_assets_row_number) {
+      if (!item.project_number && !item.misc_row_number && !item.financial_assets_row_number && ![8, 9, 10, 11, 13].includes(item.form_type)) {
         errors.push({ code: 132, itemIndex: idx, message: 'شماره طرح / ردیف (متفرقه / تملک دارایی‌های مالی) تعیین نگردیده است.' });
       }
       // کد ۱۱۵۷
@@ -642,22 +674,28 @@ router.post("/sanama-performance-check", async (c) => {
         errors.push({ code: 48, itemIndex: idx, message: 'شماره "ردیف متفرقه" تعیین شده در فرم‌های ۱ و ۲ نمی‌تواند با شماره "ردیف متفرقه" مندرج در تغییرات قانونی یکسان باشد.' });
       }
       // کد ۱۴
-      if ((creditType === "ابلاغی" || creditLocation === "متمرکز" || creditLocation === "ملی") && (!item.notifier_budget_row || !String(item.notifier_budget_row).trim())) {
+      if ((creditType === "ابلاغی" || creditLocation === "متمرکز" || creditLocation === "ملی") && (!item.notifier_budget_row || !String(item.notifier_budget_row).trim()) && ![8, 9, 10, 11, 13].includes(item.form_type)) {
         errors.push({ code: 14, itemIndex: idx, message: 'ردیف بودجه‌ای ابلاغ دهنده تعیین نگردیده است.' });
       }
       // کد ۱۶
       if (item.executive_body_budget_row && item.notifier_budget_row && String(item.executive_body_budget_row).trim() === String(item.notifier_budget_row).trim()) {
         errors.push({ code: 16, itemIndex: idx, message: 'ردیف بودجه‌ای دستگاه اجرایی نمی‌تواند با ردیف بودجه‌ای ابلاغ دهنده یکسان باشد.' });
       }
-      // کد ۱۹
+      // کد ۱۹ / ۸۰۶ / ۹۰۱ / ۱۰۰۱
       const numericFields = [
         item.final_credit_budget, item.initial_credit_budget, item.allocated_credit,
         item.received_credit, item.consumed_credit, item.non_final_payments,
         item.transferred_bonds, item.increase, item.decrease, item.drafts,
-        item.special_revenue_received, item.legal_adjustments
+        item.special_revenue_received, item.legal_adjustments,
+        item.initial_balance, item.consumed_transferred, item.sent_to_treasury, item.year_end_balance
       ];
       if (numericFields.some((v) => v != null && v !== "" && Number(v) < 0)) {
-        errors.push({ code: 19, itemIndex: idx, message: 'مقادیر مندرج در فیلدها نبایستی منفی باشد.' });
+        let errCode = 19;
+        if (item.form_type === 8) errCode = 806;
+        else if (item.form_type === 9) errCode = 901;
+        else if (item.form_type === 10) errCode = 1001;
+
+        errors.push({ code: errCode, itemIndex: idx, message: 'مقادیر مندرج در فیلدها نبایستی منفی باشد.' });
       }
 
       const finalBudget = Number(item.final_credit_budget) || 0;
@@ -675,28 +713,28 @@ router.post("/sanama-performance-check", async (c) => {
       const specialRev = Number(item.special_revenue_received) || 0;
 
       // کد ۲۳
-      if (creditType === "ابلاغی" && finalBudget !== allocated) {
+      if (creditType === "ابلاغی" && finalBudget !== allocated && ![8, 9, 10, 11, 13].includes(item.form_type)) {
         errors.push({ code: 23, itemIndex: idx, message: `در صورتی که نوع اعتبار "ابلاغی" تعیین شود، مبالغ فیلدهای "بودجه اعتبار نهایی" و "اعتبار تخصیص یافته" بایستی برابر باشد.` });
       }
       // کد ۲۴
-      if (allocated > finalBudget) {
+      if (allocated > finalBudget && ![8, 9, 10, 11, 13].includes(item.form_type)) {
         errors.push({ code: 24, itemIndex: idx, message: `مبلغ "اعتبار تخصیص یافته" باید کوچک‌تر یا مساوی مبلغ "بودجه اعتبار نهایی" باشد.` });
       }
       // کد ۲۵
-      if (allocated < received) {
+      if (allocated < received && ![8, 9, 10, 11, 13].includes(item.form_type)) {
         errors.push({ code: 25, itemIndex: idx, message: `مبلغ "اعتبار تخصیص یافته" باید بزرگ‌تر یا مساوی مبلغ "دریافتی از محل اعتبارات تخصیص یافته" باشد.` });
       }
       // کد ۲۶
-      if (creditType === "ابلاغی" && allocated !== received) {
+      if (creditType === "ابلاغی" && allocated !== received && ![8, 9, 10, 11, 13].includes(item.form_type)) {
         errors.push({ code: 26, itemIndex: idx, message: `در صورتی که نوع اعتبار "ابلاغی" تعیین شود، مبالغ فیلدهای "اعتبار تخصیص یافته" و "دریافتی از محل اعتبارات تخصیص یافته" بایستی برابر باشد.` });
       }
       // کد ۲۷
       const sumConsumed = consumed + nonFinal + bonds + otherCons;
-      if (received !== sumConsumed) {
+      if (received !== sumConsumed && ![8, 9, 10, 11, 13].includes(item.form_type) && received > 0) {
         errors.push({ code: 27, itemIndex: idx, message: `مبلغ فیلد "دریافتی از محل اعتبارات تخصیص یافته" بایستی با مجموع مبالغ فیلدهای "اعتبار مصرف شده"، "پرداخت‌های غیرقطعی" و "اوراق انتقالی" برابر باشد.` });
       }
       // کد ۲۸
-      if (item.form_type === 1 || item.form_type === 2 || !item.form_type) {
+      if (item.form_type === 1 || item.form_type === 2) {
         const calculatedFinal = initialBudget + legalAdj + inc - dec - drafts;
         if (finalBudget !== calculatedFinal) {
           errors.push({ code: 28, itemIndex: idx, message: `در فرم‌های ۱ و ۲ مبلغ "بودجه اعتبار نهایی" بایستی با مجموع مبالغ ("اولیه" + "تغییرات قانونی" + "افزایش" - "کاهش" - "حواله‌ها") برابر باشد.` });
@@ -739,6 +777,9 @@ router.post("/sanama-performance-check", async (c) => {
         if (recAmt > 0 && (sentAmt === 0 && !item.sent_amount)) {
           errors.push({ code: 804, itemIndex: idx, message: 'در صورت تکمیل فیلد "وصولی"، فیلد "وجوه ارسالی به خزانه" نیز بایستی تکمیل شود.' });
         }
+        if ((item.is_financial_assets || item.resource_kind?.includes("واگذاری دارایی مالی")) && recAmt !== sentAmt) {
+          errors.push({ code: 807, itemIndex: idx, message: 'مبالغ فیلدهای "وصولی" و "وجوه ارسالی به خزانه" برای واگذاری دارایی‌های مالی بایستی برابر باشند.' });
+        }
         if (item.is_special_revenue || item.resource_kind?.includes("اختصاصی")) {
           if (expRes < recAmt) {
             errors.push({ code: 808, itemIndex: idx, message: 'مبلغ فیلد "منابع پیش‌بینی شده" در درآمدهای اختصاصی و واگذاری دارایی‌های سرمایه‌ای اختصاصی بایستی بزرگ‌تر یا مساوی مبلغ فیلد "وصولی" باشد.' });
@@ -761,11 +802,107 @@ router.post("/sanama-performance-check", async (c) => {
         if (["160105", "160106"].includes(incCode) && !item.is_university) {
           errors.push({ code: 814, itemIndex: idx, message: 'امکان استفاده از شماره طبقه‌بندی‌های ۱۶۰۱۰۵ و ۱۶۰۱۰۶ صرفاً برای دانشگاه‌های زیرمجموعه وزارت علوم و وزارت بهداشت وجود دارد.' });
         }
+        if ((item.account_kind?.includes("سرمایه‌ای") || item.is_capital_form) && !item.is_financial_assets && incCode !== "160101") {
+          errors.push({ code: 815, itemIndex: idx, message: 'در فرم‌های بودجه‌ای صورت‌حساب‌های سرمایه‌ای و سرمایه‌ای - اختصاصی صرفا امکان استفاده از واگذاری دارایی‌های مالی و شماره طبقه‌بندی ۱۶۰۱۰۱ وجود دارد.' });
+        }
         if (!incCode && item.is_resource_form) {
           errors.push({ code: 816, itemIndex: idx, message: '"شماره طبقه‌بندی" نمی‌تواند خالی باشد.' });
         }
+        if ((item.agency_type === "ملی" && item.classification_scope === "استانی") || (item.agency_type === "استانی" && item.classification_scope === "ملی")) {
+          errors.push({ code: 817, itemIndex: idx, message: 'تنظیمات اطلاعات پایه شماره طبقه‌بندی انتخاب شده منطبق با نوع ملی/استانی دستگاه نمیباشد(برای دستگاه ملی بایستی طبقه‌بندی ملی و برای دستگاه استانی بایستی طبقه‌بندی استانی وجود داشته باشد).' });
+        }
+        if (item.is_university && incCode === "160120") {
+          errors.push({ code: 818, itemIndex: idx, message: 'دانشگاه‌ها مجاز به استفاده از شماره طبقه‌بندی ۱۶۰۱۲۰ نیستند.' });
+        }
+        if (item.source_location_mismatch || (item.agency_type === "ملی" && item.source_type === "استانی") || (item.agency_type === "استانی" && item.source_type === "ملی")) {
+          errors.push({ code: 819, itemIndex: idx, message: 'تنظیمات اطلاعات پایه شماره طبقه‌بندی انتخاب شده منطبق با استان دستگاه نمیباشد(محل منبع دستگاه ملی بایستی دستگاه ملی و محل منبع دستگاه استانی بایستی استانی درج شود).' });
+        }
+        if (item.is_allowed_revenue === false || item.income_code_forbidden) {
+          errors.push({ code: 820, itemIndex: idx, message: 'مطابق تنظیمات اطلاعات پایه درآمدهای، شما مجاز به استفاده از این ردیف درآمدی نمی باشید.' });
+        }
+      }
+
+      // ─── قوانین فرم ۹ (سری ۹۰۰) ──────────────────────────────────────────
+      if (item.form_type === 9 || item.is_form_9) {
+        if (item.initial_balance === undefined || item.initial_balance === null || item.initial_balance === "") {
+          errors.push({ code: 905, itemIndex: idx, message: 'مبلغ فیلد "مانده ابتدای سال" بایستی تکمیل شود.' });
+        }
+        const f9Initial = Number(item.initial_balance) || 0;
+        const f9Consumed = Number(item.consumed_transferred) || 0;
+        const f9Inventory = Number(item.inventory) || 0;
+        const f9Objection = Number(item.objection_transferred) || 0;
+        const f9Deficit = Number(item.deficit_transferred) || 0;
+        const f9Sent = Number(item.sent_to_treasury) || 0;
+        const f9Transferred = Number(item.transferred_funds) || 0;
+        const f9YearEnd = Number(item.year_end_balance) || 0;
+        const calcYearEnd = f9Initial - (f9Consumed + f9Inventory + f9Objection + f9Deficit + f9Sent + f9Transferred);
+        if (f9YearEnd !== calcYearEnd && item.year_end_balance !== undefined) {
+          errors.push({ code: 902, itemIndex: idx, message: 'مبلغ فیلد "مانده پایان سال" بایستی با مبلغ فیلد "مانده ابتدای سال" منهای مبالغ فیلدهای "اعتبار انتقالی مصرف شده"، "موجودی‌ها"، "اسناد واخواهی شده انتقالی"، "کسری ابواب‌جمعی انتقالی"، "وجوه ارسالی به خزانه" و "وجوه انتقالی" برابر باشد' });
+        }
+        if ((item.account_kind?.includes("هزینه‌ای") || item.is_expense_form) && (item.row_type === "inventories" || item.has_inventories)) {
+          errors.push({ code: 903, itemIndex: idx, message: 'سطر موجودی‌ها در فرم‌های اعتبارات هزینه تکمیل نمی‌شود.' });
+        }
+        if ((item.row_type === "inventories" || item.is_inventory_row) && Number(item.inventory) > 0) {
+          errors.push({ code: 904, itemIndex: idx, message: 'در سطر موجودی‌ها، فیلد "موجودی‌ها" نمی‌تواند مقدار داشته باشد.' });
+        }
+        if (f9Transferred > 0 && !item.has_transfer_authorization && !item.is_university) {
+          errors.push({ code: 906, itemIndex: idx, message: 'دستگاه‌های اجرایی دارای مجوز انتقال (مانند دانشگاه‌ها) حسب مورد می‌توانند مبلغ فیلد "وجوه انتقالی" را تکمیل نمایند.' });
+        }
+        if (item.title) {
+          const tStr = String(item.title).trim();
+          if (form9Titles.has(tStr)) {
+            errors.push({ code: 907, itemIndex: idx, message: '"عنوان" (پیش‌پرداخت / علی‌الحساب / موجودی‌ها) نمی‌تواند تکراری انتخاب شود.' });
+          } else {
+            form9Titles.add(tStr);
+          }
+        }
+        if (!item.title || !String(item.title).trim()) {
+          errors.push({ code: 908, itemIndex: idx, message: '"عنوان" تعیین نگردیده است.' });
+        }
+      }
+
+      // ─── قوانین فرم ۱۰ (سری ۱۰۰۰) ─────────────────────────────────────────
+      if (item.form_type === 10 || item.is_form_10) {
+        if (creditType === "ابلاغی" && (!item.notifier_budget_row || !String(item.notifier_budget_row).trim())) {
+          errors.push({ code: 1004, itemIndex: idx, message: 'ردیف بودجه‌ای ابلاغ‌دهنده تکمیل نگردیده است.' });
+        }
+        const f10ComboKey = `${item.title || ''}:${item.program_number || item.project_number || ''}:${item.chapter_code || ''}:${item.notifier_budget_row || ''}`;
+        if (form10Combos.has(f10ComboKey)) {
+          errors.push({ code: 1005, itemIndex: idx, message: 'ترکیب عنوان و شماره برنامه /طرح/ردیف متفرقه/تملک دارایی مالی و فصل و ردیف بودجه‌ای ابلاغ دهنده نمی‌تواند تکراری انتخاب شود.' });
+        } else {
+          form10Combos.add(f10ComboKey);
+        }
+        if (item.notifier_budget_row && item.executive_body_budget_row && String(item.notifier_budget_row).trim() === String(item.executive_body_budget_row).trim()) {
+          errors.push({ code: 1006, itemIndex: idx, message: 'ردیف بودجه‌ای دستگاه اجرایی نمی‌تواند با ردیف بودجه‌ای ابلاغ دهنده یکسان باشد.' });
+        }
+        const f10Usable = Number(item.usable_transferred_resources || item.initial_balance) || 0;
+        const f10Consumed = Number(item.consumed_transferred) || 0;
+        const f10Prepay = Number(item.prepayments) || 0;
+        const f10OnAccount = Number(item.on_accounts) || 0;
+        const f10Sent = Number(item.sent_to_treasury) || 0;
+        const f10Objection = Number(item.objection_transferred) || 0;
+        const f10Deficit = Number(item.deficit_transferred) || 0;
+        const f10UnusedBonds = Number(item.unused_bonds) || 0;
+        const f10YearEnd = Number(item.year_end_balance) || 0;
+        const calcF10YearEnd = f10Usable - (f10Consumed + f10Prepay + f10OnAccount + f10Sent + f10Objection + f10Deficit + f10UnusedBonds);
+        if (f10YearEnd !== calcF10YearEnd && item.year_end_balance !== undefined) {
+          errors.push({ code: 1003, itemIndex: idx, message: 'مبلغ فیلد "مانده پایان سال" بایستی با مبلغ فیلد "منابع انتقالی قابل مصرف" منهای مبالغ فیلدهای "اعتبار انتقالی مصرف شده"، ..... و "اوراق مصرف نشده" برابر باشد' });
+        }
+      }
+
+      // ─── خطای ۱۰۰۷ ────────────────────────────────────────────────────────
+      if ((accountKind?.includes("هزینه‌ای") || item.is_expense_form) && (Number(item.inventory) > 0 || Number(item.prepayment_materials_goods) > 0)) {
+        errors.push({ code: 1007, itemIndex: idx, message: 'فیلدهای "موجودی‌ها" و "پیش‌پرداخت مواد و کالا" نبایستی برای فرم‌های اعتبارات هزینه و اعتبارات هزینه - اختصاصی تکمیل شود.' });
+      }
+
+      // ─── خطای ۱۱۶۰ ────────────────────────────────────────────────────────
+      if ((Number(item.transferred_objection_docs) > 0 || Number(item.transferred_deficit) > 0) && item.form_status !== "واخواهی") {
+        errors.push({ code: 1160, itemIndex: idx, message: 'در صورتی که ستون اسناد واخواهی شده انتقالی یا کسری ابواب جمعی انتقالی گردیده است، وضعیت فرم می بایست فرم واخواهی باشد.' });
       }
     });
+
+    // مرتب‌سازی خطاها بر اساس کد از کمترین به بیشترین
+    errors.sort((a, b) => a.code - b.code);
 
     return c.json({
       success: true,

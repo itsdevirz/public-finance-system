@@ -218,7 +218,7 @@ router.get("/:id", async (c) => {
 });
 
 router.post("/", async (c) => {
-  const payload = c.get("jwtPayload");
+  const payload = (c.get as any)("jwtPayload") as any;
   const isAdmin = payload.role === "admin";
   const db = getDb();
 
@@ -287,7 +287,7 @@ router.patch("/:id/confirm", async (c) => {
   const id = c.req.param("id");
   if (!ObjectId.isValid(id)) return c.json({ message: "شناسه نامعتبر" }, 400);
 
-  const payload = c.get("jwtPayload");
+  const payload = (c.get as any)("jwtPayload") as any;
   const isAdmin = payload.role === "admin";
   const db = getDb();
 
@@ -313,7 +313,7 @@ router.put("/:id", async (c) => {
   const id = c.req.param("id");
   if (!ObjectId.isValid(id)) return c.json({ message: "شناسه نامعتبر" }, 400);
 
-  const payload = c.get("jwtPayload");
+  const payload = (c.get as any)("jwtPayload") as any;
   const isAdmin = payload.role === "admin";
   const db = getDb();
 
@@ -389,7 +389,7 @@ router.delete("/:id", async (c) => {
   const id = c.req.param("id");
   if (!ObjectId.isValid(id)) return c.json({ message: "شناسه نامعتبر" }, 400);
 
-  const payload = c.get("jwtPayload");
+  const payload = (c.get as any)("jwtPayload") as any;
   const isAdmin = payload.role === "admin";
   const db = getDb();
 
