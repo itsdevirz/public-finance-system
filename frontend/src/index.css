@@ -193,3 +193,38 @@
     background: hsl(var(--sidebar-primary) / 0.7);
   }
 }
+
+@media print {
+  aside,
+  nav,
+  header,
+  .no-print,
+  button,
+  [role="tablist"],
+  .sidebar,
+  .top-bar,
+  .page-header-actions {
+    display: none !important;
+  }
+
+  body, main, #root {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    color: black !important;
+    width: 100% !important;
+    box-shadow: none !important;
+  }
+
+  .printable-area {
+    display: block !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+}

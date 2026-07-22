@@ -1,27 +1,24 @@
 /**
- * printTable — فقط یک المان خاص را به صورت landscape چاپ می‌کند
- * @param {string} selector  — CSS selector المانی که باید چاپ شود
- * @param {string} title     — عنوانی که بالای صفحه چاپ نمایش داده می‌شود
+ * printTable — یک المان خاص را با تمامی استایل‌های غنی و فونت‌های کاربر چاپ می‌کند
+ * @param {string} selector — CSS selector المانی که باید چاپ شود
+ * @param {string} title — عنوانی که بالای صفحه چاپ نمایش داده می‌شود
+ * @param {string} orientation — 'portrait' یا 'landscape'
  */
-export function printTable(selector, title = "") {
+export function printTable(selector, title = "", orientation = "portrait") {
   const el = document.querySelector(selector);
   if (!el) { window.print(); return; }
 
-  // کلون عمیق بدون event listener
+  // کلون عمیق
   const clone = el.cloneNode(true);
 
-  // حذف min-width از همه المان‌ها تا جدول در صفحه جا شود
-  clone.querySelectorAll("*").forEach((node) => {
-    node.style.minWidth  = "";
-    node.style.maxWidth  = "";
-    node.style.overflow  = "visible";
-    node.style.overflowX = "visible";
-    node.style.overflowY = "visible";
-  });
+  // استخراج تمام لینک‌ها و styleهای موجود در Document تا استایل‌های Tailwind و فونت‌ها دقیق کپی شوند
+  const headStyles = Array.from(document.querySelectorAll("style, link[rel='stylesheet']"))
+    .map((node) => node.outerHTML)
+    .join("\n");
 
   const content = clone.outerHTML;
 
-  const win = window.open("", "_blank", "width=1400,height=900");
+  const win = window.open("", "_blank", "width=1200,height=900");
   if (!win) { window.print(); return; }
 
   win.document.write(`<!DOCTYPE html>
@@ -29,103 +26,36 @@ export function printTable(selector, title = "") {
 <head>
   <meta charset="UTF-8" />
   <title>${title}</title>
+  ${headStyles}
   <style>
     @page {
-      size: A4 landscape;
-      margin: 10mm 8mm;
+      size: A4 ${orientation};
+      margin: 8mm;
     }
-
     * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
     }
-
     html, body {
       width: 100%;
-      font-family: "Tahoma", "Arial", sans-serif;
-      font-size: 10px;
-      color: #111;
+      background: white !important;
+      color: #0f172a !important;
       direction: rtl;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
+      font-family: inherit;
     }
-
-    /* ── عنوان ── */
-    .print-title {
-      text-align: center;
-      font-size: 13px;
-      font-weight: bold;
-      margin-bottom: 8px;
-      padding-bottom: 5px;
-      border-bottom: 2px solid #333;
-    }
-
-    /* ── wrapper جدول ── */
-    .table-wrap {
-      width: 100%;
-      overflow: visible !important;
-    }
-
-    /* ── جدول ── */
-    table {
-      width: 100% !important;
-      min-width: unset !important;
-      border-collapse: collapse;
-      table-layout: auto;
-    }
-
-    th, td {
-      border: 1px solid #aaa;
-      padding: 4px 6px;
-      white-space: nowrap;
-      font-size: 10px;
-      vertical-align: middle;
-    }
-
-    thead th {
-      background: #e8e8e8 !important;
-      font-weight: bold;
-      text-align: right;
-    }
-
-    tbody tr:nth-child(even) {
-      background: #f7f7f7 !important;
-    }
-
-    tfoot td {
-      font-weight: bold;
-      background: #ddd !important;
-      border-top: 2px solid #666;
-    }
-
-    /* ── رنگ‌های متن ── */
-    .text-blue-700, [class*="text-blue"] { color: #1d4ed8 !important; }
-    .text-rose-700, [class*="text-rose"] { color: #be123c !important; }
-    .text-left   { text-align: left  !important; }
-    .text-right  { text-align: right !important; }
-    .text-center { text-align: center !important; }
-    .font-mono   { font-family: "Courier New", monospace; }
-    .font-bold   { font-weight: bold; }
-    .tabular-nums { font-variant-numeric: tabular-nums; }
-
-    /* ── پنهان کردن دکمه‌ها و المان‌های غیر ضروری ── */
-    button, .no-print { display: none !important; }
-
-    @media print {
-      html, body { width: 100%; }
-      table { width: 100% !important; }
+    button, .no-print {
+      display: none !important;
     }
   </style>
 </head>
-<body>
-  ${title ? `<div class="print-title">${title}</div>` : ""}
-  <div class="table-wrap">
-    ${content}
-  </div>
+<body class="bg-white p-4">
+  ${content}
   <script>
     window.onload = function() {
-      setTimeout(function() { window.print(); window.close(); }, 400);
+      setTimeout(function() {
+        window.print();
+        window.close();
+      }, 400);
     };
   </script>
 </body>

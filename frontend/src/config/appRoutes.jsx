@@ -115,6 +115,9 @@ export const PAGE_COMPONENTS = {
   "/bookkeeping/smart-control": SanamaPerformanceControls,
   "/bookkeeping/smart-control/sanama-performance": SanamaPerformanceControls,
   "/system-management/sanama-file-check": SanamaPerformanceControls,
+  "/system-management/sanama-file-check/expense": SanamaPerformanceControls,
+  "/system-management/sanama-file-check/capital": SanamaPerformanceControls,
+  "/system-management/sanama-file-check/financial-statements": SanamaPerformanceControls,
   "/reports/sanama-forms": SanamaFormsViewer,
   // ─── گزارشات ─────────────────────────────────────────────────────────────
   "/reports": DocumentsReport,

@@ -169,7 +169,11 @@ export const TOP_NAV = [
       { to: "/bookkeeping/smart-control", label: "کنترل هوشمند", children: [
         { to: "/bookkeeping/smart-control/sanama-performance", label: "کنترل فرم عملکرد (سناما)" },
       ]},
-      { to: "/system-management/sanama-file-check", label: "ممیزی فرم عملکرد سناما" },
+      { to: "/system-management/sanama-file-check", label: "ممیزی فرم عملکرد سناما", children: [
+        { to: "/system-management/sanama-file-check/expense", label: "۱. هزینه" },
+        { to: "/system-management/sanama-file-check/capital", label: "۲. تملک" },
+        { to: "/system-management/sanama-file-check/financial-statements", label: "۳. تهیه صورت‌های مالی" },
+      ]},
       { to: "/bookkeeping/account-setup", label: "تنظیم حساب" },
       { to: "/system-management/backup",            label: "پشتیبان‌گیری" },
       { to: "/system-management/report-signature",  label: "تنظیم امضای گزارشات" },
