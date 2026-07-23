@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import ShebaInput from "@/components/ui/sheba-input";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -516,13 +517,9 @@ export default function ContractPartiesForm() {
 
                   <div className="sm:col-span-1">
                     <Field label="شماره شبا">
-                      <Input
-                        type="text"
+                      <ShebaInput
                         value={form.sheba}
-                        onChange={(e) => setForm((prev) => ({ ...prev, sheba: e.target.value }))}
-                        className="h-9 text-sm text-center font-mono"
-                        dir="ltr"
-                        placeholder="IR000000..."
+                        onChange={(val) => setForm((prev) => ({ ...prev, sheba: val }))}
                       />
                     </Field>
                   </div>

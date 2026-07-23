@@ -20,6 +20,7 @@ import sanamaCodes from "@/data/sanamaCodes.json";
 import subAccountTitles from "@/data/subAccountTitles.json";
 import sanamaRequirements from "@/data/sanamaRequirements.json";
 import { PersonSanamaField } from "@/components/ui/person-sanama-field";
+import ShebaInput from "@/components/ui/sheba-input";
 import { checkDebitNatureBalance, clearBalanceCache } from "@/lib/accountBalanceCheck";
 import { useAuth } from "@/context/AuthContext";
 
@@ -331,30 +332,32 @@ function SanamaNumericInput({ value, onChange, inputCls }) {
   );
 }
 
+// wrapper: label کوچک خاکستری بالا، input پایین
+function SanamaWrap({ title, children, wide = false }) {
+  return (
+    <div className={`flex flex-col gap-1 min-w-0 ${wide ? "sm:col-span-2" : ""}`}>
+      <span
+        className="text-[10px] font-medium text-muted-foreground/80 leading-none truncate"
+        title={title}
+      >
+        {title}
+      </span>
+      {children}
+    </div>
+  );
+}
+
 // ---- SanamaField: رندر یک فیلد سناما بر اساس نوع ردیف ----
 function SanamaField({ rowDef, value, onChange, optional }) {
   const inputCls = "h-8 text-xs rounded-md border border-input bg-white px-2.5 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/20 w-full transition-all placeholder:text-muted-foreground/40";
 
   const placeholder = optional ? `${rowDef.default ?? "0"}` : "انتخاب کنید...";
 
-  // wrapper: label کوچک خاکستری بالا، input پایین
-  const Wrap = ({ children, wide = false }) => (
-    <div className={`flex flex-col gap-1 min-w-0 ${wide ? "sm:col-span-2" : ""}`}>
-      <span
-        className="text-[10px] font-medium text-muted-foreground/80 leading-none truncate"
-        title={rowDef.title}
-      >
-        {rowDef.title}
-      </span>
-      {children}
-    </div>
-  );
-
   // dropdown ساده
   if (rowDef.values) {
     const opts = rowDef.values.map((v) => ({ value: String(v.type), label: v.title }));
     return (
-      <Wrap>
+      <SanamaWrap title={rowDef.title}>
         <SearchableSelect
           value={value !== undefined && value !== null ? String(value) : ""}
           onChange={(v) => onChange(v || "")}
@@ -362,7 +365,7 @@ function SanamaField({ rowDef, value, onChange, optional }) {
           placeholder={placeholder}
           searchable={opts.length > 8}
         />
-      </Wrap>
+      </SanamaWrap>
     );
   }
 
@@ -372,14 +375,14 @@ function SanamaField({ rowDef, value, onChange, optional }) {
       g.values.map((v) => ({ value: String(v.type), label: v.title, group: g.title }))
     );
     return (
-      <Wrap>
+      <SanamaWrap title={rowDef.title}>
         <SearchableSelect
           value={value !== undefined && value !== null ? String(value) : ""}
           onChange={(v) => onChange(v || "")}
           options={opts}
           placeholder={placeholder}
         />
-      </Wrap>
+      </SanamaWrap>
     );
   }
 
@@ -387,15 +390,22 @@ function SanamaField({ rowDef, value, onChange, optional }) {
   if ("default" in rowDef) {
     if (rowDef.row === 8) {
       return (
-        <Wrap>
+        <SanamaWrap title={rowDef.title}>
           <CreditCodeSanamaField value={value} onChange={onChange} labelCls="" inputCls={inputCls} />
-        </Wrap>
+        </SanamaWrap>
+      );
+    }
+    if (rowDef.row === 31 || (rowDef.title && rowDef.title.includes("شبا"))) {
+      return (
+        <SanamaWrap title={rowDef.title} wide>
+          <ShebaInput value={value} onChange={onChange} />
+        </SanamaWrap>
       );
     }
     return (
-      <Wrap>
+      <SanamaWrap title={rowDef.title}>
         <SanamaNumericInput value={value} onChange={onChange} inputCls={inputCls} />
-      </Wrap>
+      </SanamaWrap>
     );
   }
 
@@ -403,9 +413,9 @@ function SanamaField({ rowDef, value, onChange, optional }) {
   // ردیف اشخاص
   if (rowDef.types) {
     return (
-      <Wrap wide>
+      <SanamaWrap title={rowDef.title} wide>
         <PersonSanamaField value={value} onChange={onChange} labelCls="" required={!optional} />
-      </Wrap>
+      </SanamaWrap>
     );
   }
 

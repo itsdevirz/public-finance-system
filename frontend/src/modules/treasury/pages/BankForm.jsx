@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import ShebaInput from "@/components/ui/sheba-input";
 import { cn } from "@/lib/utils";
 
 // ─── داده‌های نمونه ────────────────────────────────────────────────────────
@@ -213,16 +214,10 @@ export default function BankForm() {
 
             {/* ردیف ۳: شبا + کد بانک */}
             <Field label="شبا">
-              <div className="relative">
-                <Input
-                  value={form.sheba}
-                  onChange={set("sheba")}
-                  placeholder="شماره شبا را وارد کنید"
-                  className="h-10 text-sm pl-9"
-                  dir="ltr"
-                />
-                <Info className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              </div>
+              <ShebaInput
+                value={form.sheba}
+                onChange={set("sheba")}
+              />
             </Field>
 
             <Field label="کد بانک">

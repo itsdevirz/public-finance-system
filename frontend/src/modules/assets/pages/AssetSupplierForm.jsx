@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import ShebaInput from "@/components/ui/sheba-input";
 import { Badge } from "@/components/ui/badge";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -203,8 +204,8 @@ export default function AssetSupplierForm() {
                 <Input value={form.bankName} onChange={set("bankName")} className="h-9 text-sm" placeholder="مثال: بانک ملی ایران" />
               </Field>
 
-              <Field label="شماره شبا (IR)">
-                <Input value={form.sheba} onChange={set("sheba")} className="h-9 text-sm font-mono text-left animate-in fade-in" dir="ltr" placeholder="IR000000000000000000000000" />
+              <Field label="شماره شبا">
+                <ShebaInput value={form.sheba} onChange={set("sheba")} />
               </Field>
             </div>
           )}

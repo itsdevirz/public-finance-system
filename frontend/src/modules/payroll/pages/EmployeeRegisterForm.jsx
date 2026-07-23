@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import ShebaInput from "@/components/ui/sheba-input";
 import { Badge } from "@/components/ui/badge";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import {
@@ -569,10 +570,9 @@ export default function EmployeeRegisterForm() {
                       <Input value={form.cardNumber || ""} onChange={e => handleChange("cardNumber", e.target.value)} className="h-9 text-xs mt-1.5 font-mono text-left" placeholder="6037-9911-2222-3333" maxLength={19} />
                     </div>
                     <div className="md:col-span-2">
-                      <Label className="text-xs font-semibold">شماره شبا اول (۲۴ رقم بدون حروف IR)</Label>
-                      <div className="relative mt-1.5">
-                        <Input value={form.shebaNo || ""} onChange={e => handleChange("shebaNo", e.target.value)} className="h-9 text-xs font-mono text-left pl-8" placeholder="120170000000102345678901" maxLength={24} />
-                        <span className="absolute left-3 top-2.5 text-xs text-muted-foreground font-mono font-bold select-none">IR</span>
+                      <Label className="text-xs font-semibold">شماره شبا اول (۲۴ رقم)</Label>
+                      <div className="mt-1.5">
+                        <ShebaInput value={form.shebaNo || ""} onChange={val => handleChange("shebaNo", val)} />
                       </div>
                     </div>
                   </div>
@@ -596,10 +596,9 @@ export default function EmployeeRegisterForm() {
                       <Input value={form.cardNumber2 || ""} onChange={e => handleChange("cardNumber2", e.target.value)} className="h-9 text-xs mt-1.5 font-mono text-left" placeholder="6037-9911-2222-3333" maxLength={19} />
                     </div>
                     <div className="md:col-span-2">
-                      <Label className="text-xs font-semibold">شماره شبا دوم (۲۴ رقم بدون حروف IR)</Label>
-                      <div className="relative mt-1.5">
-                        <Input value={form.shebaNo2 || ""} onChange={e => handleChange("shebaNo2", e.target.value)} className="h-9 text-xs font-mono text-left pl-8" placeholder="120170000000102345678901" maxLength={24} />
-                        <span className="absolute left-3 top-2.5 text-xs text-muted-foreground font-mono font-bold select-none">IR</span>
+                      <Label className="text-xs font-semibold">شماره شبا دوم (۲۴ رقم)</Label>
+                      <div className="mt-1.5">
+                        <ShebaInput value={form.shebaNo2 || ""} onChange={val => handleChange("shebaNo2", val)} />
                       </div>
                       <span className="text-[10px] text-muted-foreground mt-1 block">ارائه حساب دوم جهت تکمیل پرونده پرسنلی و پرداخت‌های حمایتی/رفاهی یا پشتیبان</span>
                     </div>

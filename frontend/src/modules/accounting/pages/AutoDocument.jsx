@@ -19,6 +19,7 @@ import sanamaRequirements from "@/data/sanamaRequirements.json";
 import subAccountTitles from "@/data/subAccountTitles.json";
 import { checkDebitNatureBalance, clearBalanceCache } from "@/lib/accountBalanceCheck";
 import { PersonSanamaField } from "@/components/ui/person-sanama-field";
+import ShebaInput from "@/components/ui/sheba-input";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 function getRequiredRows(code) {
@@ -86,6 +87,14 @@ function SanamaField({ rowDef, value, onChange }) {
     return <PersonSanamaField value={value} onChange={onChange} required />;
   }
   // عددی (default)
+  if (rowDef.row === 31 || (rowDef.title && rowDef.title.includes("شبا"))) {
+    return (
+      <div className="space-y-1">
+        {label}
+        <ShebaInput value={value} onChange={onChange} />
+      </div>
+    );
+  }
   return (
     <div className="space-y-1">
       {label}

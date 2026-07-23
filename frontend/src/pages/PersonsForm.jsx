@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import ShebaInput, { formatShebaDigits, getBankFromSheba, BankLogoIcon } from "@/components/ui/sheba-input";
 import { Badge } from "@/components/ui/badge";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -615,17 +616,10 @@ export default function PersonsForm() {
                 <p className="text-xs font-bold text-primary mb-3 uppercase tracking-wide">اطلاعات بانکی</p>
                 <div className="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-4">
                   <Field label="شماره شبا (IBAN)">
-                    <div className="flex gap-1 items-center">
-                      <span className="flex items-center rounded-lg border bg-muted px-2 py-1.5 text-xs font-mono font-bold">IR</span>
-                      <Input
-                        value={form.sheba}
-                        onChange={set("sheba")}
-                        className="h-8 text-sm font-mono"
-                        dir="ltr"
-                        maxLength={24}
-                        placeholder="XXXXXXXXXXXXXXXXXXXXXXXXX"
-                      />
-                    </div>
+                    <ShebaInput
+                      value={form.sheba}
+                      onChange={set("sheba")}
+                    />
                   </Field>
                   <Field label="نام بانک">
                     <Input value={form.bankName} onChange={set("bankName")} className="h-8 text-sm" />
@@ -802,7 +796,14 @@ export default function PersonsForm() {
                     <TableCell className="text-sm font-medium max-w-[200px] truncate">{row.title}</TableCell>
                     <TableCell className="font-mono text-xs whitespace-nowrap">{row.nationalId || "—"}</TableCell>
                     <TableCell className="font-mono text-xs whitespace-nowrap">{row.economicCode || "—"}</TableCell>
-                    <TableCell className="font-mono text-xs max-w-[140px] truncate" title={row.sheba ? `IR${row.sheba}` : ""}>{row.sheba ? `IR${row.sheba}` : "—"}</TableCell>
+                    <TableCell className="font-mono text-xs dir-ltr text-left" title={row.sheba ? `IR ${formatShebaDigits(row.sheba)}` : ""}>
+                      {row.sheba ? (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-bold text-primary/80">IR</span>
+                          <span className="font-mono text-xs">{formatShebaDigits(row.sheba)}</span>
+                        </div>
+                      ) : "—"}
+                    </TableCell>
                     <TableCell className="text-xs whitespace-nowrap">{row.province || "—"}</TableCell>
                     <TableCell className="text-xs whitespace-nowrap">{row.city || "—"}</TableCell>
                   </TableRow>

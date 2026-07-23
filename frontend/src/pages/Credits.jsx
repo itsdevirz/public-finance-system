@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import ShebaInput from "@/components/ui/sheba-input";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Badge } from "@/components/ui/badge";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
@@ -1149,12 +1150,9 @@ export default function Credits() {
                     <div className="grid grid-cols-3 items-center gap-2">
                       <Label className="text-xs font-semibold text-muted-foreground">شماره شبا :</Label>
                       <div className="col-span-2">
-                        <Input 
+                        <ShebaInput 
                           value={reqForm.iban} 
-                          onChange={e => setReqForm({ ...reqForm, iban: e.target.value })} 
-                          placeholder="IR12 0123 4567 8901 2345 6789 01" 
-                          className="h-9 text-xs font-mono" 
-                          dir="ltr"
+                          onChange={val => setReqForm(prev => ({ ...prev, iban: val }))} 
                         />
                       </div>
                     </div>
