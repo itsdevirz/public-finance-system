@@ -126,9 +126,11 @@ function calcPayrollRow(emp, decree, attRec, advances, loans, selectedYear, sele
   const healthInsEmployer = Math.round(grossSalary * HEALTH_INS_EMPLOYER_RATE);
   const healthInsGovt     = Math.round(grossSalary * HEALTH_INS_GOVT_RATE);
 
-  // مالیات ماهانه (بر اساس ناخالص سالانه)
+  // مالیات ماهانه (بر اساس ناخالص سالانه و وضعیت معافیت مالیاتی کارمند)
+  const taxStatus      = decree?.taxStatus || emp?.taxStatus || "taxable";
+  const isExempt       = taxStatus === "exempt";
   const annualGross    = grossSalary * 12;
-  const monthlyTax     = calcTax(annualGross);
+  const monthlyTax     = isExempt ? 0 : calcTax(annualGross);
 
   // محاسبه کسر مساعده
   const empId = emp._id || emp.id;
@@ -199,6 +201,8 @@ function calcPayrollRow(emp, decree, attRec, advances, loans, selectedYear, sele
     healthInsEmployer,
     healthInsGovt,
     monthlyTax,
+    taxStatus,
+    isExempt,
     tardinessDeduct,
     absenceDeduct,
     advanceDeduct,
@@ -340,7 +344,7 @@ export default function PayrollCalculate() {
         <td class="c">${r.workedDays}/${r.overtimeHours}ساعت</td>
         <td class="r mono">${fmt(r.grossSalary)}</td>
         <td class="r mono">${fmt(r.insEmployee)}</td>
-        <td class="r mono">${fmt(r.monthlyTax)}</td>
+        <td class="r mono">${r.isExempt || r.taxStatus === "exempt" ? "معاف (ماده ۹۱)" : fmt(r.monthlyTax)}</td>
         <td class="r mono">${fmt(r.totalDeductions)}</td>
         <td class="r mono b">${fmt(r.netSalary)}</td>
         <td class="c">${!r.hasDecree ? "⚠ فاقد حکم" : !r.hasAttRec ? "پیش‌فرض" : "✓"}</td>
@@ -568,7 +572,15 @@ export default function PayrollCalculate() {
                     <TableCell className="text-left font-mono font-bold text-indigo-700">{fmt(r.grossSalary)}</TableCell>
                     <TableCell className="text-left font-mono text-blue-600 border-r border-slate-100 dark:border-slate-800 pr-3">{fmt(r.insEmployee)}</TableCell>
                     <TableCell className="text-left font-mono text-orange-500 text-[10px]">{fmt(r.insEmployer)}</TableCell>
-                    <TableCell className="text-left font-mono text-rose-600">{fmt(r.monthlyTax)}</TableCell>
+                    <TableCell className="text-left font-mono text-rose-600">
+                      {r.isExempt || r.taxStatus === "exempt" ? (
+                        <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-300 text-[9px] py-0 px-1 font-sans">
+                          معاف (ماده ۹۱)
+                        </Badge>
+                      ) : (
+                        fmt(r.monthlyTax)
+                      )}
+                    </TableCell>
                     <TableCell className="text-left font-mono text-slate-500">
                       {(r.tardinessDeduct + r.absenceDeduct + (r.advanceDeduct || 0) + (r.loanDeduct || 0)) > 0 
                         ? fmt(r.tardinessDeduct + r.absenceDeduct + (r.advanceDeduct || 0) + (r.loanDeduct || 0)) 

@@ -400,16 +400,18 @@ export default function PayrollReports() {
       `;
       bodyHtml = reportData.map((r, i) => {
         const gross = r.calc?.grossSalary || 0;
-        const tax = r.calc?.monthlyTax || 0;
-        const taxable = tax > 0 ? Math.max(0, gross - 120_000_000) : 0; // فرضی بر اساس سقف جدول مالیاتی
-        const exempt = tax > 0 ? 120_000_000 : gross;
+        const empTaxStatus = r.decree?.taxStatus || r.emp?.taxStatus || r.calc?.taxStatus || "taxable";
+        const isExempt = empTaxStatus === "exempt" || r.calc?.isExempt;
+        const tax = isExempt ? 0 : (r.calc?.monthlyTax || 0);
+        const taxable = isExempt ? 0 : (tax > 0 ? Math.max(0, gross - 120_000_000) : 0);
+        const exempt = isExempt ? gross : (tax > 0 ? 120_000_000 : gross);
         return `
           <tr>
             <td class="c">${i + 1}</td><td class="c mono">${toPersianDigits(r.nationalId)}</td><td><b>${r.name}</b></td>
             <td class="r mono">${fmt(gross)}</td>
             <td class="r mono">${fmt(exempt)}</td>
             <td class="r mono">${fmt(taxable)}</td>
-            <td class="r mono b text-rose">${fmt(tax)}</td>
+            <td class="r mono b text-rose">${isExempt ? "معاف (ماده ۹۱)" : fmt(tax)}</td>
           </tr>
         `;
       }).join("");
@@ -1012,9 +1014,11 @@ export default function PayrollReports() {
               <TableBody className="text-[10px] font-mono">
                 {reportData.map(r => {
                   const gross = r.calc?.grossSalary || 0;
-                  const tax = r.calc?.monthlyTax || 0;
-                  const taxable = tax > 0 ? Math.max(0, gross - 120_000_000) : 0;
-                  const exempt = tax > 0 ? 120_000_000 : gross;
+                  const empTaxStatus = r.decree?.taxStatus || r.emp?.taxStatus || r.calc?.taxStatus || "taxable";
+                  const isExempt = empTaxStatus === "exempt" || r.calc?.isExempt;
+                  const tax = isExempt ? 0 : (r.calc?.monthlyTax || 0);
+                  const taxable = isExempt ? 0 : (tax > 0 ? Math.max(0, gross - 120_000_000) : 0);
+                  const exempt = isExempt ? gross : (tax > 0 ? 120_000_000 : gross);
                   return (
                     <TableRow key={r.empId} className="h-8">
                       <TableCell className="text-right font-sans">
@@ -1025,7 +1029,15 @@ export default function PayrollReports() {
                       <TableCell className="text-left">{fmt(gross)}</TableCell>
                       <TableCell className="text-left">{fmt(exempt)}</TableCell>
                       <TableCell className="text-left">{fmt(taxable)}</TableCell>
-                      <TableCell className="text-left font-bold text-rose-600">{fmt(tax)}</TableCell>
+                      <TableCell className="text-left font-bold text-rose-600">
+                        {isExempt ? (
+                          <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-300 text-[9px] font-sans">
+                            معاف (ماده ۹۱)
+                          </Badge>
+                        ) : (
+                          fmt(tax)
+                        )}
+                      </TableCell>
                     </TableRow>
                   );
                 })}

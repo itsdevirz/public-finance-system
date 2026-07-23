@@ -131,7 +131,16 @@ export default function EmployeeList() {
                       <td className="px-4 py-3 font-mono font-bold text-left text-emerald-700 dark:text-emerald-400">
                         {Number(salaryDisplay).toLocaleString("fa-IR")}
                       </td>
-                      <td className="px-4 py-3 text-center">{statusBadge}</td>
+                      <td className="px-4 py-3 text-center">
+                        <div className="flex flex-col items-center gap-1">
+                          {statusBadge}
+                          {row.taxStatus === "exempt" && (
+                            <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-300 text-[9px] py-0 px-1 font-sans">
+                              معاف (ماده ۹۱)
+                            </Badge>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-4 py-3 text-center">
                         <div className="flex justify-center gap-1.5">
                           <Button

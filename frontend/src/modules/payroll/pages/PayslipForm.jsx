@@ -136,9 +136,19 @@ export default function PayslipForm() {
         });
       }
 
+      const emp = (employees || []).find(e => (e._id || e.id) === calc.employeeId);
+      const decree = [...(employeeDecrees || [])]
+        .filter(d => d.employeeId === calc.employeeId)
+        .sort((a, b) => (b.issueDate || "").localeCompare(a.issueDate || ""))
+        [0] || null;
+
+      const taxStatus = decree?.taxStatus || emp?.taxStatus || calc?.taxStatus || "taxable";
+      const isExempt = taxStatus === "exempt";
+      const monthlyTax = isExempt ? 0 : (calc.monthlyTax || 0);
+
       const totalDeductions = (calc.insEmployee || 0) +
                               (calc.healthInsEmployee || 0) +
-                              (calc.monthlyTax || 0) +
+                              monthlyTax +
                               (calc.tardinessDeduct || 0) +
                               (calc.absenceDeduct || 0) +
                               advanceDeduct +
@@ -147,6 +157,9 @@ export default function PayslipForm() {
 
       return {
         ...calc,
+        monthlyTax,
+        taxStatus,
+        isExempt,
         advanceDeduct,
         loanDeduct,
         totalDeductions,
@@ -300,6 +313,7 @@ export default function PayslipForm() {
             ${emp?.accountNo2 ? `<div><strong>شماره حساب فرعی (${emp.bankName2 || "بانک دوم"}):</strong> ${toPersianDigits(emp.accountNo2)}</div>` : ""}
             <div><strong>روزهای کارکرد موظف:</strong> ${toPersianDigits(calc.workedDays)} روز</div>
             <div><strong>اضافه‌کاری:</strong> ${toPersianDigits(calc.overtimeHours)} ساعت</div>
+            <div><strong>وضعیت مالیاتی:</strong> ${emp?.taxStatus === "exempt" || calc?.taxStatus === "exempt" || calc?.isExempt ? "<span style='color:#059669;font-weight:bold;'>معاف از مالیات حقوق (ماده ۹۱)</span>" : "مشمول پرداخت مالیات حقوق"}</div>
           </div>
 
           <!-- جدول اقلام حقوقی -->
@@ -446,11 +460,18 @@ export default function PayslipForm() {
         });
       }
 
-      const totalDeductions = (calc.insEmployee || 0) + (calc.monthlyTax || 0) + (calc.tardinessDeduct || 0) + (calc.absenceDeduct || 0) + advanceDeduct + loanDeduct;
+      const taxStatus = decree?.taxStatus || emp?.taxStatus || calc?.taxStatus || "taxable";
+      const isExempt = taxStatus === "exempt";
+      const monthlyTax = isExempt ? 0 : (calc.monthlyTax || 0);
+
+      const totalDeductions = (calc.insEmployee || 0) + monthlyTax + (calc.tardinessDeduct || 0) + (calc.absenceDeduct || 0) + advanceDeduct + loanDeduct;
       const netSalary = Math.max(0, calc.grossSalary - totalDeductions);
 
       const mergedCalc = {
         ...calc,
+        monthlyTax,
+        taxStatus,
+        isExempt,
         advanceDeduct,
         loanDeduct,
         totalDeductions,
@@ -706,6 +727,7 @@ export default function PayslipForm() {
                     )}
                     <div><span className="text-slate-500">روزهای کارکرد:</span> <strong>{toPersianDigits(selectedCalc.workedDays)} روز</strong></div>
                     <div><span className="text-slate-500">اضافه‌کاری:</span> <strong>{toPersianDigits(selectedCalc.overtimeHours)} ساعت</strong></div>
+                    <div><span className="text-slate-500">وضعیت مالیاتی:</span> <strong className={selectedDetails?.emp?.taxStatus === "exempt" || selectedCalc.taxStatus === "exempt" || selectedCalc.isExempt ? "text-emerald-600 font-bold" : ""}>{selectedDetails?.emp?.taxStatus === "exempt" || selectedCalc.taxStatus === "exempt" || selectedCalc.isExempt ? "معاف از مالیات حقوق (ماده ۹۱)" : "مشمول پرداخت مالیات حقوق"}</strong></div>
                   </div>
 
                   {/* جدول دو ستونه مزایا و کسورات */}

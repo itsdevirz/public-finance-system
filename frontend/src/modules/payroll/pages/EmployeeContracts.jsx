@@ -37,6 +37,7 @@ const INITIAL_FORM = {
   transportAllowance: 0,
   otherAllowances: 0,
   annualLeaveDays: 26, // standard 26 days per year
+  taxStatus: "taxable",
 };
 
 export default function EmployeeContracts() {
@@ -757,6 +758,13 @@ export default function EmployeeContracts() {
                       <option value="draft">پیش‌نویس قرارداد</option>
                       <option value="completed">خاتمه یافته قانونی</option>
                       <option value="terminated">لغو شده / تسویه پیش از موعد</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold">وضعیت مالیاتی در قرارداد</Label>
+                    <select value={form.taxStatus || "taxable"} onChange={e => handleChange("taxStatus", e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-xs shadow-sm mt-1.5">
+                      <option value="taxable">مشمول پرداخت مالیات حقوق</option>
+                      <option value="exempt">معاف از مالیات حقوق (ماده ۹۱)</option>
                     </select>
                   </div>
                 </div>

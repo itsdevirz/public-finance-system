@@ -34,6 +34,7 @@ const INITIAL_FORM = {
   expertiseAllowance: 0,
   transportAllowance: 0,
   otherAllowances: 0,
+  taxStatus: "taxable",
   description: "اعمال افزایش ضریب حقوقی سالانه قانون کار"
 };
 
@@ -106,6 +107,7 @@ export default function EmployeeDecrees() {
         expertiseAllowance: emp.expertiseAllowance || 0,
         transportAllowance: emp.transportAllowance || 0,
         otherAllowances: emp.otherAllowances || 0,
+        taxStatus: emp.taxStatus || "taxable",
       }));
     } else {
       setForm(f => ({ ...f, employeeId: empId }));
@@ -442,6 +444,7 @@ export default function EmployeeDecrees() {
                   </strong></div>
                   <div className="p-2 border-t border-r border-slate-950">گروه شغلی: <strong>{selectedDecreeForPrint.jobGroup}</strong></div>
                   <div className="p-2 border-t border-r border-slate-950">پایه: <strong>{selectedDecreeForPrint.jobBase}</strong></div>
+                  <div className="p-2 border-t border-r border-slate-950">وضعیت مالیاتی: <strong>{selectedDecreeForPrint.taxStatus === "exempt" ? "معاف از مالیات حقوق (ماده ۹۱)" : "مشمول مالیات"}</strong></div>
                   <div className="p-2 border-t">شرح حکم: <strong>{selectedDecreeForPrint.description || "—"}</strong></div>
                 </div>
               </div>
@@ -604,6 +607,13 @@ export default function EmployeeDecrees() {
                   <div>
                     <Label className="text-xs font-semibold">پایه شغلی</Label>
                     <Input value={form.jobBase} onChange={e => handleChange("jobBase", e.target.value)} className="h-9 text-xs mt-1.5 font-mono text-left" />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold">وضعیت مالیاتی کارمند در حکم</Label>
+                    <select value={form.taxStatus || "taxable"} onChange={e => handleChange("taxStatus", e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-xs shadow-sm mt-1.5">
+                      <option value="taxable">مشمول پرداخت مالیات حقوق</option>
+                      <option value="exempt">معاف از مالیات حقوق (ماده ۹۱)</option>
+                    </select>
                   </div>
                   <div>
                     <Label className="text-xs font-semibold">شرح / دلیل صدور حکم</Label>
