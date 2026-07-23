@@ -43,28 +43,6 @@ export const BASIC_INFO_SUB = [
       { to: "/basic-info/contracts/cancellation",           label: "فسخ قرارداد" },
     ],
   },
-  {
-    to: "/basic-info/bookkeeping",
-    label: "دفترداری",
-    children: [
-      { to: "/basic-info/bookkeeping/account-heads",       label: "تعریف سرفصل حساب‌ها" },
-      { to: "/basic-info/bookkeeping/fiscal-period",       label: "تعریف دوره مالی" },
-      { to: "/basic-info/bookkeeping/detail",              label: "تعریف تفصیلی" },
-      { to: "/basic-info/bookkeeping/detail-moein",        label: "ارتباط تفصیلی با معین" },
-      {
-        to: "/basic-info/bookkeeping/reports",
-        label: "گزارش‌ها",
-        children: [
-          { to: "/basic-info/bookkeeping/reports/general-ledger-req", label: "ملزومات حساب کل" },
-          { to: "/basic-info/bookkeeping/reports/subsidiary-req",     label: "ملزومات حساب معین" },
-          { to: "/basic-info/bookkeeping/reports/permanent-equiv",    label: "کدهای معادل حساب‌های دائمی" },
-        ],
-      },
-      { to: "/basic-info/bookkeeping/treasurer-moein",    label: "ارتباط ذیحساب با معین" },
-      { to: "/basic-info/bookkeeping/sanama",             label: "الزامات سناما" },
-      { to: "/basic-info/bookkeeping/person-replacement", label: "جایگزینی اشخاص" },
-    ],
-  },
 ];
 
 // ─── تنظیم اسناد ─────────────────────────────────────────────────────────────
@@ -166,16 +144,12 @@ export const TOP_NAV = [
         { to: "/bookkeeping/bank-reconciliation/account-info-read",     label: "خواندن اطلاعات حساب‌ها" },
         { to: "/bookkeeping/bank-reconciliation/account-reconciliation",label: "مغایرت حساب‌ها" },
       ]},
-      { to: "/bookkeeping/smart-control", label: "کنترل هوشمند", children: [
-        { to: "/bookkeeping/smart-control/sanama-performance", label: "کنترل فرم عملکرد (سناما)" },
-      ]},
       { to: "/system-management/sanama-file-check", label: "ممیزی فرم عملکرد سناما", children: [
         { to: "/system-management/sanama-file-check/expense", label: "۱. هزینه" },
         { to: "/system-management/sanama-file-check/capital", label: "۲. تملک" },
         { to: "/system-management/sanama-file-check/financial-statements", label: "۳. تهیه صورت‌های مالی" },
       ]},
       { to: "/bookkeeping/account-setup", label: "تنظیم حساب" },
-      { to: "/system-management/backup",            label: "پشتیبان‌گیری" },
       { to: "/system-management/report-signature",  label: "تنظیم امضای گزارشات" },
     ],
   },

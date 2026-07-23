@@ -1,12 +1,11 @@
 import { PageShell, PageHeader } from "@/components/layout/PageShell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Database, FileText, CreditCard, BookOpen } from "lucide-react";
+import { Database, FileText, CreditCard } from "lucide-react";
 
 const sections = [
   { icon: Database, title: "اعتبارات", description: "تعریف فصول، منابع، بندها و سایر اطلاعات اعتباری" },
   { icon: FileText, title: "تنظیم اسناد", description: "انواع سند و پرداخت" },
   { icon: CreditCard, title: "صدور چک", description: "شعب بانکی، حساب‌ها و گیرندگان" },
-  { icon: BookOpen, title: "دفترداری", description: "سرفصل‌ها، دوره مالی و تفصیلی" },
 ];
 
 export default function BasicInfo() {

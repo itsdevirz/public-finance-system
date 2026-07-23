@@ -16,6 +16,9 @@ const BankForm = lazy(() => import("@/modules/treasury/pages/BankForm"));
 const CreditForm = lazy(() => import("@/pages/CreditForm"));
 const Bookkeeping = lazy(() => import("@/modules/accounting/pages/Bookkeeping"));
 const SystemManagement = lazy(() => import("@/pages/SystemManagement"));
+const FinancialDetailsForm = lazy(() => import("@/pages/FinancialDetailsForm"));
+const SystemSettingsForm = lazy(() => import("@/pages/SystemSettingsForm"));
+const ReportSignatureForm = lazy(() => import("@/pages/ReportSignatureForm"));
 const Users = lazy(() => import("@/pages/Users"));
 const CurrentOperations = lazy(() => import("@/modules/accounting/pages/CurrentOperations"));
 const Guarantees = lazy(() => import("@/modules/treasury/pages/Guarantees"));
@@ -387,10 +390,10 @@ export const PAGE_COMPONENTS = {
   "/system-management/permissions": SystemManagement,
   "/system-management/change-password": SystemManagement,
   "/system-management/user-performance": SystemManagement,
-  "/system-management/financial-details": SystemManagement,
+  "/system-management/financial-details": FinancialDetailsForm,
   "/system-management/approve-docs": SystemManagement,
   "/system-management/close-account-chapters": SystemManagement,
-  "/system-management/settings": SystemManagement,
+  "/system-management/settings": SystemSettingsForm,
   "/system-management/document-templates": SystemManagement,
   "/system-management/document-templates/current-operations": CurrentOperations,
   "/system-management/document-templates/payroll": PayrollOperations,
@@ -400,7 +403,7 @@ export const PAGE_COMPONENTS = {
   "/system-management/document-templates/special-cases": SystemManagement,
   "/system-management/update-manager": SystemManagement,
   "/system-management/backup": SystemManagement,
-  "/system-management/report-signature": SystemManagement,
+  "/system-management/report-signature": ReportSignatureForm,
   "/system-management/report-generator": SystemManagement,
   "/system-management/report-generator/define": SystemManagement,
   "/system-management/report-generator/settings": SystemManagement,
