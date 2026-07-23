@@ -64,15 +64,16 @@ const HEALTH_INS_GOVT_RATE     = 0.03;  // سهم دولت بیمه درمان 3
 function calcPayrollRow(emp, decree, attRec, advances, loans, selectedYear, selectedMonth) {
   const DAYS_IN_MONTH = 30;
 
-  // حقوق پایه ماهانه از آخرین حکم
-  const baseSalary     = Number(decree?.baseSalary     ?? 0);
-  const housingAllow   = Number(decree?.housingAllowance   ?? 30_000_000);
-  const groceryAllow   = Number(decree?.groceryAllowance   ?? 22_000_000);
-  const childAllow     = Number(decree?.childAllowance     ?? 0);
-  const seniority      = Number(decree?.seniorityPay       ?? 0);
-  const responsibility = Number(decree?.responsibilityAllowance ?? 0);
-  const expertise      = Number(decree?.expertiseAllowance ?? 0);
-  const other          = Number(decree?.otherAllowances    ?? 0);
+  // حقوق پایه ماهانه از آخرین حکم یا اطلاعات کارمند ثبت شده
+  const baseSalary     = Number(decree?.baseSalary     ?? emp.baseSalary ?? (emp.dailyBaseSalary ? emp.dailyBaseSalary * 30 : 0) ?? 0);
+  const housingAllow   = Number(decree?.housingAllowance   ?? emp.housingAllowance   ?? 30_000_000);
+  const groceryAllow   = Number(decree?.groceryAllowance   ?? emp.groceryAllowance   ?? 22_000_000);
+  const childAllow     = Number(decree?.childAllowance     ?? emp.childAllowance     ?? 0);
+  const seniority      = Number(decree?.seniorityPay       ?? emp.seniorityPay       ?? 0);
+  const responsibility = Number(decree?.responsibilityAllowance ?? emp.responsibilityAllowance ?? 0);
+  const expertise      = Number(decree?.expertiseAllowance ?? emp.expertiseAllowance ?? 0);
+  const transportAllow = Number(decree?.transportAllowance ?? emp.transportAllowance ?? 0);
+  const other          = Number(decree?.otherAllowances    ?? emp.otherAllowances    ?? 0);
 
   // کارکرد از رکورد حضور/غیاب
   const workedDays     = attRec ? Number(attRec.workedDays     ?? DAYS_IN_MONTH) : DAYS_IN_MONTH;
@@ -111,10 +112,10 @@ function calcPayrollRow(emp, decree, attRec, advances, loans, selectedYear, sele
 
   // جمع ناخالص حقوق
   const grossSalary = earnedBaseSalary + housingAllow + groceryAllow + childAllow
-                    + seniority + responsibility + expertise + other + overtimePay + customAllowancesSum;
+                    + seniority + responsibility + expertise + transportAllow + other + overtimePay + customAllowancesSum;
 
   // مبنای بیمه (حقوق پایه + مزایای مشمول بیمه)
-  const insBase        = earnedBaseSalary + seniority + responsibility + expertise;
+  const insBase        = earnedBaseSalary + seniority + responsibility + expertise + transportAllow + other;
   const insEmployee    = Math.round(insBase * INS_EMPLOYEE_RATE);
   const insEmployer    = Math.round(insBase * INS_EMPLOYER_RATE);
   const insUnemploy    = Math.round(insBase * INS_UNEMPLOY_RATE);
@@ -186,6 +187,7 @@ function calcPayrollRow(emp, decree, attRec, advances, loans, selectedYear, sele
     seniority,
     responsibility,
     expertise,
+    transportAllow,
     other,
     overtimePay,
     grossSalary,

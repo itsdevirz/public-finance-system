@@ -97,11 +97,63 @@ export default function PayslipForm() {
   const monthLabel = MONTHS.find(m => m.value === selectedMonth)?.label || "";
 
   // فیلتر کردن محاسبات حقوق مربوط به این سال و ماه
+  // فیلتر کردن محاسبات حقوق مربوط به این سال و ماه همراه با اعمال کسورات و بیمه درمان
   const monthCalcs = useMemo(() => {
-    return (payrollCalculations || []).filter(
+    const rawCalcs = (payrollCalculations || []).filter(
       c => String(c.year) === String(selectedYear) && String(c.month) === String(selectedMonth)
     );
-  }, [payrollCalculations, selectedYear, selectedMonth]);
+
+    return rawCalcs.map(calc => {
+      const empId = calc.employeeId;
+      const empAdvances = (employeeAdvances || []).filter(
+        a => String(a.employeeId) === String(empId) &&
+             String(a.year) === String(selectedYear) &&
+             String(a.month) === String(selectedMonth) &&
+             a.active !== false
+      );
+      const advanceDeduct = calc.advanceDeduct ?? empAdvances.reduce((s, a) => s + (Number(a.amount) || 0), 0);
+
+      const empLoans = (employeeLoans || []).filter(
+        l => String(l.employeeId) === String(empId) && l.active !== false
+      );
+      let loanDeduct = calc.loanDeduct ?? 0;
+      if (calc.loanDeduct === undefined) {
+        empLoans.forEach(loan => {
+          const startY = Number(loan.startYear) || 1405;
+          const startM = Number(loan.startMonth) || 1;
+          const count = Number(loan.installmentsCount) || 12;
+          const paidCount = Number(loan.paidInstallmentsCount) || 0;
+          
+          const currentY = Number(selectedYear);
+          const currentM = Number(selectedMonth);
+          
+          const startTotalMonths = startY * 12 + startM;
+          const currentTotalMonths = currentY * 12 + currentM;
+          
+          if (currentTotalMonths >= startTotalMonths && paidCount < count) {
+            loanDeduct += Number(loan.monthlyInstallment) || 0;
+          }
+        });
+      }
+
+      const totalDeductions = (calc.insEmployee || 0) +
+                              (calc.healthInsEmployee || 0) +
+                              (calc.monthlyTax || 0) +
+                              (calc.tardinessDeduct || 0) +
+                              (calc.absenceDeduct || 0) +
+                              advanceDeduct +
+                              loanDeduct;
+      const netSalary = Math.max(0, calc.grossSalary - totalDeductions);
+
+      return {
+        ...calc,
+        advanceDeduct,
+        loanDeduct,
+        totalDeductions,
+        netSalary
+      };
+    });
+  }, [payrollCalculations, employeeAdvances, employeeLoans, selectedYear, selectedMonth]);
 
   // فیلتر کردن بر اساس جستجو
   const filteredCalcs = useMemo(() => {
@@ -114,55 +166,8 @@ export default function PayslipForm() {
   // فیش حقوقی کارمند انتخاب شده فعلی
   const selectedCalc = useMemo(() => {
     if (!selectedEmpId) return null;
-    const calc = monthCalcs.find(c => c.employeeId === selectedEmpId) || null;
-    if (!calc) return null;
-
-    // محاسبات پویای مساعده کارمند برای کسر در فیش این ماه
-    const empId = calc.employeeId;
-    const empAdvances = (employeeAdvances || []).filter(
-      a => String(a.employeeId) === String(empId) &&
-           String(a.year) === String(selectedYear) &&
-           String(a.month) === String(selectedMonth) &&
-           a.active !== false
-    );
-    const advanceDeduct = calc.advanceDeduct ?? empAdvances.reduce((s, a) => s + (Number(a.amount) || 0), 0);
-
-    // محاسبات پویای اقساط وام فعال برای کسر در فیش این ماه
-    const empLoans = (employeeLoans || []).filter(
-      l => String(l.employeeId) === String(empId) &&
-           l.active !== false
-    );
-    let loanDeduct = calc.loanDeduct ?? 0;
-    if (calc.loanDeduct === undefined) {
-      empLoans.forEach(loan => {
-        const startY = Number(loan.startYear) || 1405;
-        const startM = Number(loan.startMonth) || 1;
-        const count = Number(loan.installmentsCount) || 12;
-        const paidCount = Number(loan.paidInstallmentsCount) || 0;
-        
-        const currentY = Number(selectedYear);
-        const currentM = Number(selectedMonth);
-        
-        const startTotalMonths = startY * 12 + startM;
-        const currentTotalMonths = currentY * 12 + currentM;
-        
-        if (currentTotalMonths >= startTotalMonths && paidCount < count) {
-          loanDeduct += Number(loan.monthlyInstallment) || 0;
-        }
-      });
-    }
-
-    const totalDeductions = (calc.insEmployee || 0) + (calc.monthlyTax || 0) + (calc.tardinessDeduct || 0) + (calc.absenceDeduct || 0) + advanceDeduct + loanDeduct;
-    const netSalary = Math.max(0, calc.grossSalary - totalDeductions);
-
-    return {
-      ...calc,
-      advanceDeduct,
-      loanDeduct,
-      totalDeductions,
-      netSalary
-    };
-  }, [monthCalcs, selectedEmpId, employeeAdvances, employeeLoans, selectedYear, selectedMonth]);
+    return monthCalcs.find(c => c.employeeId === selectedEmpId) || null;
+  }, [monthCalcs, selectedEmpId]);
 
   // جزئیات پرسنل و حکم کارمند منتخب برای درج در هدر فیش
   const selectedDetails = useMemo(() => {
@@ -241,6 +246,7 @@ export default function PayslipForm() {
       { label: "پایه سنوات", val: calc.seniority || 0 },
       { label: "فوق‌العاده مسئولیت/جذب", val: calc.responsibility || 0 },
       { label: "فوق‌العاده تخصصی", val: calc.expertise || 0 },
+      { label: "فوق‌العاده ایاب و ذهاب", val: calc.transportAllow || 0 },
       { label: "حقوق اضافه‌کاری", val: calc.overtimePay || 0 },
       { label: "سایر مزایا و کارکردها", val: calc.other || 0 },
     ];
@@ -721,6 +727,7 @@ export default function PayslipForm() {
                           {selectedCalc.seniority > 0 && <TableRow className="h-7"><TableCell className="py-1">پایه سنوات</TableCell><TableCell className="text-left font-mono py-1">{fmt(selectedCalc.seniority)}</TableCell></TableRow>}
                           {selectedCalc.responsibility > 0 && <TableRow className="h-7"><TableCell className="py-1">فوق‌العاده مسئولیت</TableCell><TableCell className="text-left font-mono py-1">{fmt(selectedCalc.responsibility)}</TableCell></TableRow>}
                           {selectedCalc.expertise > 0 && <TableRow className="h-7"><TableCell className="py-1">فوق‌العاده تخصصی</TableCell><TableCell className="text-left font-mono py-1">{fmt(selectedCalc.expertise)}</TableCell></TableRow>}
+                          {selectedCalc.transportAllow > 0 && <TableRow className="h-7"><TableCell className="py-1">فوق‌العاده ایاب و ذهاب</TableCell><TableCell className="text-left font-mono py-1">{fmt(selectedCalc.transportAllow)}</TableCell></TableRow>}
                           {selectedCalc.overtimePay > 0 && <TableRow className="h-7"><TableCell className="py-1">اضافه‌کاری</TableCell><TableCell className="text-left font-mono py-1">{fmt(selectedCalc.overtimePay)}</TableCell></TableRow>}
                           {selectedCalc.other > 0 && <TableRow className="h-7"><TableCell className="py-1">سایر مزایا</TableCell><TableCell className="text-left font-mono py-1">{fmt(selectedCalc.other)}</TableCell></TableRow>}
                           {customFields.map(f => {

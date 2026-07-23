@@ -50,8 +50,17 @@ export default function AttendanceRegister() {
   // Sync grid data when selection or global records change
   useEffect(() => {
     if (currentMonthRecords.length > 0) {
+      // Deduplicate records by employeeId to prevent duplicate rows in UI
+      const uniqueRecordsMap = new Map();
+      currentMonthRecords.forEach(r => {
+        if (!uniqueRecordsMap.has(r.employeeId)) {
+          uniqueRecordsMap.set(r.employeeId, r);
+        }
+      });
+      const uniqueRecords = Array.from(uniqueRecordsMap.values());
+
       // Map existing records from backend
-      const mapped = currentMonthRecords.map(r => {
+      const mapped = uniqueRecords.map(r => {
         const emp = (employees || []).find(e => (e._id === r.employeeId || e.id === r.employeeId));
         return {
           id: r._id || r.id,
@@ -81,18 +90,22 @@ export default function AttendanceRegister() {
     }
 
     const defaults = employees.map(emp => {
-      // Check if there is already an unsaved/saved record in current grid (just in case)
+      const empId = emp._id || emp.id;
+      // Preserve existing ID if record already exists for this employee in current month
+      const existing = (currentMonthRecords || []).find(r => r.employeeId === empId) ||
+                       gridData.find(g => g.employeeId === empId);
+
       return {
-        id: null,
-        employeeId: emp._id || emp.id,
+        id: existing?.id || existing?._id || null,
+        employeeId: empId,
         employeeName: `${emp.firstName} ${emp.lastName}`,
         employeeCode: emp.code,
-        workedDays: 30,
-        overtimeHours: 0,
-        leaveDays: 0,
-        absenceDays: 0,
-        missionDays: 0,
-        tardinessHours: 0
+        workedDays: existing?.workedDays ?? 30,
+        overtimeHours: existing?.overtimeHours ?? 0,
+        leaveDays: existing?.leaveDays ?? 0,
+        absenceDays: existing?.absenceDays ?? 0,
+        missionDays: existing?.missionDays ?? 0,
+        tardinessHours: existing?.tardinessHours ?? 0
       };
     });
     setGridData(defaults);
@@ -139,9 +152,18 @@ export default function AttendanceRegister() {
           tardinessHours: row.tardinessHours
         };
 
-        if (row.id) {
+        // Find existing record in backend if row.id is missing
+        const existingRecord = (attendanceRecords || []).find(
+          r => r.employeeId === row.employeeId &&
+               String(r.year) === String(selectedYear) &&
+               String(r.month) === String(selectedMonth)
+        );
+
+        const targetId = row.id || existingRecord?._id || existingRecord?.id;
+
+        if (targetId) {
           // Update existing
-          return updateConfig("attendance_records", { ...payload, id: row.id, _id: row.id });
+          return updateConfig("attendance_records", { ...payload, id: targetId, _id: targetId });
         } else {
           // Add new
           return addConfig("attendance_records", payload);
@@ -149,6 +171,25 @@ export default function AttendanceRegister() {
       });
 
       await Promise.all(savePromises);
+
+      // Clean up any pre-existing duplicate records in the backend for this period
+      const currentPeriodRecords = (attendanceRecords || []).filter(
+        r => String(r.year) === String(selectedYear) && String(r.month) === String(selectedMonth)
+      );
+      const seenEmpIds = new Set();
+      const duplicatesToDelete = [];
+      currentPeriodRecords.forEach(r => {
+        if (seenEmpIds.has(r.employeeId)) {
+          duplicatesToDelete.push(r._id || r.id);
+        } else {
+          seenEmpIds.add(r.employeeId);
+        }
+      });
+
+      if (duplicatesToDelete.length > 0) {
+        await Promise.all(duplicatesToDelete.map(id => deleteConfig("attendance_records", id)));
+      }
+
       setSuccessMsg("اطلاعات حضور و غیاب و کارکرد ماه با موفقیت ذخیره و ثبت گردید.");
       await refreshAllConfigs();
       setTimeout(() => setSuccessMsg(""), 4000);

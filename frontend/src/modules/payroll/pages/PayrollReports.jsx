@@ -170,7 +170,7 @@ export default function PayrollReports() {
       if (r.calc) {
         res.baseSalary += Number(r.calc.earnedBaseSalary || 0);
         res.overtimePay += Number(r.calc.overtimePay || 0);
-        res.allowances += Number((r.calc.housingAllow || 0) + (r.calc.groceryAllow || 0) + (r.calc.childAllow || 0));
+        res.allowances += Number((r.calc.housingAllow || 0) + (r.calc.groceryAllow || 0) + (r.calc.childAllow || 0) + (r.calc.responsibility || 0) + (r.calc.expertise || 0) + (r.calc.transportAllow || 0) + (r.calc.other || 0));
         res.gross += Number(r.calc.grossSalary || 0);
         res.insEmp += Number(r.calc.insEmployee || 0);
         res.insEmployer += Number(r.calc.insEmployer || 0);
@@ -320,7 +320,7 @@ export default function PayrollReports() {
           <td class="c">${i + 1}</td><td class="c mono">${r.code}</td><td><b>${r.name}</b></td>
           <td class="c">${toPersianDigits(r.attRec?.workedDays || 30)} روز</td>
           <td class="r mono">${fmt(r.calc?.earnedBaseSalary)}</td>
-          <td class="r mono">${fmt((r.calc?.housingAllow || 0) + (r.calc?.groceryAllow || 0) + (r.calc?.childAllow || 0) + customSum)}</td>
+          <td class="r mono">${fmt((r.calc?.housingAllow || 0) + (r.calc?.groceryAllow || 0) + (r.calc?.childAllow || 0) + (r.calc?.responsibility || 0) + (r.calc?.expertise || 0) + (r.calc?.transportAllow || 0) + (r.calc?.other || 0) + customSum)}</td>
           <td class="r mono">${fmt(r.calc?.overtimePay)}</td>
           <td class="r mono b">${fmt(r.calc?.grossSalary)}</td>
           <td class="r mono">${fmt(r.calc?.insEmployee)}</td>
@@ -655,7 +655,7 @@ export default function PayrollReports() {
           i + 1, r.code, r.name,
           (r.attRec?.workedDays || 30) + " روز",
           r.calc?.earnedBaseSalary || 0,
-          (r.calc?.housingAllow || 0) + (r.calc?.groceryAllow || 0) + (r.calc?.childAllow || 0) + customSum,
+          (r.calc?.housingAllow || 0) + (r.calc?.groceryAllow || 0) + (r.calc?.childAllow || 0) + (r.calc?.responsibility || 0) + (r.calc?.expertise || 0) + (r.calc?.transportAllow || 0) + (r.calc?.other || 0) + customSum,
           r.calc?.overtimePay || 0,
           r.calc?.grossSalary || 0,
           r.calc?.insEmployee || 0,
@@ -898,7 +898,7 @@ export default function PayrollReports() {
                       </TableCell>
                       <TableCell className="text-center font-sans">{toPersianDigits(r.attRec?.workedDays || 30)} روز</TableCell>
                       <TableCell className="text-left">{fmt(r.calc?.earnedBaseSalary)}</TableCell>
-                      <TableCell className="text-left">{fmt((r.calc?.housingAllow || 0) + (r.calc?.groceryAllow || 0) + (r.calc?.childAllow || 0) + customSum)}</TableCell>
+                      <TableCell className="text-left">{fmt((r.calc?.housingAllow || 0) + (r.calc?.groceryAllow || 0) + (r.calc?.childAllow || 0) + (r.calc?.responsibility || 0) + (r.calc?.expertise || 0) + (r.calc?.transportAllow || 0) + (r.calc?.other || 0) + customSum)}</TableCell>
                       <TableCell className="text-left text-amber-600">{fmt(r.calc?.overtimePay)}</TableCell>
                       <TableCell className="text-left font-bold text-indigo-700">{fmt(r.calc?.grossSalary)}</TableCell>
                       <TableCell className="text-left text-blue-600">{fmt(r.calc?.insEmployee)}</TableCell>

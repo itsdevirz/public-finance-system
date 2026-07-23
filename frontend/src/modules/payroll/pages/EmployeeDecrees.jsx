@@ -32,6 +32,7 @@ const INITIAL_FORM = {
   childAllowance: 0,
   responsibilityAllowance: 0,
   expertiseAllowance: 0,
+  transportAllowance: 0,
   otherAllowances: 0,
   description: "اعمال افزایش ضریب حقوقی سالانه قانون کار"
 };
@@ -103,6 +104,7 @@ export default function EmployeeDecrees() {
         childAllowance: emp.childAllowance || 0,
         responsibilityAllowance: emp.responsibilityAllowance || 0,
         expertiseAllowance: emp.expertiseAllowance || 0,
+        transportAllowance: emp.transportAllowance || 0,
         otherAllowances: emp.otherAllowances || 0,
       }));
     } else {
@@ -119,6 +121,7 @@ export default function EmployeeDecrees() {
     Number(form.childAllowance || 0) +
     Number(form.responsibilityAllowance || 0) +
     Number(form.expertiseAllowance || 0) +
+    Number(form.transportAllowance || 0) +
     Number(form.otherAllowances || 0);
 
   // Filtered decrees
@@ -492,6 +495,11 @@ export default function EmployeeDecrees() {
                     </tr>
                     <tr className="border-b border-slate-950">
                       <td className="px-4 py-2 border-r border-slate-950 text-center">۸</td>
+                      <td className="px-4 py-2 border-r border-slate-950">فوق‌العاده ایاب و ذهاب</td>
+                      <td className="px-4 py-2 text-left font-mono">{Number(selectedDecreeForPrint.transportAllowance || 0).toLocaleString("fa-IR")}</td>
+                    </tr>
+                    <tr className="border-b border-slate-950">
+                      <td className="px-4 py-2 border-r border-slate-950 text-center">۹</td>
                       <td className="px-4 py-2 border-r border-slate-950">سایر فوق‌العاده‌ها و کمک‌هزینه‌های قانونی</td>
                       <td className="px-4 py-2 text-left font-mono">{Number(selectedDecreeForPrint.otherAllowances || 0).toLocaleString("fa-IR")}</td>
                     </tr>
@@ -506,6 +514,7 @@ export default function EmployeeDecrees() {
                           Number(selectedDecreeForPrint.childAllowance || 0) +
                           Number(selectedDecreeForPrint.responsibilityAllowance || 0) +
                           Number(selectedDecreeForPrint.expertiseAllowance || 0) +
+                          Number(selectedDecreeForPrint.transportAllowance || 0) +
                           Number(selectedDecreeForPrint.otherAllowances || 0)
                         ).toLocaleString("fa-IR")}
                       </td>
@@ -638,6 +647,10 @@ export default function EmployeeDecrees() {
                     <Input type="number" value={form.expertiseAllowance} onChange={e => handleChange("expertiseAllowance", Number(e.target.value))} className="h-9 text-xs mt-1.5 font-mono text-left" />
                   </div>
                   <div>
+                    <Label className="text-xs font-semibold">فوق‌العاده ایاب و ذهاب (ریال)</Label>
+                    <Input type="number" value={form.transportAllowance} onChange={e => handleChange("transportAllowance", Number(e.target.value))} className="h-9 text-xs mt-1.5 font-mono text-left" />
+                  </div>
+                  <div>
                     <Label className="text-xs font-semibold">سایر فوق‌العاده‌های قانونی (ریال)</Label>
                     <Input type="number" value={form.otherAllowances} onChange={e => handleChange("otherAllowances", Number(e.target.value))} className="h-9 text-xs mt-1.5 font-mono text-left" />
                   </div>
@@ -714,6 +727,7 @@ export default function EmployeeDecrees() {
                       Number(d.childAllowance || 0) +
                       Number(d.responsibilityAllowance || 0) +
                       Number(d.expertiseAllowance || 0) +
+                      Number(d.transportAllowance || 0) +
                       Number(d.otherAllowances || 0);
 
                     return (
