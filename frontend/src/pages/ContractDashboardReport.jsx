@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
+import { getDefaultDateRange } from "@/lib/fiscalUtils";
 
 export default function ContractDashboardReport() {
   const navigate = useNavigate();
@@ -20,9 +21,10 @@ export default function ContractDashboardReport() {
   const [loading, setLoading] = useState(false);
 
   // Filters
+  const defaultRange = getDefaultDateRange();
   const [timeRange, setTimeRange] = useState("سال جاری");
-  const [fromDate, setFromDate] = useState("1403/01/01");
-  const [toDate, setToDate] = useState("1403/12/29");
+  const [fromDate, setFromDate] = useState(defaultRange.dateFrom);
+  const [toDate, setToDate] = useState(defaultRange.dateTo);
   const [reportType, setReportType] = useState("همه گزارش‌ها");
   const [showFilters, setShowFilters] = useState(true);
 
@@ -50,8 +52,9 @@ export default function ContractDashboardReport() {
 
   const handleClear = () => {
     setTimeRange("سال جاری");
-    setFromDate("1403/01/01");
-    setToDate("1403/12/29");
+    const r = getDefaultDateRange();
+    setFromDate(r.dateFrom);
+    setToDate(r.dateTo);
     setReportType("همه گزارش‌ها");
   };
 
@@ -74,7 +77,7 @@ export default function ContractDashboardReport() {
     
     const avgProgress = totalCount > 0
       ? (contracts.reduce((sum, c) => {
-          const prog = Number(c.progress_percent || c.financial_progress_percent || 50) || 50;
+          const prog = Number(c.progress_percent || c.financial_progress_percent || 0) || 0;
           return sum + prog;
         }, 0) / totalCount)
       : 0;
@@ -90,14 +93,10 @@ export default function ContractDashboardReport() {
 
   // Contracts count by Type (Bar chart data)
   const typesData = useMemo(() => {
-    const counts = { "خدماتی": 0, "ساختمانی": 0, "تامین کالا": 0, "مشاوره": 0 };
+    const counts = {};
     contracts.forEach((c) => {
-      const t = c.contract_type || "خدماتی";
-      if (counts[t] !== undefined) {
-        counts[t]++;
-      } else {
-        counts["خدماتی"]++;
-      }
+      const t = c.contract_type || "سایر";
+      counts[t] = (counts[t] || 0) + 1;
     });
     return Object.entries(counts).map(([name, value]) => ({ name, value }));
   }, [contracts]);
@@ -182,15 +181,22 @@ export default function ContractDashboardReport() {
         const inc = Number(String(c.increase_amount || "0").replace(/,/g, "")) || 0;
         const dec = Number(String(c.decrease_amount || "0").replace(/,/g, "")) || 0;
         const total = initial + inc - dec;
+
+        const paidForContract = payments
+          .filter((p) => p.contract_id === c._id || p.contract_number === c.contract_number)
+          .reduce((sum, p) => sum + (Number(String(p.gross_amount || "0").replace(/,/g, "")) || 0), 0);
+
+        const remaining = Math.max(0, total - paidForContract);
+
         return {
           _id: c._id,
           title: c.title,
-          progress: Number(c.progress_percent || c.financial_progress_percent || 50) || 50,
-          remaining: total * 0.4, // estimated remaining
+          progress: Number(c.progress_percent || c.financial_progress_percent || 0) || 0,
+          remaining,
           end_date: c.end_date || "-",
         };
       });
-  }, [contracts]);
+  }, [contracts, payments]);
 
   // Table 2: Largest Contracts
   const largestContracts = useMemo(() => {
@@ -206,7 +212,7 @@ export default function ContractDashboardReport() {
         title: c.title,
         contractor: c.contractor_name,
         amount: Number(String(c.amount || "0").replace(/,/g, "")) || 0,
-        progress: Number(c.progress_percent || c.financial_progress_percent || 50) || 50,
+        progress: Number(c.progress_percent || c.financial_progress_percent || 0) || 0,
       }));
   }, [contracts]);
 

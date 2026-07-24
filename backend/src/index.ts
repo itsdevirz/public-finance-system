@@ -42,6 +42,9 @@ import depreciationSetupsRouter from "./routes/depreciationSetups.js";
 import monthlyDepreciationsRouter from "./routes/monthlyDepreciations.js";
 import annualDepreciationsRouter from "./routes/annualDepreciations.js";
 import depreciationVouchersRouter from "./routes/depreciationVouchers.js";
+import bankStatementFormatsRouter from "./routes/bankStatementFormats.js";
+import bankStatementsRouter from "./routes/bankStatements.js";
+import bankReconciliationRouter from "./routes/bankReconciliation.js";
 
 
 
@@ -134,6 +137,9 @@ app.route("/api/depreciation-setups", depreciationSetupsRouter);
 app.route("/api/monthly-depreciations", monthlyDepreciationsRouter);
 app.route("/api/annual-depreciations", annualDepreciationsRouter);
 app.route("/api/depreciation-vouchers", depreciationVouchersRouter);
+app.route("/api/bank-statement-formats", bankStatementFormatsRouter);
+app.route("/api/bank-statements", bankStatementsRouter);
+app.route("/api/bank-reconciliation", bankReconciliationRouter);
 
 
 

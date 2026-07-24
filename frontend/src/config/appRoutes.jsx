@@ -15,6 +15,9 @@ const CheckIssuance = lazy(() => import("@/modules/treasury/pages/CheckIssuance"
 const BankForm = lazy(() => import("@/modules/treasury/pages/BankForm"));
 const CreditForm = lazy(() => import("@/pages/CreditForm"));
 const Bookkeeping = lazy(() => import("@/modules/accounting/pages/Bookkeeping"));
+const BankStatementFormatSetup = lazy(() => import("@/modules/accounting/pages/BankStatementFormatSetup"));
+const BankStatementRead = lazy(() => import("@/modules/accounting/pages/BankStatementRead"));
+const AccountReconciliation = lazy(() => import("@/modules/accounting/pages/AccountReconciliation"));
 const SystemManagement = lazy(() => import("@/pages/SystemManagement"));
 const FinancialDetailsForm = lazy(() => import("@/pages/FinancialDetailsForm"));
 const SystemSettingsForm = lazy(() => import("@/pages/SystemSettingsForm"));
@@ -346,9 +349,9 @@ export const PAGE_COMPONENTS = {
   "/bookkeeping/misc-accounts/detail-accounts": Bookkeeping,
   "/bookkeeping/misc-accounts/detailed-report": Bookkeeping,
   "/bookkeeping/bank-reconciliation": Bookkeeping,
-  "/bookkeeping/bank-reconciliation/account-format-setup": Bookkeeping,
-  "/bookkeeping/bank-reconciliation/account-info-read": Bookkeeping,
-  "/bookkeeping/bank-reconciliation/account-reconciliation": Bookkeeping,
+  "/bookkeeping/bank-reconciliation/account-format-setup": BankStatementFormatSetup,
+  "/bookkeeping/bank-reconciliation/account-info-read": BankStatementRead,
+  "/bookkeeping/bank-reconciliation/account-reconciliation": AccountReconciliation,
   "/bookkeeping/ledger-reports": Bookkeeping,
   "/bookkeeping/ledger-reports/account-review":        AccountReview,
   "/bookkeeping/ledger-reports/account-review-main":   AccountReview,

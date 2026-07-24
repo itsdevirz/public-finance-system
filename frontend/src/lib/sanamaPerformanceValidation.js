@@ -1048,7 +1048,7 @@ export function validateSanamaPerformanceForms(items = []) {
   const errors = [];
 
   if (!Array.isArray(items) || items.length === 0) {
-    return [{ code: 17, itemIndex: -1, message: 'فیلدهای این فرم تکمیل نگردیده است.' }];
+    return [];
   }
 
   // نقشه‌های برقراری یکتایی

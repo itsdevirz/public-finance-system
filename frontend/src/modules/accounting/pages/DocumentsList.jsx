@@ -47,7 +47,7 @@ function fmt(n) {
 }
 
 // ─── Modal جزئیات سند ─────────────────────────────────────────────────────────
-function DocDetailModal({ doc, onClose, onDelete }) {
+function DocDetailModal({ doc, onClose, onDelete, onConfirm }) {
   const totalDebit  = doc.lines?.reduce((s, l) => s + (l.debit  ?? 0), 0) ?? 0;
   const totalCredit = doc.lines?.reduce((s, l) => s + (l.credit ?? 0), 0) ?? 0;
   const balanced    = totalDebit === totalCredit;
@@ -169,9 +169,16 @@ function DocDetailModal({ doc, onClose, onDelete }) {
 
         {/* footer */}
         <div className="border-t px-6 py-3 bg-muted/20 rounded-b-2xl shrink-0 flex justify-between items-center">
-          <Button variant="destructive" size="sm" onClick={() => onDelete(doc._id, doc.document_number)} className="gap-1.5 text-xs font-bold">
-            <Trash2 className="h-3.5 w-3.5" />حذف سند
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="destructive" size="sm" onClick={() => onDelete(doc._id, doc.document_number)} className="gap-1.5 text-xs font-bold">
+              <Trash2 className="h-3.5 w-3.5" />حذف سند
+            </Button>
+            {doc.status === "DRAFT" && (
+              <Button size="sm" onClick={() => onConfirm(doc._id, doc.document_number)} className="gap-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white">
+                <CheckCircle2 className="h-3.5 w-3.5" />تأیید و قطعی‌سازی سند
+              </Button>
+            )}
+          </div>
           <Button variant="outline" size="sm" onClick={onClose} className="gap-1.5 text-xs">
             <X className="h-3.5 w-3.5" />بستن
           </Button>
@@ -241,6 +248,20 @@ export default function DocumentsList() {
     } catch (err) {
       console.error("Delete error:", err);
       setError("خطا در حذف سند. مجددا تلاش کنید.");
+    }
+  };
+
+  const handleConfirm = async (id, docNumber) => {
+    if (!window.confirm(`آیا از تأیید و نهایی‌سازی سند شماره ${docNumber} مطمئن هستید؟`)) return;
+    try {
+      const res = await api.patch(`/api/documents/${id}/confirm`);
+      if (res.data?.data) {
+        setDocs(prev => prev.map(d => d._id === id ? { ...d, status: "CONFIRMED" } : d));
+        setSelected(null);
+      }
+    } catch (err) {
+      console.error("Confirm error:", err);
+      setError(err?.response?.data?.message || "خطا در تایید سند. دسترسی کاربر را بررسی کنید.");
     }
   };
 
@@ -558,6 +579,13 @@ export default function DocumentsList() {
                         {/* عملیات */}
                         <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                           <div className="flex items-center gap-1">
+                            {doc.status === "DRAFT" && (
+                              <button onClick={() => handleConfirm(doc._id, doc.document_number)}
+                                className="rounded-lg p-1 text-emerald-600 hover:bg-emerald-100 transition-all font-bold"
+                                title="تأیید و قطعی‌سازی سند">
+                                <CheckCircle2 className="h-4 w-4" />
+                              </button>
+                            )}
                             <button onClick={() => setSelected(doc)}
                               className="rounded-lg p-1 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-all"
                               title="مشاهده جزئیات">
@@ -591,6 +619,7 @@ export default function DocumentsList() {
           doc={selected}
           onClose={() => setSelected(null)}
           onDelete={handleDelete}
+          onConfirm={handleConfirm}
         />
       )}
     </PageShell>
