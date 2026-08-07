@@ -48,7 +48,8 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased;
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Vazirmatn', system-ui, -apple-system, sans-serif;
     direction: rtl;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
