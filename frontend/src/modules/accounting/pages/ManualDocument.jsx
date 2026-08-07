@@ -9,7 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Plus, Trash2, Save, Printer, RotateCcw,
-  FileText, CheckCircle2, Ban, X, AlertCircle
+  FileText, CheckCircle2, Ban, X, AlertCircle,
+  Check, FileEdit
 } from "lucide-react";
 import api from "@/api";
 import { useApiCache } from "@/hooks/useApiCache";
@@ -26,6 +27,54 @@ import { useAuth } from "@/context/AuthContext";
 
 // ---- helpers ----
 const allGroups = sanamaCodes.groups.map((g) => ({ code: g.code, title: g.title, accounts: g.accounts }));
+
+function numberToPersianWords(num) {
+  if (!num || isNaN(num) || num === 0) return "صفر";
+  const ones = ["", "یک", "دو", "سه", "چهار", "پنج", "شش", "هفت", "هشت", "نه"];
+  const teens = ["ده", "یازده", "دوازده", "سیزده", "چهارده", "پانزده", "شانزده", "هفده", "هجده", "نوزده"];
+  const tens = ["", "ده", "بیست", "سی", "چهل", "پنجاه", "شصت", "هفتاد", "هشتاد", "نود"];
+  const hundreds = ["", "صد", "دویست", "سیصد", "چهارصد", "پانصد", "ششصد", "هفتصد", "هشتصد", "نهصد"];
+  const scales = ["", "هزار", "میلیون", "میلیارد", "تریلیون"];
+
+  function convertChunk(n) {
+    let str = "";
+    const h = Math.floor(n / 100);
+    const t = Math.floor((n % 100) / 10);
+    const o = n % 10;
+    if (h > 0) {
+      str += hundreds[h];
+      if (t > 0 || o > 0) str += " و ";
+    }
+    if (t === 1) {
+      str += teens[o];
+    } else {
+      if (t > 1) {
+        str += tens[t];
+        if (o > 0) str += " و ";
+      }
+      if (o > 0) str += ones[o];
+    }
+    return str;
+  }
+
+  let n = Math.abs(num);
+  let chunks = [];
+  while (n > 0) {
+    chunks.push(n % 1000);
+    n = Math.floor(n / 1000);
+  }
+
+  let result = [];
+  for (let i = chunks.length - 1; i >= 0; i--) {
+    const chunk = chunks[i];
+    if (chunk > 0) {
+      const chunkText = convertChunk(chunk);
+      const scaleText = scales[i];
+      result.push(chunkText + (scaleText ? " " + scaleText : ""));
+    }
+  }
+  return result.join(" و ");
+}
 
 // ── کامپوننت انتخاب شماره برنامه/طرح — با caching ──────────────────────────
 function CreditCodeSanamaField({ value, onChange, labelCls, inputCls }) {
@@ -386,6 +435,37 @@ function SanamaField({ rowDef, value, onChange, optional }) {
     );
   }
 
+  // 1. فیلد تاریخ (تاریخ سررسید، تاریخ ایجاد و هر فیلدی که عنوان یا کد آن شامل تاریخ/سررسید/Date باشد)
+  if (
+    rowDef.row === 37 ||
+    (rowDef.xmlCode && rowDef.xmlCode.toLowerCase().includes("date")) ||
+    (rowDef.title && (rowDef.title.includes("تاریخ") || rowDef.title.includes("سررسید") || rowDef.title.includes("زمان")))
+  ) {
+    let dateStr = value ?? "";
+    if (typeof dateStr === "object" && dateStr !== null) {
+      dateStr = dateStr.target?.value ?? dateStr.value ?? "";
+    }
+    dateStr = String(dateStr);
+    if (dateStr === "0" || dateStr === "00000000" || dateStr === "null" || dateStr === "undefined") {
+      dateStr = "";
+    }
+    if (dateStr.length === 8 && !dateStr.includes("/")) {
+      dateStr = `${dateStr.slice(0, 4)}/${dateStr.slice(4, 6)}/${dateStr.slice(6, 8)}`;
+    }
+    return (
+      <SanamaWrap title={rowDef.title}>
+        <PersianDatePicker
+          value={dateStr}
+          onChange={(e) => {
+            const rawVal = e?.target?.value ?? e;
+            onChange(rawVal || "");
+          }}
+          placeholder="۱۴۰۵/۰۱/۰۱"
+        />
+      </SanamaWrap>
+    );
+  }
+
   // input عددی
   if ("default" in rowDef) {
     if (rowDef.row === 8) {
@@ -426,6 +506,7 @@ function SanamaField({ rowDef, value, onChange, optional }) {
 const OPTIONAL_ROWS = new Set();
 
 function SanamaExtraFields({ row, onSanamaChange }) {
+  const [isConfirmed, setIsConfirmed] = useState(false);
   const requiredRows = getRequiredRows(row.subAccount);
   if (!requiredRows.length) return null;
 
@@ -456,60 +537,251 @@ function SanamaExtraFields({ row, onSanamaChange }) {
 
   const creditTypeValue = row.sanamaFields?.["sanama_5"];
 
+  // خلاصه تفصیلی‌های پر شده
+  const filledSummaries = requiredRows.map((rowNum) => {
+    const rowDef = getSubAccountTitle(rowNum);
+    if (!rowDef) return null;
+    const isNotifiedCredit = creditTypeValue === "2" || creditTypeValue === "ابلاغی";
+    if (rowNum === 15 && !isNotifiedCredit) return null;
+
+    const fieldKey = `sanama_${rowNum}`;
+    const val = row.sanamaFields?.[fieldKey];
+    if (!val || val === "0" || val === "") return null;
+
+    let displayVal = val;
+    if (rowDef.values) {
+      const match = rowDef.values.find((v) => String(v.type) === String(val));
+      if (match) displayVal = match.title;
+    } else if (rowDef.groups) {
+      for (const g of rowDef.groups) {
+        const match = g.values.find((v) => String(v.type) === String(val));
+        if (match) { displayVal = match.title; break; }
+      }
+    }
+    return { title: rowDef.title, val: displayVal };
+  }).filter(Boolean);
+
   return (
-    <div className="border-t border-border/60 bg-background overflow-hidden">
-      {/* ── نوار رنگی کنار + هدر ── */}
-      <div className={`flex items-center gap-3 px-4 py-2.5 border-b ${theme.header}`}>
-        {/* نوار رنگی عمودی */}
-        <div className={`w-1 h-8 rounded-full shrink-0 ${theme.bar}`} />
+    <div className="border-t border-border/60 bg-background overflow-visible transition-all">
+      {/* ── نوار هدر تفصیلی ── */}
+      <div className={`flex items-center justify-between gap-3 px-4 py-2 border-b ${theme.header}`} dir="rtl">
+        <div className="flex items-center gap-3 overflow-hidden">
+          <div className={`w-1 h-7 rounded-full shrink-0 ${theme.bar}`} />
 
-        {/* badge ماهیت */}
-        <span className={`text-[10px] font-bold px-2 py-0.5 rounded border shrink-0 ${theme.badge}`}>
-          {theme.label}
-        </span>
-
-        {/* کد حساب */}
-        <code className="text-xs font-bold font-mono text-foreground shrink-0">{acctCode}</code>
-
-        {/* جداکننده */}
-        {acctTitle && <span className="text-border/80 shrink-0">|</span>}
-
-        {/* نام حساب */}
-        {acctTitle && (
-          <span className="text-xs text-foreground/70 truncate flex-1 font-medium">{acctTitle}</span>
-        )}
-
-        {/* مبلغ */}
-        {amountStr && (
-          <span className={`text-xs font-mono font-bold shrink-0 mr-auto ${theme.amount}`}>
-            {amountStr} ریال
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded border shrink-0 ${theme.badge}`}>
+            {theme.label}
           </span>
-        )}
+
+          <code className="text-xs font-bold font-mono text-foreground shrink-0">{acctCode}</code>
+
+          {acctTitle && <span className="text-border/80 shrink-0">|</span>}
+
+          {acctTitle && (
+            <span className="text-xs text-foreground/70 truncate font-medium">{acctTitle}</span>
+          )}
+
+          {amountStr && (
+            <span className={`text-xs font-mono font-bold shrink-0 ${theme.amount}`}>
+              ({amountStr} ریال)
+            </span>
+          )}
+        </div>
+
+        {/* دکمه ثبت / ویرایش تفصیلی */}
+        <div className="shrink-0 flex items-center gap-2">
+          {isConfirmed ? (
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5 h-7 text-xs bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-300 font-medium"
+              onClick={() => setIsConfirmed(false)}
+            >
+              <FileEdit className="h-3.5 w-3.5 text-amber-600" />
+              ویرایش تفصیلی
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              variant="default"
+              className="gap-1.5 h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-xs"
+              onClick={() => setIsConfirmed(true)}
+            >
+              <Check className="h-3.5 w-3.5" />
+              ثبت و تایید تفصیلی
+            </Button>
+          )}
+        </div>
       </div>
 
-      {/* ── فیلدهای الزامات ── */}
-      <div className="px-4 py-3 grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-3 bg-muted/10">
-        {requiredRows.map((rowNum) => {
-          const rowDef = getSubAccountTitle(rowNum);
-          if (!rowDef) return null;
+      {/* ── نمایش حالت خلاصه تک سطری (isConfirmed = true) ── */}
+      {isConfirmed ? (
+        <div className="px-4 py-2 bg-emerald-50/30 border-b flex items-center gap-2 flex-wrap text-xs" dir="rtl">
+          <span className="text-emerald-800 font-medium text-[11px] shrink-0">خلاصه تفصیلی‌های ثبت‌شده:</span>
+          {filledSummaries.length > 0 ? (
+            filledSummaries.map((item, idx) => (
+              <span key={idx} className="bg-white border border-emerald-200 text-emerald-950 px-2 py-0.5 rounded text-[11px] font-medium shadow-2xs">
+                <span className="text-muted-foreground ml-1">{item.title}:</span>
+                <span className="font-semibold">{item.val}</span>
+              </span>
+            ))
+          ) : (
+            <span className="text-muted-foreground text-[11px] italic">هیچ مقداری انتخاب نشده است (پیش‌فرض)</span>
+          )}
+        </div>
+      ) : (
+        /* ── نمایش فرم کامل تفصیلی (isConfirmed = false) ── */
+        <div className="px-4 py-3 grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-3 bg-muted/10">
+          {requiredRows.map((rowNum) => {
+            const rowDef = getSubAccountTitle(rowNum);
+            if (!rowDef) return null;
 
-          // اگر نوع اعتبار "مصوب" است (یا ابلاغی نیست)، ردیف ۱۵ (ابلاغ دهنده) نشان داده نمی‌شود و الزامی نیست
-          const isNotifiedCredit = creditTypeValue === "2" || creditTypeValue === "ابلاغی";
-          if (rowNum === 15 && !isNotifiedCredit) return null;
+            const isNotifiedCredit = creditTypeValue === "2" || creditTypeValue === "ابلاغی";
+            if (rowNum === 15 && !isNotifiedCredit) return null;
 
-          const optional  = OPTIONAL_ROWS.has(rowNum);
-          const fieldKey  = `sanama_${rowNum}`;
-          const fieldVal  = row.sanamaFields?.[fieldKey];
-          return (
-            <SanamaField
-              key={rowNum}
-              rowDef={rowDef}
-              value={fieldVal}
-              optional={optional}
-              onChange={(val) => onSanamaChange(fieldKey, val)}
-            />
-          );
-        })}
+            const optional  = OPTIONAL_ROWS.has(rowNum);
+            const fieldKey  = `sanama_${rowNum}`;
+            const fieldVal  = row.sanamaFields?.[fieldKey];
+            return (
+              <SanamaField
+                key={rowNum}
+                rowDef={rowDef}
+                value={fieldVal}
+                optional={optional}
+                onChange={(val) => onSanamaChange(fieldKey, val)}
+              />
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---- کامپوننت محتوای چاپی برگ سند حسابداری ----
+function VoucherPrintContent({ header, rows, totalDebit, totalCredit, diff, today, allGroups }) {
+  return (
+    <div id="printable-voucher" className="p-4 border rounded-lg bg-white text-right text-gray-900 font-sans" dir="rtl">
+      {/* هدر رسمی سند */}
+      <div className="border-b-2 border-gray-900 pb-3 mb-4">
+        <div className="flex items-center justify-between">
+          <div className="text-xs text-gray-700 font-mono space-y-0.5">
+            <div>تاریخ: <span className="font-bold text-black">{header.docDate || today}</span></div>
+            <div>شماره سند: <span className="font-bold text-black">{header.docNo || "پیش‌فرض"}</span></div>
+            <div>دوره مالی: <span className="font-bold text-black">{header.fiscalYear || "1405"}</span></div>
+          </div>
+          <div className="text-center">
+            <h2 className="text-xs font-bold text-gray-700">جمهوری اسلامی ایران</h2>
+            <h1 className="text-base font-black text-gray-900 mt-0.5">برگ سند حسابداری (مالی)</h1>
+            <span className="text-[11px] font-semibold text-gray-600">دستگاه اجرایی / سازمان عمومی</span>
+          </div>
+          <div className="text-xs text-gray-700 font-mono space-y-0.5">
+            <div>نوع سند: <span className="font-bold text-black">{header.docType}</span></div>
+            <div>دسترسی: <span className="font-bold text-black">{header.access}</span></div>
+            <div>وضعیت: <span className="font-bold text-black">{header.status}</span></div>
+          </div>
+        </div>
+
+        {/* شماره و تاریخ نامه و شرح کلی */}
+        <div className="mt-3 pt-2 border-t border-gray-300 grid grid-cols-3 gap-2 text-xs">
+          <div><span className="text-gray-600">شماره نامه:</span> <span className="font-medium">{header.letterNo || "—"}</span></div>
+          <div><span className="text-gray-600">تاریخ نامه:</span> <span className="font-medium">{header.letterDate || "—"}</span></div>
+          <div className="col-span-3 mt-1"><span className="text-gray-600">شرح کلی سند:</span> <span className="font-medium">{header.desc || "—"}</span></div>
+        </div>
+      </div>
+
+      {/* جدول ردیف‌های سند */}
+      <table className="w-full text-xs border-collapse border border-gray-800 my-2" dir="rtl">
+        <thead>
+          <tr className="bg-gray-100 border-b border-gray-800 text-gray-900 font-bold">
+            <th className="border border-gray-800 p-2 text-center w-8">#</th>
+            <th className="border border-gray-800 p-2 text-right w-44">گروه و کل</th>
+            <th className="border border-gray-800 p-2 text-right w-48">حساب معین</th>
+            <th className="border border-gray-800 p-2 text-right">جزئیات تفصیلی (الزامات سناما)</th>
+            <th className="border border-gray-800 p-2 text-center w-32">بدهکار (ریال)</th>
+            <th className="border border-gray-800 p-2 text-center w-32">بستانکار (ریال)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, idx) => {
+            const grpObj  = allGroups.find(g => g.code === row.group);
+            const acctObj = getAccounts(row.group).find(a => a.code === row.account);
+            const subObj  = getSubAccounts(row.group, row.account).find(s => s.code === row.subAccount);
+
+            const sanamaSummary = getRequiredRows(row.subAccount).map(rNum => {
+              const rDef = getSubAccountTitle(rNum);
+              const val  = row.sanamaFields?.[`sanama_${rNum}`];
+              if (!val || val === "0") return null;
+              return `${rDef?.title}: ${val}`;
+            }).filter(Boolean).join(" | ");
+
+            return (
+              <tr key={row.id || idx} className="border-b border-gray-400">
+                <td className="border border-gray-800 p-2 text-center font-mono">{idx + 1}</td>
+                <td className="border border-gray-800 p-2">
+                  <div className="font-bold">{row.group ? `${row.group} - ${grpObj?.title || ""}` : "—"}</div>
+                  <div className="text-[11px] text-gray-700">{row.account ? `${row.account} - ${acctObj?.title || ""}` : ""}</div>
+                </td>
+                <td className="border border-gray-800 p-2 font-semibold">
+                  {row.subAccount ? `${row.subAccount} - ${subObj?.title || ""}` : "—"}
+                </td>
+                <td className="border border-gray-800 p-2 text-[11px] text-gray-800">
+                  {sanamaSummary || row.desc || "—"}
+                </td>
+                <td className="border border-gray-800 p-2 text-left font-mono font-bold text-blue-950">
+                  {row.debit ? parseNumber(row.debit).toLocaleString("fa-IR") : "۰"}
+                </td>
+                <td className="border border-gray-800 p-2 text-left font-mono font-bold text-rose-950">
+                  {row.credit ? parseNumber(row.credit).toLocaleString("fa-IR") : "۰"}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+        <tfoot>
+          <tr className="bg-gray-100 font-bold border-t-2 border-gray-800">
+            <td colSpan={4} className="border border-gray-800 p-2 text-left">جمع کل:</td>
+            <td className="border border-gray-800 p-2 text-left font-mono font-black text-blue-950">
+              {totalDebit.toLocaleString("fa-IR")}
+            </td>
+            <td className="border border-gray-800 p-2 text-left font-mono font-black text-rose-950">
+              {totalCredit.toLocaleString("fa-IR")}
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+
+      {/* مبلغ به حروف و وضعیت تراز */}
+      <div className="mt-3 border border-gray-300 p-2.5 rounded bg-gray-50 flex items-center justify-between text-xs">
+        <div>
+          <span className="font-bold text-gray-700">مبلغ سند به حروف: </span>
+          <span className="font-bold text-black">{numberToPersianWords(totalDebit)} ریال</span>
+        </div>
+        <div>
+          <span className="font-bold text-gray-700">وضعیت تراز: </span>
+          <span className={`font-bold ${diff === 0 ? "text-green-700" : "text-rose-700"}`}>
+            {diff === 0 ? "تراز کامل (تفاوت: ۰ ریال)" : `ناتراز (اختلاف: ${Math.abs(diff).toLocaleString("fa-IR")} ریال)`}
+          </span>
+        </div>
+      </div>
+
+      {/* امضاهای رسمی */}
+      <div className="mt-8 pt-4 border-t-2 border-gray-900 grid grid-cols-4 gap-4 text-center text-xs font-bold text-gray-900">
+        <div className="border border-gray-300 p-3 rounded">
+          <div className="mb-8">تنظیم‌کننده</div>
+          <div className="text-[10px] text-gray-500 font-normal">امضا / تاریخ</div>
+        </div>
+        <div className="border border-gray-300 p-3 rounded">
+          <div className="mb-8">حسابدار / کارشناس</div>
+          <div className="text-[10px] text-gray-500 font-normal">امضا / تاریخ</div>
+        </div>
+        <div className="border border-gray-300 p-3 rounded">
+          <div className="mb-8">تاییدکننده (رئیس حسابداری)</div>
+          <div className="text-[10px] text-gray-500 font-normal">امضا / تاریخ</div>
+        </div>
+        <div className="border border-gray-300 p-3 rounded">
+          <div className="mb-8">مدیر مالی / ذیحساب</div>
+          <div className="text-[10px] text-gray-500 font-normal">امضا / تاریخ</div>
+        </div>
       </div>
     </div>
   );
@@ -533,6 +805,129 @@ export default function ManualDocument() {
   });
 
   const [fiscalYears, setFiscalYears] = useState([]);
+
+  // مدال‌ها و دیالوگ‌ها
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [showCheckModal, setShowCheckModal] = useState(false);
+  const [showRemittanceModal, setShowRemittanceModal] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [showNewModal, setShowNewModal] = useState(false);
+  const [showCloseAccountModal, setShowCloseAccountModal] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [remittanceNo, setRemittanceNo] = useState(() => Math.floor(100000 + Math.random() * 900000).toString());
+
+  // پرینت اختصاصی و استاندارد بدون صفحه سفید و با حفظ چیدمان کامل
+  const handlePrintVoucherDocument = useCallback(() => {
+    const printEl = document.getElementById("printable-voucher");
+    if (!printEl) {
+      window.print();
+      return;
+    }
+
+    const printWin = window.open("", "_blank", "width=1050,height=850");
+    if (!printWin) {
+      window.print();
+      return;
+    }
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html dir="rtl" lang="fa">
+      <head>
+        <meta charset="utf-8">
+        <title>برگ سند حسابداری - ${header.docNo || "جدید"}</title>
+        <style>
+          @page {
+            size: A4 portrait;
+            margin: 10mm;
+          }
+          * {
+            box-sizing: border-box;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            direction: rtl;
+            margin: 0;
+            padding: 16px;
+            background: #ffffff;
+            color: #000000;
+            width: 100%;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 12px 0;
+          }
+          th, td {
+            border: 1px solid #000000 !important;
+            padding: 6px 8px !important;
+            font-size: 11px !important;
+          }
+          th {
+            background-color: #f3f4f6 !important;
+            font-weight: bold !important;
+          }
+          .text-center { text-align: center !important; }
+          .text-right { text-align: right !important; }
+          .text-left { text-align: left !important; }
+          .font-bold { font-weight: bold !important; }
+          .font-black { font-weight: 900 !important; }
+          .font-semibold { font-weight: 600 !important; }
+          .font-mono { font-family: monospace !important; }
+          .grid { display: grid; }
+          .grid-cols-3 { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+          .grid-cols-4 { grid-template-columns: repeat(4, 1fr); gap: 12px; }
+          .flex { display: flex; }
+          .justify-between { justify-content: space-between; }
+          .items-center { align-items: center; }
+          .border { border: 1px solid #d1d5db; }
+          .border-b-2 { border-bottom: 2px solid #000000; }
+          .border-t-2 { border-top: 2px solid #000000; }
+          .border-t { border-top: 1px solid #e5e7eb; }
+          .rounded { border-radius: 4px; }
+          .p-2 { padding: 8px; }
+          .p-2\.5 { padding: 10px; }
+          .p-3 { padding: 12px; }
+          .p-4 { padding: 16px; }
+          .mb-4 { margin-bottom: 16px; }
+          .mb-8 { margin-bottom: 32px; }
+          .mt-3 { margin-top: 12px; }
+          .mt-8 { margin-top: 32px; }
+          .text-xs { font-size: 12px; }
+          .text-sm { font-size: 14px; }
+          .text-base { font-size: 16px; }
+          .text-gray-500 { color: #6b7280; }
+          .text-gray-600 { color: #4b5563; }
+          .text-gray-700 { color: #374151; }
+          .text-gray-900 { color: #111827; }
+          .text-black { color: #000000; }
+          .bg-gray-50 { background-color: #f9fafb !important; }
+          .bg-gray-100 { background-color: #f3f4f6 !important; }
+          .no-print { display: none !important; }
+        </style>
+      </head>
+      <body>
+        <div>
+          ${printEl.innerHTML}
+        </div>
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.focus();
+              window.print();
+            }, 250);
+          };
+        </script>
+      </body>
+      </html>
+    `;
+
+    printWin.document.open();
+    printWin.document.write(htmlContent);
+    printWin.document.close();
+  }, [header]);
 
   useEffect(() => {
     async function loadFiscalYears() {
@@ -932,7 +1327,7 @@ export default function ManualDocument() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Label className={labelCls}>تاریخ سند</Label>
-                  <PersianDatePicker className="h-8 text-xs rounded-md border bg-white focus:border-primary" value={header.docDate} onChange={(e) => setH("docDate", e.target.value)} />
+                  <PersianDatePicker className="h-8 text-xs rounded-md border bg-white focus:border-primary" value={header.docDate} onChange={(e) => setH("docDate", e?.target?.value ?? e)} />
                 </div>
               </div>
 
@@ -968,7 +1363,7 @@ export default function ManualDocument() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Label className={labelCls}>تاریخ نامه</Label>
-                  <PersianDatePicker className="h-8 text-xs rounded-md border bg-white focus:border-primary" value={header.letterDate} onChange={(e) => setH("letterDate", e.target.value)} />
+                  <PersianDatePicker className="h-8 text-xs rounded-md border bg-white focus:border-primary" value={header.letterDate} onChange={(e) => setH("letterDate", e?.target?.value ?? e)} />
                 </div>
               </div>
 
@@ -1006,6 +1401,17 @@ export default function ManualDocument() {
       {/* ===== جدول ردیف‌های سند ===== */}
       <div>
         <Card className="mb-3">
+          <div className="flex items-center justify-between px-3 py-2 border-b bg-muted/30" dir="rtl">
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="default" className="gap-1.5 h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-medium" onClick={addRow}>
+                <Plus className="h-4 w-4" />
+                درج سطر
+              </Button>
+            </div>
+            <span className="text-xs font-semibold text-muted-foreground">
+              جدول ردیف‌های سند
+            </span>
+          </div>
           <CardContent className="p-0">
             <div className="overflow-x-auto" id="manual-doc-print-area">
               <table className="w-full text-sm border-collapse min-w-[1100px]" dir="rtl">
@@ -1053,12 +1459,8 @@ export default function ManualDocument() {
               </div>
             )}
 
-            {/* جمع و دکمه اضافه */}
-            <div className="flex items-center justify-between border-t px-3 py-2 bg-muted/20">
-              <Button size="sm" variant="outline" className="gap-1 h-7 text-xs" onClick={addRow}>
-                <Plus className="h-3.5 w-3.5" />
-                درج سطر
-              </Button>
+            {/* جمع و خلاصه‌ تراز */}
+            <div className="flex items-center justify-end border-t px-3 py-2 bg-muted/20">
               <div className="flex items-center gap-6 text-xs">
                 <span className="text-muted-foreground">جمع بدهکار: <span className="font-semibold text-blue-700">{totalDebit.toLocaleString("fa-IR")}</span></span>
                 <span className="text-muted-foreground">جمع بستانکار: <span className="font-semibold text-rose-700">{totalCredit.toLocaleString("fa-IR")}</span></span>
@@ -1156,56 +1558,456 @@ export default function ManualDocument() {
       <div>
         <Card className="mt-3">
           <CardContent className="p-3">
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2" dir="rtl">
               <Button
                 size="sm"
-                className="gap-1.5 h-8 text-xs bg-green-600 hover:bg-green-700"
+                className="gap-1.5 h-8 text-xs bg-green-600 hover:bg-green-700 text-white"
                 onClick={handleSave}
                 disabled={loading}
               >
                 <Save className="h-3.5 w-3.5" />
                 {loading ? "در حال ثبت..." : "ثبت تغییرات"}
               </Button>
-              <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs">
-                <FileText className="h-3.5 w-3.5" />
+
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 h-8 text-xs hover:bg-blue-50 hover:text-blue-700 border-blue-200"
+                onClick={() => setShowCheckModal(true)}
+              >
+                <FileText className="h-3.5 w-3.5 text-blue-600" />
                 بررسی سند
               </Button>
-              <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs"
-                onClick={() => printTable("#manual-doc-print-area", `سند مالی ${header.docNo ? "شماره " + header.docNo : ""}`)}>
+
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 h-8 text-xs bg-amber-500 hover:bg-amber-600 text-white border-amber-600 font-medium shadow-xs"
+                onClick={() => setShowPrintModal(true)}
+              >
                 <Printer className="h-3.5 w-3.5" />
                 چاپ سند
               </Button>
-              <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs">
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                صدو حواله
+
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 h-8 text-xs hover:bg-emerald-50 hover:text-emerald-700 border-emerald-200"
+                onClick={() => setShowRemittanceModal(true)}
+              >
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                صدور حواله
               </Button>
-              <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs" onClick={handleNew}>
-                <Plus className="h-3.5 w-3.5" />
+
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 h-8 text-xs hover:bg-slate-100"
+                onClick={() => setShowNewModal(true)}
+              >
+                <Plus className="h-3.5 w-3.5 text-slate-600" />
                 جدید
               </Button>
-              <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs">
-                <RotateCcw className="h-3.5 w-3.5" />
+
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 h-8 text-xs hover:bg-rose-50 hover:text-rose-700 border-rose-200"
+                onClick={() => setShowRejectModal(true)}
+              >
+                <RotateCcw className="h-3.5 w-3.5 text-rose-600" />
                 رد
               </Button>
+
               <div className="flex items-center gap-1 mr-auto">
-                <label className="text-xs text-muted-foreground">تجمیع ۱</label>
-                <Button size="sm" variant="secondary" className="h-7 text-xs px-2">تجمیع ۲</Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 text-xs px-2.5"
+                  onClick={() => setMessage({ type: "success", text: "حالت تجمیع ۱ فعال گردید." })}
+                >
+                  تجمیع ۱
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="h-8 text-xs px-2.5"
+                  onClick={() => setMessage({ type: "success", text: "حالت تجمیع ۲ فعال گردید." })}
+                >
+                  تجمیع ۲
+                </Button>
               </div>
-              <div className="flex items-center gap-1 border-r pr-2">
-                <label className="text-xs text-muted-foreground">تعداد ضمائم</label>
-                <Input className="h-7 w-10 text-xs text-center" defaultValue="0" />
+
+              <div className="flex items-center gap-1.5 border-r border-l px-2">
+                <span className="text-xs text-muted-foreground">تعداد ضمائم:</span>
+                <Input
+                  className="h-7 w-12 text-xs text-center font-bold"
+                  defaultValue="0"
+                  onChange={(e) => {
+                    const count = e.target.value;
+                    setMessage({ type: "success", text: `تعداد ضمائم سند: ${count}` });
+                  }}
+                />
               </div>
-              <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs">
-                <FileText className="h-3.5 w-3.5" />
+
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 h-8 text-xs hover:bg-purple-50 hover:text-purple-700 border-purple-200"
+                onClick={() => setShowCloseAccountModal(true)}
+              >
+                <FileText className="h-3.5 w-3.5 text-purple-600" />
                 بستن حساب
               </Button>
-              <Button size="sm" variant="destructive" className="gap-1.5 h-8 text-xs">
+
+              <Button
+                size="sm"
+                variant="destructive"
+                className="gap-1.5 h-8 text-xs"
+                onClick={() => navigate("/document-setup")}
+              >
                 <Ban className="h-3.5 w-3.5" />
                 خروج
               </Button>
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* ── مدال بررسی جامع سند ── */}
+      {showCheckModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" dir="rtl">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-5 text-right font-sans">
+            <div className="flex items-center justify-between border-b pb-3 mb-4">
+              <h3 className="font-bold text-sm flex items-center gap-2 text-gray-900">
+                <FileText className="h-4 w-4 text-blue-600" />
+                نتیجه بررسی جامع سند مالی
+              </h3>
+              <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setShowCheckModal(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              {/* بررسی تراز */}
+              <div className={`p-3 rounded-lg border flex items-center justify-between ${diff === 0 ? "bg-green-50 border-green-200 text-green-900" : "bg-rose-50 border-rose-200 text-rose-900"}`}>
+                <div className="flex items-center gap-2">
+                  {diff === 0 ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <AlertCircle className="h-4 w-4 text-rose-600" />}
+                  <span className="font-medium">توازن بدهکار و بستانکار</span>
+                </div>
+                <span className="font-bold">
+                  {diff === 0 ? "تراز کامل" : `اختلاف: ${Math.abs(diff).toLocaleString("fa-IR")} ریال`}
+                </span>
+              </div>
+
+              {/* بررسی تعداد ردیف‌ها */}
+              <div className="p-3 rounded-lg border bg-blue-50/50 border-blue-200 flex items-center justify-between text-blue-900">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-blue-600" />
+                  <span className="font-medium">تعداد ردیف‌های ثبت‌شده</span>
+                </div>
+                <span className="font-bold">{rows.length} ردیف</span>
+              </div>
+
+              {/* بدهکار و بستانکار */}
+              <div className="grid grid-cols-2 gap-2 text-[11px]">
+                <div className="p-2.5 border rounded-lg bg-gray-50">
+                  <div className="text-gray-500">جمع کل بدهکار:</div>
+                  <div className="font-bold text-blue-700 text-xs mt-1">{totalDebit.toLocaleString("fa-IR")} ریال</div>
+                </div>
+                <div className="p-2.5 border rounded-lg bg-gray-50">
+                  <div className="text-gray-500">جمع کل بستانکار:</div>
+                  <div className="font-bold text-rose-700 text-xs mt-1">{totalCredit.toLocaleString("fa-IR")} ریال</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5 pt-3 border-t flex justify-end">
+              <Button size="sm" onClick={() => setShowCheckModal(false)}>
+                بستن
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── مدال استاندارد چاپ برگ سند حسابداری ── */}
+      {showPrintModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 overflow-y-auto p-3 md:p-6 flex justify-center items-start">
+          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full p-4 md:p-6 text-right font-sans relative my-4 md:my-6 border" dir="rtl">
+            {/* نوار دکمه‌های کنترل مدال - چسبان (Sticky) در بالای مدال */}
+            <div className="sticky top-0 bg-white z-20 pb-3 pt-1 border-b mb-4 flex items-center justify-between shadow-2xs">
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm"
+                  onClick={handlePrintVoucherDocument}
+                >
+                  <Printer className="h-4 w-4" />
+                  چاپ سند / پرینت
+                </Button>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-gray-800">پیش‌نمایش برگ سند حسابداری استاندارد</span>
+                <Button size="sm" variant="ghost" className="h-8 w-8 p-0 hover:bg-gray-100" onClick={() => setShowPrintModal(false)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            {/* پیش‌نمایش درون مدال */}
+            <VoucherPrintContent header={header} rows={rows} totalDebit={totalDebit} totalCredit={totalCredit} diff={diff} today={today} allGroups={allGroups} />
+          </div>
+        </div>
+      )}
+
+      {/* ── مدال صدور حواله ── */}
+      {showRemittanceModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" dir="rtl">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-5 text-right font-sans">
+            <div className="flex items-center justify-between border-b pb-3 mb-4">
+              <h3 className="font-bold text-sm flex items-center gap-2 text-gray-900">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                صدور حواله پرداختی سند
+              </h3>
+              <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setShowRemittanceModal(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {diff !== 0 ? (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-800 flex items-center gap-2 mb-4">
+                <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+                <span>امکان صدور حواله برای سند ناتراز وجود ندارد. ابتدا مبالغ را تراز کنید.</span>
+              </div>
+            ) : (
+              <div className="space-y-3 text-xs">
+                <div>
+                  <label className="text-muted-foreground block mb-1">شماره حواله پرداختی:</label>
+                  <Input className="h-8 text-xs font-mono font-bold" value={remittanceNo} onChange={(e) => setRemittanceNo(e.target.value)} />
+                </div>
+                <div>
+                  <label className="text-muted-foreground block mb-1">مبلغ حواله (ریال):</label>
+                  <Input className="h-8 text-xs font-mono font-bold bg-muted/40" value={totalDebit.toLocaleString("fa-IR")} readOnly />
+                </div>
+                <div>
+                  <label className="text-muted-foreground block mb-1">تاریخ صدور حواله:</label>
+                  <Input className="h-8 text-xs font-mono" value={header.docDate || today} readOnly />
+                </div>
+              </div>
+            )}
+
+            <div className="mt-5 pt-3 border-t flex justify-between gap-2">
+              <Button size="sm" variant="outline" onClick={() => setShowRemittanceModal(false)}>
+                انصراف
+              </Button>
+              {diff === 0 && (
+                <Button
+                  size="sm"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+                  onClick={() => {
+                    setHeader(prev => ({ ...prev, status: "پرداخت و دریافت" }));
+                    setMessage({ type: "success", text: `حواله شماره ${remittanceNo} با موفقیت صادر گردید و وضعیت سند تغییر یافت.` });
+                    setShowRemittanceModal(false);
+                  }}
+                >
+                  تایید و صدور حواله
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── مدال رد سند ── */}
+      {showRejectModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" dir="rtl">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-5 text-right font-sans">
+            <div className="flex items-center justify-between border-b pb-3 mb-4">
+              <h3 className="font-bold text-sm flex items-center gap-2 text-rose-700">
+                <RotateCcw className="h-4 w-4 text-rose-600" />
+                رد سند مالی
+              </h3>
+              <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setShowRejectModal(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <p className="text-gray-700">لطفاً علت رد سند را جهت ثبت در سوابق وارد نمایید:</p>
+              <textarea
+                className="w-full h-24 p-2 text-xs border rounded-md focus:border-rose-500 focus:outline-none"
+                placeholder="علت رد سند را بنویسید..."
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+              />
+            </div>
+
+            <div className="mt-4 flex justify-between gap-2">
+              <Button size="sm" variant="outline" onClick={() => setShowRejectModal(false)}>
+                انصراف
+              </Button>
+              <Button
+                size="sm"
+                className="bg-rose-600 hover:bg-rose-700 text-white"
+                onClick={() => {
+                  setHeader(prev => ({ ...prev, status: "رد شده" }));
+                  setMessage({ type: "error", text: `سند مالی رد شد. (علت: ${rejectReason || "بدون توضیحات"})` });
+                  setShowRejectModal(false);
+                }}
+              >
+                تایید و رد سند
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── مدال ایجاد سند جدید ── */}
+      {showNewModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" dir="rtl">
+          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-5 text-right font-sans">
+            <div className="flex items-center justify-between border-b pb-3 mb-3">
+              <h3 className="font-bold text-sm flex items-center gap-2 text-gray-900">
+                <Plus className="h-4 w-4 text-emerald-600" />
+                ایجاد سند جدید
+              </h3>
+              <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setShowNewModal(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <p className="text-xs text-gray-600 mb-4">
+              آیا از ایجاد سند جدید اطمینان دارید؟ تمامی اطلاعات فعلی فرم پاک خواهند شد.
+            </p>
+
+            <div className="flex justify-between gap-2">
+              <Button size="sm" variant="outline" onClick={() => setShowNewModal(false)}>
+                انصراف
+              </Button>
+              <Button
+                size="sm"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                onClick={() => {
+                  handleNew();
+                  setShowNewModal(false);
+                }}
+              >
+                ایجاد سند جدید
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── مدال بستن حساب ── */}
+      {showCloseAccountModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" dir="rtl">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-5 text-right font-sans">
+            <div className="flex items-center justify-between border-b pb-3 mb-3">
+              <h3 className="font-bold text-sm flex items-center gap-2 text-gray-900">
+                <FileText className="h-4 w-4 text-purple-600" />
+                عملیات بستن حساب
+              </h3>
+              <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setShowCloseAccountModal(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <p className="text-xs text-gray-600 mb-3">
+              بررسی وضعیت بستن حساب برای سند شماره <span className="font-bold">{header.docNo || "جدید"}</span>:
+            </p>
+
+            <div className="p-3 border rounded bg-purple-50/50 border-purple-200 text-xs space-y-1 mb-4">
+              <div className="flex justify-between">
+                <span>وضعیت تراز:</span>
+                <span className="font-bold">{diff === 0 ? "تراز کامل" : "ناتراز"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>دوره مالی:</span>
+                <span className="font-bold">{header.fiscalYear}</span>
+              </div>
+            </div>
+
+            <div className="flex justify-between gap-2">
+              <Button size="sm" variant="outline" onClick={() => setShowCloseAccountModal(false)}>
+                انصراف
+              </Button>
+              <Button
+                size="sm"
+                className="bg-purple-600 hover:bg-purple-700 text-white"
+                onClick={() => {
+                  if (diff !== 0) {
+                    setMessage({ type: "error", text: "بستن حساب نیازمند تراز کامل سند است." });
+                  } else {
+                    setHeader(prev => ({ ...prev, status: "حسابداری" }));
+                    setMessage({ type: "success", text: "عملیات بستن حساب با موفقیت به پایان رسید." });
+                  }
+                  setShowCloseAccountModal(false);
+                }}
+              >
+                تایید بستن حساب
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── ناحیه چاپی اصلی برای پرینت مرورگر (جلوگیری از صفحه سفید و حفظ کامل چیدمان) ── */}
+      <div id="printable-voucher-container" className="hidden print:block">
+        <style>{`
+          @media print {
+            @page {
+              size: A4 portrait;
+              margin: 8mm;
+            }
+            body {
+              background: #ffffff !important;
+              color: #000000 !important;
+            }
+            body > * {
+              display: none !important;
+            }
+            #printable-voucher-container {
+              display: block !important;
+              position: absolute !important;
+              left: 0 !important;
+              top: 0 !important;
+              width: 100% !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              background: #ffffff !important;
+              color: #000000 !important;
+            }
+            #printable-voucher-container * {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            #printable-voucher-container table {
+              display: table !important;
+              width: 100% !important;
+            }
+            #printable-voucher-container thead {
+              display: table-header-group !important;
+            }
+            #printable-voucher-container tbody {
+              display: table-row-group !important;
+            }
+            #printable-voucher-container tr {
+              display: table-row !important;
+            }
+            #printable-voucher-container th, #printable-voucher-container td {
+              display: table-cell !important;
+            }
+            #printable-voucher-container .grid {
+              display: grid !important;
+            }
+            #printable-voucher-container .flex {
+              display: flex !important;
+            }
+          }
+        `}</style>
+        <VoucherPrintContent header={header} rows={rows} totalDebit={totalDebit} totalCredit={totalCredit} diff={diff} today={today} allGroups={allGroups} />
       </div>
     </PageShell>
   );

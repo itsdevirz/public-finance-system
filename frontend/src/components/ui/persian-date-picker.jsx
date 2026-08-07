@@ -247,19 +247,22 @@ export function PersianDatePicker({ value = "", onChange, className = "", placeh
     );
   }
 
+  const displayValue = (value === "0" || value === 0 || value === "00000000" || !value) ? "" : toPersianDigits(value);
+
   return (
     <div className="relative inline-block w-full" ref={containerRef} dir="rtl">
       <div className="relative">
         <input
           type="text"
-          value={toPersianDigits(value)}
+          value={displayValue}
           onChange={handleInputChange}
           onBlur={handleInputBlur}
           placeholder={toPersianDigits(placeholder)}
           disabled={disabled}
           required={required}
           onFocus={() => setIsOpen(true)}
-          className={`flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 pl-10 ${className}`}
+          onClick={() => setIsOpen(true)}
+          className={`flex h-9 w-full rounded-md border border-input bg-white px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 pl-10 ${className}`}
         />
         <button
           type="button"
@@ -273,7 +276,7 @@ export function PersianDatePicker({ value = "", onChange, className = "", placeh
       </div>
 
       {isOpen && (
-        <div className="absolute z-50 mt-1 w-72 rounded-2xl border bg-popover p-3 text-popover-foreground shadow-xl animate-in fade-in slide-in-from-top-1 duration-150">
+        <div className="absolute z-50 right-0 mt-1 w-72 rounded-2xl border border-border bg-white p-3 text-popover-foreground shadow-2xl animate-in fade-in slide-in-from-top-1 duration-150">
           {/* Header */}
           <div className="flex items-center justify-between gap-1 mb-3">
             <button
