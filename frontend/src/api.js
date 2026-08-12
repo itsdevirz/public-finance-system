@@ -9,21 +9,27 @@ const api = axios.create({
 });
 
 // ── Request Deduplication ─────────────────────────────────────────────────────
-// اگر همزمان دو request GET یکسان ارسال شود، فقط یکی اجرا می‌شود
 const pendingRequests = new Map(); // url → Promise
 
 api.interceptors.request.use((config) => {
   // اضافه کردن توکن
   const token = localStorage.getItem("token");
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  // اضافه کردن correlation ID جهت پیگیری لوگ‌های امنیتی
+  if (config.headers && !config.headers["X-Correlation-ID"]) {
+    config.headers["X-Correlation-ID"] = `req-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+  }
+
   return config;
 });
 
 // Wrapper برای GET با deduplication
 const originalGet = api.get.bind(api);
 api.get = function dedupedGet(url, config) {
-  // فقط GET بدون body dedup می‌شود
-  const key = url + (config?.params ? JSON.stringify(config.params) : "");
+  const key = url + (config && config.params ? JSON.stringify(config.params) : "");
 
   if (pendingRequests.has(key)) {
     return pendingRequests.get(key);
@@ -41,7 +47,11 @@ api.get = function dedupedGet(url, config) {
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401 && !err.config.url.includes("/auth/")) {
+    const status = err.response ? err.response.status : null;
+    const url = err.config ? err.config.url : "";
+    const isAuthUrl = url ? url.includes("/auth/") : false;
+
+    if (status === 401 && !isAuthUrl) {
       localStorage.removeItem("token");
       window.location.href = "/login";
     }

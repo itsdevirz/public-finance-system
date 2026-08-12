@@ -4,6 +4,7 @@ import { getDb } from "../db/index.js";
 import type { JournalDocument, JournalLine } from "../db/types.js";
 import { decryptDocument } from "../lib/crypto.js";
 import { serialize } from "../lib/helpers.js";
+import { logAuditEvent } from "../lib/auditLogger.js";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);

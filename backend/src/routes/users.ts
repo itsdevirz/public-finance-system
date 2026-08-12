@@ -2,6 +2,8 @@ import { Hono } from "hono";
 import { getDb } from "../db/index.js";
 import { ObjectId } from "mongodb";
 import { hashPassword } from "../lib/auth.js";
+import { validatePassword } from "../lib/securityPolicy.js";
+import { logAuditEvent } from "../lib/auditLogger.js";
 
 const router = new Hono();
 
@@ -41,13 +43,20 @@ router.post("/", async (c) => {
       return c.json({ success: false, message: "نام کاربری الزامی است" }, 400);
     }
 
+    // Password Policy Check
+    const rawPass = body.password || "AdminPass123!";
+    const passCheck = validatePassword(rawPass);
+    if (!passCheck.valid) {
+      return c.json({ success: false, message: passCheck.message }, 400);
+    }
+
     // Check if the username already exists
     const existing = await db.collection("users").findOne({ username: body.username.trim().toLowerCase() });
     if (existing) {
       return c.json({ success: false, message: "این نام کاربری قبلاً در سامانه ثبت شده است" }, 400);
     }
 
-    const passwordHash = body.password ? await hashPassword(body.password) : await hashPassword("123456");
+    const passwordHash = await hashPassword(rawPass);
 
     const doc = {
       username: body.username.trim().toLowerCase(),
@@ -86,6 +95,7 @@ router.post("/", async (c) => {
         pageSize: 10,
         dateFormat: "shamsi"
       },
+      failedLoginAttempts: 0,
       lastLogin: null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -94,15 +104,14 @@ router.post("/", async (c) => {
     const result = await db.collection("users").insertOne(doc);
     
     // Log audit action
-    await db.collection("audit_logs").insertOne({
-      userId: result.insertedId,
-      username: doc.username,
-      action: "ایجاد کاربر",
-      entity: "users",
-      entityId: result.insertedId,
-      oldValue: null,
-      newValue: { username: doc.username, role: doc.role },
-      createdAt: new Date().toISOString()
+    await logAuditEvent({
+      userId: payload.sub,
+      username: payload.username,
+      action: "ایجاد کاربر جدید",
+      resource: "users",
+      result: "SUCCESS",
+      ip: c.req.header("x-forwarded-for") || "127.0.0.1",
+      details: { targetUserId: result.insertedId.toHexString(), targetUsername: doc.username, role: doc.role }
     });
 
     const { password, ...safeData } = doc;
@@ -119,7 +128,7 @@ router.put("/:id", async (c) => {
     const payload = (c.get as any)("jwtPayload") as any;
     const isAdmin = payload.role === "admin";
 
-    // Non-admin can only edit their own user
+    // Non-admin can only edit their own user profile
     if (!isAdmin && payload.sub !== id) {
       return c.json({ success: false, message: "دسترسی غیرمجاز. شما مجاز به ویرایش این کاربر نیستید." }, 403);
     }
@@ -166,10 +175,19 @@ router.put("/:id", async (c) => {
       updateData.financialLimitMax = body.financialLimitMax !== undefined ? Number(body.financialLimitMax) : existingUser.financialLimitMax;
       updateData.allowedCostCenters = body.allowedCostCenters || existingUser.allowedCostCenters;
       updateData.workflowLevel = body.workflowLevel || existingUser.workflowLevel;
+
+      if (updateData.status === "فعال") {
+        updateData.failedLoginAttempts = 0;
+        updateData.lockoutUntil = null;
+      }
     }
 
-    // Only update password if provided and not empty
+    // Only update password if provided and valid according to policy
     if (body.password && body.password.trim() !== "") {
+      const passCheck = validatePassword(body.password);
+      if (!passCheck.valid) {
+        return c.json({ success: false, message: passCheck.message }, 400);
+      }
       updateData.password = await hashPassword(body.password);
     }
 
@@ -179,15 +197,14 @@ router.put("/:id", async (c) => {
     );
 
     // Log audit action
-    await db.collection("audit_logs").insertOne({
-      userId: new ObjectId(payload.sub),
+    await logAuditEvent({
+      userId: payload.sub,
       username: payload.username,
-      action: "ویرایش کاربر",
-      entity: "users",
-      entityId: userObjectId,
-      oldValue: { role: existingUser.role, status: existingUser.status },
-      newValue: { role: updateData.role || existingUser.role, status: updateData.status || existingUser.status },
-      createdAt: new Date().toISOString()
+      action: "ویرایش اطلاعات کاربر",
+      resource: "users",
+      result: "SUCCESS",
+      ip: c.req.header("x-forwarded-for") || "127.0.0.1",
+      details: { targetUserId: id, updatedRole: updateData.role, updatedStatus: updateData.status }
     });
 
     const updated = await db.collection("users").findOne({ _id: userObjectId }, { projection: { password: 0 } });
@@ -225,15 +242,14 @@ router.delete("/:id", async (c) => {
     }
 
     // Log audit action
-    await db.collection("audit_logs").insertOne({
-      userId: new ObjectId(payload.sub),
+    await logAuditEvent({
+      userId: payload.sub,
       username: payload.username,
       action: "حذف کاربر",
-      entity: "users",
-      entityId: userObjectId,
-      oldValue: { username: existingUser.username },
-      newValue: null,
-      createdAt: new Date().toISOString()
+      resource: "users",
+      result: "SUCCESS",
+      ip: c.req.header("x-forwarded-for") || "127.0.0.1",
+      details: { deletedUserId: id, deletedUsername: existingUser.username }
     });
 
     return c.json({ success: true, message: "کاربر با موفقیت از سیستم حذف شد" });

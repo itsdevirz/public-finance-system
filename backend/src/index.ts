@@ -1,13 +1,20 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { connectDb } from "./db/index.js";
-import { requireAuth } from "./middleware/requireAuth.js";
-
 import { compress } from "hono/compress";
 import { logger } from "hono/logger";
+import { bodyLimit } from "hono/body-limit";
+import crypto from "crypto";
+
+import { connectDb } from "./db/index.js";
+import { requireAuth } from "./middleware/requireAuth.js";
+import { securityHeaders } from "./middleware/securityHeaders.js";
+import { rateLimiter } from "./middleware/rateLimiter.js";
+import { inputSanitizer } from "./middleware/inputSanitizer.js";
+import { logAuditEvent, AFTA_LOG_EVENT_TYPES } from "./lib/auditLogger.js";
 
 import authRouter from "./routes/auth.js";
+import securitySettingsRouter from "./routes/securitySettings.js";
 import checksRouter from "./routes/checks.js";
 import contractsRouter from "./routes/contracts.js";
 import creditsRouter from "./routes/credits.js";
@@ -46,31 +53,70 @@ import bankStatementFormatsRouter from "./routes/bankStatementFormats.js";
 import bankStatementsRouter from "./routes/bankStatements.js";
 import bankReconciliationRouter from "./routes/bankReconciliation.js";
 
-
-
-
-
-
-
-
-
 const app = new Hono();
 
+// Global Middleware
+app.use("*", securityHeaders);
 app.use("*", compress());
 app.use("*", logger());
 
-app.onError((err, c) => {
-  console.error("Global Hono Error:", err);
-  return c.json(
-    {
-      success: false,
-      message: "خطایی در سمت سرور رخ داد. لطفا دوباره تلاش کنید.",
-      error: process.env.NODE_ENV === "development" ? err.message : undefined,
-    },
-    500
-  );
+// Correlation ID & Request Lifecycle Logger (۱. شروع و اتمام توابع/درخواست‌ها)
+app.use("*", async (c, next) => {
+  const startMs = Date.now();
+  const correlationId = c.req.header("x-correlation-id") || crypto.randomUUID();
+  c.set("correlationId", correlationId);
+  c.header("X-Correlation-ID", correlationId);
+
+  const path = c.req.path;
+  const method = c.req.method;
+
+  // ۱. لوگ شروع درخواست/تابع برای روت‌های غیر استاتیک API
+  if (path.startsWith("/api")) {
+    await logAuditEvent({
+      action: `${AFTA_LOG_EVENT_TYPES.FUNCTION_START}: ${method} ${path}`,
+      eventType: AFTA_LOG_EVENT_TYPES.FUNCTION_START,
+      resource: path,
+      result: "SUCCESS",
+      ip: c.req.header("x-forwarded-for") || "127.0.0.1",
+      correlationId,
+      details: { method, path }
+    });
+  }
+
+  await next();
+
+  // ۱. لوگ اتمام درخواست/تابع
+  if (path.startsWith("/api")) {
+    const durationMs = Date.now() - startMs;
+    const payload = (c.get as any)("jwtPayload");
+
+    await logAuditEvent({
+      userId: payload?.sub,
+      username: payload?.username,
+      action: `${AFTA_LOG_EVENT_TYPES.FUNCTION_END}: ${method} ${path}`,
+      eventType: AFTA_LOG_EVENT_TYPES.FUNCTION_END,
+      resource: path,
+      result: c.res.status < 400 ? "SUCCESS" : "FAILURE",
+      ip: c.req.header("x-forwarded-for") || "127.0.0.1",
+      correlationId,
+      errorCode: c.res.status >= 400 ? c.res.status : undefined,
+      details: { method, path, durationMs, status: c.res.status }
+    });
+  }
 });
 
+// Request Body Size Limit (10MB)
+app.use(
+  "*",
+  bodyLimit({
+    maxSize: 10 * 1024 * 1024, // 10MB
+    onError: (c) => {
+      return c.json({ success: false, message: "حجم داده ارسال‌شده بیش از حد مجاز سرور است (حداکثر ۱۰ مگابایت)." }, 413);
+    },
+  })
+);
+
+// Secure CORS
 app.use(
   "*",
   cors({
@@ -89,20 +135,46 @@ app.use(
       return allowed.includes(origin) ? origin : allowed[0];
     },
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Authorization"],
+    allowHeaders: ["Content-Type", "Authorization", "X-Correlation-ID"],
     credentials: true,
   })
 );
 
+// Secure Error Handling (No stack traces in response)
+app.onError((err, c) => {
+  const correlationId = c.get("correlationId") || "UNKNOWN";
+  console.error(`[Error ID: ${correlationId}] Global Server Error:`, err);
+  return c.json(
+    {
+      success: false,
+      message: "خطایی در سمت سرور رخ داد. لطفا دوباره تلاش کنید.",
+      correlationId,
+      error: process.env.NODE_ENV === "development" ? err.message : undefined,
+    },
+    500
+  );
+});
+
 app.get("/", (c) =>
-  c.json({ message: "سامانه جامع نظام مالی بخش عمومی - فعال" })
+  c.json({ message: "سامانه جامع نظام مالی بخش عمومی - فعال با الزامات حفاظتی شبکه" })
 );
 
-// روت‌های عمومی (بدون نیاز به توکن)
+// Rate Limiter for Login Endpoint (Max 10 requests per 1 min)
+app.use("/api/auth/login", rateLimiter({ windowMs: 60 * 1000, max: 10, message: "تلاش‌های مکرر برای ورود. لطفاً ۱ دقیقه دیگر دوباره امتحان کنید." }));
+
+// General Rate Limiter for all API endpoints (Max 300 requests per 1 min)
+app.use("/api/*", rateLimiter({ windowMs: 60 * 1000, max: 300 }));
+
+// Input Sanitizer for NoSQL Injection, XSS, Path Traversal
+app.use("/api/*", inputSanitizer);
+
+// Public Routes
 app.route("/api/auth", authRouter);
 
-// همه روت‌های زیر نیاز به JWT دارند
+// Protected Routes (Require Valid Auth & Active Session)
 app.use("/api/*", requireAuth);
+
+app.route("/api/security", securitySettingsRouter);
 app.route("/api/ai", aiRouter);
 app.route("/api/checks", checksRouter);
 app.route("/api/contracts", contractsRouter);
@@ -141,17 +213,9 @@ app.route("/api/bank-statement-formats", bankStatementFormatsRouter);
 app.route("/api/bank-statements", bankStatementsRouter);
 app.route("/api/bank-reconciliation", bankReconciliationRouter);
 
-
-
-
-
-
-
-
-
 connectDb().then(() => {
   serve({ fetch: app.fetch, port: 8000 }, () => {
-    console.log("🚀 Server running at http://localhost:8000");
+    console.log("🚀 Server running securely at http://localhost:8000");
   });
 }).catch((err) => {
   console.error("Failed to connect to MongoDB:", err);

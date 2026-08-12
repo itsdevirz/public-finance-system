@@ -27,9 +27,15 @@ export function AuthProvider({ children }) {
     return res.data.user;
   }
 
-  function logout() {
-    localStorage.removeItem("token");
-    setUser(null);
+  async function logout() {
+    try {
+      await api.post("/api/auth/logout");
+    } catch {
+      // ادامه خروج حتی در صورت خطای شبکه
+    } finally {
+      localStorage.removeItem("token");
+      setUser(null);
+    }
   }
 
   return (
