@@ -52,15 +52,17 @@ router.put("/policy", requireRole(["admin"]), async (c) => {
       { upsert: true }
     );
 
-    // ۴. تمامی تغییرات در پیکربندی ثبت‌نشان‌ها و تنظیمات امنیتی
+    // ۴. تمامی تغییرات در پیکربندی و رفتار کارکردی محصول
     await logAuditEvent({
       userId: payload.sub,
       username: payload.username,
-      action: AFTA_LOG_EVENT_TYPES.AUDIT_LOG_CONFIG_CHANGE,
-      eventType: AFTA_LOG_EVENT_TYPES.AUDIT_LOG_CONFIG_CHANGE,
+      userRole: payload.role,
+      action: AFTA_LOG_EVENT_TYPES.FUNCTION_BEHAVIOR_CHANGE,
+      eventType: AFTA_LOG_EVENT_TYPES.FUNCTION_BEHAVIOR_CHANGE,
       resource: "system_settings",
       result: "SUCCESS",
       ip: c.req.header("x-forwarded-for") || "127.0.0.1",
+      userAgent: c.req.header("user-agent"),
       details: { newPolicy }
     });
 
@@ -87,12 +89,45 @@ router.get("/audit-logs", requireRole(["admin"]), async (c) => {
   const payload = (c.get as any)("jwtPayload");
   try {
     const db = getDb();
-    const { username, action, result, page = "1", limit = "50" } = c.req.query();
+    const { username, action, eventType, result, osType, ip, resource, shamsiDate, search, sortBy = "createdAt", sortOrder = "desc", page = "1", limit = "50" } = c.req.query();
     
     const query: any = {};
     if (username) query.username = { $regex: username, $options: "i" };
     if (action) query.action = { $regex: action, $options: "i" };
+    if (eventType) query.eventType = { $regex: eventType, $options: "i" };
     if (result) query.result = result;
+    if (osType) query.osType = osType;
+    if (ip) query.ip = { $regex: ip, $options: "i" };
+    if (resource) query.resource = { $regex: resource, $options: "i" };
+    if (shamsiDate) query.shamsiDate = { $regex: shamsiDate, $options: "i" };
+
+    if (search && typeof search === "string" && search.trim() !== "" && search !== "undefined" && search !== "null" && !search.includes("function")) {
+      const searchRegex = { $regex: search.trim(), $options: "i" };
+      query.$or = [
+        { username: searchRegex },
+        { userFullName: searchRegex },
+        { action: searchRegex },
+        { eventType: searchRegex },
+        { resource: searchRegex },
+        { ip: searchRegex },
+        { osName: searchRegex },
+        { browser: searchRegex },
+        { shamsiDate: searchRegex }
+      ];
+    }
+
+    const validSortFields: Record<string, string> = {
+      createdAt: "createdAt",
+      shamsiDateTime: "createdAt",
+      username: "username",
+      action: "action",
+      osName: "osName",
+      ip: "ip",
+      durationMs: "durationMs"
+    };
+
+    const sortField = validSortFields[sortBy] || "createdAt";
+    const sortDirection = sortOrder === "asc" ? 1 : -1;
 
     const pageNum = parseInt(page, 10) || 1;
     const limitNum = parseInt(limit, 10) || 50;
@@ -101,7 +136,7 @@ router.get("/audit-logs", requireRole(["admin"]), async (c) => {
     const total = await db.collection("audit_logs").countDocuments(query);
     const logs = await db.collection("audit_logs")
       .find(query)
-      .sort({ createdAt: -1 })
+      .sort({ [sortField]: sortDirection })
       .skip(skip)
       .limit(limitNum)
       .toArray();
@@ -173,11 +208,13 @@ router.post("/revoke-session", requireRole(["admin"]), async (c) => {
     await logAuditEvent({
       userId: payload.sub,
       username: payload.username,
-      action: "ابطال نشست کاربر",
-      eventType: AFTA_LOG_EVENT_TYPES.SECURITY_ATTR_CHANGE,
+      userRole: payload.role,
+      action: AFTA_LOG_EVENT_TYPES.INACTIVE_SESSION_TERMINATED_BY_ADMIN,
+      eventType: AFTA_LOG_EVENT_TYPES.INACTIVE_SESSION_TERMINATED_BY_ADMIN,
       resource: "active_sessions",
       result: "SUCCESS",
       ip: c.req.header("x-forwarded-for") || "127.0.0.1",
+      userAgent: c.req.header("user-agent"),
       details: { sessionId, tokenRevoked: !!token }
     });
 

@@ -3,7 +3,7 @@ import { getDb } from "../db/index.js";
 import { ObjectId } from "mongodb";
 import { hashPassword } from "../lib/auth.js";
 import { validatePassword } from "../lib/securityPolicy.js";
-import { logAuditEvent } from "../lib/auditLogger.js";
+import { logAuditEvent, AFTA_LOG_EVENT_TYPES } from "../lib/auditLogger.js";
 
 const router = new Hono();
 
@@ -103,15 +103,18 @@ router.post("/", async (c) => {
 
     const result = await db.collection("users").insertOne(doc);
     
-    // Log audit action
+    // Log audit action with USER_GROUP_CHANGE eventType
     await logAuditEvent({
       userId: payload.sub,
       username: payload.username,
-      action: "ایجاد کاربر جدید",
+      userRole: payload.role,
+      action: "ایجاد کاربر و تعیین گروه کاربری",
+      eventType: AFTA_LOG_EVENT_TYPES.USER_GROUP_CHANGE,
       resource: "users",
       result: "SUCCESS",
       ip: c.req.header("x-forwarded-for") || "127.0.0.1",
-      details: { targetUserId: result.insertedId.toHexString(), targetUsername: doc.username, role: doc.role }
+      userAgent: c.req.header("user-agent"),
+      details: { targetUserId: result.insertedId.toHexString(), targetUsername: doc.username, userGroup: doc.userGroup, role: doc.role }
     });
 
     const { password, ...safeData } = doc;
@@ -266,8 +269,49 @@ router.get("/audit-logs", async (c) => {
       return c.json({ success: false, message: "دسترسی غیرمجاز. فقط مدیر سیستم مجاز به مشاهده تاریخچه عملکرد است." }, 403);
     }
 
+    const { limit = "100", username, result, osType, eventType, resource, search, sortBy = "createdAt", sortOrder = "desc" } = c.req.query();
     const db = getDb();
-    const logs = await db.collection("audit_logs").find().sort({ createdAt: -1 }).toArray();
+    const query: any = {};
+    if (username) query.username = { $regex: username, $options: "i" };
+    if (result) query.result = result;
+    if (osType) query.osType = osType;
+    if (eventType) query.eventType = { $regex: eventType, $options: "i" };
+    if (resource) query.resource = { $regex: resource, $options: "i" };
+
+    if (search && typeof search === "string" && search.trim() !== "" && search !== "undefined" && search !== "null" && !search.includes("function")) {
+      const sRegex = { $regex: search.trim(), $options: "i" };
+      query.$or = [
+        { username: sRegex },
+        { userFullName: sRegex },
+        { action: sRegex },
+        { eventType: sRegex },
+        { resource: sRegex },
+        { ip: sRegex },
+        { osName: sRegex },
+        { browser: sRegex },
+        { shamsiDate: sRegex }
+      ];
+    }
+
+    const validSortFields: Record<string, string> = {
+      createdAt: "createdAt",
+      shamsiDateTime: "createdAt",
+      username: "username",
+      action: "action",
+      osName: "osName",
+      ip: "ip",
+      durationMs: "durationMs"
+    };
+
+    const sortField = validSortFields[sortBy] || "createdAt";
+    const sortDirection = sortOrder === "asc" ? 1 : -1;
+
+    const limitNum = Math.min(parseInt(limit, 10) || 100, 500);
+    const logs = await db.collection("audit_logs")
+      .find(query)
+      .sort({ [sortField]: sortDirection })
+      .limit(limitNum)
+      .toArray();
     return c.json({ success: true, data: logs });
   } catch (error: any) {
     return c.json({ success: false, message: error.message }, 500);

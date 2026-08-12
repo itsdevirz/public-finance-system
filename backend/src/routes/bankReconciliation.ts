@@ -170,13 +170,13 @@ router.get("/statement", async (c) => {
     }
 
     // استخراج مانده دفتر و اقلام باز
-    const docs = await db.collection("journal_documents").toArray();
+    const docs = await db.collection("journal_documents").find().toArray();
     let ledgerDebit = 0;
     let ledgerCredit = 0;
     const pendingChecks: any[] = [];
     const transitFunds: any[] = [];
 
-    docs.forEach((doc) => {
+    docs.forEach((doc: any) => {
       (doc.lines || []).forEach((line: any) => {
         const debit = Number(line.debit || 0);
         const credit = Number(line.credit || 0);

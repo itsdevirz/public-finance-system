@@ -199,6 +199,25 @@ router.post("/login", async (c) => {
     return c.json({ message: "نام کاربری یا رمز عبور اشتباه است" }, 401);
   }
 
+  // Check Concurrent Session Limit
+  const maxSessions = secPolicy.sessionPolicy?.maxConcurrentSessions || 3;
+  const activeCount = await db.collection("active_sessions").countDocuments({ userId: user._id });
+  if (activeCount >= maxSessions) {
+    await logAuditEvent({
+      userId: user._id,
+      username: user.username,
+      action: AFTA_LOG_EVENT_TYPES.CONCURRENT_SESSION_LIMIT_EXCEEDED,
+      eventType: AFTA_LOG_EVENT_TYPES.CONCURRENT_SESSION_LIMIT_EXCEEDED,
+      resource: "auth/login",
+      result: "FAILURE",
+      ip,
+      userAgent,
+      errorCode: 403,
+      details: { activeCount, maxSessions }
+    });
+    return c.json({ message: `تعداد نشست‌های همزمان فعال شما (${activeCount}) بیش از حد مجاز (${maxSessions}) است. لطفاً نشست‌های قبلی را ببندید.` }, 403);
+  }
+
   // Successful Login: Reset failed attempts & create token
   await db.collection("users").updateOne(
     { _id: user._id },
@@ -220,6 +239,19 @@ router.post("/login", async (c) => {
     userAgent,
     createdAt: new Date().toISOString(),
     lastActivity: new Date().toISOString()
+  });
+
+  // ثبت رویداد تلاش موفق برای برقراری نشست (SESSION_ESTABLISHMENT_ATTEMPT)
+  await logAuditEvent({
+    userId: user._id,
+    username: user.username,
+    action: AFTA_LOG_EVENT_TYPES.SESSION_ESTABLISHMENT_ATTEMPT,
+    eventType: AFTA_LOG_EVENT_TYPES.SESSION_ESTABLISHMENT_ATTEMPT,
+    resource: "auth/login",
+    result: "SUCCESS",
+    ip,
+    userAgent,
+    details: { role: user.role }
   });
 
   // ۱۰ & ۹ & ۱۱. ثبت موفقیت بررسی پسوورد و نتیجه نهایی ورود

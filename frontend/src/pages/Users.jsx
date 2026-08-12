@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
   Users as UsersIcon, Search, Plus, Printer, FileSpreadsheet, Trash2, Edit2, ShieldAlert,
-  KeyRound, CheckSquare, Coins, UserCheck, Shield, ChevronDown, ChevronRight, History, Settings2, Link, X, Save, Eye
+  KeyRound, CheckSquare, Coins, UserCheck, Shield, ChevronDown, ChevronRight, History, Settings2, Link, X, Save, Eye,
+  Laptop, Globe, Clock, Calendar, Monitor, Smartphone, Info, Terminal, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, Filter, SlidersHorizontal
 } from "lucide-react";
 import api from "@/api";
 import { cn } from "@/lib/utils";
@@ -92,6 +93,14 @@ export default function Users() {
 
   const [auditLogs, setAuditLogs] = useState([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
+  const [logSearchTerm, setLogSearchTerm] = useState("");
+  const [selectedLogModal, setSelectedLogModal] = useState(null);
+  
+  // Sorting & Filtering state for Audit Logs
+  const [logSortBy, setLogSortBy] = useState("createdAt");
+  const [logSortOrder, setLogSortOrder] = useState("desc");
+  const [logResultFilter, setLogResultFilter] = useState("");
+  const [logOsFilter, setLogOsFilter] = useState("");
 
   // Tree nodes expanded state
   const [expandedNodes, setExpandedNodes] = useState({
@@ -130,17 +139,42 @@ export default function Users() {
     }
   }, []);
 
-  const fetchLogs = useCallback(async () => {
+  const fetchLogs = useCallback(async (overrideParams = {}) => {
     setLoadingLogs(true);
     try {
-      const res = await api.get("/api/users/audit-logs");
+      let searchVal = logSearchTerm;
+      let sortByVal = logSortBy;
+      let sortOrderVal = logSortOrder;
+      let resultVal = logResultFilter;
+      let osTypeVal = logOsFilter;
+
+      if (typeof overrideParams === "string") {
+        searchVal = overrideParams;
+      } else if (overrideParams && typeof overrideParams === "object" && !overrideParams.nativeEvent && !(overrideParams instanceof Event)) {
+        if (typeof overrideParams.search === "string") searchVal = overrideParams.search;
+        if (typeof overrideParams.sortBy === "string") sortByVal = overrideParams.sortBy;
+        if (typeof overrideParams.sortOrder === "string") sortOrderVal = overrideParams.sortOrder;
+        if (typeof overrideParams.result === "string") resultVal = overrideParams.result;
+        if (typeof overrideParams.osType === "string") osTypeVal = overrideParams.osType;
+      }
+
+      const res = await api.get("/api/users/audit-logs", {
+        params: {
+          search: (typeof searchVal === "string" && searchVal.trim()) ? searchVal.trim() : undefined,
+          sortBy: sortByVal || "createdAt",
+          sortOrder: sortOrderVal || "desc",
+          result: resultVal || undefined,
+          osType: osTypeVal || undefined,
+          limit: 100
+        }
+      });
       setAuditLogs(res.data.data || []);
     } catch (err) {
-      console.error(err);
+      console.error("خطا در دریافت لاگ‌های امنیتی:", err);
     } finally {
       setLoadingLogs(false);
     }
-  }, []);
+  }, [logSearchTerm, logSortBy, logSortOrder, logResultFilter, logOsFilter]);
 
   useEffect(() => {
     fetchUsers();
@@ -179,6 +213,10 @@ export default function Users() {
   };
 
   const handleCreateNew = () => {
+    if (currentUser?.role !== "admin") {
+      alert("فقط مدیر سیستم (Admin) مجاز به تعریف کاربر جدید است.");
+      return;
+    }
     setSelectedUser(null);
     setFormState(INITIAL_USER);
     setActiveFormTab("general");
@@ -310,7 +348,7 @@ export default function Users() {
                     <div className="space-y-1">
                       <Label className="text-xs font-semibold">نام کاربری (ورود)</Label>
                       <Input
-                        disabled={true}
+                        disabled={selectedUser ? true : currentUser?.role !== "admin"}
                         value={formState.username}
                         onChange={(e) => setFormState({ ...formState, username: e.target.value })}
                         placeholder="username"
@@ -1039,37 +1077,349 @@ export default function Users() {
           /* Right Column: Historical Audit Logs (Audit Log) */
           <div className="xl:col-span-1 space-y-4">
             <Card className="shadow-md border border-border h-full flex flex-col">
-              <CardHeader className="bg-muted/15 pb-2 shrink-0">
-                <CardTitle className="text-sm font-bold text-foreground flex items-center gap-1.5">
-                  <History className="h-4.5 w-4.5 text-primary" />
-                  تاریخچه فعالیت‌ها (Audit Log)
-                </CardTitle>
-                <CardDescription>آخرین رویدادها و تغییرات کاربران در پایگاه داده</CardDescription>
+              <CardHeader className="bg-muted/15 pb-2 shrink-0 border-b">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                    <History className="h-4.5 w-4.5 text-primary" />
+                    تاریخچه فعالیت‌ها (Audit Log پیشرفته)
+                  </CardTitle>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 w-7 p-0"
+                    onClick={() => fetchLogs()}
+                    title="به‌روزرسانی لیست لاگ‌ها"
+                  >
+                    <RefreshCw className={cn("h-3.5 w-3.5", loadingLogs && "animate-spin")} />
+                  </Button>
+                </div>
+                <CardDescription className="text-[11px] text-muted-foreground mt-1">
+                  ثبت کامل جزئیات کاربر، آی‌پی، سیستم‌عامل، مرورگر، لوکیشن، تایم‌زون و تاریخ شمسی در دیتابیس
+                </CardDescription>
+
+                {/* Search & Advanced Filter/Sort Toolbar */}
+                <div className="space-y-2 mt-2">
+                  <div className="flex items-center gap-1.5">
+                    <div className="relative flex-1">
+                      <Search className="absolute right-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                      <Input
+                        placeholder="جستجو کاربر، IP، سیستم‌عامل، تاریخ..."
+                        value={logSearchTerm}
+                        onChange={(e) => {
+                          setLogSearchTerm(e.target.value);
+                          fetchLogs({ search: e.target.value });
+                        }}
+                        className="pr-8 text-xs h-8 bg-background"
+                      />
+                    </div>
+
+                    {/* Sort Order Toggle Button */}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 px-2 text-[11px] gap-1 shrink-0"
+                      onClick={() => {
+                        const newOrder = logSortOrder === "desc" ? "asc" : "desc";
+                        setLogSortOrder(newOrder);
+                        fetchLogs({ sortOrder: newOrder });
+                      }}
+                      title={logSortOrder === "desc" ? "مرتب‌سازی: جدید به قدیمی (نزولی)" : "مرتب‌سازی: قدیمی به جدید (صعودی)"}
+                    >
+                      {logSortOrder === "desc" ? <ArrowDown className="h-3.5 w-3.5 text-rose-500" /> : <ArrowUp className="h-3.5 w-3.5 text-emerald-500" />}
+                      <span className="text-[10px] hidden sm:inline">{logSortOrder === "desc" ? "نزولی" : "صعودی"}</span>
+                    </Button>
+                  </div>
+
+                  {/* Filter & Sort Parameter Selectors Row */}
+                  <div className="grid grid-cols-3 gap-1.5 text-[10.5px]">
+                    {/* Sort Field Selector */}
+                    <div>
+                      <select
+                        value={logSortBy}
+                        onChange={(e) => {
+                          setLogSortBy(e.target.value);
+                          fetchLogs({ sortBy: e.target.value });
+                        }}
+                        className="w-full h-7 px-1.5 rounded border border-border bg-background text-[10.5px] font-sans focus:ring-1 focus:ring-primary"
+                      >
+                        <option value="createdAt">Sort: تاریخ/زمان</option>
+                        <option value="username">Sort: نام کاربر</option>
+                        <option value="action">Sort: عنوان رویداد</option>
+                        <option value="osName">Sort: سیستم‌عامل</option>
+                        <option value="durationMs">Sort: زمان اجرا (ms)</option>
+                      </select>
+                    </div>
+
+                    {/* Result Filter Selector */}
+                    <div>
+                      <select
+                        value={logResultFilter}
+                        onChange={(e) => {
+                          setLogResultFilter(e.target.value);
+                          fetchLogs({ result: e.target.value });
+                        }}
+                        className="w-full h-7 px-1.5 rounded border border-border bg-background text-[10.5px] font-sans focus:ring-1 focus:ring-primary"
+                      >
+                        <option value="">وضعیت: همه</option>
+                        <option value="SUCCESS">وضعیت: موفق</option>
+                        <option value="FAILURE">وضعیت: ناموفق</option>
+                      </select>
+                    </div>
+
+                    {/* OS Filter Selector */}
+                    <div>
+                      <select
+                        value={logOsFilter}
+                        onChange={(e) => {
+                          setLogOsFilter(e.target.value);
+                          fetchLogs({ osType: e.target.value });
+                        }}
+                        className="w-full h-7 px-1.5 rounded border border-border bg-background text-[10.5px] font-sans focus:ring-1 focus:ring-primary"
+                      >
+                        <option value="">سیستم: همه</option>
+                        <option value="Windows">Windows</option>
+                        <option value="macOS">macOS</option>
+                        <option value="Linux">Linux</option>
+                        <option value="Android">Android</option>
+                        <option value="iOS">iOS</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Quick Filter Badges for 10 AFTA Security Events */}
+                  <div className="flex items-center gap-1 overflow-x-auto pb-1 text-[9.5px]">
+                    <span className="text-muted-foreground shrink-0 font-medium">فیلتر سریع:</span>
+                    <button
+                      type="button"
+                      onClick={() => { setLogSearchTerm(""); fetchLogs({ search: "" }); }}
+                      className={cn("px-1.5 py-0.5 rounded-full border shrink-0 transition-colors", !logSearchTerm ? "bg-primary text-primary-foreground font-bold" : "bg-muted/40 hover:bg-muted")}
+                    >
+                      همه
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setLogSearchTerm("نشست"); fetchLogs({ search: "نشست" }); }}
+                      className="px-1.5 py-0.5 rounded-full border shrink-0 bg-muted/40 hover:bg-muted text-foreground"
+                    >
+                      نشست‌ها
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setLogSearchTerm("مدیریتی"); fetchLogs({ search: "مدیریتی" }); }}
+                      className="px-1.5 py-0.5 rounded-full border shrink-0 bg-muted/40 hover:bg-muted text-foreground"
+                    >
+                      مدیریتی
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setLogSearchTerm("گروه کاربران"); fetchLogs({ search: "گروه کاربران" }); }}
+                      className="px-1.5 py-0.5 rounded-full border shrink-0 bg-muted/40 hover:bg-muted text-foreground"
+                    >
+                      گروه کاربران
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setLogSearchTerm("خارج کردن"); fetchLogs({ search: "خارج کردن" }); }}
+                      className="px-1.5 py-0.5 rounded-full border shrink-0 bg-muted/40 hover:bg-muted text-foreground"
+                    >
+                      استخراج داده
+                    </button>
+                  </div>
+                </div>
               </CardHeader>
-              <CardContent className="p-3 overflow-y-auto flex-1 max-h-[500px] xl:max-h-none space-y-3">
+
+              <CardContent className="p-2.5 overflow-y-auto flex-1 max-h-[600px] xl:max-h-none space-y-2.5">
                 {loadingLogs ? (
-                  <div className="py-6 text-center text-xs text-muted-foreground">در حال بارگذاری لاگ‌ها...</div>
+                  <div className="py-8 text-center text-xs text-muted-foreground flex flex-col items-center gap-2">
+                    <RefreshCw className="h-4 w-4 animate-spin text-primary" />
+                    در حال دریافت جزئیات لاگ‌های دیتابیس...
+                  </div>
                 ) : auditLogs.length === 0 ? (
-                  <div className="py-6 text-center text-xs text-muted-foreground">رویدادی ثبت نشده است</div>
+                  <div className="py-8 text-center text-xs text-muted-foreground">رویدادی یافت نشد</div>
                 ) : (
-                  auditLogs.map(log => (
-                    <div key={log._id} className="p-2.5 rounded-lg border bg-muted/30 text-[10.5px] space-y-1">
-                      <div className="flex items-center justify-between border-b pb-1">
-                        <span className="font-bold text-foreground">عملیات: {log.action}</span>
-                        <span className="font-mono text-[9px] text-muted-foreground">{new Date(log.createdAt).toLocaleTimeString("fa-IR")}</span>
+                  auditLogs.map((log) => (
+                    <div
+                      key={log._id}
+                      className={cn(
+                        "p-2.5 rounded-lg border text-[11px] space-y-1.5 transition-all hover:shadow-sm",
+                        log.result === "FAILURE" ? "bg-rose-500/5 border-rose-500/30" : "bg-card border-border/80"
+                      )}
+                    >
+                      {/* Top Header Row */}
+                      <div className="flex items-center justify-between border-b pb-1.5">
+                        <div className="flex items-center gap-1.5 truncate max-w-[70%]">
+                          <Badge
+                            variant={log.result === "FAILURE" ? "destructive" : "secondary"}
+                            className="text-[9px] px-1.5 py-0 h-4 font-normal shrink-0"
+                          >
+                            {log.result === "FAILURE" ? "ناموفق" : "موفق"}
+                          </Badge>
+                          <span className="font-bold text-foreground truncate" title={log.action}>
+                            {log.action}
+                          </span>
+                        </div>
+                        <Button
+                          size="xs"
+                          variant="outline"
+                          className="h-5 px-1.5 text-[9.5px] gap-1 border-primary/30 hover:bg-primary/10"
+                          onClick={() => setSelectedLogModal(log)}
+                        >
+                          <Eye className="h-3 w-3" />
+                          جزئیات
+                        </Button>
                       </div>
-                      <div className="text-muted-foreground">کاربر: <span className="text-foreground font-bold">{log.username}</span></div>
-                      {log.oldValue && (
-                        <div className="text-rose-600 truncate">قبل: <span className="font-semibold">{JSON.stringify(log.oldValue)}</span></div>
-                      )}
-                      {log.newValue && (
-                        <div className="text-emerald-700 truncate">بعد: <span className="font-semibold">{JSON.stringify(log.newValue)}</span></div>
-                      )}
+
+                      {/* User Info Row */}
+                      <div className="flex items-center justify-between text-muted-foreground text-[10px]">
+                        <span className="flex items-center gap-1 text-foreground font-semibold">
+                          <UsersIcon className="h-3 w-3 text-primary shrink-0" />
+                          {log.userFullName || log.username} ({log.username || "anonymous"})
+                        </span>
+                        {log.userRole && (
+                          <Badge variant="outline" className="text-[8.5px] px-1 py-0 h-3.5">
+                            {log.userRole}
+                          </Badge>
+                        )}
+                      </div>
+
+                      {/* Shamsi Date & Time Row */}
+                      <div className="flex items-center justify-between text-[10px] text-muted-foreground font-mono bg-muted/30 px-1.5 py-0.5 rounded">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3 text-emerald-600 shrink-0" />
+                          {log.shamsiDateTime || (log.shamsiDate ? `${log.shamsiDate} ${log.shamsiTime || ''}` : new Date(log.createdAt).toLocaleString("fa-IR"))}
+                        </span>
+                        {log.durationMs != null && (
+                          <span className="flex items-center gap-0.5 text-[9px] text-muted-foreground">
+                            <Clock className="h-2.5 w-2.5" />
+                            {log.durationMs}ms
+                          </span>
+                        )}
+                      </div>
+
+                      {/* OS & Browser & IP Badges */}
+                      <div className="grid grid-cols-2 gap-1 text-[9.5px] pt-0.5">
+                        <div className="flex items-center gap-1 bg-muted/40 p-1 rounded border border-border/50 truncate" title={`سیستم‌عامل: ${log.osName || 'نامشخص'} | مرورگر: ${log.browser || 'نامشخص'}`}>
+                          <Laptop className="h-3 w-3 text-blue-500 shrink-0" />
+                          <span className="truncate font-sans font-medium text-foreground">
+                            {log.osName || "سیستم‌عامل نامشخص"}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-1 bg-muted/40 p-1 rounded border border-border/50 truncate" title={`آی‌پی: ${log.ip || '127.0.0.1'} | موقعیت: ${log.ipLocation || ''}`}>
+                          <Globe className="h-3 w-3 text-amber-500 shrink-0" />
+                          <span className="truncate font-mono font-medium text-foreground">
+                            {log.ip || "127.0.0.1"}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   ))
                 )}
               </CardContent>
             </Card>
+          </div>
+        )}
+
+        {/* Detailed Audit Log Modal Dialog */}
+        {selectedLogModal && (
+          <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in fade-in zoom-in-95">
+              <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/20">
+                <div className="flex items-center gap-2">
+                  <Terminal className="h-5 w-5 text-primary" />
+                  <div>
+                    <h3 className="text-sm font-bold text-foreground">جزئیات پیشرفته لاگ امنیتی دیتابیس</h3>
+                    <p className="text-[11px] text-muted-foreground">شناسه رویداد: {selectedLogModal._id}</p>
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 w-8 p-0 rounded-full"
+                  onClick={() => setSelectedLogModal(null)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <div className="p-4 space-y-4 overflow-y-auto text-xs">
+                {/* Summary Grid */}
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
+                  <div className="p-2 rounded bg-muted/40 border space-y-0.5">
+                    <span className="text-[10px] text-muted-foreground">عنوان عملیات</span>
+                    <p className="font-bold text-foreground truncate">{selectedLogModal.action}</p>
+                  </div>
+
+                  <div className="p-2 rounded bg-muted/40 border space-y-0.5">
+                    <span className="text-[10px] text-muted-foreground">کاربر اجراکننده</span>
+                    <p className="font-bold text-foreground truncate">{selectedLogModal.userFullName || selectedLogModal.username} ({selectedLogModal.username})</p>
+                  </div>
+
+                  <div className="p-2 rounded bg-muted/40 border space-y-0.5">
+                    <span className="text-[10px] text-muted-foreground">نتیجه و کد وضعیت</span>
+                    <p className="font-bold truncate">
+                      <span className={selectedLogModal.result === "FAILURE" ? "text-rose-600" : "text-emerald-600"}>
+                        {selectedLogModal.result === "FAILURE" ? "شکست (FAILURE)" : "موفق (SUCCESS)"}
+                      </span>
+                      {selectedLogModal.errorCode && ` [کد: ${selectedLogModal.errorCode}]`}
+                    </p>
+                  </div>
+
+                  <div className="p-2 rounded bg-muted/40 border space-y-0.5">
+                    <span className="text-[10px] text-muted-foreground">تاریخ و زمان شمسی</span>
+                    <p className="font-mono font-bold text-emerald-700 dark:text-emerald-400">
+                      {selectedLogModal.shamsiDateTime || selectedLogModal.shamsiDate || new Date(selectedLogModal.createdAt).toLocaleString("fa-IR")}
+                    </p>
+                  </div>
+
+                  <div className="p-2 rounded bg-muted/40 border space-y-0.5">
+                    <span className="text-[10px] text-muted-foreground">سیستم‌عامل و دستگاه</span>
+                    <p className="font-semibold text-foreground truncate">
+                      {selectedLogModal.osName || "نامشخص"} ({selectedLogModal.deviceType || "نامشخص"})
+                    </p>
+                  </div>
+
+                  <div className="p-2 rounded bg-muted/40 border space-y-0.5">
+                    <span className="text-[10px] text-muted-foreground">مرورگر و نسخه</span>
+                    <p className="font-semibold text-foreground truncate">{selectedLogModal.browser || selectedLogModal.browserName || "نامشخص"}</p>
+                  </div>
+
+                  <div className="p-2 rounded bg-muted/40 border space-y-0.5">
+                    <span className="text-[10px] text-muted-foreground">آدرس IP و موقعیت</span>
+                    <p className="font-mono font-semibold text-foreground truncate">{selectedLogModal.ip || "127.0.0.1"}</p>
+                    <p className="text-[9.5px] text-muted-foreground truncate">{selectedLogModal.ipLocation || "شبکه داخلی"}</p>
+                  </div>
+
+                  <div className="p-2 rounded bg-muted/40 border space-y-0.5">
+                    <span className="text-[10px] text-muted-foreground">تایم‌زون</span>
+                    <p className="font-mono text-[10.5px] text-foreground truncate">{selectedLogModal.timezone || "Asia/Tehran"}</p>
+                  </div>
+
+                  <div className="p-2 rounded bg-muted/40 border space-y-0.5">
+                    <span className="text-[10px] text-muted-foreground">شناسه پیگیری (Correlation ID)</span>
+                    <p className="font-mono text-[9.5px] text-foreground truncate">{selectedLogModal.correlationId || "-"}</p>
+                  </div>
+                </div>
+
+                {/* Details / Payload JSON */}
+                <div className="space-y-1">
+                  <span className="font-bold text-foreground text-xs flex items-center gap-1">
+                    <Info className="h-3.5 w-3.5 text-primary" />
+                    جزئیات فنی و پارامترهای دیتابیس (Details Payload)
+                  </span>
+                  <pre className="p-3 rounded-lg bg-slate-950 text-slate-100 font-mono text-[11px] overflow-x-auto max-h-60 dir-ltr text-left border">
+                    {JSON.stringify(selectedLogModal.details || selectedLogModal, null, 2)}
+                  </pre>
+                </div>
+              </div>
+
+              <div className="px-4 py-2.5 border-t bg-muted/20 flex justify-end">
+                <Button size="sm" onClick={() => setSelectedLogModal(null)}>
+                  بستن
+                </Button>
+              </div>
+            </div>
           </div>
         )}
       </div>

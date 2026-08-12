@@ -3,6 +3,8 @@ import { getDb } from "../db/index.js";
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
+import { parseUserAgent, ParsedUserAgent } from "./uaParser.js";
+import { getShamsiDetails, resolveIpLocation, resolveTimezone } from "./shamsi.js";
 
 // ── 14 گستره الزامی ثبت‌نشان‌ها مطابق سند افتا ───────────────────────────
 export const AFTA_LOG_EVENT_TYPES = {
@@ -50,19 +52,55 @@ export const AFTA_LOG_EVENT_TYPES = {
   INACTIVE_ENTITY_OPERATION: "درخواست عملیات بر روی موجودیت غیرفعال",
 
   // ۱۴. تمامی تلاش‌ها برای وارد کردن داده‌های کاربری (شامل ویژگی‌های امنیتی)
-  USER_DATA_IMPORT_ATTEMPT: "تلاش برای وارد کردن داده‌های کاربری"
+  USER_DATA_IMPORT_ATTEMPT: "تلاش برای وارد کردن داده‌های کاربری",
+
+  // ۱۵. همه تلاش‌ها برای خارج کردن اطلاعات از محصول (مطابق الزامات جدید)
+  DATA_EXPORT_ATTEMPT: "همه تلاش‌ها برای خارج کردن اطلاعات از محصول",
+
+  // ۱۶. تمامی تغییرات در رفتارهای توابع کارکردی محصول
+  FUNCTION_BEHAVIOR_CHANGE: "تمامی تغییرات در رفتارهای توابع کارکردی محصول",
+
+  // ۱۷. استفاده از کارکردهای مدیریتی
+  ADMIN_FUNCTION_USAGE: "استفاده از کارکردهای مدیریتی",
+
+  // ۱۸. تغییرات در گروه کاربران
+  USER_GROUP_CHANGE: "تغییرات در گروه کاربران",
+
+  // ۱۹. شکست در کارکردهای امنیتی محصول
+  SECURITY_FUNCTION_FAILURE: "شکست در کارکردهای امنیتی محصول",
+
+  // ۲۰. تمامی قابلیت‌هایی از محصول که به دلیل شکست (خرابی یا مشکل کارکرد)، نمی‌توانند عملیات مورد نظر را انجام دهند
+  SYSTEM_CAPABILITY_FAILURE: "شکست در قابلیت کارکردی محصول (خرابی/مشکل کارکرد)",
+
+  // ۲۱. تلاش موفق یا ناموفق برای برقراری نشست
+  SESSION_ESTABLISHMENT_ATTEMPT: "تلاش برای برقراری نشست",
+
+  // ۲۲. ایجاد نشدن نشست به دلیل محدودیت نشست‌های همزمان (حداقل)
+  CONCURRENT_SESSION_LIMIT_EXCEEDED: "ایجاد نشدن نشست به دلیل محدودیت نشست‌های همزمان",
+
+  // ۲۳. خاتمه دادن به یک نشست غیرفعال توسط سازوکار قفل نشست
+  INACTIVE_SESSION_TERMINATED_BY_LOCK: "خاتمه دادن به نشست غیرفعال توسط سازوکار قفل نشست",
+
+  // ۲۴. خاتمه به نشست غیرفعال توسط مدیر سیستم
+  INACTIVE_SESSION_TERMINATED_BY_ADMIN: "خاتمه به نشست غیرفعال توسط مدیر سیستم"
 } as const;
 
 export interface AuditLogParams {
   userId?: string | ObjectId;
   username?: string;
+  userFullName?: string;
+  userRole?: string;
   action: string;
   resource: string;
   result: "SUCCESS" | "FAILURE";
   ip?: string;
+  location?: string;
   userAgent?: string;
+  timezone?: string;
   correlationId?: string;
   errorCode?: string | number;
+  durationMs?: number;
+  method?: string;
   details?: Record<string, any>;
   eventType?: keyof typeof AFTA_LOG_EVENT_TYPES | string;
 }
@@ -118,21 +156,61 @@ function writeFallbackFileLog(logEntry: Record<string, any>): void {
 }
 
 export async function logAuditEvent(params: AuditLogParams): Promise<void> {
+  const now = new Date();
   const correlationId = params.correlationId || crypto.randomUUID();
+  
+  // ۱. استخراج متاداده‌های دقیق سیستم‌عامل، مرورگر و دستگاه
+  const parsedUa: ParsedUserAgent = parseUserAgent(params.userAgent);
+  
+  // ۲. محاسبه دقیق تاریخ و زمان هجری شمسی
+  const shamsi = getShamsiDetails(now);
+
+  // ۳. موقعیت مکانی و تایم‌زون
+  const clientIp = params.ip || "127.0.0.1";
+  const ipLocation = resolveIpLocation(clientIp, params.location);
+  const timezone = resolveTimezone(params.timezone);
+
   const logEntry = {
     userId: params.userId ? (typeof params.userId === "string" ? params.userId : params.userId.toHexString()) : "SYSTEM",
     username: params.username || "anonymous",
+    userFullName: params.userFullName || params.username || "ناشناس",
+    userRole: params.userRole || "سیستم",
     action: params.action,
     eventType: params.eventType || params.action,
     resource: params.resource,
+    method: params.method || null,
     result: params.result,
-    ip: params.ip || "127.0.0.1",
+    ip: clientIp,
+    ipLocation,
     userAgent: params.userAgent || "Unknown",
+    
+    // فیلدهای دقیق سیستم‌عامل و مرورگر
+    osName: parsedUa.osName,
+    osType: parsedUa.osType,
+    osVersion: parsedUa.osVersion,
+    deviceType: parsedUa.deviceType,
+    browser: parsedUa.browser,
+    browserName: parsedUa.browserName,
+    browserVersion: parsedUa.browserVersion,
+
+    // فیلدهای دقیق تاریخ و زمان شمسی و تایم‌زون
+    timezone,
+    shamsiDate: shamsi.shamsiDate,
+    shamsiDateTime: shamsi.shamsiDateTime,
+    shamsiTime: shamsi.shamsiTime,
+    shamsiYear: shamsi.shamsiYear,
+    shamsiMonth: shamsi.shamsiMonth,
+    shamsiDay: shamsi.shamsiDay,
+    shamsiMonthName: shamsi.shamsiMonthName,
+    shamsiDayOfWeek: shamsi.shamsiDayOfWeek,
+
+    // اطلاعات فنی عملیات
     correlationId,
-    errorCode: params.errorCode || null,
+    durationMs: params.durationMs ?? null,
+    errorCode: params.errorCode ?? null,
     details: sanitizePayload(params.details || {}),
-    timestamp: new Date().toISOString(),
-    createdAt: new Date()
+    timestamp: now.toISOString(),
+    createdAt: now
   };
 
   try {
@@ -141,27 +219,46 @@ export async function logAuditEvent(params: AuditLogParams): Promise<void> {
     // ۵. بررسی حد آستانه سرریز حافظه ثبت‌نشان‌ها
     const count = await db.collection("audit_logs").estimatedDocumentCount();
     if (count >= AUDIT_STORAGE_THRESHOLD) {
-      // اجرای عملیات کنترل سرریز (حذف پایش شده قدیمی‌ترین لوگ‌های غیربحرانی و ثبت لوگ سرریز)
-      const overflowLog = {
-        userId: "SYSTEM",
-        username: "SYSTEM_MONITOR",
-        action: AFTA_LOG_EVENT_TYPES.AUDIT_LOG_OVERFLOW_ACTION,
-        eventType: AFTA_LOG_EVENT_TYPES.AUDIT_LOG_OVERFLOW_ACTION,
-        resource: "audit_logs_storage",
-        result: "SUCCESS",
-        ip: "127.0.0.1",
-        correlationId,
-        details: { currentCount: count, threshold: AUDIT_STORAGE_THRESHOLD, actionTaken: "چرخش اتوماتیک و آرشیو لوگ‌های قدیمی" },
-        timestamp: new Date().toISOString(),
-        createdAt: new Date()
-      };
-
       // حذف قدیمی‌ترین ۱۰,۰۰۰ لوگ
       const oldestLogs = await db.collection("audit_logs").find().sort({ createdAt: 1 }).limit(10000).toArray();
       if (oldestLogs.length > 0) {
         const ids = oldestLogs.map((l) => l._id);
         await db.collection("audit_logs").deleteMany({ _id: { $in: ids } });
       }
+
+      const overflowLog = {
+        userId: "SYSTEM",
+        username: "SYSTEM_MONITOR",
+        userFullName: "سامانه پایش هوشمند",
+        userRole: "سیستم",
+        action: AFTA_LOG_EVENT_TYPES.AUDIT_LOG_OVERFLOW_ACTION,
+        eventType: AFTA_LOG_EVENT_TYPES.AUDIT_LOG_OVERFLOW_ACTION,
+        resource: "audit_logs_storage",
+        result: "SUCCESS",
+        ip: "127.0.0.1",
+        ipLocation: "شبکه داخلی (LAN) / Localhost",
+        userAgent: "Internal/System",
+        osName: "Server Node.js Environment",
+        osType: "Server",
+        osVersion: "1.0",
+        deviceType: "دسکتاپ (Desktop)",
+        browser: "Internal Engine",
+        browserName: "Node.js",
+        browserVersion: process.version,
+        timezone,
+        shamsiDate: shamsi.shamsiDate,
+        shamsiDateTime: shamsi.shamsiDateTime,
+        shamsiTime: shamsi.shamsiTime,
+        shamsiYear: shamsi.shamsiYear,
+        shamsiMonth: shamsi.shamsiMonth,
+        shamsiDay: shamsi.shamsiDay,
+        shamsiMonthName: shamsi.shamsiMonthName,
+        shamsiDayOfWeek: shamsi.shamsiDayOfWeek,
+        correlationId,
+        details: { currentCount: count, threshold: AUDIT_STORAGE_THRESHOLD, actionTaken: "چرخش اتوماتیک و حذف ۱۰,۰۰۰ لوگ قدیمی" },
+        timestamp: now.toISOString(),
+        createdAt: now
+      };
       await db.collection("audit_logs").insertOne(overflowLog);
     }
 

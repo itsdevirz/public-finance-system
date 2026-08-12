@@ -2,6 +2,7 @@ import { createMiddleware } from "hono/factory";
 import { verifyToken } from "../lib/auth.js";
 import { getDb } from "../db/index.js";
 import { ObjectId } from "mongodb";
+import { logAuditEvent, AFTA_LOG_EVENT_TYPES } from "../lib/auditLogger.js";
 
 export const requireAuth = createMiddleware(async (c, next) => {
   const header = c.req.header("Authorization");
@@ -48,14 +49,49 @@ export const requireAuth = createMiddleware(async (c, next) => {
       }
     }
 
-    // Token Revocation check
+    // Token Revocation & Active Session Idle Timeout check
     const revokedSession = await db.collection("revoked_tokens").findOne({ token: rawToken });
     if (revokedSession) {
       return c.json({ success: false, message: "نشست شما باطل شده است. لطفاً دوباره وارد شوید." }, 401);
     }
 
+    const activeSession = await db.collection("active_sessions").findOne({ token: rawToken });
+    if (activeSession) {
+      const secPolicySetting = await db.collection("system_settings").findOne({ key: "security_policy" });
+      const idleTimeoutMin = secPolicySetting?.value?.sessionPolicy?.idleTimeoutMinutes || 30;
+      const lastActivityTime = activeSession.lastActivity ? new Date(activeSession.lastActivity).valueOf() : Date.now();
+      const idleMinutes = (Date.now() - lastActivityTime) / (60 * 1000);
+
+      if (idleMinutes > idleTimeoutMin) {
+        await db.collection("revoked_tokens").insertOne({ token: rawToken, revokedAt: new Date().toISOString() });
+        await db.collection("active_sessions").deleteOne({ token: rawToken });
+
+        await logAuditEvent({
+          userId: user._id,
+          username: user.username,
+          userRole: user.role,
+          action: AFTA_LOG_EVENT_TYPES.INACTIVE_SESSION_TERMINATED_BY_LOCK,
+          eventType: AFTA_LOG_EVENT_TYPES.INACTIVE_SESSION_TERMINATED_BY_LOCK,
+          resource: "active_sessions",
+          result: "FAILURE",
+          ip: c.req.header("x-forwarded-for") || "127.0.0.1",
+          userAgent: c.req.header("user-agent"),
+          errorCode: 401,
+          details: { idleMinutes: Math.round(idleMinutes), idleTimeoutMin }
+        });
+
+        return c.json({ success: false, message: `نشست شما به دلیل عدم فعالیت به مدت ${Math.round(idleMinutes)} دقیقه قفل و خاتمه یافت. لطفاً دوباره وارد شوید.` }, 401);
+      } else {
+        // Update last activity timestamp
+        await db.collection("active_sessions").updateOne(
+          { token: rawToken },
+          { $set: { lastActivity: new Date().toISOString() } }
+        );
+      }
+    }
+
     // Attach enriched user information and permissions to Hono context
-    c.set("jwtPayload", {
+    (c.set as any)("jwtPayload", {
       ...payload,
       role: user.role || payload.role || "حسابدار",
       permissions: user.permissions || {},

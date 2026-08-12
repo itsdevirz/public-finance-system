@@ -64,20 +64,33 @@ app.use("*", logger());
 app.use("*", async (c, next) => {
   const startMs = Date.now();
   const correlationId = c.req.header("x-correlation-id") || crypto.randomUUID();
-  c.set("correlationId", correlationId);
+  (c.set as any)("correlationId", correlationId);
   c.header("X-Correlation-ID", correlationId);
 
   const path = c.req.path;
   const method = c.req.method;
 
+  const ip = c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || c.req.header("cf-connecting-ip") || "127.0.0.1";
+  const userAgent = c.req.header("user-agent") || "Unknown";
+  const timezone = c.req.header("x-timezone") || c.req.header("x-time-zone");
+  const location = c.req.header("x-location");
+
   // ۱. لوگ شروع درخواست/تابع برای روت‌های غیر استاتیک API
   if (path.startsWith("/api")) {
+    const payload = (c.get as any)("jwtPayload");
     await logAuditEvent({
+      userId: payload?.sub,
+      username: payload?.username,
+      userRole: payload?.role,
       action: `${AFTA_LOG_EVENT_TYPES.FUNCTION_START}: ${method} ${path}`,
       eventType: AFTA_LOG_EVENT_TYPES.FUNCTION_START,
       resource: path,
+      method,
       result: "SUCCESS",
-      ip: c.req.header("x-forwarded-for") || "127.0.0.1",
+      ip,
+      userAgent,
+      timezone,
+      location,
       correlationId,
       details: { method, path }
     });
@@ -93,12 +106,18 @@ app.use("*", async (c, next) => {
     await logAuditEvent({
       userId: payload?.sub,
       username: payload?.username,
+      userRole: payload?.role,
       action: `${AFTA_LOG_EVENT_TYPES.FUNCTION_END}: ${method} ${path}`,
       eventType: AFTA_LOG_EVENT_TYPES.FUNCTION_END,
       resource: path,
+      method,
       result: c.res.status < 400 ? "SUCCESS" : "FAILURE",
-      ip: c.req.header("x-forwarded-for") || "127.0.0.1",
+      ip,
+      userAgent,
+      timezone,
+      location,
       correlationId,
+      durationMs,
       errorCode: c.res.status >= 400 ? c.res.status : undefined,
       details: { method, path, durationMs, status: c.res.status }
     });
@@ -141,9 +160,30 @@ app.use(
 );
 
 // Secure Error Handling (No stack traces in response)
-app.onError((err, c) => {
-  const correlationId = c.get("correlationId") || "UNKNOWN";
+app.onError(async (err, c) => {
+  const correlationId = (c.get as any)("correlationId") || "UNKNOWN";
+  const payload = (c.get as any)("jwtPayload");
   console.error(`[Error ID: ${correlationId}] Global Server Error:`, err);
+
+  // ثبت شکست در قابلیت کارکردی محصول (SYSTEM_CAPABILITY_FAILURE)
+  try {
+    await logAuditEvent({
+      userId: payload?.sub,
+      username: payload?.username,
+      userRole: payload?.role,
+      action: AFTA_LOG_EVENT_TYPES.SYSTEM_CAPABILITY_FAILURE,
+      eventType: AFTA_LOG_EVENT_TYPES.SYSTEM_CAPABILITY_FAILURE,
+      resource: c.req.path,
+      method: c.req.method,
+      result: "FAILURE",
+      ip: c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "127.0.0.1",
+      userAgent: c.req.header("user-agent"),
+      correlationId,
+      errorCode: 500,
+      details: { errorMsg: err.message, path: c.req.path, method: c.req.method }
+    });
+  } catch (_) {}
+
   return c.json(
     {
       success: false,

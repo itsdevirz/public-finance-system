@@ -203,7 +203,7 @@ router.post("/", async (c) => {
     };
 
     const result = await db.collection<BankStatementFormat>("bank_statement_formats").insertOne(newFormat as any);
-    const inserted = await db.collection("bank_statement_formats").findOne({ _id: result.insertedId });
+    const inserted = await db.collection("bank_statement_formats").findOne({ _id: result.insertedId as any });
 
     return c.json({
       success: true,
