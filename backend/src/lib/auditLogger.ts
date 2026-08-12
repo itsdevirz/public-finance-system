@@ -5,6 +5,7 @@ import fs from "fs";
 import path from "path";
 import { parseUserAgent, ParsedUserAgent } from "./uaParser.js";
 import { getShamsiDetails, resolveIpLocation, resolveTimezone } from "./shamsi.js";
+import { sendAdminThresholdNotification } from "./notifier.js";
 
 // ── 14 گستره الزامی ثبت‌نشان‌ها مطابق سند افتا ───────────────────────────
 export const AFTA_LOG_EVENT_TYPES = {
@@ -139,7 +140,7 @@ function sanitizePayload(obj: any): any {
   return sanitized;
 }
 
-const AUDIT_STORAGE_THRESHOLD = 100000; // حد آستانه تعداد لوگ‌ها قبل از سرریز
+const AUDIT_STORAGE_THRESHOLD = 10000; // حد آستانه ۱۰,۰۰۰ رکورد لاگ قبل از سرریز
 const HMAC_SECRET = process.env.AUDIT_LOG_SECRET || "AFTA_SECURE_HMAC_SECRET_KEY_2026";
 
 /**
@@ -284,50 +285,10 @@ export async function logAuditEvent(params: AuditLogParams): Promise<void> {
   try {
     const db = getDb();
 
-    // ۵. بررسی حد آستانه سرریز حافظه ثبت‌نشان‌ها
+    // ۵. بررسی حد آستانه سرریز حافظه و پاکسازی اتوماتیک
     const count = await db.collection("audit_logs").estimatedDocumentCount();
     if (count >= AUDIT_STORAGE_THRESHOLD) {
-      // حذف قدیمی‌ترین ۱۰,۰۰۰ لوگ
-      const oldestLogs = await db.collection("audit_logs").find().sort({ createdAt: 1 }).limit(10000).toArray();
-      if (oldestLogs.length > 0) {
-        const ids = oldestLogs.map((l) => l._id);
-        await db.collection("audit_logs").deleteMany({ _id: { $in: ids } });
-      }
-
-      const overflowLog = {
-        userId: "SYSTEM",
-        username: "SYSTEM_MONITOR",
-        userFullName: "سامانه پایش هوشمند",
-        userRole: "سیستم",
-        action: AFTA_LOG_EVENT_TYPES.AUDIT_LOG_OVERFLOW_ACTION,
-        eventType: AFTA_LOG_EVENT_TYPES.AUDIT_LOG_OVERFLOW_ACTION,
-        resource: "audit_logs_storage",
-        result: "SUCCESS",
-        ip: "127.0.0.1",
-        ipLocation: "شبکه داخلی (LAN) / Localhost",
-        userAgent: "Internal/System",
-        osName: "Server Node.js Environment",
-        osType: "Server",
-        osVersion: "1.0",
-        deviceType: "دسکتاپ (Desktop)",
-        browser: "Internal Engine",
-        browserName: "Node.js",
-        browserVersion: process.version,
-        timezone,
-        shamsiDate: shamsi.shamsiDate,
-        shamsiDateTime: shamsi.shamsiDateTime,
-        shamsiTime: shamsi.shamsiTime,
-        shamsiYear: shamsi.shamsiYear,
-        shamsiMonth: shamsi.shamsiMonth,
-        shamsiDay: shamsi.shamsiDay,
-        shamsiMonthName: shamsi.shamsiMonthName,
-        shamsiDayOfWeek: shamsi.shamsiDayOfWeek,
-        correlationId,
-        details: { currentCount: count, threshold: AUDIT_STORAGE_THRESHOLD, actionTaken: "چرخش اتوماتیک و حذف ۱۰,۰۰۰ لوگ قدیمی" },
-        timestamp: now.toISOString(),
-        createdAt: now
-      };
-      await db.collection("audit_logs").insertOne(overflowLog);
+      await runAuditLogRetentionAndRotation();
     }
 
     await db.collection("audit_logs").insertOne(logEntry);
@@ -342,4 +303,77 @@ export async function logAuditEvent(params: AuditLogParams): Promise<void> {
     };
     writeFallbackFileLog(storageFailureLog);
   }
+}
+
+/**
+ * عملیات خودکار چرخش و پاکسازی لاگ‌ها:
+ * ۱. پاکسازی اتوماتیک تمام لاگ‌های قدیمی‌تر از ۳ ماه (۹۰ روز)
+ * ۲. بازنویسی و چرخش اتوماتیک قدیمی‌ترین لاگ‌ها در صورت تجاوز از سقف ۱۰,۰۰۰ رکورد (FIFO)
+ */
+export async function runAuditLogRetentionAndRotation(): Promise<{ prunedByAge: number; prunedByCapacity: number }> {
+  let prunedByAge = 0;
+  let prunedByCapacity = 0;
+
+  try {
+    const db = getDb();
+    const now = new Date();
+
+    // ۱. حذف لاگ‌های قدیمی‌تر از ۳ ماه (۹۰ روز)
+    const threeMonthsAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+    const ageDeleteResult = await db.collection("audit_logs").deleteMany({
+      $or: [
+        { createdAt: { $lt: threeMonthsAgo } },
+        { timestamp: { $lt: threeMonthsAgo.toISOString() } }
+      ]
+    });
+    prunedByAge = ageDeleteResult.deletedCount || 0;
+
+    // ۲. بررسی ظرفیت ذخیره‌سازی (سقف ۱۰,۰۰۰ لاگ)
+    const totalCount = await db.collection("audit_logs").countDocuments();
+    if (totalCount >= AUDIT_STORAGE_THRESHOLD) {
+      // تعداد رکوردهای اضافی که باید حذف و با لاگ جدید بازنویسی شوند
+      const excess = (totalCount - AUDIT_STORAGE_THRESHOLD) + 500; // حذف حداقل ۵۰۰ لاگ قدیمی جهت ایجاد ظرفیت لاگ‌های جدید
+      const oldestLogs = await db.collection("audit_logs")
+        .find({}, { projection: { _id: 1 } })
+        .sort({ createdAt: 1 })
+        .limit(excess)
+        .toArray();
+
+      if (oldestLogs.length > 0) {
+        const ids = oldestLogs.map((l) => l._id);
+        const capDeleteResult = await db.collection("audit_logs").deleteMany({ _id: { $in: ids } });
+        prunedByCapacity = capDeleteResult.deletedCount || 0;
+      }
+
+      // ارسال notification به ادمین سیستم
+      sendAdminThresholdNotification({
+        currentCount: totalCount,
+        threshold: AUDIT_STORAGE_THRESHOLD,
+        actionTaken: `چرخش اتوماتیک لاگ‌ها: ${prunedByCapacity} لاگ قدیمی با جدید بازنویسی شدند. (${prunedByAge} لاگ ۳ ماه پیش پاکسازی شد)`,
+        isSimulated: false
+      }).catch(err => console.error("Notification Error:", err));
+    }
+
+    if (prunedByAge > 0 || prunedByCapacity > 0) {
+      console.log(`[AUDIT RETENTION AUTOMATIC CRON] Success: Pruned ${prunedByAge} logs (older than 3 months) & Rotated ${prunedByCapacity} logs (10,000 capacity threshold exceeded).`);
+    }
+  } catch (err) {
+    console.error("Error in runAuditLogRetentionAndRotation:", err);
+  }
+
+  return { prunedByAge, prunedByCapacity };
+}
+
+/**
+ * تایمر و زمان‌بندی اتوماتیک برای اجرای چرخش و پاکسازی لاگ‌ها (هر ۱ ساعت یک‌بار + هنگام استارت بک‌اند)
+ */
+export function startAuditLogAutoCleanupCron(): void {
+  // اجرای فوری در استارت‌آپ سرور
+  runAuditLogRetentionAndRotation().catch(err => console.error("Initial audit log cleanup failed:", err));
+
+  // اجرای خودکار هر ۱ ساعت یک‌بار سر تایم دقیق
+  const ONE_HOUR_MS = 60 * 60 * 1000;
+  setInterval(() => {
+    runAuditLogRetentionAndRotation().catch(err => console.error("Scheduled audit log cleanup failed:", err));
+  }, ONE_HOUR_MS);
 }

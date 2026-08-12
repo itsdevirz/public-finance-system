@@ -179,6 +179,39 @@ export default function Users() {
 
   const [verifyingIntegrity, setVerifyingIntegrity] = useState(false);
   const [integrityStatus, setIntegrityStatus] = useState(null);
+  const [storageStatus, setStorageStatus] = useState(null);
+  const [testingAlert, setTestingAlert] = useState(false);
+
+  const fetchStorageStatus = useCallback(async () => {
+    try {
+      const res = await api.get("/api/security/storage-status");
+      if (res.data?.success) {
+        setStorageStatus(res.data);
+      }
+    } catch (_) { }
+  }, []);
+
+  const handleTestThresholdAlert = async () => {
+    setTestingAlert(true);
+    try {
+      const res = await api.post("/api/security/test-threshold-alert");
+      if (res.data?.success) {
+        alert("🚨 پیام هشدار سرریز لاگ‌ها با موفقیت به کانال‌های اطلاع‌رسانی سیستم، پیامک و ایمیل ادمین ارسال شد!");
+        fetchStorageStatus();
+      }
+    } catch (err) {
+      alert("خطا در ارسال پیام هشدار آزمایشی.");
+    } finally {
+      setTestingAlert(false);
+    }
+  };
+
+  const handleMarkNotificationsRead = async () => {
+    try {
+      await api.post("/api/security/notifications/mark-read");
+      fetchStorageStatus();
+    } catch (_) { }
+  };
 
   const handleVerifyDatabaseIntegrity = async () => {
     setVerifyingIntegrity(true);
@@ -189,7 +222,7 @@ export default function Users() {
         if (res.data.isFullySecure) {
           alert(`✅ سلامت اصالت دیتابیس تایید شد.\n\nتعداد کل لاگ‌های اسکن‌شده: ${res.data.totalScanned}\nلاگ‌های دارای اصالت معتبر (HMAC): ${res.data.validCount}\nتعداد لاگ‌های دستکاری‌شده: ۰`);
         } else {
-          alert(`⚠️ هشدار امنیتی افتا!\n\nاصالت ${res.data.tamperedCount} لاگ در دیتابیس تایید نشد! احتمال دستکاری مستقیم رکوردهای پایگاه داده وجود دارد.`);
+          alert(`⚠️ هشدار امنیتی!\n\nاصالت ${res.data.tamperedCount} لاگ در دیتابیس تایید نشد! احتمال دستکاری مستقیم رکوردهای پایگاه داده وجود دارد.`);
         }
       }
     } catch (err) {
@@ -203,8 +236,9 @@ export default function Users() {
     fetchUsers();
     if (currentUser?.role === "admin") {
       fetchLogs();
+      fetchStorageStatus();
     }
-  }, [fetchUsers, fetchLogs, currentUser]);
+  }, [fetchUsers, fetchLogs, fetchStorageStatus, currentUser]);
 
   const filteredUsers = useMemo(() => {
     return users.filter(user => {
@@ -1127,40 +1161,68 @@ export default function Users() {
 
         {currentUser?.role === "admin" && (
           /* Right Column: Historical Audit Logs (Audit Log) */
-          <div className="xl:col-span-1 space-y-4">
-            <Card className="shadow-md border border-border h-full flex flex-col">
-              <CardHeader className="bg-muted/15 pb-2 shrink-0 border-b">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-bold text-foreground flex items-center gap-1.5">
-                    <History className="h-4.5 w-4.5 text-primary" />
-                    تاریخچه فعالیت‌ها (Audit Log پیشرفته)
+          <div className="xl:col-span-1 space-y-4 min-w-0">
+            <Card className="shadow-md border border-border h-full flex flex-col w-full max-w-full min-w-0 overflow-hidden">
+              <CardHeader className="bg-muted/15 p-3 pb-2 shrink-0 border-b overflow-hidden w-full max-w-full min-w-0 space-y-1.5">
+                <div className="flex items-center justify-between gap-1.5 flex-wrap w-full min-w-0">
+                  <CardTitle className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-1.5 min-w-0 truncate">
+                    <History className="h-4 w-4 text-primary shrink-0" />
+                    <span className="truncate">تاریخچه فعالیت‌ها (Audit Log)</span>
                   </CardTitle>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 shrink-0">
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-7 px-2 text-[10.5px] font-bold gap-1 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-300"
+                      className="h-6.5 px-2 text-[10px] font-bold gap-1 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-300 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-800 shrink-0"
                       onClick={handleVerifyDatabaseIntegrity}
                       disabled={verifyingIntegrity}
                       title="اعتبارسنجی خودکار اصالت HMAC رکوردهای دیتابیس"
                     >
-                      <ShieldCheck className={cn("h-3.5 w-3.5", verifyingIntegrity && "animate-spin")} />
-                      اسکن اصالت
+                      <ShieldCheck className={cn("h-3 w-3", verifyingIntegrity && "animate-spin")} />
+                      <span>اسکن اصالت</span>
                     </Button>
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="h-7 w-7 p-0"
-                      onClick={() => fetchLogs()}
+                      className="h-6.5 w-6.5 p-0 shrink-0"
+                      onClick={() => { fetchLogs(); fetchStorageStatus(); }}
                       title="به‌روزرسانی لیست لاگ‌ها"
                     >
                       <RefreshCw className={cn("h-3.5 w-3.5", loadingLogs && "animate-spin")} />
                     </Button>
                   </div>
                 </div>
-                <CardDescription className="text-[11px] text-muted-foreground mt-1">
-                  ثبت کامل جزئیات کاربر، آی‌پی، سیستم‌عامل، مرورگر، لوکیشن، تایم‌زون و تاریخ شمسی در دیتابیس
+                <CardDescription className="text-[10.5px] text-muted-foreground leading-tight truncate">
+                  ثبت کامل جزئیات کاربر، آی‌پی، سیستم‌عامل، مرورگر، لوکیشن و تاریخ شمسی
                 </CardDescription>
+
+                {/* Admin Storage Threshold Notification Alert Banner */}
+                {storageStatus && storageStatus.unreadNotificationsCount > 0 && (
+                  <div className="p-2.5 rounded-xl border border-rose-500/30 bg-gradient-to-r from-rose-500/10 via-rose-500/5 to-rose-500/10 text-foreground text-xs mt-2 space-y-1.5 shadow-sm w-full min-w-0 overflow-hidden break-words animate-in fade-in">
+                    <div className="flex items-start justify-between gap-1.5 min-w-0">
+                      <div className="flex items-start gap-1.5 min-w-0 flex-1">
+                        <AlertTriangle className="h-4 w-4 text-rose-500 animate-pulse shrink-0 mt-0.5" />
+                        <span className="font-bold text-rose-600 dark:text-rose-400 text-[11px] leading-snug break-words">
+                          {storageStatus.notifications[0]?.title || "🚨 هشدار حد آستانه ۱۰,۰۰۰ رکورد ثبت‌نشان‌ها"}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleMarkNotificationsRead}
+                        className="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-rose-500/15 hover:bg-rose-500/25 text-rose-700 dark:text-rose-300 border border-rose-500/30 shrink-0 transition-colors cursor-pointer"
+                      >
+                        خواندم
+                      </button>
+                    </div>
+                    <p className="text-[10.5px] text-muted-foreground leading-relaxed font-sans break-words">
+                      {storageStatus.notifications[0]?.message}
+                    </p>
+                    <div className="flex items-center justify-between text-[9px] font-mono text-muted-foreground/80 border-t border-rose-500/15 pt-1">
+                      <span>حجم: {storageStatus.totalLogs?.toLocaleString("fa-IR")} از ۱۰,۰۰۰</span>
+                      <span>{storageStatus.notifications[0]?.shamsiDateTime}</span>
+                    </div>
+                  </div>
+                )}
 
                 {/* Search & Advanced Filter/Sort Toolbar */}
                 <div className="space-y-2 mt-2">
@@ -1294,7 +1356,7 @@ export default function Users() {
                 </div>
               </CardHeader>
 
-              <CardContent className="p-2.5 overflow-y-auto h-[520px] max-h-[520px] space-y-2.5">
+              <CardContent className="p-2 overflow-y-auto h-[520px] max-h-[520px] space-y-2 w-full max-w-full min-w-0 overflow-x-hidden">
                 {loadingLogs ? (
                   <div className="py-8 text-center text-xs text-muted-foreground flex flex-col items-center gap-2">
                     <RefreshCw className="h-4 w-4 animate-spin text-primary" />

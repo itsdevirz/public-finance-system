@@ -11,7 +11,7 @@ import { requireAuth } from "./middleware/requireAuth.js";
 import { securityHeaders } from "./middleware/securityHeaders.js";
 import { rateLimiter } from "./middleware/rateLimiter.js";
 import { inputSanitizer } from "./middleware/inputSanitizer.js";
-import { logAuditEvent, AFTA_LOG_EVENT_TYPES } from "./lib/auditLogger.js";
+import { logAuditEvent, AFTA_LOG_EVENT_TYPES, startAuditLogAutoCleanupCron } from "./lib/auditLogger.js";
 
 import authRouter from "./routes/auth.js";
 import securitySettingsRouter from "./routes/securitySettings.js";
@@ -254,8 +254,9 @@ app.route("/api/bank-statements", bankStatementsRouter);
 app.route("/api/bank-reconciliation", bankReconciliationRouter);
 
 connectDb().then(() => {
+  startAuditLogAutoCleanupCron();
   serve({ fetch: app.fetch, port: 8000 }, () => {
-    console.log("🚀 Server running securely at http://localhost:8000");
+    console.log("🚀 Server running securely at http://localhost:8000 (Auto Log Retention & 10k Capacity Rotation Active)");
   });
 }).catch((err) => {
   console.error("Failed to connect to MongoDB:", err);

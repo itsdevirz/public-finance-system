@@ -1,8 +1,9 @@
 import { Hono } from "hono";
 import { getDb } from "../db/index.js";
 import { DEFAULT_SECURITY_POLICY } from "../lib/securityPolicy.js";
-import { logAuditEvent, AFTA_LOG_EVENT_TYPES, verifyLogIntegrity, signExistingLogs } from "../lib/auditLogger.js";
+import { logAuditEvent, AFTA_LOG_EVENT_TYPES, verifyLogIntegrity, signExistingLogs, runAuditLogRetentionAndRotation } from "../lib/auditLogger.js";
 import { requireRole } from "../middleware/rbacMiddleware.js";
+import { sendAdminThresholdNotification } from "../lib/notifier.js";
 
 const router = new Hono();
 
@@ -276,6 +277,84 @@ router.post("/revoke-session", requireRole(["admin"]), async (c) => {
     });
 
     return c.json({ success: true, message: "نشست کاربر با موفقیت باطل شد." });
+  } catch (error: any) {
+    return c.json({ success: false, message: error.message }, 500);
+  }
+});
+
+// GET /api/security/storage-status - دریافت وضعیت ظرفیت ذخیره‌سازی ثبت‌نشان‌ها و پیام‌های هشدار
+router.get("/storage-status", requireRole(["admin"]), async (c) => {
+  try {
+    const db = getDb();
+    const totalLogs = await db.collection("audit_logs").countDocuments();
+    const threshold = 10000;
+    const notifications = await db.collection("system_notifications")
+      .find({ recipientRole: "admin" })
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .toArray();
+
+    const unreadCount = notifications.filter(n => !n.read).length;
+
+    return c.json({
+      success: true,
+      totalLogs,
+      threshold,
+      percentageUsed: Number(((totalLogs / threshold) * 100).toFixed(1)),
+      unreadNotificationsCount: unreadCount,
+      notifications
+    });
+  } catch (error: any) {
+    return c.json({ success: false, message: error.message }, 500);
+  }
+});
+
+// POST /api/security/test-threshold-alert - شبیه‌سازی و تست ارسال پیام هشدار حد آستانه ۱۰,۰۰۰ به ادمین
+router.post("/test-threshold-alert", requireRole(["admin"]), async (c) => {
+  try {
+    const db = getDb();
+    const totalLogs = await db.collection("audit_logs").countDocuments();
+    
+    // ارسال پیام هشدار آزمایشی در سامانه
+    await sendAdminThresholdNotification({
+      currentCount: Math.max(totalLogs, 10000),
+      threshold: 10000,
+      actionTaken: "تست آزمایشی اعلان سامانه هنگام سرریز حد آستانه ۱۰,۰۰۰ رکورد",
+      isSimulated: true
+    });
+
+    return c.json({
+      success: true,
+      message: "هشدار آزمایشی حد آستانه ۱۰,۰۰۰ لاگ با موفقیت در سامانه ثبت و صادر گردید."
+    });
+  } catch (error: any) {
+    return c.json({ success: false, message: error.message }, 500);
+  }
+});
+
+// POST /api/security/notifications/mark-read - علامت‌گذاری پیام‌ها به‌عنوان خوانده‌شده
+router.post("/notifications/mark-read", requireRole(["admin"]), async (c) => {
+  try {
+    const db = getDb();
+    await db.collection("system_notifications").updateMany(
+      { recipientRole: "admin" },
+      { $set: { read: true } }
+    );
+    return c.json({ success: true, message: "پیام‌ها با موفقیت به‌عنوان خوانده‌شده علامت‌گذاری شدند." });
+  } catch (error: any) {
+    return c.json({ success: false, message: error.message }, 500);
+  }
+});
+
+// POST /api/security/prune-logs - اجرای فوری عملیات پاکسازی لاگ‌های قدیمی‌تر از ۳ ماه و چرخش ظرفیت ۱۰,۰۰۰
+router.post("/prune-logs", requireRole(["admin"]), async (c) => {
+  try {
+    const result = await runAuditLogRetentionAndRotation();
+    return c.json({
+      success: true,
+      message: `عملیات پاکسازی و چرخش لاگ‌ها با موفقیت اجرا شد. (پاکسازی ${result.prunedByAge} لاگ قدیمی‌تر از ۳ ماه، چرخش ${result.prunedByCapacity} لاگ ظرفیت ۱۰,۰۰۰)`,
+      result
+    });
   } catch (error: any) {
     return c.json({ success: false, message: error.message }, 500);
   }
