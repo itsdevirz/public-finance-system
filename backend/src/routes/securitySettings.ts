@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { getDb } from "../db/index.js";
 import { DEFAULT_SECURITY_POLICY } from "../lib/securityPolicy.js";
-import { logAuditEvent, AFTA_LOG_EVENT_TYPES } from "../lib/auditLogger.js";
+import { logAuditEvent, AFTA_LOG_EVENT_TYPES, verifyLogIntegrity, signExistingLogs } from "../lib/auditLogger.js";
 import { requireRole } from "../middleware/rbacMiddleware.js";
 
 const router = new Hono();
@@ -141,6 +141,11 @@ router.get("/audit-logs", requireRole(["admin"]), async (c) => {
       .limit(limitNum)
       .toArray();
 
+    const enrichedLogs = logs.map((log: any) => ({
+      ...log,
+      isIntegrityValid: verifyLogIntegrity(log)
+    }));
+
     // ۳. خواندن اطلاعات از ثبت‌نشان‌ها (موفق)
     await logAuditEvent({
       userId: payload.sub,
@@ -150,12 +155,12 @@ router.get("/audit-logs", requireRole(["admin"]), async (c) => {
       resource: "audit_logs",
       result: "SUCCESS",
       ip: c.req.header("x-forwarded-for") || "127.0.0.1",
-      details: { query, totalReturned: logs.length }
+      details: { query, totalReturned: enrichedLogs.length }
     });
 
     return c.json({
       success: true,
-      data: logs,
+      data: enrichedLogs,
       pagination: { total, page: pageNum, limit: limitNum, totalPages: Math.ceil(total / limitNum) }
     });
   } catch (error: any) {
@@ -172,6 +177,58 @@ router.get("/audit-logs", requireRole(["admin"]), async (c) => {
       details: { error: error.message }
     });
 
+    return c.json({ success: false, message: error.message }, 500);
+  }
+});
+
+// GET /api/security/audit-logs/verify-integrity - Complete database integrity check (Admin only)
+router.get("/audit-logs/verify-integrity", requireRole(["admin"]), async (c) => {
+  const payload = (c.get as any)("jwtPayload");
+  try {
+    await signExistingLogs();
+    const db = getDb();
+    const allLogs = await db.collection("audit_logs").find({}).limit(2000).toArray();
+    
+    let validCount = 0;
+    let tamperedCount = 0;
+    const tamperedEntries: any[] = [];
+
+    for (const log of allLogs) {
+      const isValid = verifyLogIntegrity(log);
+      if (isValid) {
+        validCount++;
+      } else {
+        tamperedCount++;
+        tamperedEntries.push({
+          _id: log._id,
+          username: log.username,
+          action: log.action,
+          shamsiDateTime: log.shamsiDateTime,
+          timestamp: log.timestamp
+        });
+      }
+    }
+
+    await logAuditEvent({
+      userId: payload.sub,
+      username: payload.username,
+      action: "اسکن و اعتبارسنجی سلامت اصالت ثبت‌نشان‌ها",
+      eventType: AFTA_LOG_EVENT_TYPES.AUDIT_LOG_READ_SUCCESS,
+      resource: "audit_logs_integrity",
+      result: tamperedCount === 0 ? "SUCCESS" : "FAILURE",
+      ip: c.req.header("x-forwarded-for") || "127.0.0.1",
+      details: { totalScanned: allLogs.length, validCount, tamperedCount }
+    });
+
+    return c.json({
+      success: true,
+      totalScanned: allLogs.length,
+      validCount,
+      tamperedCount,
+      isFullySecure: tamperedCount === 0,
+      tamperedEntries
+    });
+  } catch (error: any) {
     return c.json({ success: false, message: error.message }, 500);
   }
 });

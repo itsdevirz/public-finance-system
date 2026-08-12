@@ -140,8 +140,71 @@ function sanitizePayload(obj: any): any {
 }
 
 const AUDIT_STORAGE_THRESHOLD = 100000; // حد آستانه تعداد لوگ‌ها قبل از سرریز
+const HMAC_SECRET = process.env.AUDIT_LOG_SECRET || "AFTA_SECURE_HMAC_SECRET_KEY_2026";
 
-// ذخیره‌سازی پشتیبان در صورت شکست دیتابیس (Fail-Secure Fallback)
+/**
+ * تولید امضای رمزنگاری HMAC برای اعتبارسنجی اصالت و دستکاری‌ناپذیری لاگ
+ */
+export function generateLogSignature(log: Record<string, any>): string {
+  const payload = [
+    log.userId || "",
+    log.username || "",
+    log.action || "",
+    log.eventType || "",
+    log.resource || "",
+    log.result || "",
+    log.ip || "",
+    log.timestamp || "",
+    log.correlationId || ""
+  ].join("|");
+
+  return crypto.createHmac("sha256", HMAC_SECRET).update(payload).digest("hex");
+}
+
+/**
+ * بررسی و اعتبارسنجی اصالت لاگ دیتابیس در برابر دستکاری مستقیم
+ */
+export function verifyLogIntegrity(log: Record<string, any>): boolean {
+  if (!log.signature || typeof log.signature !== "string") return false;
+  try {
+    const expected = generateLogSignature(log);
+    const sigBuf = Buffer.from(log.signature, "hex");
+    const expBuf = Buffer.from(expected, "hex");
+    if (sigBuf.length !== expBuf.length) return false;
+    return crypto.timingSafeEqual(sigBuf, expBuf);
+  } catch (_) {
+    return false;
+  }
+}
+
+/**
+ * امضا و اعتبارسنجی اولیه برای لاگ‌های قدیمی که قبل از پیاده‌سازی HMAC ثبت شده‌اند
+ */
+export async function signExistingLogs(): Promise<number> {
+  try {
+    const db = getDb();
+    const unsignedLogs = await db.collection("audit_logs").find({
+      $or: [
+        { signature: { $exists: false } },
+        { signature: "" },
+        { signature: null }
+      ]
+    }).toArray();
+
+    let signedCount = 0;
+    for (const log of unsignedLogs) {
+      const sig = generateLogSignature(log);
+      await db.collection("audit_logs").updateOne({ _id: log._id }, { $set: { signature: sig } });
+      signedCount++;
+    }
+    return signedCount;
+  } catch (err) {
+    console.error("Error signing existing logs:", err);
+    return 0;
+  }
+}
+
+// ذخیره‌سازی پشتیبان در صورت شکست دیتابیس با سطح دسترسی محرمانه (Fail-Secure Fallback)
 function writeFallbackFileLog(logEntry: Record<string, any>): void {
   try {
     const logsDir = path.join(process.cwd(), "logs");
@@ -150,6 +213,9 @@ function writeFallbackFileLog(logEntry: Record<string, any>): void {
     }
     const fallbackFilePath = path.join(logsDir, "audit_fallback.log");
     fs.appendFileSync(fallbackFilePath, JSON.stringify(logEntry) + "\n", "utf8");
+    try {
+      fs.chmodSync(fallbackFilePath, 0o600); // فقط خواندن/نوشتن برای مالک فایل
+    } catch (_) {}
   } catch (err) {
     console.error("Critical Storage Error: Fallback log file writing failed:", err);
   }
@@ -210,8 +276,10 @@ export async function logAuditEvent(params: AuditLogParams): Promise<void> {
     errorCode: params.errorCode ?? null,
     details: sanitizePayload(params.details || {}),
     timestamp: now.toISOString(),
-    createdAt: now
+    createdAt: now,
+    signature: ""
   };
+  logEntry.signature = generateLogSignature(logEntry);
 
   try {
     const db = getDb();

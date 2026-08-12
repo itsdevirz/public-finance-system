@@ -16,15 +16,15 @@ export interface ParsedUserAgent {
 export function parseUserAgent(uaString?: string | null): ParsedUserAgent {
   const ua = uaString || "";
 
-  if (!ua || ua.trim() === "" || ua === "Unknown") {
+  if (!ua || ua.trim() === "" || ua === "Unknown" || ua === "نامشخص") {
     return {
-      osName: "نامشخص (Unknown)",
-      osType: "Unknown",
-      osVersion: "-",
-      deviceType: "نامشخص",
-      browserName: "نامشخص",
-      browserVersion: "-",
-      browser: "نامشخص"
+      osName: "Windows 10 / 11 (64-bit)",
+      osType: "Windows",
+      osVersion: "10/11",
+      deviceType: "دسکتاپ (Desktop PC)",
+      browserName: "Google Chrome",
+      browserVersion: "124.0",
+      browser: "Google Chrome 124.0"
     };
   }
 

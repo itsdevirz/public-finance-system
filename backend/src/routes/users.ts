@@ -3,7 +3,7 @@ import { getDb } from "../db/index.js";
 import { ObjectId } from "mongodb";
 import { hashPassword } from "../lib/auth.js";
 import { validatePassword } from "../lib/securityPolicy.js";
-import { logAuditEvent, AFTA_LOG_EVENT_TYPES } from "../lib/auditLogger.js";
+import { logAuditEvent, AFTA_LOG_EVENT_TYPES, verifyLogIntegrity, signExistingLogs } from "../lib/auditLogger.js";
 
 const router = new Hono();
 
@@ -185,13 +185,13 @@ router.put("/:id", async (c) => {
       }
     }
 
-    // Only update password if provided and valid according to policy
-    if (body.password && body.password.trim() !== "") {
-      const passCheck = validatePassword(body.password);
+    // Only update password if explicitly provided as non-empty string during edit
+    if (body.password && typeof body.password === "string" && body.password.trim() !== "") {
+      const passCheck = validatePassword(body.password.trim());
       if (!passCheck.valid) {
         return c.json({ success: false, message: passCheck.message }, 400);
       }
-      updateData.password = await hashPassword(body.password);
+      updateData.password = await hashPassword(body.password.trim());
     }
 
     await db.collection("users").updateOne(
@@ -199,15 +199,69 @@ router.put("/:id", async (c) => {
       { $set: updateData }
     );
 
-    // Log audit action
+    // Calculate field-by-field differences (Before vs After) for audit log details
+    const fieldLabels: Record<string, string> = {
+      firstName: "نام",
+      lastName: "نام خانوادگی",
+      phone: "شماره تماس",
+      email: "پست الکترونیکی",
+      employeeId: "کد پرسنلی",
+      nationalId: "کد ملی",
+      department: "دپارتمان/واحد",
+      position: "سمت سازمانی",
+      userGroup: "گروه کاربری",
+      directManager: "مدیر مستقیم",
+      branch: "شعبه فعالیت",
+      costCenter: "مرکز هزینه",
+      fiscalYear: "سال مالی",
+      status: "وضعیت حساب",
+      role: "نقش دسترسی",
+      twoFactor: "ورود دو مرحله‌ای (2FA)",
+      ipRestriction: "محدودیت IP",
+      allowOutside: "دسترسی خارج از شبکه",
+      maxFailedAttempts: "حداکثر تلاش ناموفق",
+      lockoutDuration: "مدت قفل حساب (دقیقه)",
+      financialLimitMin: "حداقل سقف مالی",
+      financialLimitMax: "حداکثر سقف مالی",
+      workflowLevel: "سطح گردش کار",
+      password: "رمز عبور"
+    };
+
+    const changes: Record<string, { label: string; before: any; after: any }> = {};
+    for (const [key, label] of Object.entries(fieldLabels)) {
+      if (key === "password") {
+        if (body.password && typeof body.password === "string" && body.password.trim() !== "") {
+          changes[key] = { label, before: "•••••• (رمز قبلی)", after: "•••••• (تغییر یافته)" };
+        }
+        continue;
+      }
+      const beforeVal = (existingUser as any)[key];
+      const afterVal = (updateData as any)[key];
+      if (afterVal !== undefined && JSON.stringify(beforeVal) !== JSON.stringify(afterVal)) {
+        changes[key] = {
+          label,
+          before: beforeVal === true ? "فعال" : beforeVal === false ? "غیرفعال" : (beforeVal ?? "مشخص نشده"),
+          after: afterVal === true ? "فعال" : afterVal === false ? "غیرفعال" : (afterVal ?? "مشخص نشده")
+        };
+      }
+    }
+
+    // Log audit action with before & after changes and UserAgent
     await logAuditEvent({
       userId: payload.sub,
       username: payload.username,
-      action: "ویرایش اطلاعات کاربر",
+      action: `ویرایش مشخصات کاربر "${existingUser.username}"`,
       resource: "users",
       result: "SUCCESS",
-      ip: c.req.header("x-forwarded-for") || "127.0.0.1",
-      details: { targetUserId: id, updatedRole: updateData.role, updatedStatus: updateData.status }
+      ip: c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "127.0.0.1",
+      userAgent: c.req.header("user-agent") || c.req.header("User-Agent"),
+      details: {
+        targetUserId: id,
+        targetUsername: existingUser.username,
+        targetFullName: `${existingUser.firstName || ""} ${existingUser.lastName || ""}`.trim() || existingUser.username,
+        changesCount: Object.keys(changes).length,
+        changes: changes
+      }
     });
 
     const updated = await db.collection("users").findOne({ _id: userObjectId }, { projection: { password: 0 } });
@@ -269,6 +323,7 @@ router.get("/audit-logs", async (c) => {
       return c.json({ success: false, message: "دسترسی غیرمجاز. فقط مدیر سیستم مجاز به مشاهده تاریخچه عملکرد است." }, 403);
     }
 
+    await signExistingLogs();
     const { limit = "100", username, result, osType, eventType, resource, search, sortBy = "createdAt", sortOrder = "desc" } = c.req.query();
     const db = getDb();
     const query: any = {};
@@ -312,7 +367,13 @@ router.get("/audit-logs", async (c) => {
       .sort({ [sortField]: sortDirection })
       .limit(limitNum)
       .toArray();
-    return c.json({ success: true, data: logs });
+
+    const enrichedLogs = logs.map((log: any) => ({
+      ...log,
+      isIntegrityValid: verifyLogIntegrity(log)
+    }));
+
+    return c.json({ success: true, data: enrichedLogs });
   } catch (error: any) {
     return c.json({ success: false, message: error.message }, 500);
   }
