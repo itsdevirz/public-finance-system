@@ -76,9 +76,10 @@ router.post("/", async (c) => {
       fiscalYear: body.fiscalYear?.trim() || "1405",
       status: body.status || "فعال", // فعال, غیرفعال, مسدود
       twoFactor: !!body.twoFactor,
+      authMethod: body.authMethod || (body.twoFactor ? "TWO_FACTOR" : "PASSWORD"),
       ipRestriction: body.ipRestriction || "",
       allowOutside: !!body.allowOutside,
-      maxFailedAttempts: Number(body.maxFailedAttempts) || 5,
+      maxFailedAttempts: Math.max(1, Math.floor(Number(body.maxFailedAttempts) || 5)),
       lockoutDuration: Number(body.lockoutDuration) || 15,
       role: body.role || "حسابدار",
       permissions: body.permissions || {},
@@ -168,9 +169,10 @@ router.put("/:id", async (c) => {
       updateData.fiscalYear = body.fiscalYear?.trim() !== undefined ? body.fiscalYear.trim() : existingUser.fiscalYear;
       updateData.status = body.status || existingUser.status;
       updateData.twoFactor = body.twoFactor !== undefined ? !!body.twoFactor : existingUser.twoFactor;
+      updateData.authMethod = body.authMethod || (updateData.twoFactor ? "TWO_FACTOR" : (existingUser.authMethod || "PASSWORD"));
       updateData.ipRestriction = body.ipRestriction?.trim() !== undefined ? body.ipRestriction.trim() : existingUser.ipRestriction;
       updateData.allowOutside = body.allowOutside !== undefined ? !!body.allowOutside : existingUser.allowOutside;
-      updateData.maxFailedAttempts = body.maxFailedAttempts !== undefined ? Number(body.maxFailedAttempts) : existingUser.maxFailedAttempts;
+      updateData.maxFailedAttempts = body.maxFailedAttempts !== undefined ? Math.max(1, Math.floor(Number(body.maxFailedAttempts) || 5)) : existingUser.maxFailedAttempts;
       updateData.lockoutDuration = body.lockoutDuration !== undefined ? Number(body.lockoutDuration) : existingUser.lockoutDuration;
       updateData.role = body.role || existingUser.role;
       updateData.permissions = body.permissions || existingUser.permissions;
@@ -199,6 +201,26 @@ router.put("/:id", async (c) => {
       { $set: updateData }
     );
 
+    // Immediate enforcement: Revoke active sessions upon security attribute changes
+    const isSecurityAttrChanged =
+      (updateData.status && updateData.status !== existingUser.status) ||
+      (updateData.role && updateData.role !== existingUser.role) ||
+      updateData.password ||
+      (updateData.permissions && JSON.stringify(updateData.permissions) !== JSON.stringify(existingUser.permissions));
+
+    if (isSecurityAttrChanged) {
+      const activeSessions = await db.collection("active_sessions").find({ userId: userObjectId }).toArray();
+      if (activeSessions.length > 0) {
+        const tokensToRevoke = activeSessions.map((s) => ({
+          token: s.token,
+          revokedAt: new Date().toISOString(),
+          reason: "ابطال فوری نشست به دلیل تغییر ویژگی‌های امنیتی کاربر"
+        }));
+        await db.collection("revoked_tokens").insertMany(tokensToRevoke);
+        await db.collection("active_sessions").deleteMany({ userId: userObjectId });
+      }
+    }
+
     // Calculate field-by-field differences (Before vs After) for audit log details
     const fieldLabels: Record<string, string> = {
       firstName: "نام",
@@ -217,6 +239,7 @@ router.put("/:id", async (c) => {
       status: "وضعیت حساب",
       role: "نقش دسترسی",
       twoFactor: "ورود دو مرحله‌ای (2FA)",
+      authMethod: "روش احراز هویت مورد استفاده",
       ipRestriction: "محدودیت IP",
       allowOutside: "دسترسی خارج از شبکه",
       maxFailedAttempts: "حداکثر تلاش ناموفق",

@@ -108,3 +108,22 @@ export function decryptDocument(doc: any): any {
     return doc;
   }
 }
+
+/**
+ * Destroys/wipes a cryptographic key buffer in memory by overwriting it
+ * with random bytes first and then zeroing out all bytes (Simple Overwrite / Zeroing).
+ * Conforms to AFTA security requirements for Cryptographic Key Destruction.
+ *
+ * @param keyBuffer - Buffer holding secret key material in memory
+ */
+export function destroyCryptoKey(keyBuffer: Buffer): void {
+  if (Buffer.isBuffer(keyBuffer) && keyBuffer.length > 0) {
+    // Step 1: Overwrite with random bytes
+    const randomBytes = crypto.randomBytes(keyBuffer.length);
+    randomBytes.copy(keyBuffer);
+
+    // Step 2: Overwrite with zeros (0x00) for final sanitization
+    keyBuffer.fill(0);
+  }
+}
+

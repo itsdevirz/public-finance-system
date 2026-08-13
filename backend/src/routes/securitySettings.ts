@@ -28,6 +28,11 @@ router.put("/policy", requireRole(["admin"]), async (c) => {
     const body = await c.req.json();
     const db = getDb();
 
+    const maxFailedAttempts = Number(body.lockoutPolicy?.maxFailedAttempts);
+    if (body.lockoutPolicy?.maxFailedAttempts !== undefined && (isNaN(maxFailedAttempts) || maxFailedAttempts <= 0 || !Number.isInteger(maxFailedAttempts))) {
+      return c.json({ success: false, message: "تعداد تلاش‌های ناموفق احراز هویت باید یک عدد صحیح مثبت (بزرگتر از صفر) باشد." }, 400);
+    }
+
     const newPolicy = {
       passwordPolicy: {
         minLength: Number(body.passwordPolicy?.minLength) || 8,
@@ -37,13 +42,13 @@ router.put("/policy", requireRole(["admin"]), async (c) => {
         requireSpecialChars: !!body.passwordPolicy?.requireSpecialChars,
       },
       lockoutPolicy: {
-        maxFailedAttempts: Number(body.lockoutPolicy?.maxFailedAttempts) || 5,
-        lockoutDurationMinutes: Number(body.lockoutPolicy?.lockoutDurationMinutes) || 15,
+        maxFailedAttempts: maxFailedAttempts > 0 ? maxFailedAttempts : 5,
+        lockoutDurationMinutes: Math.max(1, Number(body.lockoutPolicy?.lockoutDurationMinutes) || 15),
       },
       sessionPolicy: {
-        tokenExpiresInHours: Number(body.sessionPolicy?.tokenExpiresInHours) || 8,
-        maxConcurrentSessions: Number(body.sessionPolicy?.maxConcurrentSessions) || 3,
-        idleTimeoutMinutes: Number(body.sessionPolicy?.idleTimeoutMinutes) || 30,
+        tokenExpiresInHours: Math.max(1, Number(body.sessionPolicy?.tokenExpiresInHours) || 8),
+        maxConcurrentSessions: Math.max(1, Number(body.sessionPolicy?.maxConcurrentSessions) || 3),
+        idleTimeoutMinutes: Math.max(1, Number(body.sessionPolicy?.idleTimeoutMinutes) || 30),
       }
     };
 
