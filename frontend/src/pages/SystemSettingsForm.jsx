@@ -10,7 +10,8 @@ import {
   Settings, Save, RefreshCw, ShieldCheck, AlertCircle, CheckCircle2,
   FileText, Printer, Lock, Sliders, Bell, Database, Download, Upload,
   Calendar, Clock, Trash2, FileCheck, HelpCircle, HardDrive, Check,
-  FolderArchive, Sparkles, ArrowDownToLine, ArrowUpFromLine, Laptop, Activity, LogOut
+  FolderArchive, Sparkles, ArrowDownToLine, ArrowUpFromLine, Laptop, Activity, LogOut,
+  User, KeyRound, Shield
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import api from "@/api";
@@ -56,6 +57,30 @@ const INITIAL_SETTINGS = {
   revokeAllSessionsOnSecurityChange: true,
   auditLogSecurityChanges: true,
   notifyUserSecurityAlert: false,
+
+  // ۷. خط‌مشی‌های کنترل دسترسی موجودیت‌های غیرفعال (مطابق الزامات افتا)
+  inactiveEntityPolicies: {
+    recordsDocsMetadata: { read: true, restore: false, delete: false, export: true },
+    userBelongingData: { read: true, restore: false, delete: false, export: false },
+    authData: { read: false, restore: false, delete: false, export: false },
+    otherInactiveCases: { read: true, restore: false, delete: false, export: false }
+  },
+
+  // ۸. خط‌مشی‌های عملیاتی در رابطه با موجودیت‌های غیرفعال (مطابق الزامات افتا)
+  inactiveEntityOperationsPolicy: {
+    createInactiveEntity: { requireAdminApproval: true, auditLog: true, rbacCheck: true },
+    deleteInactiveEntity: { preventHardDelete: true, requireAdminApproval: true, auditLog: true },
+    changeInactiveAccess: { requireAdminApproval: true, auditLog: true, notifySecurityOfficer: true },
+    inactiveMetadataOps: { readOnlyMetadata: true, auditLog: true, checkIntegrity: true },
+    otherInactiveOps: { requireAdminApproval: true, auditLog: true }
+  },
+
+  // ۹. ویژگی‌های تعریف خط‌مشی‌های موجودیت‌های غیرفعال (مطابق الزامات افتا)
+  inactiveEntityPolicyCriteria: {
+    useUserRolesAndPermissions: true,
+    useSessionInfoAndRequestParams: true,
+    useOtherCriteria: false
+  },
 
   lastUpdated: null,
 };
@@ -211,7 +236,35 @@ export default function SystemSettingsForm() {
     }
   };
 
-  // بارگذاری تنظیمات و نسخه‌های پشتیبان از localStorage
+  // بارگذاری تنظیمات و خط‌مشی‌های امنیتی از بک‌اند و localStorage
+  const fetchSecurityPolicy = async () => {
+    try {
+      const res = await api.get("/api/security/policy");
+      if (res?.data?.success && res.data.data) {
+        const p = res.data.data;
+        setSettings(prev => ({
+          ...prev,
+          sessionTimeoutMinutes: p.sessionPolicy?.idleTimeoutMinutes ?? prev.sessionTimeoutMinutes,
+          maxConcurrentSessions: p.sessionPolicy?.maxConcurrentSessions ?? 3,
+          disallowSecurityChangeDuringSession: p.activeUserSecurityChangePolicy?.disallowChangeDuringActiveSession ?? true,
+          forceReAuthOnSecurityChange: p.activeUserSecurityChangePolicy?.forceReAuthentication ?? true,
+          revokeAllSessionsOnSecurityChange: p.activeUserSecurityChangePolicy?.revokeAllDeviceSessions ?? true,
+          auditLogSecurityChanges: p.activeUserSecurityChangePolicy?.auditLogSecurityChanges ?? true,
+          notifyUserSecurityAlert: p.activeUserSecurityChangePolicy?.notifyUserSecurityAlert ?? false,
+          inactiveEntityPolicies: p.inactiveEntityAccessPolicies || prev.inactiveEntityPolicies,
+          inactiveEntityOperationsPolicy: p.inactiveEntityOperationsPolicy || prev.inactiveEntityOperationsPolicy,
+          inactiveEntityPolicyCriteria: p.inactiveEntityPolicyCriteria || prev.inactiveEntityPolicyCriteria,
+        }));
+
+        if (Array.isArray(p.entityAccessPolicies) && p.entityAccessPolicies.length > 0) {
+          setEntityPolicies(p.entityAccessPolicies);
+        }
+      }
+    } catch (err) {
+      console.error("خطا در دريافت خط‌مشی‌های امنیتی از بک‌اند:", err);
+    }
+  };
+
   useEffect(() => {
     try {
       const savedSettings = localStorage.getItem("system_settings");
@@ -229,7 +282,44 @@ export default function SystemSettingsForm() {
         setEntityPolicies(JSON.parse(savedEntityPolicies));
       }
     } catch (_) {}
+
+    fetchSecurityPolicy();
   }, []);
+
+  const saveSecurityPolicyToBackend = async (opts = {}) => {
+    const s = opts.settings || settings;
+    const ep = opts.entityPolicies || entityPolicies;
+    const payload = {
+      passwordPolicy: {
+        minLength: 8,
+        requireUppercase: true,
+        requireLowercase: true,
+        requireNumbers: true,
+        requireSpecialChars: true
+      },
+      lockoutPolicy: {
+        maxFailedAttempts: 5,
+        lockoutDurationMinutes: 15
+      },
+      sessionPolicy: {
+        tokenExpiresInHours: 8,
+        maxConcurrentSessions: Number(s.maxConcurrentSessions) || 3,
+        idleTimeoutMinutes: Number(s.sessionTimeoutMinutes) || 30
+      },
+      entityAccessPolicies: ep,
+      activeUserSecurityChangePolicy: {
+        disallowChangeDuringActiveSession: !!s.disallowSecurityChangeDuringSession,
+        forceReAuthentication: !!s.forceReAuthOnSecurityChange,
+        revokeAllDeviceSessions: !!s.revokeAllSessionsOnSecurityChange,
+        auditLogSecurityChanges: !!s.auditLogSecurityChanges,
+        notifyUserSecurityAlert: !!s.notifyUserSecurityAlert
+      },
+      inactiveEntityAccessPolicies: s.inactiveEntityPolicies,
+      inactiveEntityOperationsPolicy: s.inactiveEntityOperationsPolicy,
+      inactiveEntityPolicyCriteria: s.inactiveEntityPolicyCriteria
+    };
+    await api.put("/api/security/policy", payload);
+  };
 
   function set(field, val) {
     setSettings(s => ({ ...s, [field]: val }));
@@ -245,7 +335,7 @@ export default function SystemSettingsForm() {
     }
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     try {
       setIsSaving(true);
@@ -255,13 +345,18 @@ export default function SystemSettingsForm() {
         lastUpdated: new Date().toISOString()
       };
 
-      setTimeout(() => {
-        setIsSaving(false);
-        setSuccessMsg("تنظیمات عمومی سامانه با موفقیت ذخیره و اعمال گردید.");
-      }, 250);
+      setSettings(updated);
+      localStorage.setItem("system_settings", JSON.stringify(updated));
+      localStorage.setItem("system_entity_access_policies", JSON.stringify(entityPolicies));
+
+      // ارسال مستقیم به دیتابیس سرور بک‌اند جهت اعمال فوری
+      await saveSecurityPolicyToBackend({ settings: updated, entityPolicies });
+
+      setIsSaving(false);
+      setSuccessMsg("تنظیمات و خط‌مشی‌های امنیتی سامانه با موفقیت در دیتابیس ذخیره و اعمال گردید.");
     } catch (err) {
       setIsSaving(false);
-      setErrorMsg("خطا در ذخیره‌سازی تنظیمات: " + err.message);
+      setErrorMsg("خطا در ذخیره‌سازی تنظیمات در سرور: " + (err.response?.data?.message || err.message));
     }
   }
 
@@ -282,12 +377,20 @@ export default function SystemSettingsForm() {
     setSuccessMsg("");
   }
 
-  function handleSaveEntityPolicies() {
+  async function handleSaveEntityPolicies() {
     try {
+      setIsSaving(true);
+      setErrorMsg("");
       localStorage.setItem("system_entity_access_policies", JSON.stringify(entityPolicies));
-      setSuccessMsg("خط‌مشی‌های کنترل دسترسی موجودیت‌ها و عملیات با موفقیت ذخیره شد.");
+
+      // ارسال مستقیم به دیتابیس سرور بک‌اند جهت اعمال فوری
+      await saveSecurityPolicyToBackend({ entityPolicies });
+
+      setSuccessMsg("خط‌مشی‌های کنترل دسترسی موجودیت‌ها و عملیات با موفقیت در دیتابیس سرور ذخیره شد.");
     } catch (err) {
-      setErrorMsg("خطا در ذخیره‌سازی خط‌مشی‌ها: " + err.message);
+      setErrorMsg("خطا در ذخیره‌سازی خط‌مشی‌ها: " + (err.response?.data?.message || err.message));
+    } finally {
+      setIsSaving(false);
     }
   }
 
@@ -1148,6 +1251,567 @@ export default function SystemSettingsForm() {
                           })}
                         </tbody>
                       </table>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* جدول قوانین تعیین‌شده برای موجودیت‌های غیرفعال (مطابق تصویر جدید) */}
+                  <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+                    <div className="bg-slate-900 dark:bg-slate-800 text-white p-3.5 font-bold text-xs flex items-center justify-between border-b border-slate-800">
+                      <span className="flex items-center gap-2">
+                        <FolderArchive className="h-4 w-4 text-amber-400" />
+                        تعیین خط‌مشی‌های کنترل دسترسی در مورد موجودیت‌های غیرفعال
+                      </span>
+                      <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/30 text-[10px]">
+                        الزام امنیتی افتا
+                      </Badge>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-12 divide-y md:divide-y-0 md:divide-x md:divide-x-reverse divide-slate-200 dark:divide-slate-800">
+                      {/* ستون راست: عنوان اصلی الزامات مطابق تصویر */}
+                      <div className="md:col-span-5 bg-slate-50/80 dark:bg-slate-900/50 p-5 flex flex-col justify-center items-center text-center font-bold text-xs text-slate-800 dark:text-slate-200 leading-relaxed border-b md:border-b-0 md:border-l border-slate-200 dark:border-slate-800 space-y-2">
+                        <FolderArchive className="h-7 w-7 text-amber-500 mb-1" />
+                        <span>موجودیت‌های غیرفعالی که خط‌مشی‌های کنترل دسترسی در مورد آنها اعمال می‌شوند، مشخص گردد.</span>
+                        <span className="text-[11px] text-muted-foreground font-normal">
+                          تعیین مجوزهای عملیاتی بر روی سوابق تاریخی، مستندات، داده‌های کاربران غیرفعال و داده‌های احراز هویت
+                        </span>
+                      </div>
+
+                      {/* ستون چپ: سطور ۴ گانه تصویر */}
+                      <div className="md:col-span-7 divide-y divide-slate-200 dark:divide-slate-800">
+                        
+                        {/* سطر ۱: سوابق، مستندات و فراداده */}
+                        <div className="p-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                              <FileText className="h-3.5 w-3.5 text-blue-500" />
+                              سوابق، مستندات و فراداده
+                            </span>
+                            <span className="text-[10px] text-muted-foreground bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
+                              اسناد مالی، مدارک و فراداده‌های تاریخی
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground leading-relaxed pr-5">
+                            اسناد مالی دوره‌های قبل، فایل‌های پیوست مدارک بایگانی‌شده و فراداده‌های مربوطه به حالت «صرفاً خواندنی» تبدیل شده و اصلاح یا حذف آن‌ها مسدود می‌گردد.
+                          </p>
+
+                          <div className="flex flex-wrap gap-4 pr-5 pt-1">
+                            {[
+                              { key: "read", label: "مشاهده سوابق" },
+                              { key: "export", label: "خروجی/دانلود" },
+                              { key: "restore", label: "بازیابی مجدد" },
+                              { key: "delete", label: "حذف کلا" }
+                            ].map(op => (
+                              <label key={op.key} className="flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300 font-medium cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={settings.inactiveEntityPolicies?.recordsDocsMetadata?.[op.key] ?? (op.key === "read" || op.key === "export")}
+                                  onChange={e => {
+                                    const updated = {
+                                      ...settings.inactiveEntityPolicies,
+                                      recordsDocsMetadata: {
+                                        ...settings.inactiveEntityPolicies?.recordsDocsMetadata,
+                                        [op.key]: e.target.checked
+                                      }
+                                    };
+                                    set("inactiveEntityPolicies", updated);
+                                  }}
+                                  className="h-3.5 w-3.5 rounded border-slate-300 text-amber-600"
+                                />
+                                <span>{op.label}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* سطر ۲: داده متعلق به کاربران */}
+                        <div className="p-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                              <User className="h-3.5 w-3.5 text-emerald-500" />
+                              داده متعلق به کاربران
+                            </span>
+                            <span className="text-[10px] text-muted-foreground bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
+                              اطلاعات کارمندان غیرفعال/منتقل‌شده
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground leading-relaxed pr-5">
+                            فایل‌ها، پیش‌نویس‌ها و گزارشات شخصی کاربران غیرفعال یا تعلیق‌شده ایزوله گردیده و دسترسی سایرین به آن‌ها منوط به مجوز ذیحسابی/مدیر سیستم خواهد بود.
+                          </p>
+
+                          <div className="flex flex-wrap gap-4 pr-5 pt-1">
+                            {[
+                              { key: "read", label: "مشاهده اطلاعات" },
+                              { key: "export", label: "خروجی گرفتن" },
+                              { key: "restore", label: "فعال‌سازی مجدد" },
+                              { key: "delete", label: "امحاء داده‌ها" }
+                            ].map(op => (
+                              <label key={op.key} className="flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300 font-medium cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={settings.inactiveEntityPolicies?.userBelongingData?.[op.key] ?? (op.key === "read")}
+                                  onChange={e => {
+                                    const updated = {
+                                      ...settings.inactiveEntityPolicies,
+                                      userBelongingData: {
+                                        ...settings.inactiveEntityPolicies?.userBelongingData,
+                                        [op.key]: e.target.checked
+                                      }
+                                    };
+                                    set("inactiveEntityPolicies", updated);
+                                  }}
+                                  className="h-3.5 w-3.5 rounded border-slate-300 text-amber-600"
+                                />
+                                <span>{op.label}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* سطر ۳: داده احراز هویت */}
+                        <div className="p-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                              <KeyRound className="h-3.5 w-3.5 text-rose-500" />
+                              داده احراز هویت
+                            </span>
+                            <span className="text-[10px] text-rose-600 bg-rose-50 dark:bg-rose-950/40 px-2 py-0.5 rounded font-bold">
+                              حفاظت شده و رمزنگاری‌شده
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground leading-relaxed pr-5">
+                            هش‌های رمز عبور قدیمی، توکن‌های ابطال‌شده و سوابق ورود غیرفعال به هیچ عنوان قابل مشاهده یا خروجی نبوده و صرفاً جهت حسابرسی امنیتی نگهداری می‌شوند.
+                          </p>
+
+                          <div className="flex flex-wrap gap-4 pr-5 pt-1">
+                            {[
+                              { key: "read", label: "مشاهده مستقیم" },
+                              { key: "export", label: "خروجی توکن‌ها" },
+                              { key: "restore", label: "بازیابی توکن" },
+                              { key: "delete", label: "پاک‌سازی سوابق" }
+                            ].map(op => (
+                              <label key={op.key} className="flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300 font-medium cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={settings.inactiveEntityPolicies?.authData?.[op.key] ?? false}
+                                  onChange={e => {
+                                    const updated = {
+                                      ...settings.inactiveEntityPolicies,
+                                      authData: {
+                                        ...settings.inactiveEntityPolicies?.authData,
+                                        [op.key]: e.target.checked
+                                      }
+                                    };
+                                    set("inactiveEntityPolicies", updated);
+                                  }}
+                                  className="h-3.5 w-3.5 rounded border-slate-300 text-amber-600"
+                                />
+                                <span>{op.label}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* سطر ۴: سایر موارد */}
+                        <div className="p-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                              <Shield className="h-3.5 w-3.5 text-purple-500" />
+                              سایر موارد
+                            </span>
+                            <span className="text-[10px] text-muted-foreground bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
+                              لاگ‌های حسابرسی قدیمی و پیکربندی‌های تاریخی
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground leading-relaxed pr-5">
+                            شامل لاگ‌های حسابرسی افتا (Audit Logs) دوره‌های قبل، فایل‌های پشتیبان منقضی‌شده و تنظیمات سیستم در دوره‌های گذشته.
+                          </p>
+
+                          <div className="flex flex-wrap gap-4 pr-5 pt-1">
+                            {[
+                              { key: "read", label: "مشاهده لاگ‌ها" },
+                              { key: "export", label: "خروجی آرشیو" },
+                              { key: "restore", label: "بازگردانی پیکربندی" },
+                              { key: "delete", label: "امحاء لاگ‌های کهنه" }
+                            ].map(op => (
+                              <label key={op.key} className="flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300 font-medium cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={settings.inactiveEntityPolicies?.otherInactiveCases?.[op.key] ?? (op.key === "read")}
+                                  onChange={e => {
+                                    const updated = {
+                                      ...settings.inactiveEntityPolicies,
+                                      otherInactiveCases: {
+                                        ...settings.inactiveEntityPolicies?.otherInactiveCases,
+                                        [op.key]: e.target.checked
+                                      }
+                                    };
+                                    set("inactiveEntityPolicies", updated);
+                                  }}
+                                  className="h-3.5 w-3.5 rounded border-slate-300 text-amber-600"
+                                />
+                                <span>{op.label}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* جدول تعیین خط‌مشی‌های کنترل دسترسی عملیات مرتبط با موجودیت‌های غیرفعال (مطابق تصویر جدید) */}
+                  <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+                    <div className="bg-slate-900 dark:bg-slate-800 text-white p-3.5 font-bold text-xs flex items-center justify-between border-b border-slate-800">
+                      <span className="flex items-center gap-2">
+                        <Sliders className="h-4 w-4 text-purple-400" />
+                        تعیین خط‌مشی‌های کنترل دسترسی عملیاتی بر روی موجودیت‌های غیرفعال
+                      </span>
+                      <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30 text-[10px]">
+                        الزام امنیتی افتا
+                      </Badge>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-12 divide-y md:divide-y-0 md:divide-x md:divide-x-reverse divide-slate-200 dark:divide-slate-800">
+                      {/* ستون راست: عنوان اصلی الزامات مطابق تصویر */}
+                      <div className="md:col-span-5 bg-slate-50/80 dark:bg-slate-900/50 p-5 flex flex-col justify-center items-center text-center font-bold text-xs text-slate-800 dark:text-slate-200 leading-relaxed border-b md:border-b-0 md:border-l border-slate-200 dark:border-slate-800 space-y-2">
+                        <Sliders className="h-7 w-7 text-purple-500 mb-1" />
+                        <span>عملیاتی که خط‌مشی‌های کنترل دسترسی در رابطه با آنها اعمال می‌شوند، مشخص گردد.</span>
+                        <span className="text-[11px] text-muted-foreground font-normal">
+                          تعیین ضوابط و تاییدهای لازم برای ایجاد، حذف، تغییر دسترسی و متاداده موجودیت‌های غیرفعال
+                        </span>
+                      </div>
+
+                      {/* ستون چپ: سطور ۵ گانه تصویر */}
+                      <div className="md:col-span-7 divide-y divide-slate-200 dark:divide-slate-800">
+                        
+                        {/* سطر ۱: ایجاد موجودیت غیرفعال جدید */}
+                        <div className="p-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                              <Sparkles className="h-3.5 w-3.5 text-blue-500" />
+                              ایجاد موجودیت غیرفعال جدید
+                            </span>
+                            <span className="text-[10px] text-muted-foreground bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
+                              ثبت اسناد و اطلاعات بایگانی جدید
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground leading-relaxed pr-5">
+                            ثبت موجودیت‌ها یا اسناد خاموش و بایگانی جدید، نیازمند کنترل نقش کاربران (RBAC)، تایید صریح مدیر سیستم و ثبت دقیق لاگ حسابرسی است.
+                          </p>
+                          <div className="flex flex-wrap gap-4 pr-5 pt-1">
+                            {[
+                              { key: "requireAdminApproval", label: "الزام تایید مدیر سیستم" },
+                              { key: "auditLog", label: "ثبت سابقه در Audit Log" },
+                              { key: "rbacCheck", label: "ارزیابی سخت‌گیرانه RBAC" }
+                            ].map(op => (
+                              <label key={op.key} className="flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300 font-medium cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={settings.inactiveEntityOperationsPolicy?.createInactiveEntity?.[op.key] ?? true}
+                                  onChange={e => {
+                                    const updated = {
+                                      ...settings.inactiveEntityOperationsPolicy,
+                                      createInactiveEntity: {
+                                        ...settings.inactiveEntityOperationsPolicy?.createInactiveEntity,
+                                        [op.key]: e.target.checked
+                                      }
+                                    };
+                                    set("inactiveEntityOperationsPolicy", updated);
+                                  }}
+                                  className="h-3.5 w-3.5 rounded border-slate-300 text-purple-600"
+                                />
+                                <span>{op.label}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* سطر ۲: حذف موجودیت غیرفعال */}
+                        <div className="p-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                              <Trash2 className="h-3.5 w-3.5 text-rose-500" />
+                              حذف موجودیت غیرفعال
+                            </span>
+                            <span className="text-[10px] text-rose-600 bg-rose-50 dark:bg-rose-950/40 px-2 py-0.5 rounded font-bold">
+                              حفاظت شده علیه امحاء
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground leading-relaxed pr-5">
+                            ممانعت مطلق از حذف فیزیکی (Hard Delete) موجودیت‌ها و اسناد غیرفعال سیستم؛ هرگونه پاک‌سازی صرفاً با مجوز ارشد و ثبت رویداد امنیتی میسر است.
+                          </p>
+                          <div className="flex flex-wrap gap-4 pr-5 pt-1">
+                            {[
+                              { key: "preventHardDelete", label: "ممانعت از حذف فیزیکی (Hard Delete)" },
+                              { key: "requireAdminApproval", label: "الزام تایید مدیر ارشد" },
+                              { key: "auditLog", label: "ثبت رویداد امحاء در افتا" }
+                            ].map(op => (
+                              <label key={op.key} className="flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300 font-medium cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={settings.inactiveEntityOperationsPolicy?.deleteInactiveEntity?.[op.key] ?? true}
+                                  onChange={e => {
+                                    const updated = {
+                                      ...settings.inactiveEntityOperationsPolicy,
+                                      deleteInactiveEntity: {
+                                        ...settings.inactiveEntityOperationsPolicy?.deleteInactiveEntity,
+                                        [op.key]: e.target.checked
+                                      }
+                                    };
+                                    set("inactiveEntityOperationsPolicy", updated);
+                                  }}
+                                  className="h-3.5 w-3.5 rounded border-slate-300 text-purple-600"
+                                />
+                                <span>{op.label}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* سطر ۳: تغییر دسترسی‌ها به موجودیت غیرفعال */}
+                        <div className="p-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                              <Lock className="h-3.5 w-3.5 text-amber-500" />
+                              تغییر دسترسی‌ها به موجودیت غیرفعال
+                            </span>
+                            <span className="text-[10px] text-muted-foreground bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
+                              تغییر سطوح دسترسی RBAC
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground leading-relaxed pr-5">
+                            هرگونه اعطا یا سلب مجوزهای مشاهده/بازیابی اسناد و داده‌های غیرفعال منوط به تایید مدیر سیستم، هشدار امنیتی و ثبت دقیق تغییرات است.
+                          </p>
+                          <div className="flex flex-wrap gap-4 pr-5 pt-1">
+                            {[
+                              { key: "requireAdminApproval", label: "تایید مدیر سیستم" },
+                              { key: "auditLog", label: "ثبت سابقه تغییر دسترسی" },
+                              { key: "notifySecurityOfficer", label: "ارسال هشدار به مسئول امنیت" }
+                            ].map(op => (
+                              <label key={op.key} className="flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300 font-medium cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={settings.inactiveEntityOperationsPolicy?.changeInactiveAccess?.[op.key] ?? true}
+                                  onChange={e => {
+                                    const updated = {
+                                      ...settings.inactiveEntityOperationsPolicy,
+                                      changeInactiveAccess: {
+                                        ...settings.inactiveEntityOperationsPolicy?.changeInactiveAccess,
+                                        [op.key]: e.target.checked
+                                      }
+                                    };
+                                    set("inactiveEntityOperationsPolicy", updated);
+                                  }}
+                                  className="h-3.5 w-3.5 rounded border-slate-300 text-purple-600"
+                                />
+                                <span>{op.label}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* سطر ۴: عملیات بر روی فراداده وابسته به موجودیت غیرفعال */}
+                        <div className="p-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                              <FileCheck className="h-3.5 w-3.5 text-emerald-500" />
+                              عملیات بر روی فراداده وابسته به موجودیت غیرفعال
+                            </span>
+                            <span className="text-[10px] text-muted-foreground bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
+                              متاداده و فراداده وابستگی‌ها
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground leading-relaxed pr-5">
+                            فراداده و برچسب‌های وابستگی موجودیت‌های غیرفعال قفل و «صرفاً خواندنی» گردیده و تمامیت داده‌ها (Integrity) دائماً ارزیابی می‌شود.
+                          </p>
+                          <div className="flex flex-wrap gap-4 pr-5 pt-1">
+                            {[
+                              { key: "readOnlyMetadata", label: "قفل متاداده (Read-Only)" },
+                              { key: "auditLog", label: "ثبت هرگونه فراخوانی متاداده" },
+                              { key: "checkIntegrity", label: "سنجش تمامیت (Integrity Check)" }
+                            ].map(op => (
+                              <label key={op.key} className="flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300 font-medium cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={settings.inactiveEntityOperationsPolicy?.inactiveMetadataOps?.[op.key] ?? true}
+                                  onChange={e => {
+                                    const updated = {
+                                      ...settings.inactiveEntityOperationsPolicy,
+                                      inactiveMetadataOps: {
+                                        ...settings.inactiveEntityOperationsPolicy?.inactiveMetadataOps,
+                                        [op.key]: e.target.checked
+                                      }
+                                    };
+                                    set("inactiveEntityOperationsPolicy", updated);
+                                  }}
+                                  className="h-3.5 w-3.5 rounded border-slate-300 text-purple-600"
+                                />
+                                <span>{op.label}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* سطر ۵: سایر موارد */}
+                        <div className="p-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                              <ShieldCheck className="h-3.5 w-3.5 text-purple-500" />
+                              سایر موارد
+                            </span>
+                            <span className="text-[10px] text-muted-foreground bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
+                              جابجایی و صادرات دسته‌ای آرشیو
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground leading-relaxed pr-5">
+                            شامل کلیه عملیات سیستم از جمله تبدیل فرمت، انتقال آرشیو تاریخی، فشرده‌سازی و استخراج داده‌های غیرفعال.
+                          </p>
+                          <div className="flex flex-wrap gap-4 pr-5 pt-1">
+                            {[
+                              { key: "requireAdminApproval", label: "الزام تایید مدیر سیستم" },
+                              { key: "auditLog", label: "ثبت کامل رویداد در لاگ افتا" }
+                            ].map(op => (
+                              <label key={op.key} className="flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300 font-medium cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={settings.inactiveEntityOperationsPolicy?.otherInactiveOps?.[op.key] ?? true}
+                                  onChange={e => {
+                                    const updated = {
+                                      ...settings.inactiveEntityOperationsPolicy,
+                                      otherInactiveOps: {
+                                        ...settings.inactiveEntityOperationsPolicy?.otherInactiveOps,
+                                        [op.key]: e.target.checked
+                                      }
+                                    };
+                                    set("inactiveEntityOperationsPolicy", updated);
+                                  }}
+                                  className="h-3.5 w-3.5 rounded border-slate-300 text-purple-600"
+                                />
+                                <span>{op.label}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* جدول تعیین ویژگی‌هایی که بر اساس آن خط‌مشی‌های موجودیت‌های غیرفعال تعریف می‌شوند (مطابق تصویر جدید) */}
+                  <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+                    <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white p-4 font-bold text-xs flex items-center justify-between border-b border-blue-800">
+                      <div className="flex items-center gap-2.5">
+                        <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0" />
+                        <span className="text-xs md:text-sm font-black">
+                          محصول باید بر اساس ویژگی‌های زیر، برای موجودیت‌های غیرفعال خط‌مشی‌های کنترل دسترسی اعمال نماید.
+                        </span>
+                      </div>
+                      <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 text-[10px] shrink-0">
+                        الزام افتا
+                      </Badge>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-12 divide-y md:divide-y-0 md:divide-x md:divide-x-reverse divide-slate-200 dark:divide-slate-800">
+                      {/* ستون راست: عنوان اصلی مطابق تصویر */}
+                      <div className="md:col-span-5 bg-slate-50/80 dark:bg-slate-900/50 p-5 flex flex-col justify-center items-center text-center font-bold text-xs text-slate-800 dark:text-slate-200 leading-relaxed border-b md:border-b-0 md:border-l border-slate-200 dark:border-slate-800 space-y-2">
+                        <Sliders className="h-7 w-7 text-indigo-600 mb-1" />
+                        <span>ویژگی‌هایی که بر اساس آن خط‌مشی‌ها تعریف می‌شوند، انتخاب گردد.</span>
+                        <span className="text-[11px] text-muted-foreground font-normal">
+                          انتخاب معیارهای اصلی احراز هویت و ارزیابی سطح دسترسی بر روی موجودیت‌های غیرفعال
+                        </span>
+                      </div>
+
+                      {/* ستون چپ: ۳ سطر انتخابی با چک‌باکس مربع مطابق تصویر */}
+                      <div className="md:col-span-7 divide-y divide-slate-200 dark:divide-slate-800">
+                        
+                        {/* سطر ۱: نقش‌ها و مجوزهای کاربر مجاز */}
+                        <div className="p-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                          <label htmlFor="useUserRolesAndPermissions" className="flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              id="useUserRolesAndPermissions"
+                              checked={settings.inactiveEntityPolicyCriteria?.useUserRolesAndPermissions ?? true}
+                              onChange={e => {
+                                const updated = {
+                                  ...settings.inactiveEntityPolicyCriteria,
+                                  useUserRolesAndPermissions: e.target.checked
+                                };
+                                set("inactiveEntityPolicyCriteria", updated);
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                                نقش‌ها و مجوزهای کاربر مجاز
+                              </span>
+                              <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                                ارزیابی سطح دسترسی موجودیت‌های غیرفعال بر اساس ماتریس نقش‌ها و سطوح دسترسی پیش‌فرض کاربر (RBAC).
+                              </p>
+                            </div>
+                          </label>
+                        </div>
+
+                        {/* سطر ۲: اطلاعات نشست کاربر و پارامترهایی که با درخواست فرستاده می‌شوند */}
+                        <div className="p-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                          <label htmlFor="useSessionInfoAndRequestParams" className="flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              id="useSessionInfoAndRequestParams"
+                              checked={settings.inactiveEntityPolicyCriteria?.useSessionInfoAndRequestParams ?? true}
+                              onChange={e => {
+                                const updated = {
+                                  ...settings.inactiveEntityPolicyCriteria,
+                                  useSessionInfoAndRequestParams: e.target.checked
+                                };
+                                set("inactiveEntityPolicyCriteria", updated);
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                                اطلاعات نشست کاربر و پارامترهایی که با درخواست فرستاده می‌شوند.
+                              </span>
+                              <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                                اعمال خط‌مشی‌ها بر اساس خصوصیات نشست کلاینت (IP، توکن JWT، وضعیت احراز هویت) و پارامترهای درخواست HTTP.
+                              </p>
+                            </div>
+                          </label>
+                        </div>
+
+                        {/* سطر ۳: سایر موارد */}
+                        <div className="p-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                          <label htmlFor="useOtherCriteria" className="flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              id="useOtherCriteria"
+                              checked={settings.inactiveEntityPolicyCriteria?.useOtherCriteria ?? false}
+                              onChange={e => {
+                                const updated = {
+                                  ...settings.inactiveEntityPolicyCriteria,
+                                  useOtherCriteria: e.target.checked
+                                };
+                                set("inactiveEntityPolicyCriteria", updated);
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                                سایر موارد
+                              </span>
+                              <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                                اعمال ضوابط بر اساس محدوده ساعات کاری، موقعیت شبکه‌ای اینترانت و گواهی‌نامه‌های امنیتی اختصاصی.
+                              </p>
+                            </div>
+                          </label>
+                        </div>
+
+                      </div>
                     </div>
                   </div>
 

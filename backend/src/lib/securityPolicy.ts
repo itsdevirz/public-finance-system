@@ -42,12 +42,53 @@ export interface ActiveUserSecurityChangePolicy {
   notifyUserSecurityAlert: boolean;
 }
 
+export interface InactiveEntityPermissions {
+  read: boolean;
+  restore: boolean;
+  delete: boolean;
+  export: boolean;
+}
+
+export interface InactiveEntityAccessPolicies {
+  recordsDocsMetadata: InactiveEntityPermissions;
+  userBelongingData: InactiveEntityPermissions;
+  authData: InactiveEntityPermissions;
+  otherInactiveCases: InactiveEntityPermissions;
+}
+
+export interface InactiveEntityOperationConfig {
+  requireAdminApproval: boolean;
+  auditLog: boolean;
+  preventHardDelete?: boolean;
+  rbacCheck?: boolean;
+  notifySecurityOfficer?: boolean;
+  readOnlyMetadata?: boolean;
+  checkIntegrity?: boolean;
+}
+
+export interface InactiveEntityOperationsPolicy {
+  createInactiveEntity: InactiveEntityOperationConfig;
+  deleteInactiveEntity: InactiveEntityOperationConfig;
+  changeInactiveAccess: InactiveEntityOperationConfig;
+  inactiveMetadataOps: InactiveEntityOperationConfig;
+  otherInactiveOps: InactiveEntityOperationConfig;
+}
+
+export interface InactiveEntityPolicyCriteria {
+  useUserRolesAndPermissions: boolean;
+  useSessionInfoAndRequestParams: boolean;
+  useOtherCriteria: boolean;
+}
+
 export interface SecurityPolicyConfig {
   passwordPolicy: PasswordPolicy;
   lockoutPolicy: LockoutPolicy;
   sessionPolicy: SessionPolicy;
   entityAccessPolicies?: EntityAccessPolicy[];
   activeUserSecurityChangePolicy?: ActiveUserSecurityChangePolicy;
+  inactiveEntityAccessPolicies?: InactiveEntityAccessPolicies;
+  inactiveEntityOperationsPolicy?: InactiveEntityOperationsPolicy;
+  inactiveEntityPolicyCriteria?: InactiveEntityPolicyCriteria;
 }
 
 export const DEFAULT_ENTITY_ACCESS_POLICIES: EntityAccessPolicy[] = [
@@ -126,6 +167,24 @@ export const DEFAULT_SECURITY_POLICY: SecurityPolicyConfig = {
     revokeAllDeviceSessions: true,
     auditLogSecurityChanges: true,
     notifyUserSecurityAlert: false,
+  },
+  inactiveEntityAccessPolicies: {
+    recordsDocsMetadata: { read: true, restore: false, delete: false, export: true },
+    userBelongingData: { read: true, restore: false, delete: false, export: false },
+    authData: { read: false, restore: false, delete: false, export: false },
+    otherInactiveCases: { read: true, restore: false, delete: false, export: false }
+  },
+  inactiveEntityOperationsPolicy: {
+    createInactiveEntity: { requireAdminApproval: true, auditLog: true, rbacCheck: true },
+    deleteInactiveEntity: { preventHardDelete: true, requireAdminApproval: true, auditLog: true },
+    changeInactiveAccess: { requireAdminApproval: true, auditLog: true, notifySecurityOfficer: true },
+    inactiveMetadataOps: { readOnlyMetadata: true, auditLog: true, checkIntegrity: true },
+    otherInactiveOps: { requireAdminApproval: true, auditLog: true }
+  },
+  inactiveEntityPolicyCriteria: {
+    useUserRolesAndPermissions: true,
+    useSessionInfoAndRequestParams: true,
+    useOtherCriteria: false
   }
 };
 

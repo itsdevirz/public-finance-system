@@ -58,6 +58,9 @@ router.put("/policy", requireRole(["admin"]), async (c) => {
       },
       entityAccessPolicies: body.entityAccessPolicies || existingVal.entityAccessPolicies || DEFAULT_SECURITY_POLICY.entityAccessPolicies,
       activeUserSecurityChangePolicy: body.activeUserSecurityChangePolicy || existingVal.activeUserSecurityChangePolicy || DEFAULT_SECURITY_POLICY.activeUserSecurityChangePolicy,
+      inactiveEntityAccessPolicies: body.inactiveEntityAccessPolicies || existingVal.inactiveEntityAccessPolicies || DEFAULT_SECURITY_POLICY.inactiveEntityAccessPolicies,
+      inactiveEntityOperationsPolicy: body.inactiveEntityOperationsPolicy || existingVal.inactiveEntityOperationsPolicy || DEFAULT_SECURITY_POLICY.inactiveEntityOperationsPolicy,
+      inactiveEntityPolicyCriteria: body.inactiveEntityPolicyCriteria || existingVal.inactiveEntityPolicyCriteria || DEFAULT_SECURITY_POLICY.inactiveEntityPolicyCriteria,
     };
 
     await db.collection("system_settings").updateOne(
