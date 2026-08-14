@@ -1,9 +1,11 @@
 import { Hono } from "hono";
+import { ObjectId } from "mongodb";
 import { getDb } from "../db/index.js";
 import { DEFAULT_SECURITY_POLICY } from "../lib/securityPolicy.js";
 import { logAuditEvent, AFTA_LOG_EVENT_TYPES, verifyLogIntegrity, signExistingLogs, runAuditLogRetentionAndRotation } from "../lib/auditLogger.js";
 import { requireRole } from "../middleware/rbacMiddleware.js";
 import { sendAdminThresholdNotification } from "../lib/notifier.js";
+import { pruneExpiredSessions } from "../lib/sessionHelper.js";
 
 const router = new Hono();
 
@@ -12,9 +14,10 @@ router.get("/policy", async (c) => {
   try {
     const db = getDb();
     const config = await db.collection("system_settings").findOne({ key: "security_policy" });
+    const policy = config?.value ? { ...DEFAULT_SECURITY_POLICY, ...config.value } : DEFAULT_SECURITY_POLICY;
     return c.json({
       success: true,
-      data: config?.value || DEFAULT_SECURITY_POLICY
+      data: policy
     });
   } catch (error: any) {
     return c.json({ success: false, message: error.message }, 500);
@@ -33,6 +36,9 @@ router.put("/policy", requireRole(["admin"]), async (c) => {
       return c.json({ success: false, message: "تعداد تلاش‌های ناموفق احراز هویت باید یک عدد صحیح مثبت (بزرگتر از صفر) باشد." }, 400);
     }
 
+    const existingConfig = await db.collection("system_settings").findOne({ key: "security_policy" });
+    const existingVal = existingConfig?.value || DEFAULT_SECURITY_POLICY;
+
     const newPolicy = {
       passwordPolicy: {
         minLength: Number(body.passwordPolicy?.minLength) || 8,
@@ -49,7 +55,9 @@ router.put("/policy", requireRole(["admin"]), async (c) => {
         tokenExpiresInHours: Math.max(1, Number(body.sessionPolicy?.tokenExpiresInHours) || 8),
         maxConcurrentSessions: Math.max(1, Number(body.sessionPolicy?.maxConcurrentSessions) || 3),
         idleTimeoutMinutes: Math.max(1, Number(body.sessionPolicy?.idleTimeoutMinutes) || 30),
-      }
+      },
+      entityAccessPolicies: body.entityAccessPolicies || existingVal.entityAccessPolicies || DEFAULT_SECURITY_POLICY.entityAccessPolicies,
+      activeUserSecurityChangePolicy: body.activeUserSecurityChangePolicy || existingVal.activeUserSecurityChangePolicy || DEFAULT_SECURITY_POLICY.activeUserSecurityChangePolicy,
     };
 
     await db.collection("system_settings").updateOne(
@@ -86,6 +94,68 @@ router.put("/policy", requireRole(["admin"]), async (c) => {
       details: { error: error.message }
     });
 
+    return c.json({ success: false, message: error.message }, 500);
+  }
+});
+
+// GET /api/security/entity-policies - Read active entity access control policies
+router.get("/entity-policies", async (c) => {
+  try {
+    const db = getDb();
+    const config = await db.collection("system_settings").findOne({ key: "security_policy" });
+    const entityPolicies = config?.value?.entityAccessPolicies || DEFAULT_SECURITY_POLICY.entityAccessPolicies;
+    return c.json({
+      success: true,
+      data: entityPolicies
+    });
+  } catch (error: any) {
+    return c.json({ success: false, message: error.message }, 500);
+  }
+});
+
+// PUT /api/security/entity-policies - Update active entity access control policies (Admin only)
+router.put("/entity-policies", requireRole(["admin"]), async (c) => {
+  const payload = (c.get as any)("jwtPayload");
+  try {
+    const body = await c.req.json();
+    const db = getDb();
+
+    if (!Array.isArray(body.entityAccessPolicies)) {
+      return c.json({ success: false, message: "فرمت خط‌مشی‌های کنترل دسترسی نامعتبر است." }, 400);
+    }
+
+    const config = await db.collection("system_settings").findOne({ key: "security_policy" });
+    const currentVal = config?.value || DEFAULT_SECURITY_POLICY;
+    const updatedPolicy = {
+      ...currentVal,
+      entityAccessPolicies: body.entityAccessPolicies
+    };
+
+    await db.collection("system_settings").updateOne(
+      { key: "security_policy" },
+      { $set: { key: "security_policy", value: updatedPolicy, updatedAt: new Date().toISOString() } },
+      { upsert: true }
+    );
+
+    await logAuditEvent({
+      userId: payload.sub,
+      username: payload.username,
+      userRole: payload.role,
+      action: "به‌روزرسانی خط‌مشی‌های کنترل دسترسی موجودیت‌ها و عملیات",
+      eventType: AFTA_LOG_EVENT_TYPES.FUNCTION_BEHAVIOR_CHANGE,
+      resource: "entity_access_policies",
+      result: "SUCCESS",
+      ip: c.req.header("x-forwarded-for") || "127.0.0.1",
+      userAgent: c.req.header("user-agent"),
+      details: { updatedPoliciesCount: body.entityAccessPolicies.length }
+    });
+
+    return c.json({
+      success: true,
+      message: "خط‌مشی‌های کنترل دسترسی موجودیت‌ها و عملیات با موفقیت به‌روزرسانی شد.",
+      data: body.entityAccessPolicies
+    });
+  } catch (error: any) {
     return c.json({ success: false, message: error.message }, 500);
   }
 });
@@ -243,7 +313,7 @@ router.get("/audit-logs/verify-integrity", requireRole(["admin"]), async (c) => 
 router.get("/active-sessions", requireRole(["admin"]), async (c) => {
   try {
     const db = getDb();
-    const sessions = await db.collection("active_sessions").find().sort({ lastActivity: -1 }).toArray();
+    const sessions = await pruneExpiredSessions(db);
     return c.json({ success: true, data: sessions });
   } catch (error: any) {
     return c.json({ success: false, message: error.message }, 500);
@@ -258,14 +328,29 @@ router.post("/revoke-session", requireRole(["admin"]), async (c) => {
     const db = getDb();
 
     if (token) {
-      await db.collection("revoked_tokens").insertOne({ token, revokedAt: new Date().toISOString() });
+      await db.collection("revoked_tokens").updateOne(
+        { token },
+        { $set: { token, revokedAt: new Date().toISOString(), reason: "خروج توسط مدیر سیستم" } },
+        { upsert: true }
+      );
       await db.collection("active_sessions").deleteOne({ token });
     } else if (sessionId) {
-      const session = await db.collection("active_sessions").findOne({ _id: sessionId });
+      let queryFilter: any = { _id: sessionId };
+      try {
+        if (typeof sessionId === "string" && ObjectId.isValid(sessionId)) {
+          queryFilter = { $or: [{ _id: sessionId }, { _id: new ObjectId(sessionId) }] };
+        }
+      } catch (_) {}
+
+      const session = await db.collection("active_sessions").findOne(queryFilter);
       if (session?.token) {
-        await db.collection("revoked_tokens").insertOne({ token: session.token, revokedAt: new Date().toISOString() });
+        await db.collection("revoked_tokens").updateOne(
+          { token: session.token },
+          { $set: { token: session.token, revokedAt: new Date().toISOString(), reason: "خروج توسط مدیر سیستم" } },
+          { upsert: true }
+        );
       }
-      await db.collection("active_sessions").deleteOne({ _id: sessionId });
+      await db.collection("active_sessions").deleteMany(queryFilter);
     }
 
     await logAuditEvent({

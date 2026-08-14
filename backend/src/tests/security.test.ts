@@ -214,4 +214,26 @@ describe("🛡️ Comprehensive Security Test Suite", () => {
       }
     });
   });
+
+  describe("9. Active Entity Access Control Policies (AFTA & Image Requirement)", () => {
+    it("should enforce distinct access control policies for System Admin, Regular User, and Other Roles across active entities", () => {
+      const entityPolicies = DEFAULT_SECURITY_POLICY.entityAccessPolicies;
+      assert.ok(Array.isArray(entityPolicies) && entityPolicies.length > 0, "Entity access policies must be defined");
+
+      const vouchersPolicy = entityPolicies.find(p => p.entityId === "vouchers");
+      assert.ok(vouchersPolicy, "Vouchers entity policy must exist");
+
+      // 1. System Admin Permissions Check (مدیر سیستم)
+      assert.strictEqual(vouchersPolicy.systemAdmin.create, true, "System Admin must have create permission");
+      assert.strictEqual(vouchersPolicy.systemAdmin.delete, true, "System Admin must have delete permission");
+
+      // 2. Regular User Permissions Check (کاربر عادی)
+      assert.strictEqual(vouchersPolicy.regularUser.create, true, "Regular User can create vouchers");
+      assert.strictEqual(vouchersPolicy.regularUser.delete, false, "Regular User cannot delete vouchers by default");
+
+      // 3. Other Roles Permissions Check (سایر موارد)
+      assert.strictEqual(vouchersPolicy.otherRoles.create, false, "Other/Guest roles cannot create vouchers by default");
+      assert.strictEqual(vouchersPolicy.otherRoles.read, true, "Other/Guest roles can view vouchers");
+    });
+  });
 });

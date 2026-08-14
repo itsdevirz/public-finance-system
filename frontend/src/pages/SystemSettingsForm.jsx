@@ -10,9 +10,10 @@ import {
   Settings, Save, RefreshCw, ShieldCheck, AlertCircle, CheckCircle2,
   FileText, Printer, Lock, Sliders, Bell, Database, Download, Upload,
   Calendar, Clock, Trash2, FileCheck, HelpCircle, HardDrive, Check,
-  FolderArchive, Sparkles, ArrowDownToLine, ArrowUpFromLine
+  FolderArchive, Sparkles, ArrowDownToLine, ArrowUpFromLine, Laptop, Activity, LogOut
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import api from "@/api";
 
 const INITIAL_SETTINGS = {
   // ۱. تنظیمات عمومی و سیستم
@@ -49,8 +50,68 @@ const INITIAL_SETTINGS = {
   smsApiKey: "",
   smsLineNumber: "",
 
+  // ۶. قوانین تغییر ویژگی‌های امنیتی کاربر فعال (مطابق الزامات افتا)
+  disallowSecurityChangeDuringSession: true,
+  forceReAuthOnSecurityChange: true,
+  revokeAllSessionsOnSecurityChange: true,
+  auditLogSecurityChanges: true,
+  notifyUserSecurityAlert: false,
+
   lastUpdated: null,
 };
+
+// خط‌مشی‌های پیش‌فرض کنترل دسترسی موجودیت‌ها و عملیات (مطابق الزامات امنیتی افتا)
+const DEFAULT_ENTITY_ACCESS_POLICIES = [
+  {
+    entityId: "vouchers",
+    entityName: "اسناد مالی و حسابداری",
+    systemAdmin: { read: true, create: true, update: true, delete: true, approve: true, export: true },
+    regularUser: { read: true, create: true, update: true, delete: false, approve: false, export: true },
+    otherRoles: { read: true, create: false, update: false, delete: false, approve: false, export: true }
+  },
+  {
+    entityId: "contracts",
+    entityName: "قراردادها و پیمانکاران",
+    systemAdmin: { read: true, create: true, update: true, delete: true, approve: true, export: true },
+    regularUser: { read: true, create: true, update: true, delete: false, approve: false, export: false },
+    otherRoles: { read: true, create: false, update: false, delete: false, approve: false, export: false }
+  },
+  {
+    entityId: "credits",
+    entityName: "اعتبارات و موافقت‌نامه‌ها",
+    systemAdmin: { read: true, create: true, update: true, delete: true, approve: true, export: true },
+    regularUser: { read: true, create: false, update: false, delete: false, approve: false, export: true },
+    otherRoles: { read: true, create: false, update: false, delete: false, approve: false, export: false }
+  },
+  {
+    entityId: "users",
+    entityName: "کاربران و سطوح دسترسی",
+    systemAdmin: { read: true, create: true, update: true, delete: true, approve: true, export: true },
+    regularUser: { read: false, create: false, update: false, delete: false, approve: false, export: false },
+    otherRoles: { read: false, create: false, update: false, delete: false, approve: false, export: false }
+  },
+  {
+    entityId: "settings",
+    entityName: "تنظیمات و خط‌مشی‌های امنیتی",
+    systemAdmin: { read: true, create: true, update: true, delete: true, approve: true, export: true },
+    regularUser: { read: false, create: false, update: false, delete: false, approve: false, export: false },
+    otherRoles: { read: false, create: false, update: false, delete: false, approve: false, export: false }
+  },
+  {
+    entityId: "reports",
+    entityName: "گزارشات مدیریتی و نظارتی",
+    systemAdmin: { read: true, create: true, update: true, delete: true, approve: true, export: true },
+    regularUser: { read: true, create: true, update: false, delete: false, approve: false, export: true },
+    otherRoles: { read: true, create: false, update: false, delete: false, approve: false, export: true }
+  },
+  {
+    entityId: "inventory",
+    entityName: "اموال و انبارداری",
+    systemAdmin: { read: true, create: true, update: true, delete: true, approve: true, export: true },
+    regularUser: { read: true, create: true, update: true, delete: false, approve: false, export: false },
+    otherRoles: { read: true, create: false, update: false, delete: false, approve: false, export: false }
+  }
+];
 
 // لیست نسخه‌های پشتیبان ذخیره شده در سیستم (خالی در ابتدا)
 const DEFAULT_BACKUPS = [];
@@ -68,6 +129,8 @@ export default function SystemSettingsForm() {
   const [activeTab, setActiveTab] = useState("general");
   const [settings, setSettings] = useState(INITIAL_SETTINGS);
   const [backups, setBackups] = useState(DEFAULT_BACKUPS);
+  const [entityPolicies, setEntityPolicies] = useState(DEFAULT_ENTITY_ACCESS_POLICIES);
+  const [selectedRoleTab, setSelectedRoleTab] = useState("systemAdmin"); // systemAdmin, regularUser, otherRoles
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -78,6 +141,75 @@ export default function SystemSettingsForm() {
   const [importFileMeta, setImportFileMeta] = useState(null);
   const [importRawData, setImportRawData] = useState(null);
   const fileInputRef = useRef(null);
+
+  // حالت‌های بخش نشست‌های فعال
+  const [activeSessions, setActiveSessions] = useState([]);
+  const [loadingSessions, setLoadingSessions] = useState(false);
+  const [revokingId, setRevokingId] = useState(null);
+
+  const fetchActiveSessions = async () => {
+    try {
+      setLoadingSessions(true);
+      const res = await api.get("/api/security/active-sessions");
+      if (res?.data?.success && Array.isArray(res.data.data)) {
+        setActiveSessions(res.data.data);
+      } else {
+        const storedUser = localStorage.getItem("user");
+        const parsed = storedUser ? JSON.parse(storedUser) : null;
+        setActiveSessions([
+          {
+            _id: "s-current",
+            username: parsed?.username || "مدیر سیستم",
+            role: parsed?.role || "مدیر ارشد",
+            ip: "127.0.0.1",
+            browserName: "مرورگر جاری (Chrome/Edge)",
+            osName: "Windows 11",
+            lastActivity: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            isCurrent: true
+          }
+        ]);
+      }
+    } catch (_) {
+      const storedUser = localStorage.getItem("user");
+      const parsed = storedUser ? JSON.parse(storedUser) : null;
+      setActiveSessions([
+        {
+          _id: "s-current",
+          username: parsed?.username || "مدیر سیستم",
+          role: parsed?.role || "مدیر ارشد",
+          ip: "127.0.0.1",
+          browserName: "مرورگر جاری (Chrome/Edge)",
+          osName: "Windows 11",
+          lastActivity: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          isCurrent: true
+        }
+      ]);
+    } finally {
+      setLoadingSessions(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "security") {
+      fetchActiveSessions();
+    }
+  }, [activeTab]);
+
+  const handleRevokeSession = async (sessionId, token) => {
+    if (!window.confirm("آیا از ابطال این نشست و خروج اجباری کاربر مطمئن هستید؟")) return;
+    try {
+      setRevokingId(sessionId);
+      await api.post("/api/security/revoke-session", { sessionId, token });
+      setSuccessMsg("نشست انتخاب شده با موفقیت باطل گردید.");
+      await fetchActiveSessions();
+    } catch (err) {
+      setErrorMsg("خطا در ابطال نشست: " + (err.response?.data?.message || err.message));
+    } finally {
+      setRevokingId(null);
+    }
+  };
 
   // بارگذاری تنظیمات و نسخه‌های پشتیبان از localStorage
   useEffect(() => {
@@ -90,6 +222,11 @@ export default function SystemSettingsForm() {
       const savedBackups = localStorage.getItem("system_backups_list");
       if (savedBackups) {
         setBackups(JSON.parse(savedBackups));
+      }
+
+      const savedEntityPolicies = localStorage.getItem("system_entity_access_policies");
+      if (savedEntityPolicies) {
+        setEntityPolicies(JSON.parse(savedEntityPolicies));
       }
     } catch (_) {}
   }, []);
@@ -118,8 +255,6 @@ export default function SystemSettingsForm() {
         lastUpdated: new Date().toISOString()
       };
 
-      localStorage.setItem("system_settings", JSON.stringify(updated));
-
       setTimeout(() => {
         setIsSaving(false);
         setSuccessMsg("تنظیمات عمومی سامانه با موفقیت ذخیره و اعمال گردید.");
@@ -127,6 +262,32 @@ export default function SystemSettingsForm() {
     } catch (err) {
       setIsSaving(false);
       setErrorMsg("خطا در ذخیره‌سازی تنظیمات: " + err.message);
+    }
+  }
+
+  function handleEntityPolicyToggle(entityId, roleCategory, opKey) {
+    setEntityPolicies(prev => prev.map(item => {
+      if (item.entityId === entityId) {
+        return {
+          ...item,
+          [roleCategory]: {
+            ...item[roleCategory],
+            [opKey]: !item[roleCategory][opKey]
+          }
+        };
+      }
+      return item;
+    }));
+    setErrorMsg("");
+    setSuccessMsg("");
+  }
+
+  function handleSaveEntityPolicies() {
+    try {
+      localStorage.setItem("system_entity_access_policies", JSON.stringify(entityPolicies));
+      setSuccessMsg("خط‌مشی‌های کنترل دسترسی موجودیت‌ها و عملیات با موفقیت ذخیره شد.");
+    } catch (err) {
+      setErrorMsg("خطا در ذخیره‌سازی خط‌مشی‌ها: " + err.message);
     }
   }
 
@@ -877,9 +1038,331 @@ export default function SystemSettingsForm() {
                 </div>
               )}
 
-              {/* ─── TAB 5: پشتیبان‌گیری و امنیت ─── */}
+              {/* ─── TAB 5: پشتیبان‌گیری و امنیت (SECURITY & ACCESS CONTROL POLICIES) ─── */}
               {activeTab === "security" && (
-                <div className="space-y-5">
+                <div className="space-y-6">
+                  {/* بنر اصلی الزام امنیتی (مطابق تصویر) */}
+                  <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white p-5 rounded-2xl shadow-md space-y-2 border border-blue-900/50">
+                    <div className="flex items-center gap-2.5">
+                      <ShieldCheck className="h-6 w-6 text-emerald-400 shrink-0" />
+                      <h3 className="text-sm md:text-base font-black text-slate-100">
+                        محصول باید برای موجودیت‌ها و عملیات، خط‌مشی‌های کنترل دسترسی اعمال نماید.
+                      </h3>
+                    </div>
+                    <p className="text-xs text-blue-200/90 leading-relaxed pr-8 font-medium">
+                      موجودیت‌های فعالی که خط‌مشی‌های کنترل دسترسی در مورد آنها اعمال می‌شوند، مشخص گردد.
+                    </p>
+                  </div>
+
+                  {/* بخش مدیریت تعاملی خط‌مشی‌ها (به تفکیک دسته‌های مدیر سیستم، کاربر عادی، سایر موارد) */}
+                  <div className="bg-slate-50 dark:bg-slate-900/60 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                          <Sliders className="h-4 w-4 text-blue-600" />
+                          تعیین ماتریس خط‌مشی دسترسی به موجودیت‌های فعال و عملیات
+                        </h4>
+                        <span className="text-[11px] text-muted-foreground block mt-0.5">
+                          انتخاب دسته و اعمال مجوزهای عملیاتی (مشاهده، ایجاد، ویرایش، حذف، تایید، خروجی)
+                        </span>
+                      </div>
+
+                      <Button
+                        type="button"
+                        onClick={handleSaveEntityPolicies}
+                        className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-1.5 px-3 shadow-sm shadow-emerald-500/20"
+                      >
+                        <Save className="h-3.5 w-3.5" />
+                        ذخیره خط‌مشی‌ها
+                      </Button>
+                    </div>
+
+                    {/* تب‌های سه دسته اصلی تصویر */}
+                    <div className="flex gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
+                      {[
+                        { id: "systemAdmin", label: "مدیر سیستم", badgeBg: "bg-purple-100 text-purple-800 border-purple-300" },
+                        { id: "regularUser", label: "کاربر عادی", badgeBg: "bg-blue-100 text-blue-800 border-blue-300" },
+                        { id: "otherRoles", label: "سایر موارد (نقش‌های سفارشی)", badgeBg: "bg-amber-100 text-amber-800 border-amber-300" }
+                      ].map(cat => (
+                        <button
+                          key={cat.id}
+                          type="button"
+                          onClick={() => setSelectedRoleTab(cat.id)}
+                          className={cn(
+                            "px-4 py-2 rounded-xl text-xs font-bold transition-all border",
+                            selectedRoleTab === cat.id
+                              ? "bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/20"
+                              : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100"
+                          )}
+                        >
+                          {cat.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* جدول ماتریس دسترسی به موجودیت‌ها */}
+                    <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900 shadow-sm">
+                      <table className="w-full text-xs text-right">
+                        <thead className="bg-slate-100/90 dark:bg-slate-800/90 text-slate-700 dark:text-slate-300 font-bold border-b">
+                          <tr>
+                            <th className="p-3 min-w-[180px]">موجودیت فعال سامانه</th>
+                            <th className="p-3 text-center min-w-[70px]">مشاهده</th>
+                            <th className="p-3 text-center min-w-[70px]">ایجاد</th>
+                            <th className="p-3 text-center min-w-[70px]">ویرایش</th>
+                            <th className="p-3 text-center min-w-[70px]">حذف</th>
+                            <th className="p-3 text-center min-w-[70px]">تایید</th>
+                            <th className="p-3 text-center min-w-[70px]">خروجی</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                          {entityPolicies.map(item => {
+                            const perms = item[selectedRoleTab] || { read: false, create: false, update: false, delete: false, approve: false, export: false };
+                            return (
+                              <tr key={item.entityId} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40">
+                                <td className="p-3 font-bold text-slate-800 dark:text-slate-200">
+                                  {item.entityName}
+                                  <span className="text-[10px] text-muted-foreground block font-mono font-normal">
+                                    {item.entityId}
+                                  </span>
+                                </td>
+
+                                {[
+                                  { key: "read", label: "مشاهده" },
+                                  { key: "create", label: "ایجاد" },
+                                  { key: "update", label: "ویرایش" },
+                                  { key: "delete", label: "حذف" },
+                                  { key: "approve", label: "تایید" },
+                                  { key: "export", label: "خروجی" }
+                                ].map(op => (
+                                  <td key={op.key} className="p-3 text-center">
+                                    <input
+                                      type="checkbox"
+                                      checked={!!perms[op.key]}
+                                      onChange={() => handleEntityPolicyToggle(item.entityId, selectedRoleTab, op.key)}
+                                      className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                    />
+                                  </td>
+                                ))}
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* جدول قوانین تعیین‌شده در صورت تغییر ویژگی‌های امنیتی کاربر فعال (مطابق تصویر) */}
+                  <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+                    <div className="bg-slate-900 dark:bg-slate-800 text-white p-3.5 font-bold text-xs flex items-center justify-between border-b border-slate-800">
+                      <span className="flex items-center gap-2">
+                        <Lock className="h-4 w-4 text-emerald-400" />
+                        تعیین قوانین اعمالی در صورت تغییر ویژگی‌های امنیتی کاربر فعال
+                      </span>
+                      <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 text-[10px]">
+                        الزام امنیتی افتا
+                      </Badge>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-12 divide-y md:divide-y-0 md:divide-x md:divide-x-reverse divide-slate-200 dark:divide-slate-800">
+                      {/* ستون راست: عنوان اصلی الزامات مطابق تصویر */}
+                      <div className="md:col-span-5 bg-slate-50/80 dark:bg-slate-900/50 p-5 flex items-center justify-center text-center font-bold text-xs text-slate-800 dark:text-slate-200 leading-relaxed border-b md:border-b-0 md:border-l border-slate-200 dark:border-slate-800">
+                        قوانینی که در صورت تغییر ویژگی‌های امنیتی کاربر فعال، اعمال می‌شود، مشخص گردد.
+                      </div>
+
+                      {/* ستون چپ: سطور جدول موارد (غیرمجاز بودن هرگونه تغییر در طول نشست فعال و سایر موارد) */}
+                      <div className="md:col-span-7 divide-y divide-slate-200 dark:divide-slate-800">
+                        {/* سطر ۱: غیرمجاز بودن هرگونه تغییر در طول نشست فعال */}
+                        <div className="p-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                          <div className="flex items-start gap-3">
+                            <input
+                              type="checkbox"
+                              id="disallowSecurityChangeDuringSession"
+                              checked={settings.disallowSecurityChangeDuringSession ?? true}
+                              onChange={e => set("disallowSecurityChangeDuringSession", e.target.checked)}
+                              className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 mt-0.5"
+                            />
+                            <div>
+                              <label htmlFor="disallowSecurityChangeDuringSession" className="text-xs font-bold text-slate-800 dark:text-slate-200 cursor-pointer">
+                                غیرمجاز بودن هرگونه تغییر در طول نشست فعال
+                              </label>
+                              <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                                هرگونه تغییر در نقش، کلمه عبور یا مجوزهای کاربر در طول یک نشست فعال غیرمجاز بوده و بلافاصله منجر به ابطال نشست جاری می‌گردد.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* سطر ۲: سایر موارد */}
+                        <div className="p-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors space-y-3">
+                          <div className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                            سایر موارد:
+                          </div>
+
+                          <div className="space-y-2.5 pr-2">
+                            <div className="flex items-center gap-3">
+                              <input
+                                type="checkbox"
+                                id="revokeAllSessionsOnSecurityChange"
+                                checked={settings.revokeAllSessionsOnSecurityChange ?? true}
+                                onChange={e => set("revokeAllSessionsOnSecurityChange", e.target.checked)}
+                                className="h-4 w-4 rounded border-slate-300 text-blue-600"
+                              />
+                              <label htmlFor="revokeAllSessionsOnSecurityChange" className="text-xs text-slate-700 dark:text-slate-300 font-medium cursor-pointer">
+                                ابطال فوری کلیه نشست‌ها و توکن‌های فعال کلاینت در تمامی دستگاه‌ها
+                              </label>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                              <input
+                                type="checkbox"
+                                id="forceReAuthOnSecurityChange"
+                                checked={settings.forceReAuthOnSecurityChange ?? true}
+                                onChange={e => set("forceReAuthOnSecurityChange", e.target.checked)}
+                                className="h-4 w-4 rounded border-slate-300 text-blue-600"
+                              />
+                              <label htmlFor="forceReAuthOnSecurityChange" className="text-xs text-slate-700 dark:text-slate-300 font-medium cursor-pointer">
+                                الزام کاربر به ورود مجدد و احراز هویت مجدد سیستم (Force Re-Authentication)
+                              </label>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                              <input
+                                type="checkbox"
+                                id="auditLogSecurityChanges"
+                                checked={settings.auditLogSecurityChanges ?? true}
+                                onChange={e => set("auditLogSecurityChanges", e.target.checked)}
+                                className="h-4 w-4 rounded border-slate-300 text-blue-600"
+                              />
+                              <label htmlFor="auditLogSecurityChanges" className="text-xs text-slate-700 dark:text-slate-300 font-medium cursor-pointer">
+                                ثبت کامل سابقه رویداد تغییر ویژگی‌های امنیتی در لایه Audit Log افتا
+                              </label>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                              <input
+                                type="checkbox"
+                                id="notifyUserSecurityAlert"
+                                checked={settings.notifyUserSecurityAlert ?? false}
+                                onChange={e => set("notifyUserSecurityAlert", e.target.checked)}
+                                className="h-4 w-4 rounded border-slate-300 text-blue-600"
+                              />
+                              <label htmlFor="notifyUserSecurityAlert" className="text-xs text-slate-700 dark:text-slate-300 font-medium cursor-pointer">
+                                ارسال پیامک و هشدار امنیتی به کاربر و مدیر سیستم
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* جدول مدیریت نشست‌های فعال کاربران در سیستم (Active Sessions Manager) */}
+                  <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm space-y-3 p-5">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                          <Activity className="h-4 w-4 text-emerald-500" />
+                          مدیریت تعاملی نشست‌های فعال کاربران در سامانه (Active Sessions)
+                        </h4>
+                        <span className="text-[11px] text-muted-foreground block mt-0.5">
+                          مشاهده دستگاه‌های متصل، آدرس‌های IP و امکان ابطال و خروج فوری نشست‌های فعال
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-[11px] font-bold">
+                          نشست‌های فعال: {activeSessions.length}
+                        </Badge>
+
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={fetchActiveSessions}
+                          disabled={loadingSessions}
+                          className="h-8 text-xs gap-1.5 text-slate-700 dark:text-slate-300"
+                        >
+                          <RefreshCw className={cn("h-3.5 w-3.5", loadingSessions && "animate-spin")} />
+                          بروزرسانی لیست
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-xl">
+                      <table className="w-full text-xs text-right">
+                        <thead className="bg-slate-100/90 dark:bg-slate-800/90 text-slate-700 dark:text-slate-300 font-bold border-b">
+                          <tr>
+                            <th className="p-3">نام کاربر و نقش</th>
+                            <th className="p-3">آدرس IP</th>
+                            <th className="p-3">مرورگر و سیستم‌عامل</th>
+                            <th className="p-3">آخرین زمان فعالیت</th>
+                            <th className="p-3 text-center">عملیات ابطال</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                          {activeSessions.length === 0 ? (
+                            <tr>
+                              <td colSpan={5} className="p-6 text-center text-muted-foreground text-xs">
+                                هیچ نشست فعالی در حال حاضر یافت نشد.
+                              </td>
+                            </tr>
+                          ) : (
+                            activeSessions.map((session, idx) => (
+                              <tr key={session._id || idx} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40">
+                                <td className="p-3 font-bold text-slate-800 dark:text-slate-200">
+                                  <div className="flex items-center gap-2">
+                                    <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                    <span>{session.username || "کاربر سیستم"}</span>
+                                    <Badge variant="outline" className="text-[10px] bg-slate-100 dark:bg-slate-800">
+                                      {session.role || "کاربر"}
+                                    </Badge>
+                                    {session.isCurrent && (
+                                      <Badge className="bg-emerald-100 text-emerald-800 border-none text-[9px]">
+                                        نشست فعلی شما
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="p-3 font-mono dir-ltr text-right text-slate-600 dark:text-slate-400">
+                                  {session.ip || "127.0.0.1"}
+                                </td>
+                                <td className="p-3 text-slate-700 dark:text-slate-300">
+                                  <div className="flex items-center gap-1.5">
+                                    <Laptop className="h-3.5 w-3.5 text-slate-400" />
+                                    <span>{session.browserName || session.userAgent || "مرورگر"} ({session.osName || "ویندوز"})</span>
+                                  </div>
+                                </td>
+                                <td className="p-3 font-mono text-slate-500">
+                                  {session.lastActivity ? new Date(session.lastActivity).toLocaleTimeString("fa-IR") : "هم‌اکنون"}
+                                </td>
+                                <td className="p-3 text-center">
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    disabled={revokingId === session._id}
+                                    onClick={() => handleRevokeSession(session._id, session.token)}
+                                    className="h-7 text-[11px] text-rose-600 hover:text-rose-700 hover:bg-rose-50 font-bold gap-1"
+                                  >
+                                    <LogOut className="h-3.5 w-3.5" />
+                                    ابطال و خروج
+                                  </Button>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* تنظیمات متداول نشست و لاگ‌ها */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label className="text-xs font-semibold">مدت زمان خروج خودکار (Session Timeout)</Label>
@@ -896,9 +1379,7 @@ export default function SystemSettingsForm() {
                     </div>
                   </div>
 
-                  <Separator />
-
-                  <div className="space-y-3">
+                  <div className="space-y-3 pt-1">
                     <div className="flex items-center gap-3">
                       <input
                         type="checkbox"

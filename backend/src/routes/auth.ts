@@ -5,6 +5,7 @@ import { hashPassword, verifyPassword, signToken, verifyToken } from "../lib/aut
 import { validatePassword, DEFAULT_SECURITY_POLICY } from "../lib/securityPolicy.js";
 import { logAuditEvent, AFTA_LOG_EVENT_TYPES } from "../lib/auditLogger.js";
 import { parseUserAgent } from "../lib/uaParser.js";
+import { pruneExpiredSessions } from "../lib/sessionHelper.js";
 
 const router = new Hono();
 
@@ -204,7 +205,10 @@ router.post("/login", async (c) => {
 
   // Check Concurrent Session Limit & Apply Session Establishment Rules
   const maxSessions = secPolicy.sessionPolicy?.maxConcurrentSessions || 3;
-  const existingActiveSessions = await db.collection("active_sessions").find({ userId: user._id }).toArray();
+  const overflowAction = secPolicy.sessionPolicy?.overflowAction || "block"; // "block" or "evict_oldest"
+  
+  // 1. Automatically prune expired or revoked sessions first
+  const existingActiveSessions = await pruneExpiredSessions(db, user._id);
   const activeCount = existingActiveSessions.length;
 
   const newSessionNotice = {
@@ -224,19 +228,42 @@ router.post("/login", async (c) => {
     await db.collection("revoked_tokens").insertMany(tokensToRevoke);
     await db.collection("active_sessions").deleteMany({ userId: user._id });
   } else if (activeCount >= maxSessions) {
-    await logAuditEvent({
-      userId: user._id,
-      username: user.username,
-      action: AFTA_LOG_EVENT_TYPES.CONCURRENT_SESSION_LIMIT_EXCEEDED,
-      eventType: AFTA_LOG_EVENT_TYPES.CONCURRENT_SESSION_LIMIT_EXCEEDED,
-      resource: "auth/login",
-      result: "FAILURE",
-      ip,
-      userAgent,
-      errorCode: 403,
-      details: { activeCount, maxSessions }
-    });
-    return c.json({ message: `تعداد نشست‌های همزمان فعال شما (${activeCount}) بیش از حد مجاز (${maxSessions}) است. لطفاً نشست‌های قبلی را ببندید.` }, 403);
+    if (overflowAction === "evict_oldest") {
+      // FIFO Eviction: Revoke the oldest session(s) to make room for the new session
+      const sorted = [...existingActiveSessions].sort((a, b) => {
+        const timeA = new Date(a.lastActivity || a.createdAt || 0).valueOf();
+        const timeB = new Date(b.lastActivity || b.createdAt || 0).valueOf();
+        return timeA - timeB;
+      });
+
+      const numToEvict = activeCount - maxSessions + 1;
+      const sessionsToEvict = sorted.slice(0, numToEvict);
+      
+      const tokensToRevoke = sessionsToEvict.map((s) => ({
+        token: s.token,
+        revokedAt: new Date().toISOString(),
+        reason: "ابطال خودکار قدیمی‌ترین نشست به دلیل رسیدن به سقف نشست‌های همزمان"
+      }));
+
+      await db.collection("revoked_tokens").insertMany(tokensToRevoke);
+      const evictIds = sessionsToEvict.map((s) => s._id);
+      await db.collection("active_sessions").deleteMany({ _id: { $in: evictIds } });
+    } else {
+      // Strict Block: Reject new login attempt and return limit error message
+      await logAuditEvent({
+        userId: user._id,
+        username: user.username,
+        action: AFTA_LOG_EVENT_TYPES.CONCURRENT_SESSION_LIMIT_EXCEEDED,
+        eventType: AFTA_LOG_EVENT_TYPES.CONCURRENT_SESSION_LIMIT_EXCEEDED,
+        resource: "auth/login",
+        result: "FAILURE",
+        ip,
+        userAgent,
+        errorCode: 403,
+        details: { activeCount, maxSessions }
+      });
+      return c.json({ message: `تعداد نشست‌های همزمان فعال شما (${activeCount}) بیش از حد مجاز (${maxSessions}) است. لطفاً نشست‌های قبلی را ببندید.` }, 403);
+    }
   } else if (activeCount > 0) {
     // Concurrent-session policy: Notify existing active sessions (first session/main page) about new session establishment
     await db.collection("active_sessions").updateMany(
