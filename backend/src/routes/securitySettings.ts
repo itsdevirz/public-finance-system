@@ -61,6 +61,13 @@ router.put("/policy", requireRole(["admin"]), async (c) => {
       inactiveEntityAccessPolicies: body.inactiveEntityAccessPolicies || existingVal.inactiveEntityAccessPolicies || DEFAULT_SECURITY_POLICY.inactiveEntityAccessPolicies,
       inactiveEntityOperationsPolicy: body.inactiveEntityOperationsPolicy || existingVal.inactiveEntityOperationsPolicy || DEFAULT_SECURITY_POLICY.inactiveEntityOperationsPolicy,
       inactiveEntityPolicyCriteria: body.inactiveEntityPolicyCriteria || existingVal.inactiveEntityPolicyCriteria || DEFAULT_SECURITY_POLICY.inactiveEntityPolicyCriteria,
+      activeInactiveInteractionPolicy: body.activeInactiveInteractionPolicy || existingVal.activeInactiveInteractionPolicy || DEFAULT_SECURITY_POLICY.activeInactiveInteractionPolicy,
+      activeToInactivePreventionRules: body.activeToInactivePreventionRules || existingVal.activeToInactivePreventionRules || DEFAULT_SECURITY_POLICY.activeToInactivePreventionRules,
+      resourceSanitizationPolicy: body.resourceSanitizationPolicy || existingVal.resourceSanitizationPolicy || DEFAULT_SECURITY_POLICY.resourceSanitizationPolicy,
+      userDataInputAccessPolicy: body.userDataInputAccessPolicy || existingVal.userDataInputAccessPolicy || DEFAULT_SECURITY_POLICY.userDataInputAccessPolicy,
+      secureDataTransportPolicy: body.secureDataTransportPolicy || existingVal.secureDataTransportPolicy || DEFAULT_SECURITY_POLICY.secureDataTransportPolicy,
+      userDataEgressAccessPolicy: body.userDataEgressAccessPolicy || existingVal.userDataEgressAccessPolicy || DEFAULT_SECURITY_POLICY.userDataEgressAccessPolicy,
+      targetedDataEgressRules: body.targetedDataEgressRules || existingVal.targetedDataEgressRules || DEFAULT_SECURITY_POLICY.targetedDataEgressRules,
     };
 
     await db.collection("system_settings").updateOne(
@@ -98,6 +105,90 @@ router.put("/policy", requireRole(["admin"]), async (c) => {
     });
 
     return c.json({ success: false, message: error.message }, 500);
+  }
+});
+
+// POST /api/security/validate-egress - Validate data egress and export policy (AFTA Items 8 & 9)
+router.post("/validate-egress", async (c) => {
+  try {
+    const payload = (c.get as any)("jwtPayload");
+    const userRole = payload?.role || "حسابدار";
+    const body = await c.req.json().catch(() => ({}));
+    const { exportType = "CSV", recordCount = 1, fileSizeMB = 1, destination } = body;
+
+    const db = getDb();
+    const config = await db.collection("system_settings").findOne({ key: "security_policy" });
+    const policy = config?.value ? { ...DEFAULT_SECURITY_POLICY, ...config.value } : DEFAULT_SECURITY_POLICY;
+
+    const egressPolicy = policy.userDataEgressAccessPolicy || DEFAULT_SECURITY_POLICY.userDataEgressAccessPolicy!;
+    const targetedRules = policy.targetedDataEgressRules || DEFAULT_SECURITY_POLICY.targetedDataEgressRules!;
+
+    // 1. Validate User Data Egress Access Policy (Item 8)
+    const { validateUserDataEgressAccessPolicy, validateTargetedDataEgressRules } = await import("../lib/securityPolicy.js");
+    const egressCheck = validateUserDataEgressAccessPolicy({ exportType, recordCount, fileSizeMB, formatValid: true }, egressPolicy);
+    if (!egressCheck.allowed) {
+      await logAuditEvent({
+        userId: payload?.sub,
+        username: payload?.username,
+        userRole,
+        action: AFTA_LOG_EVENT_TYPES.SECURITY_FUNCTION_FAILURE,
+        eventType: AFTA_LOG_EVENT_TYPES.SECURITY_FUNCTION_FAILURE,
+        resource: c.req.path,
+        method: "POST",
+        result: "FAILURE",
+        ip: c.req.header("x-forwarded-for") || "127.0.0.1",
+        userAgent: c.req.header("user-agent"),
+        errorCode: 403,
+        details: { reason: "ممانعت از خروج داده (بند ۸ افتا)", details: egressCheck.reason }
+      });
+      return c.json({ success: false, allowed: false, message: egressCheck.reason }, 403);
+    }
+
+    // 2. Validate Targeted Data Egress Rules (Item 9)
+    // Non-admin users attempting untargeted export when preventUntargetedDataEgress is enabled get blocked!
+    const isUntargeted = targetedRules.preventUntargetedDataEgress && userRole !== "admin" && !destination;
+    const targetedCheck = validateTargetedDataEgressRules({
+      hasTargetDestination: !isUntargeted,
+      destinationAuthorized: true,
+      isBulkWithoutApproval: targetedRules.requireAdminApprovalForBulkEgress && userRole !== "admin" && recordCount > 1000
+    }, targetedRules);
+
+    if (!targetedCheck.allowed) {
+      await logAuditEvent({
+        userId: payload?.sub,
+        username: payload?.username,
+        userRole,
+        action: AFTA_LOG_EVENT_TYPES.SECURITY_FUNCTION_FAILURE,
+        eventType: AFTA_LOG_EVENT_TYPES.SECURITY_FUNCTION_FAILURE,
+        resource: c.req.path,
+        method: "POST",
+        result: "FAILURE",
+        ip: c.req.header("x-forwarded-for") || "127.0.0.1",
+        userAgent: c.req.header("user-agent"),
+        errorCode: 403,
+        details: { reason: "ممانعت از خروج بدون هدف داده کاربری (بند ۹ افتا)", details: targetedCheck.reason }
+      });
+      return c.json({ success: false, allowed: false, message: targetedCheck.reason }, 403);
+    }
+
+    // Log successful egress check
+    await logAuditEvent({
+      userId: payload?.sub,
+      username: payload?.username,
+      userRole,
+      action: AFTA_LOG_EVENT_TYPES.DATA_EXPORT,
+      eventType: AFTA_LOG_EVENT_TYPES.DATA_EXPORT,
+      resource: c.req.path,
+      method: "POST",
+      result: "SUCCESS",
+      ip: c.req.header("x-forwarded-for") || "127.0.0.1",
+      userAgent: c.req.header("user-agent"),
+      details: { exportType, recordCount, destination: destination || "مجاز" }
+    });
+
+    return c.json({ success: true, allowed: true, message: "خروج داده طبق خط‌مشی مجاز می‌باشد." });
+  } catch (error: any) {
+    return c.json({ success: false, allowed: false, message: error.message }, 500);
   }
 });
 

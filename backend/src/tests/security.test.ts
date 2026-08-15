@@ -1,6 +1,6 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert";
-import { DEFAULT_SECURITY_POLICY, validatePassword } from "../lib/securityPolicy.js";
+import { DEFAULT_SECURITY_POLICY, validatePassword, validateActiveToInactiveInteractionACL, validateActiveToInactivePreventionRules, validateResourceSanitizationPolicy, validateUserDataInputAccessPolicy, validateSecureDataTransportPolicy, validateUserDataEgressAccessPolicy, validateTargetedDataEgressRules } from "../lib/securityPolicy.js";
 import { encrypt, decrypt, destroyCryptoKey } from "../lib/crypto.js";
 import { validateRemoteCertificate } from "../lib/certValidator.js";
 import { verifyUpdateIntegrity, verifyUpdateSignature } from "../lib/secureUpdate.js";
@@ -234,6 +234,209 @@ describe("🛡️ Comprehensive Security Test Suite", () => {
       // 3. Other Roles Permissions Check (سایر موارد)
       assert.strictEqual(vouchersPolicy.otherRoles.create, false, "Other/Guest roles cannot create vouchers by default");
       assert.strictEqual(vouchersPolicy.otherRoles.read, true, "Other/Guest roles can view vouchers");
+    });
+  });
+
+  describe("10. Active-to-Inactive Entity Operation Control (AFTA & Image ACL Requirement)", () => {
+    it("should authorize operations between active and inactive entities when matching ACL record exists by User ID", () => {
+      const userInfo = { userId: "usr_101", groupId: "grp_finance", userRole: "حسابدار" };
+      const aclRecord = { allowedUserIds: ["usr_101"], allowedGroupIds: [], allowedRoles: [] };
+      const result = validateActiveToInactiveInteractionACL(userInfo, aclRecord);
+
+      assert.strictEqual(result.allowed, true);
+    });
+
+    it("should authorize operations when matching ACL record exists by Group ID or User Role", () => {
+      const userInfo = { userId: "usr_202", groupId: "grp_auditors", userRole: "حسابرس" };
+      const aclRecordGroupMatch = { allowedUserIds: [], allowedGroupIds: ["grp_auditors"], allowedRoles: [] };
+      const resGroup = validateActiveToInactiveInteractionACL(userInfo, aclRecordGroupMatch);
+
+      assert.strictEqual(resGroup.allowed, true);
+
+      const aclRecordRoleMatch = { allowedUserIds: [], allowedGroupIds: [], allowedRoles: ["حسابرس"] };
+      const resRole = validateActiveToInactiveInteractionACL(userInfo, aclRecordRoleMatch);
+
+      assert.strictEqual(resRole.allowed, true);
+    });
+
+    it("should reject operations when no explicit ACL record exists or user/group/role is not in ACL record", () => {
+      const userInfo = { userId: "usr_unauthorized", groupId: "grp_guest", userRole: "کاربر عادی" };
+      
+      // 1. Missing ACL record
+      const resMissing = validateActiveToInactiveInteractionACL(userInfo, null);
+      assert.strictEqual(resMissing.allowed, false);
+      assert.ok(resMissing.reason?.includes("فهرست کنترل دسترسی (ACL)"));
+
+      // 2. Non-matching ACL record
+      const aclRecordOther = { allowedUserIds: ["usr_admin"], allowedGroupIds: ["grp_management"], allowedRoles: ["admin"] };
+      const resMismatch = validateActiveToInactiveInteractionACL(userInfo, aclRecordOther);
+      assert.strictEqual(resMismatch.allowed, false);
+    });
+  });
+
+  describe("11. Active-to-Inactive Entity Access Prevention Rules (AFTA & Image Requirement)", () => {
+    it("should prevent access when active concurrent sessions with same username exceed threshold", () => {
+      const contextExceeded = { currentActiveSessionsCount: 5 };
+      const res = validateActiveToInactivePreventionRules(contextExceeded);
+
+      assert.strictEqual(res.allowed, false);
+      assert.ok(res.reason?.includes("مقدار آستانه از پیش تعریف‌شده"));
+    });
+
+    it("should allow access when active concurrent sessions are within threshold limit", () => {
+      const contextNormal = { currentActiveSessionsCount: 2 };
+      const res = validateActiveToInactivePreventionRules(contextNormal);
+
+      assert.strictEqual(res.allowed, true);
+    });
+
+    it("should prevent access under 'other cases' rules (account deactivation or IP anomaly)", () => {
+      // 1. Account Deactivation
+      const resDeactivated = validateActiveToInactivePreventionRules({ isAccountActive: false });
+      assert.strictEqual(resDeactivated.allowed, false);
+      assert.ok(resDeactivated.reason?.includes("غیرفعال شدن حساب کاربری"));
+
+      // 2. IP Anomaly Detection
+      const resIP = validateActiveToInactivePreventionRules({ ipChanged: true });
+      assert.strictEqual(resIP.allowed, false);
+      assert.ok(resIP.reason?.includes("ناهنجاری آدرس IP"));
+    });
+  });
+
+  describe("12. Resource Sanitization & Legacy Resource Access Control (AFTA Item 5 Requirement)", () => {
+    it("should ensure memory buffers, crypto keys and residual resource data are wiped upon allocation and release", () => {
+      const resAlloc = validateResourceSanitizationPolicy("allocation");
+      assert.strictEqual(resAlloc.sanitized, true);
+      assert.ok(resAlloc.message?.includes("پاک‌سازی"));
+
+      const resRelease = validateResourceSanitizationPolicy("release");
+      assert.strictEqual(resRelease.sanitized, true);
+    });
+
+    it("should enforce secure access controls and audit logging for accessing legacy resource data", () => {
+      const resLegacy = validateResourceSanitizationPolicy("legacy_access");
+      assert.strictEqual(resLegacy.sanitized, true);
+      assert.ok(resLegacy.message?.includes("احراز هویت"));
+    });
+  });
+
+  describe("13. User Data Input Access Policy & Security Attributes (AFTA Requirement)", () => {
+    it("should validate user data input against allowed data types, volume size, format and import frequency", () => {
+      // 1. Valid Input
+      const resValid = validateUserDataInputAccessPolicy({
+        dataType: "JSON",
+        sizeMB: 2,
+        formatValid: true,
+        importCountLastHour: 5
+      });
+      assert.strictEqual(resValid.valid, true);
+
+      // 2. Disallowed Data Type
+      const resInvalidType = validateUserDataInputAccessPolicy({ dataType: "EXE" });
+      assert.strictEqual(resInvalidType.valid, false);
+      assert.ok(resInvalidType.reason?.includes("نوع داده ورودی"));
+
+      // 3. Exceeded Volume / Size Limit
+      const resExceededSize = validateUserDataInputAccessPolicy({ sizeMB: 50 });
+      assert.strictEqual(resExceededSize.valid, false);
+      assert.ok(resExceededSize.reason?.includes("حجم و اندازه"));
+
+      // 4. Invalid Format
+      const resInvalidFormat = validateUserDataInputAccessPolicy({ formatValid: false });
+      assert.strictEqual(resInvalidFormat.valid, false);
+      assert.ok(resInvalidFormat.reason?.includes("فرمت"));
+
+      // 5. Exceeded Import Frequency Limit
+      const resExceededImports = validateUserDataInputAccessPolicy({ importCountLastHour: 25 });
+      assert.strictEqual(resExceededImports.valid, false);
+      assert.ok(resExceededImports.reason?.includes("Import"));
+    });
+  });
+
+  describe("14. Secure Data Transport & Anti-Eavesdropping Policy (AFTA Requirement)", () => {
+    it("should enforce TLS encryption, eavesdropping prevention, attribute coupling and data loss protection in transit", () => {
+      // 1. Valid Secure Transport
+      const resValid = validateSecureDataTransportPolicy({
+        isSecureProtocol: true,
+        hasAuthHeaders: true,
+        checksumValid: true
+      });
+      assert.strictEqual(resValid.secure, true);
+
+      // 2. Unencrypted Channel (HTTP / Eavesdropping Risk)
+      const resInsecure = validateSecureDataTransportPolicy({ isSecureProtocol: false });
+      assert.strictEqual(resInsecure.secure, false);
+      assert.ok(resInsecure.reason?.includes("شنود"));
+
+      // 3. Missing Transparent Security Attribute Coupling
+      const resMissingHeaders = validateSecureDataTransportPolicy({ isSecureProtocol: true, hasAuthHeaders: false });
+      assert.strictEqual(resMissingHeaders.secure, false);
+      assert.ok(resMissingHeaders.reason?.includes("همبستگی شفاف"));
+
+      // 4. Data Loss or Tampering in Transit
+      const resTampered = validateSecureDataTransportPolicy({ isSecureProtocol: true, hasAuthHeaders: true, checksumValid: false });
+      assert.strictEqual(resTampered.secure, false);
+      assert.ok(resTampered.reason?.includes("دستکاری"));
+    });
+  });
+
+  describe("15. User Data Egress Access Control & Security Attributes (AFTA Item 8 Requirement)", () => {
+    it("should validate data egress/export against allowed data types, record volume limits, file size and format criteria", () => {
+      // 1. Valid Egress
+      const resValid = validateUserDataEgressAccessPolicy({
+        exportType: "PDF",
+        recordCount: 1000,
+        fileSizeMB: 5,
+        formatValid: true
+      });
+      assert.strictEqual(resValid.allowed, true);
+
+      // 2. Disallowed Export Data Type
+      const resInvalidType = validateUserDataEgressAccessPolicy({ exportType: "RAW" });
+      assert.strictEqual(resInvalidType.allowed, false);
+      assert.ok(resInvalidType.reason?.includes("نوع داده"));
+
+      // 3. Exceeded Mass Export Record Count Limit
+      const resExceededRecords = validateUserDataEgressAccessPolicy({ recordCount: 15000 });
+      assert.strictEqual(resExceededRecords.allowed, false);
+      assert.ok(resExceededRecords.reason?.includes("تعداد رکوردهای خروجی"));
+
+      // 4. Exceeded Export File Size
+      const resExceededSize = validateUserDataEgressAccessPolicy({ fileSizeMB: 100 });
+      assert.strictEqual(resExceededSize.allowed, false);
+      assert.ok(resExceededSize.reason?.includes("حجم فایل خروجی"));
+
+      // 5. Invalid Export Format / Encoding
+      const resInvalidFormat = validateUserDataEgressAccessPolicy({ formatValid: false });
+      assert.strictEqual(resInvalidFormat.allowed, false);
+      assert.ok(resInvalidFormat.reason?.includes("فرمت خروجی"));
+    });
+  });
+
+  describe("16. Targeted Data Egress & Un-targeted Export Prevention Rules (AFTA Item 9 Requirement)", () => {
+    it("should prevent aimless/un-targeted data egress and enforce authorized destination check and admin approval", () => {
+      // 1. Valid Egress to Targeted Destination
+      const resValid = validateTargetedDataEgressRules({
+        hasTargetDestination: true,
+        destinationAuthorized: true,
+        isBulkWithoutApproval: false
+      });
+      assert.strictEqual(resValid.allowed, true);
+
+      // 2. Aimless / Un-targeted Data Egress Attempt
+      const resUntargeted = validateTargetedDataEgressRules({ hasTargetDestination: false });
+      assert.strictEqual(resUntargeted.allowed, false);
+      assert.ok(resUntargeted.reason?.includes("خروج بدون هدف"));
+
+      // 3. Unauthorized Destination Endpoint
+      const resUnauthorizedDest = validateTargetedDataEgressRules({ hasTargetDestination: true, destinationAuthorized: false });
+      assert.strictEqual(resUnauthorizedDest.allowed, false);
+      assert.ok(resUnauthorizedDest.reason?.includes("مقصد خروج داده"));
+
+      // 4. Unapproved Bulk Data Egress Attempt
+      const resBulkUnapproved = validateTargetedDataEgressRules({ hasTargetDestination: true, destinationAuthorized: true, isBulkWithoutApproval: true });
+      assert.strictEqual(resBulkUnapproved.allowed, false);
+      assert.ok(resBulkUnapproved.reason?.includes("تاییدیه"));
     });
   });
 });

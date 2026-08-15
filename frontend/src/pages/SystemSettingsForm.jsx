@@ -11,10 +11,11 @@ import {
   FileText, Printer, Lock, Sliders, Bell, Database, Download, Upload,
   Calendar, Clock, Trash2, FileCheck, HelpCircle, HardDrive, Check,
   FolderArchive, Sparkles, ArrowDownToLine, ArrowUpFromLine, Laptop, Activity, LogOut,
-  User, KeyRound, Shield
+  User, KeyRound, Shield, ShieldAlert
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import api from "@/api";
+import { validateEgressPermission } from "@/lib/egressValidator";
 
 const INITIAL_SETTINGS = {
   // ۱. تنظیمات عمومی و سیستم
@@ -80,6 +81,77 @@ const INITIAL_SETTINGS = {
     useUserRolesAndPermissions: true,
     useSessionInfoAndRequestParams: true,
     useOtherCriteria: false
+  },
+
+  // ۱۰. مجازسازی عملیات بین موجودیت فعال و غیرفعال (مطابق الزام جدید افتا در تصویر)
+  activeInactiveInteractionPolicy: {
+    enableACLCheck: true,
+    checkByUserId: true,
+    checkByGroupId: true,
+    checkByUserRole: true,
+    requireExplicitACLRecord: true,
+    auditUnauthorizedInteractions: true,
+  },
+
+  // ۱۱. قوانین ممانعت از دسترسی موجودیت فعال به غیرفعال (مطابق الزام تصویر جدید افتا)
+  activeToInactivePreventionRules: {
+    preventAccessOnExceedingSessionThreshold: true,
+    sessionThresholdLimit: 3,
+    preventAccessOnAccountDeactivation: true,
+    preventAccessOnIPAnomaly: true,
+    preventAccessOnOtherCriteria: true,
+  },
+
+  // ۱۲. تضمین پاک‌سازی داده‌های مانده و سازوکار امن دسترسی به منابع قبلی (مطابق بند ۵ افتا)
+  resourceSanitizationPolicy: {
+    wipeCryptoKeysOnRelease: true,
+    sanitizeTempFilesOnRelease: true,
+    isolateSessionMemoryBuffers: true,
+    requireSecureAccessForLegacyResources: true,
+    auditResourceAllocationAndRelease: true,
+  },
+
+  // ۱۳. خط‌مشی کنترل دسترسی هنگام دریافت داده کاربری بر اساس ویژگی‌های امنیتی داده (مطابق تصویر افتا)
+  userDataInputAccessPolicy: {
+    enableInputDataAccessControl: true,
+    checkDataType: true,
+    allowedDataTypes: ["JSON", "CSV", "XLSX", "PDF", "TXT"],
+    checkVolumeAndSize: true,
+    maxPayloadSizeMB: 10,
+    checkFormat: true,
+    checkImportFrequencyLimit: true,
+    maxImportsPerHour: 20,
+    checkOtherInputCriteria: true,
+  },
+
+  // ۱۴. پروتکل امن برای انتقال داده، همبستگی ویژگی‌های امنیتی و ممانعت از شنود و گم‌شدن داده (مطابق تصویر افتا)
+  secureDataTransportPolicy: {
+    enforceTLSEncryption: true,
+    transparentSecurityAttributeCoupling: true,
+    preventEavesdropping: true,
+    preventDataLossAndTamperingInTransit: true,
+    auditTransportSecurityViolations: true,
+  },
+
+  // ۱۵. خط‌مشی کنترل دسترسی هنگام خروج و انتقال داده کاربری به بیرون از محصول (مطابق بند ۸ افتا)
+  userDataEgressAccessPolicy: {
+    enableEgressDataAccessControl: true,
+    checkDataType: true,
+    allowedExportDataTypes: ["PDF", "XLSX", "CSV", "JSON"],
+    checkVolumeAndSize: true,
+    maxExportRecordsPerRequest: 5000,
+    maxExportFileSizeBytes: 20971520,
+    checkFormat: true,
+    checkOtherEgressCriteria: true,
+  },
+
+  // ۱۶. قوانین ممانعت از خروج بدون هدف داده کاربری به خارج از محصول (مطابق بند ۹ افتا)
+  targetedDataEgressRules: {
+    preventUntargetedDataEgress: true,
+    requireExplicitEgressDestination: true,
+    requireAdminApprovalForBulkEgress: true,
+    preventEgressToUnauthorizedEndpoints: true,
+    auditUntargetedEgressAttempts: true,
   },
 
   lastUpdated: null,
@@ -254,6 +326,13 @@ export default function SystemSettingsForm() {
           inactiveEntityPolicies: p.inactiveEntityAccessPolicies || prev.inactiveEntityPolicies,
           inactiveEntityOperationsPolicy: p.inactiveEntityOperationsPolicy || prev.inactiveEntityOperationsPolicy,
           inactiveEntityPolicyCriteria: p.inactiveEntityPolicyCriteria || prev.inactiveEntityPolicyCriteria,
+          activeInactiveInteractionPolicy: p.activeInactiveInteractionPolicy || prev.activeInactiveInteractionPolicy,
+          activeToInactivePreventionRules: p.activeToInactivePreventionRules || prev.activeToInactivePreventionRules,
+          resourceSanitizationPolicy: p.resourceSanitizationPolicy || prev.resourceSanitizationPolicy,
+          userDataInputAccessPolicy: p.userDataInputAccessPolicy || prev.userDataInputAccessPolicy,
+          secureDataTransportPolicy: p.secureDataTransportPolicy || prev.secureDataTransportPolicy,
+          userDataEgressAccessPolicy: p.userDataEgressAccessPolicy || prev.userDataEgressAccessPolicy,
+          targetedDataEgressRules: p.targetedDataEgressRules || prev.targetedDataEgressRules,
         }));
 
         if (Array.isArray(p.entityAccessPolicies) && p.entityAccessPolicies.length > 0) {
@@ -303,7 +382,9 @@ export default function SystemSettingsForm() {
       },
       sessionPolicy: {
         tokenExpiresInHours: 8,
-        maxConcurrentSessions: Number(s.maxConcurrentSessions) || 3,
+        maxConcurrentSessions: s.activeToInactivePreventionRules?.preventAccessOnExceedingSessionThreshold
+          ? (Number(s.activeToInactivePreventionRules?.sessionThresholdLimit) || 3)
+          : (Number(s.maxConcurrentSessions) || 3),
         idleTimeoutMinutes: Number(s.sessionTimeoutMinutes) || 30
       },
       entityAccessPolicies: ep,
@@ -316,7 +397,14 @@ export default function SystemSettingsForm() {
       },
       inactiveEntityAccessPolicies: s.inactiveEntityPolicies,
       inactiveEntityOperationsPolicy: s.inactiveEntityOperationsPolicy,
-      inactiveEntityPolicyCriteria: s.inactiveEntityPolicyCriteria
+      inactiveEntityPolicyCriteria: s.inactiveEntityPolicyCriteria,
+      activeInactiveInteractionPolicy: s.activeInactiveInteractionPolicy,
+      activeToInactivePreventionRules: s.activeToInactivePreventionRules,
+      resourceSanitizationPolicy: s.resourceSanitizationPolicy,
+      userDataInputAccessPolicy: s.userDataInputAccessPolicy,
+      secureDataTransportPolicy: s.secureDataTransportPolicy,
+      userDataEgressAccessPolicy: s.userDataEgressAccessPolicy,
+      targetedDataEgressRules: s.targetedDataEgressRules,
     };
     await api.put("/api/security/policy", payload);
   };
@@ -432,8 +520,15 @@ export default function SystemSettingsForm() {
   }
 
   // ─── ۲. خروجی تمام سیستم (Export JSON Download) ───
-  function handleExportFullBackup() {
+  async function handleExportFullBackup() {
     try {
+      setErrorMsg("");
+      setSuccessMsg("");
+      const check = await validateEgressPermission({ exportType: "JSON", recordCount: 1000 });
+      if (!check.allowed) {
+        setErrorMsg(`ممانعت از خروجی داده (الزام بند ۹ افتا): ${check.reason}`);
+        return;
+      }
       // جمع‌آوری تمام اطلاعات کلیدی سیستم از localStorage
       const backupPayload = {
         metadata: {
@@ -1811,6 +1906,1022 @@ export default function SystemSettingsForm() {
                           </label>
                         </div>
 
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* کارت مجازسازی عملیات بین موجودیت فعال تحت کنترل و موجودیت غیرفعال (مطابق تصویر الزامات افتا) */}
+                  <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+                    <div className="bg-gradient-to-r from-amber-900 via-orange-950 to-slate-900 text-white p-4 font-bold text-xs flex items-center justify-between border-b border-amber-800">
+                      <div className="flex items-center gap-2.5">
+                        <Shield className="h-5 w-5 text-amber-400 shrink-0" />
+                        <span className="text-xs md:text-sm font-black">
+                          قاعده مجازسازی عملیات بین موجودیت فعال تحت کنترل و موجودیت غیرفعال کنترل‌شده
+                        </span>
+                      </div>
+                      <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/30 text-[10px] shrink-0">
+                        الزام امنیتی افتا
+                      </Badge>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-12 divide-y md:divide-y-0 md:divide-x md:divide-x-reverse divide-slate-200 dark:divide-slate-800">
+                      {/* ستون راست: متن دقیق الزام مطابق تصویر */}
+                      <div className="md:col-span-5 bg-amber-50/40 dark:bg-slate-900/50 p-5 flex flex-col justify-center items-center text-center font-bold text-xs text-slate-800 dark:text-slate-200 leading-relaxed border-b md:border-b-0 md:border-l border-slate-200 dark:border-slate-800 space-y-3">
+                        <Activity className="h-8 w-8 text-amber-600 mb-1" />
+                        <span className="text-amber-900 dark:text-amber-300 font-extrabold text-xs leading-relaxed">
+                          محصول باید بر اساس قاعده‌ای عملیات بین موجودیت فعال تحت کنترل و موجودیت غیرفعال کنترل‌شده را مجاز نماید.
+                        </span>
+                        <p className="text-[11px] text-muted-foreground font-normal leading-relaxed text-justify bg-white/70 dark:bg-slate-800/60 p-3 rounded-lg border border-amber-200/60 dark:border-amber-900/40">
+                          (این قاعده می‌تواند بدین شکل باشد که در فهرست کنترل دسترسی (ACL)، سابقه (رکوردی) وجود داشته باشد که به کاربر با شناسه کاربری یا شناسه گروه مربوطه یا نقش کاربری تعریف‌شده حق دسترسی به موجودیت غیرفعال را بدهد.)
+                        </p>
+                      </div>
+
+                      {/* ستون چپ: گزینه‌ها و ابزارهای تنظیم این قاعده */}
+                      <div className="md:col-span-7 divide-y divide-slate-200 dark:divide-slate-800">
+                        
+                        {/* ۱. الزام ارزیابی ACL */}
+                        <div className="p-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                          <label htmlFor="enableACLCheck" className="flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              id="enableACLCheck"
+                              checked={settings.activeInactiveInteractionPolicy?.enableACLCheck ?? true}
+                              onChange={e => {
+                                set("activeInactiveInteractionPolicy", {
+                                  ...settings.activeInactiveInteractionPolicy,
+                                  enableACLCheck: e.target.checked
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                                فعال‌سازی ارزیابی فهرست کنترل دسترسی (ACL)
+                              </span>
+                              <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                                تمام فراخوانی‌ها و پردازش‌های بین موجودیت فعال و غیرفعال مستلزم تطبیق با سوابق ACL ثبت‌شده می‌باشد.
+                              </p>
+                            </div>
+                          </label>
+                        </div>
+
+                        {/* ۲. معیارهای اعطای حق دسترسی در رکورد ACL */}
+                        <div className="p-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors space-y-2">
+                          <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                            معیارهای شناسایی مجاز در رکورد کنترل دسترسی (ACL Record):
+                          </span>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                            <label className="flex items-center gap-2 text-xs font-medium text-slate-700 dark:text-slate-300 cursor-pointer bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                              <input
+                                type="checkbox"
+                                checked={settings.activeInactiveInteractionPolicy?.checkByUserId ?? true}
+                                onChange={e => {
+                                  set("activeInactiveInteractionPolicy", {
+                                    ...settings.activeInactiveInteractionPolicy,
+                                    checkByUserId: e.target.checked
+                                  });
+                                }}
+                                className="h-3.5 w-3.5 rounded border-slate-300 text-amber-600"
+                              />
+                              <span>شناسه کاربری (User ID)</span>
+                            </label>
+
+                            <label className="flex items-center gap-2 text-xs font-medium text-slate-700 dark:text-slate-300 cursor-pointer bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                              <input
+                                type="checkbox"
+                                checked={settings.activeInactiveInteractionPolicy?.checkByGroupId ?? true}
+                                onChange={e => {
+                                  set("activeInactiveInteractionPolicy", {
+                                    ...settings.activeInactiveInteractionPolicy,
+                                    checkByGroupId: e.target.checked
+                                  });
+                                }}
+                                className="h-3.5 w-3.5 rounded border-slate-300 text-amber-600"
+                              />
+                              <span>شناسه گروه (Group ID)</span>
+                            </label>
+
+                            <label className="flex items-center gap-2 text-xs font-medium text-slate-700 dark:text-slate-300 cursor-pointer bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                              <input
+                                type="checkbox"
+                                checked={settings.activeInactiveInteractionPolicy?.checkByUserRole ?? true}
+                                onChange={e => {
+                                  set("activeInactiveInteractionPolicy", {
+                                    ...settings.activeInactiveInteractionPolicy,
+                                    checkByUserRole: e.target.checked
+                                  });
+                                }}
+                                className="h-3.5 w-3.5 rounded border-slate-300 text-amber-600"
+                              />
+                              <span>نقش کاربری (User Role)</span>
+                            </label>
+                          </div>
+                        </div>
+
+                        {/* ۳. الزام سابقه صریح و ثبت لاگ عدم اجازه */}
+                        <div className="p-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors space-y-2">
+                          <label htmlFor="requireExplicitACLRecord" className="flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              id="requireExplicitACLRecord"
+                              checked={settings.activeInactiveInteractionPolicy?.requireExplicitACLRecord ?? true}
+                              onChange={e => {
+                                set("activeInactiveInteractionPolicy", {
+                                  ...settings.activeInactiveInteractionPolicy,
+                                  requireExplicitACLRecord: e.target.checked
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                                الزام وجود سابقه صریح (Explicit Record) در ACL
+                              </span>
+                              <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                                در صورت نبود سابقه صریح تعاملی برای موجودیت غیرفعال، درخواست تعامل بلافاصله مسدود و در لاگ افتا ثبت گردد.
+                              </p>
+                            </div>
+                          </label>
+                        </div>
+
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* کارت قوانین ممانعت از دسترسی موجودیت فعال به موجودیت غیرفعال (مطابق تصویر جدید افتا) */}
+                  <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+                    <div className="bg-gradient-to-r from-rose-900 via-red-950 to-slate-900 text-white p-4 font-bold text-xs flex items-center justify-between border-b border-rose-800">
+                      <div className="flex items-center gap-2.5">
+                        <AlertCircle className="h-5 w-5 text-rose-400 shrink-0" />
+                        <span className="text-xs md:text-sm font-black">
+                          محصول باید بر اساس قوانینی، از دسترسی موجودیت فعال به موجودیت غیرفعال جلوگیری نماید.
+                        </span>
+                      </div>
+                      <Badge className="bg-rose-500/20 text-rose-300 border-rose-500/30 text-[10px] shrink-0">
+                        الزام امنیتی افتا
+                      </Badge>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-12 divide-y md:divide-y-0 md:divide-x md:divide-x-reverse divide-slate-200 dark:divide-slate-800">
+                      {/* ستون راست: عنوان اصلی قوانین ممانعت از دسترسی مطابق تصویر */}
+                      <div className="md:col-span-5 bg-rose-50/40 dark:bg-slate-900/50 p-5 flex flex-col justify-center items-center text-center font-bold text-xs text-slate-800 dark:text-slate-200 leading-relaxed border-b md:border-b-0 md:border-l border-slate-200 dark:border-slate-800 space-y-2">
+                        <Shield className="h-8 w-8 text-rose-600 mb-1" />
+                        <span className="text-rose-900 dark:text-rose-300 font-extrabold text-xs leading-relaxed">
+                          قوانین ممانعت از دسترسی مشخص شوند
+                        </span>
+                        <span className="text-[11px] text-muted-foreground font-normal leading-relaxed text-justify bg-white/70 dark:bg-slate-800/60 p-2.5 rounded-lg border border-rose-200/60 dark:border-rose-900/40">
+                          (در صورت اعمال قوانین بیشتر توسط محصول، در «سایر موارد» بیان شود).
+                        </span>
+                      </div>
+
+                      {/* ستون چپ: سطور جدول قوانین ممانعت مطابق تصویر */}
+                      <div className="md:col-span-7 divide-y divide-slate-200 dark:divide-slate-800">
+                        
+                        {/* سطر ۱: عبور تعداد نشست آغاز شده با نام کاربری مشابه از مقدار آستانه از پیش تعریف‌شده */}
+                        <div className="p-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors space-y-3">
+                          <label htmlFor="preventAccessOnExceedingSessionThreshold" className="flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              id="preventAccessOnExceedingSessionThreshold"
+                              checked={settings.activeToInactivePreventionRules?.preventAccessOnExceedingSessionThreshold ?? true}
+                              onChange={e => {
+                                set("activeToInactivePreventionRules", {
+                                  ...settings.activeToInactivePreventionRules,
+                                  preventAccessOnExceedingSessionThreshold: e.target.checked
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-rose-600 focus:ring-rose-500 mt-0.5"
+                            />
+                            <div className="flex-1">
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                                عبور تعداد نشست آغاز شده با نام کاربری مشابه از مقدار آستانه از پیش تعریف‌شده
+                              </span>
+                              <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                                ممانعت و مسدودسازی خودکار دسترسی کلاینت به موجودیت‌های غیرفعال در صورت فراتر رفتن تعداد نشست‌های همزمان کاربر از حد آستانه مجاز.
+                              </p>
+                            </div>
+                          </label>
+
+                          {settings.activeToInactivePreventionRules?.preventAccessOnExceedingSessionThreshold && (
+                            <div className="mr-7 pt-1 flex items-center gap-3 bg-rose-50/50 dark:bg-slate-800/40 p-2.5 rounded-lg border border-rose-100 dark:border-slate-700">
+                              <Label className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                                مقدار آستانه مجاز نشست‌های همزمان:
+                              </Label>
+                              <Input
+                                type="number"
+                                min="1"
+                                max="10"
+                                value={settings.activeToInactivePreventionRules?.sessionThresholdLimit ?? 3}
+                                onChange={e => {
+                                  const val = Math.max(1, parseInt(e.target.value) || 1);
+                                  set("activeToInactivePreventionRules", {
+                                    ...settings.activeToInactivePreventionRules,
+                                    sessionThresholdLimit: val
+                                  });
+                                }}
+                                className="w-20 h-8 text-xs text-center font-bold"
+                              />
+                              <span className="text-[11px] text-muted-foreground">نشست همزمان</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* سطر ۲: سایر موارد */}
+                        <div className="p-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors space-y-3">
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                              <ShieldCheck className="h-3.5 w-3.5 text-indigo-500" />
+                              سایر موارد (قوانین ممانعت تکمیلی محصول)
+                            </span>
+                            <span className="text-[10px] text-muted-foreground bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
+                              ضوابط امنیتی افتا
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground leading-relaxed pr-1">
+                            شامل ممانعت از دسترسی در صورت غیرفعال/تعلیق شدن حساب کاربر، ناهنجاری آدرس IP، تغییر کلید امنیتی یا انقضای اعتبار دوره مالی.
+                          </p>
+
+                          <div className="flex flex-col gap-2 pt-1">
+                            <label className="flex items-center gap-2 text-xs font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={settings.activeToInactivePreventionRules?.preventAccessOnAccountDeactivation ?? true}
+                                onChange={e => {
+                                  set("activeToInactivePreventionRules", {
+                                    ...settings.activeToInactivePreventionRules,
+                                    preventAccessOnAccountDeactivation: e.target.checked
+                                  });
+                                }}
+                                className="h-3.5 w-3.5 rounded border-slate-300 text-rose-600"
+                              />
+                              <span>ممانعت فوری از دسترسی در صورت غیرفعال/تعلیق شدن وضعیت حساب کاربری</span>
+                            </label>
+
+                            <label className="flex items-center gap-2 text-xs font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={settings.activeToInactivePreventionRules?.preventAccessOnIPAnomaly ?? true}
+                                onChange={e => {
+                                  set("activeToInactivePreventionRules", {
+                                    ...settings.activeToInactivePreventionRules,
+                                    preventAccessOnIPAnomaly: e.target.checked
+                                  });
+                                }}
+                                className="h-3.5 w-3.5 rounded border-slate-300 text-rose-600"
+                              />
+                              <span>ممانعت از دسترسی در صورت تغییر غیرمجاز IP یا شناسایی نشست‌های ناهنجار</span>
+                            </label>
+
+                            <label className="flex items-center gap-2 text-xs font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={settings.activeToInactivePreventionRules?.preventAccessOnOtherCriteria ?? true}
+                                onChange={e => {
+                                  set("activeToInactivePreventionRules", {
+                                    ...settings.activeToInactivePreventionRules,
+                                    preventAccessOnOtherCriteria: e.target.checked
+                                  });
+                                }}
+                                className="h-3.5 w-3.5 rounded border-slate-300 text-rose-600"
+                              />
+                              <span>اعمال سایر قوانین ممانعت از دسترسی و ثبت در Audit Log افتا</span>
+                            </label>
+                          </div>
+                        </div>
+
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* کارت پاک‌سازی اطلاعات مانده منابع و دسترسی به منابع قبلی (مطابق بند ۵ تصویر افتا) */}
+                  <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+                    <div className="bg-gradient-to-r from-teal-900 via-emerald-950 to-slate-900 text-white p-4 font-bold text-xs flex items-center justify-between border-b border-teal-800">
+                      <div className="flex items-center gap-2.5">
+                        <HardDrive className="h-5 w-5 text-teal-400 shrink-0" />
+                        <span className="text-xs md:text-sm font-black">
+                          تضمین عدم نشت اطلاعات در تخصیص و آزادسازی منابع و سازوکار امن دسترسی به منابع قبلی (بند ۵ افتا)
+                        </span>
+                      </div>
+                      <Badge className="bg-teal-500/20 text-teal-300 border-teal-500/30 text-[10px] shrink-0">
+                        بند ۵ الزام افتا
+                      </Badge>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-12 divide-y md:divide-y-0 md:divide-x md:divide-x-reverse divide-slate-200 dark:divide-slate-800">
+                      {/* ستون راست: متن دقیق بند ۵ افتا */}
+                      <div className="md:col-span-5 bg-teal-50/40 dark:bg-slate-900/50 p-5 flex flex-col justify-center items-center text-center font-bold text-xs text-slate-800 dark:text-slate-200 leading-relaxed border-b md:border-b-0 md:border-l border-slate-200 dark:border-slate-800 space-y-3">
+                        <Database className="h-8 w-8 text-teal-600 mb-1" />
+                        <span className="text-teal-950 dark:text-teal-300 font-extrabold text-xs leading-relaxed">
+                          بند ۵ - پاک‌سازی اطلاعات منابع و دسترسی به منابع قبلی
+                        </span>
+                        <p className="text-[11px] text-muted-foreground font-normal leading-relaxed text-justify bg-white/70 dark:bg-slate-800/60 p-3 rounded-lg border border-teal-200/60 dark:border-teal-900/40">
+                          «محصول باید تضمین نماید تمام اطلاعات قبلی منابع یا در هنگام تخصیص و یا در هنگام آزادسازی آن‌ها، غیرقابل دسترس می‌گردد و یا سازوکاری امن برای دسترسی به منابع قبلی وجود دارد.»
+                        </p>
+                      </div>
+
+                      {/* ستون چپ: گزینه‌ها و تنظیمات پاک‌سازی و دسترسی امن */}
+                      <div className="md:col-span-7 divide-y divide-slate-200 dark:divide-slate-800">
+                        
+                        {/* ۱. امحاء فوری کلیدها و بوفرهای حافظه */}
+                        <div className="p-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                          <label htmlFor="wipeCryptoKeysOnRelease" className="flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              id="wipeCryptoKeysOnRelease"
+                              checked={settings.resourceSanitizationPolicy?.wipeCryptoKeysOnRelease ?? true}
+                              onChange={e => {
+                                set("resourceSanitizationPolicy", {
+                                  ...settings.resourceSanitizationPolicy,
+                                  wipeCryptoKeysOnRelease: e.target.checked
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                                امحاء و صفر کردن فوری کلیدهای رمزنگاری و داده‌های حساس حافظه (Memory Wiping)
+                              </span>
+                              <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                                تخریب و صفر نمودن بوفرهای کلید AES-256 و داده‌های حساس حافظه RAM پس از پایان استفاده جهت ممانعت از بازخوانی (destroyCryptoKey).
+                              </p>
+                            </div>
+                          </label>
+                        </div>
+
+                        {/* ۲. پاک‌سازی فایل‌ها و داده‌های موقت */}
+                        <div className="p-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                          <label htmlFor="sanitizeTempFilesOnRelease" className="flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              id="sanitizeTempFilesOnRelease"
+                              checked={settings.resourceSanitizationPolicy?.sanitizeTempFilesOnRelease ?? true}
+                              onChange={e => {
+                                set("resourceSanitizationPolicy", {
+                                  ...settings.resourceSanitizationPolicy,
+                                  sanitizeTempFilesOnRelease: e.target.checked
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                                پاک‌سازی کامل باقی‌مانده فایل‌ها و بوفرهای موقت در زمان آزادسازی
+                              </span>
+                              <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                                امحاء و حذف امن (Secure Erasure) فایل‌های آپلود شده موقت، پیش‌نویس‌ها و بوفرهای آزادشده قبل از تخصیص مجدد به کاربر جدید.
+                              </p>
+                            </div>
+                          </label>
+                        </div>
+
+                        {/* ۳. سازوکار امن دسترسی به سوابق منابع قبلی */}
+                        <div className="p-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                          <label htmlFor="requireSecureAccessForLegacyResources" className="flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              id="requireSecureAccessForLegacyResources"
+                              checked={settings.resourceSanitizationPolicy?.requireSecureAccessForLegacyResources ?? true}
+                              onChange={e => {
+                                set("resourceSanitizationPolicy", {
+                                  ...settings.resourceSanitizationPolicy,
+                                  requireSecureAccessForLegacyResources: e.target.checked
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                                سازوکار امن و ثبت لاگ برای دسترسی به سوابق منابع قبلی (Secure Legacy Resource Access)
+                              </span>
+                              <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                                دسترسی به نسخه‌های تاریخی یا منابع گذشته منوط به احراز هویت قوی، ارزیابی RBAC و ثبت کامل رویداد در لاگ افتا می‌باشد.
+                              </p>
+                            </div>
+                          </label>
+                        </div>
+
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* کارت خط‌مشی کنترل دسترسی هنگام دریافت داده کاربری (مطابق دقیق با جدول تصویر افتا) */}
+                  <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+                    <div className="bg-gradient-to-r from-blue-900 via-indigo-950 to-slate-900 text-white p-4 font-bold text-xs flex items-center justify-between border-b border-blue-800">
+                      <div className="flex items-center gap-2.5">
+                        <FileCheck className="h-5 w-5 text-blue-400 shrink-0" />
+                        <span className="text-xs md:text-sm font-black">
+                          خط‌مشی کنترل دسترسی هنگام دریافت داده کاربری و ویژگی‌های امنیتی مرتبط (الزام افتا)
+                        </span>
+                      </div>
+                      <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30 text-[10px] shrink-0">
+                        الزام تصویر افتا
+                      </Badge>
+                    </div>
+
+                    <div className="p-5 space-y-4">
+                      {/* توضیحات صورت الزام بالای کارت */}
+                      <div className="bg-blue-50/60 dark:bg-blue-950/30 p-4 rounded-xl border border-blue-200/80 dark:border-blue-900/50 flex items-start gap-3">
+                        <ShieldAlert className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                        <p className="text-xs text-blue-950 dark:text-blue-200 font-semibold leading-relaxed">
+                          «محصول باید هنگام دریافت داده کاربری خط‌مشی کنترل دسترسی را اعمال و برای این کار از ویژگی‌های امنیتی مرتبط با داده کاربری استفاده کند.»
+                        </p>
+                      </div>
+
+                      {/* جدول اختصاصی مطابق با ساختار تصویر افتا */}
+                      <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+                        <table className="w-full text-xs text-right border-collapse">
+                          <thead>
+                            <tr className="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border-b border-slate-200 dark:border-slate-700">
+                              <th className="p-3 w-12 text-center font-extrabold border-l border-slate-200 dark:border-slate-700">انتخاب</th>
+                              <th className="p-3 font-extrabold text-slate-900 dark:text-slate-100">
+                                ویژگی‌های امنیتی مرتبط با داده کاربری که در هنگام ورود آن به محصول استفاده می‌شوند
+                              </th>
+                              <th className="p-3 w-48 font-extrabold text-center border-r border-slate-200 dark:border-slate-700">پیکربندی / مقادیر مجاز</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                            {/* سطر ۱: نوع داده */}
+                            <tr className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
+                              <td className="p-3 text-center border-l border-slate-200 dark:border-slate-800">
+                                <input
+                                  type="checkbox"
+                                  checked={settings.userDataInputAccessPolicy?.checkDataType ?? true}
+                                  onChange={e => {
+                                    set("userDataInputAccessPolicy", {
+                                      ...settings.userDataInputAccessPolicy,
+                                      checkDataType: e.target.checked
+                                    });
+                                  }}
+                                  className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                />
+                              </td>
+                              <td className="p-3 font-bold text-slate-800 dark:text-slate-200">
+                                نوع داده
+                                <p className="text-[11px] text-muted-foreground font-normal mt-0.5">
+                                  ارزیابی و کنترل مجاز بودن انواع ساختار داده‌های ورودی کلاینت به سامانه
+                                </p>
+                              </td>
+                              <td className="p-3 text-center border-r border-slate-200 dark:border-slate-800">
+                                <span className="inline-block bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 font-mono text-[11px] px-2.5 py-1 rounded-md font-bold">
+                                  JSON, CSV, XLSX, PDF
+                                </span>
+                              </td>
+                            </tr>
+
+                            {/* سطر ۲: حجم و اندازه */}
+                            <tr className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
+                              <td className="p-3 text-center border-l border-slate-200 dark:border-slate-800">
+                                <input
+                                  type="checkbox"
+                                  checked={settings.userDataInputAccessPolicy?.checkVolumeAndSize ?? true}
+                                  onChange={e => {
+                                    set("userDataInputAccessPolicy", {
+                                      ...settings.userDataInputAccessPolicy,
+                                      checkVolumeAndSize: e.target.checked
+                                    });
+                                  }}
+                                  className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                />
+                              </td>
+                              <td className="p-3 font-bold text-slate-800 dark:text-slate-200">
+                                حجم و اندازه
+                                <p className="text-[11px] text-muted-foreground font-normal mt-0.5">
+                                  کنترل حجم و اندازه پِی‌لود درخواست‌ها و فایل‌های ورودی جهت ممانعت از حملات سرریز و DoS
+                                </p>
+                              </td>
+                              <td className="p-3 text-center border-r border-slate-200 dark:border-slate-800">
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    max="100"
+                                    value={settings.userDataInputAccessPolicy?.maxPayloadSizeMB ?? 10}
+                                    onChange={e => {
+                                      set("userDataInputAccessPolicy", {
+                                        ...settings.userDataInputAccessPolicy,
+                                        maxPayloadSizeMB: Number(e.target.value) || 10
+                                      });
+                                    }}
+                                    className="w-16 h-8 text-center text-xs font-bold rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
+                                  />
+                                  <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400">مگابایت</span>
+                                </div>
+                              </td>
+                            </tr>
+
+                            {/* سطر ۳: فرمت */}
+                            <tr className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
+                              <td className="p-3 text-center border-l border-slate-200 dark:border-slate-800">
+                                <input
+                                  type="checkbox"
+                                  checked={settings.userDataInputAccessPolicy?.checkFormat ?? true}
+                                  onChange={e => {
+                                    set("userDataInputAccessPolicy", {
+                                      ...settings.userDataInputAccessPolicy,
+                                      checkFormat: e.target.checked
+                                    });
+                                  }}
+                                  className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                />
+                              </td>
+                              <td className="p-3 font-bold text-slate-800 dark:text-slate-200">
+                                فرمت
+                                <p className="text-[11px] text-muted-foreground font-normal mt-0.5">
+                                  اعتبارسنجی پسوند استاندارد، MIME Type و ساختار کدگذاری UTF-8
+                                </p>
+                              </td>
+                              <td className="p-3 text-center border-r border-slate-200 dark:border-slate-800">
+                                <Badge className="bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border-emerald-300 text-[10px]">
+                                  اعتبارسنجی خودکار
+                                </Badge>
+                              </td>
+                            </tr>
+
+                            {/* سطر ۴: تعداد دفعات Import */}
+                            <tr className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
+                              <td className="p-3 text-center border-l border-slate-200 dark:border-slate-800">
+                                <input
+                                  type="checkbox"
+                                  checked={settings.userDataInputAccessPolicy?.checkImportFrequencyLimit ?? true}
+                                  onChange={e => {
+                                    set("userDataInputAccessPolicy", {
+                                      ...settings.userDataInputAccessPolicy,
+                                      checkImportFrequencyLimit: e.target.checked
+                                    });
+                                  }}
+                                  className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                />
+                              </td>
+                              <td className="p-3 font-bold text-slate-800 dark:text-slate-200">
+                                تعداد دفعات Import
+                                <p className="text-[11px] text-muted-foreground font-normal mt-0.5">
+                                  محدودسازی سقف تعداد دفعات بارگذاری و ورود دسته‌ای اطلاعات در یک بازه زمانی
+                                </p>
+                              </td>
+                              <td className="p-3 text-center border-r border-slate-200 dark:border-slate-800">
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    max="500"
+                                    value={settings.userDataInputAccessPolicy?.maxImportsPerHour ?? 20}
+                                    onChange={e => {
+                                      set("userDataInputAccessPolicy", {
+                                        ...settings.userDataInputAccessPolicy,
+                                        maxImportsPerHour: Number(e.target.value) || 20
+                                      });
+                                    }}
+                                    className="w-16 h-8 text-center text-xs font-bold rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
+                                  />
+                                  <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400">بار در ساعت</span>
+                                </div>
+                              </td>
+                            </tr>
+
+                            {/* سطر ۵: سایر موارد */}
+                            <tr className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
+                              <td className="p-3 text-center border-l border-slate-200 dark:border-slate-800">
+                                <input
+                                  type="checkbox"
+                                  checked={settings.userDataInputAccessPolicy?.checkOtherInputCriteria ?? true}
+                                  onChange={e => {
+                                    set("userDataInputAccessPolicy", {
+                                      ...settings.userDataInputAccessPolicy,
+                                      checkOtherInputCriteria: e.target.checked
+                                    });
+                                  }}
+                                  className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                />
+                              </td>
+                              <td className="p-3 font-bold text-slate-800 dark:text-slate-200">
+                                سایر موارد
+                                <p className="text-[11px] text-muted-foreground font-normal mt-0.5">
+                                  پاک‌سازی ورودی‌ها از کدهای مخرب (Input Sanitization)، حفاظت در برابر XSS/SQLi و بررسی تمامیت (Checksum)
+                                </p>
+                              </td>
+                              <td className="p-3 text-center border-r border-slate-200 dark:border-slate-800">
+                                <Badge className="bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 border-purple-300 text-[10px]">
+                                  Sanitization & Audit
+                                </Badge>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* کارت خط‌مشی پروتکل امن انتقال داده، همبستگی ویژگی‌های امنیتی و ممانعت از شنود و گم‌شدن داده (مطابق الزام تصویر جدید افتا) */}
+                  <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+                    <div className="bg-gradient-to-r from-emerald-900 via-teal-950 to-slate-900 text-white p-4 font-bold text-xs flex items-center justify-between border-b border-emerald-800">
+                      <div className="flex items-center gap-2.5">
+                        <Lock className="h-5 w-5 text-emerald-400 shrink-0" />
+                        <span className="text-xs md:text-sm font-black">
+                          پروتکل امن انتقال داده، همبستگی ویژگی‌های امنیتی و ممانعت از شنود و گم‌شدن داده (الزام افتا)
+                        </span>
+                      </div>
+                      <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 text-[10px] shrink-0">
+                        الزام تصویر افتا
+                      </Badge>
+                    </div>
+
+                    <div className="p-5 space-y-4">
+                      {/* توضیحات صورت الزام بالای کارت */}
+                      <div className="bg-emerald-50/60 dark:bg-emerald-950/30 p-4 rounded-xl border border-emerald-200/80 dark:border-emerald-900/50 flex items-start gap-3">
+                        <ShieldCheck className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                        <p className="text-xs text-emerald-950 dark:text-emerald-200 font-semibold leading-relaxed">
+                          «محصول باید از یک پروتکل امن برای انتقال داده استفاده نماید. این پروتکل ارتباط و همبستگی شفافی را بین داده کاربری دریافت شده و ویژگی‌های امنیتی آن فراهم و همچنین از شنود و گم‌شدن داده حین انتقال جلوگیری می‌کند.»
+                        </p>
+                      </div>
+
+                      {/* شبکه تنظیمات پروتکل امن انتقال داده */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        
+                        {/* ۱. الزام استفاده از پروتکل رمزنگاری‌شده TLS/HTTPS */}
+                        <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 hover:bg-slate-100/50 dark:hover:bg-slate-800/60 transition-colors">
+                          <label htmlFor="enforceTLSEncryption" className="flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              id="enforceTLSEncryption"
+                              checked={settings.secureDataTransportPolicy?.enforceTLSEncryption ?? true}
+                              onChange={e => {
+                                set("secureDataTransportPolicy", {
+                                  ...settings.secureDataTransportPolicy,
+                                  enforceTLSEncryption: e.target.checked
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                                <Lock className="h-3.5 w-3.5 text-emerald-600" />
+                                الزام کانال رمزنگاری‌شده TLS 1.3 / HTTPS
+                              </span>
+                              <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                                تمام تبادلات داده بین کلاینت و سرور حتماً از طریق پروتکل امن کانال رمزنگاری قوی HTTPS صورت پذیرد.
+                              </p>
+                            </div>
+                          </label>
+                        </div>
+
+                        {/* ۲. همبستگی شفاف بین داده کاربری و ویژگی‌های امنیتی */}
+                        <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 hover:bg-slate-100/50 dark:hover:bg-slate-800/60 transition-colors">
+                          <label htmlFor="transparentSecurityAttributeCoupling" className="flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              id="transparentSecurityAttributeCoupling"
+                              checked={settings.secureDataTransportPolicy?.transparentSecurityAttributeCoupling ?? true}
+                              onChange={e => {
+                                set("secureDataTransportPolicy", {
+                                  ...settings.secureDataTransportPolicy,
+                                  transparentSecurityAttributeCoupling: e.target.checked
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                                <Activity className="h-3.5 w-3.5 text-emerald-600" />
+                                همبستگی شفاف داده کاربری و ویژگی‌های امنیتی
+                              </span>
+                              <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                                انتقال و تطبیق همزمان داده کاربری با توکن احراز هویت JWT، گواهی کلاینت و ویژگی‌های امنیتی مربوطه.
+                              </p>
+                            </div>
+                          </label>
+                        </div>
+
+                        {/* ۳. جلوگیری کامل از شنود و استراق سمع در شبکه */}
+                        <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 hover:bg-slate-100/50 dark:hover:bg-slate-800/60 transition-colors">
+                          <label htmlFor="preventEavesdropping" className="flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              id="preventEavesdropping"
+                              checked={settings.secureDataTransportPolicy?.preventEavesdropping ?? true}
+                              onChange={e => {
+                                set("secureDataTransportPolicy", {
+                                  ...settings.secureDataTransportPolicy,
+                                  preventEavesdropping: e.target.checked
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                                <Shield className="h-3.5 w-3.5 text-emerald-600" />
+                                محافظت در برابر شنود و استراق سمع شبکه (Eavesdropping Protection)
+                              </span>
+                              <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                                رمزنکاری کامل داده‌های حساس مالی در شبکه عمومی جهت عدم امکان افشا یا بازخوانی توسط شنودکنندگان.
+                              </p>
+                            </div>
+                          </label>
+                        </div>
+
+                        {/* ۴. جلوگیری از گم‌شدن و دستکاری داده حین انتقال */}
+                        <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 hover:bg-slate-100/50 dark:hover:bg-slate-800/60 transition-colors">
+                          <label htmlFor="preventDataLossAndTamperingInTransit" className="flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              id="preventDataLossAndTamperingInTransit"
+                              checked={settings.secureDataTransportPolicy?.preventDataLossAndTamperingInTransit ?? true}
+                              onChange={e => {
+                                set("secureDataTransportPolicy", {
+                                  ...settings.secureDataTransportPolicy,
+                                  preventDataLossAndTamperingInTransit: e.target.checked
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                                جلوگیری از گم‌شدن، فقدان و تحریف داده (Data Loss & Anti-Tampering)
+                              </span>
+                              <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                                اعتبارسنجی تمامیت داده‌ها با امضای HMAC-SHA256 و چک‌سام جهت ممانعت از کسر یا تغییر بایت‌ها در بستر شبکه.
+                              </p>
+                            </div>
+                          </label>
+                        </div>
+
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* کارت خط‌مشی کنترل دسترسی هنگام خروج و انتقال داده کاربری به بیرون از محصول (مطابق بند ۸ تصویر افتا) */}
+                  <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+                    <div className="bg-gradient-to-r from-violet-900 via-purple-950 to-slate-900 text-white p-4 font-bold text-xs flex items-center justify-between border-b border-violet-800">
+                      <div className="flex items-center gap-2.5">
+                        <Download className="h-5 w-5 text-violet-400 shrink-0" />
+                        <span className="text-xs md:text-sm font-black">
+                          بند ۸ - خط‌مشی کنترل دسترسی هنگام انتقال و خروج داده کاربری به بیرون از محصول (الزام افتا)
+                        </span>
+                      </div>
+                      <Badge className="bg-violet-500/20 text-violet-300 border-violet-500/30 text-[10px] shrink-0">
+                        بند ۸ الزام افتا
+                      </Badge>
+                    </div>
+
+                    <div className="p-5 space-y-4">
+                      {/* توضیحات صورت الزام بالای کارت */}
+                      <div className="bg-violet-50/60 dark:bg-violet-950/30 p-4 rounded-xl border border-violet-200/80 dark:border-violet-900/50 flex items-start gap-3">
+                        <ShieldAlert className="h-5 w-5 text-violet-600 dark:text-violet-400 shrink-0 mt-0.5" />
+                        <p className="text-xs text-violet-950 dark:text-violet-200 font-semibold leading-relaxed">
+                          «۸ - محصول باید هنگام انتقال داده به بیرون از محصول، خط‌مشی کنترل دسترسی را اعمال نماید و برای این کار از ویژگی‌های امنیتی مرتبط با داده کاربری استفاده کند.»
+                        </p>
+                      </div>
+
+                      {/* جدول اختصاصی مطابق ساختار بند ۸ تصویر افتا */}
+                      <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+                        <table className="w-full text-xs text-right border-collapse">
+                          <thead>
+                            <tr className="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border-b border-slate-200 dark:border-slate-700">
+                              <th className="p-3 w-12 text-center font-extrabold border-l border-slate-200 dark:border-slate-700">انتخاب</th>
+                              <th className="p-3 font-extrabold text-slate-900 dark:text-slate-100">
+                                ویژگی‌های امنیتی مرتبط با داده کاربری که در هنگام خروج آن از محصول استفاده می‌شوند
+                              </th>
+                              <th className="p-3 w-48 font-extrabold text-center border-r border-slate-200 dark:border-slate-700">پیکربندی / مقادیر مجاز</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                            {/* سطر ۱: نوع داده */}
+                            <tr className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
+                              <td className="p-3 text-center border-l border-slate-200 dark:border-slate-800">
+                                <input
+                                  type="checkbox"
+                                  checked={settings.userDataEgressAccessPolicy?.checkDataType ?? true}
+                                  onChange={e => {
+                                    set("userDataEgressAccessPolicy", {
+                                      ...settings.userDataEgressAccessPolicy,
+                                      checkDataType: e.target.checked
+                                    });
+                                  }}
+                                  className="h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500"
+                                />
+                              </td>
+                              <td className="p-3 font-bold text-slate-800 dark:text-slate-200">
+                                نوع داده
+                                <p className="text-[11px] text-muted-foreground font-normal mt-0.5">
+                                  ارزیابی و کنترل مجاز بودن خروجی‌گرفتن و صادرات انواع اسناد و داده‌ها به بیرون از سیستم
+                                </p>
+                              </td>
+                              <td className="p-3 text-center border-r border-slate-200 dark:border-slate-800">
+                                <span className="inline-block bg-violet-100 dark:bg-violet-900/50 text-violet-800 dark:text-violet-300 font-mono text-[11px] px-2.5 py-1 rounded-md font-bold">
+                                  PDF, XLSX, CSV, JSON
+                                </span>
+                              </td>
+                            </tr>
+
+                            {/* سطر ۲: حجم و اندازه */}
+                            <tr className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
+                              <td className="p-3 text-center border-l border-slate-200 dark:border-slate-800">
+                                <input
+                                  type="checkbox"
+                                  checked={settings.userDataEgressAccessPolicy?.checkVolumeAndSize ?? true}
+                                  onChange={e => {
+                                    set("userDataEgressAccessPolicy", {
+                                      ...settings.userDataEgressAccessPolicy,
+                                      checkVolumeAndSize: e.target.checked
+                                    });
+                                  }}
+                                  className="h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500"
+                                />
+                              </td>
+                              <td className="p-3 font-bold text-slate-800 dark:text-slate-200">
+                                حجم و اندازه
+                                <p className="text-[11px] text-muted-foreground font-normal mt-0.5">
+                                  سقف مجاز تعداد رکوردها و حجم فایل‌های خروجی در هر نوبت جهت ممانعت از سرقت دسته‌ای داده‌ها (Mass Export Limit)
+                                </p>
+                              </td>
+                              <td className="p-3 text-center border-r border-slate-200 dark:border-slate-800">
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <input
+                                    type="number"
+                                    min="100"
+                                    max="50000"
+                                    value={settings.userDataEgressAccessPolicy?.maxExportRecordsPerRequest ?? 5000}
+                                    onChange={e => {
+                                      set("userDataEgressAccessPolicy", {
+                                        ...settings.userDataEgressAccessPolicy,
+                                        maxExportRecordsPerRequest: Number(e.target.value) || 5000
+                                      });
+                                    }}
+                                    className="w-20 h-8 text-center text-xs font-bold rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
+                                  />
+                                  <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400">رکورد</span>
+                                </div>
+                              </td>
+                            </tr>
+
+                            {/* سطر ۳: فرمت */}
+                            <tr className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
+                              <td className="p-3 text-center border-l border-slate-200 dark:border-slate-800">
+                                <input
+                                  type="checkbox"
+                                  checked={settings.userDataEgressAccessPolicy?.checkFormat ?? true}
+                                  onChange={e => {
+                                    set("userDataEgressAccessPolicy", {
+                                      ...settings.userDataEgressAccessPolicy,
+                                      checkFormat: e.target.checked
+                                    });
+                                  }}
+                                  className="h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500"
+                                />
+                              </td>
+                              <td className="p-3 font-bold text-slate-800 dark:text-slate-200">
+                                فرمت
+                                <p className="text-[11px] text-muted-foreground font-normal mt-0.5">
+                                  اعتبارسنجی فرمت خروجی، کدگذاری امن و درج امضا یا مشخصات کلاینت/واترمارک امنیتی در خروجی
+                                </p>
+                              </td>
+                              <td className="p-3 text-center border-r border-slate-200 dark:border-slate-800">
+                                <Badge className="bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border-emerald-300 text-[10px]">
+                                  امضا و واترمارک
+                                </Badge>
+                              </td>
+                            </tr>
+
+                            {/* سطر ۴: سایر موارد */}
+                            <tr className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
+                              <td className="p-3 text-center border-l border-slate-200 dark:border-slate-800">
+                                <input
+                                  type="checkbox"
+                                  checked={settings.userDataEgressAccessPolicy?.checkOtherEgressCriteria ?? true}
+                                  onChange={e => {
+                                    set("userDataEgressAccessPolicy", {
+                                      ...settings.userDataEgressAccessPolicy,
+                                      checkOtherEgressCriteria: e.target.checked
+                                    });
+                                  }}
+                                  className="h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500"
+                                />
+                              </td>
+                              <td className="p-3 font-bold text-slate-800 dark:text-slate-200">
+                                سایر موارد
+                                <p className="text-[11px] text-muted-foreground font-normal mt-0.5">
+                                  ثبت کامل رویداد خروج داده در لاگ حسابرسی افتا (Audit Log) و ماسک‌کردن داده‌های حساس (Data Masking)
+                                </p>
+                              </td>
+                              <td className="p-3 text-center border-r border-slate-200 dark:border-slate-800">
+                                <Badge className="bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 border-purple-300 text-[10px]">
+                                  Masking & Audit
+                                </Badge>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* کارت قوانین ممانعت از خروج بدون هدف داده کاربری به خارج از محصول (مطابق بند ۹ تصویر افتا) */}
+                  <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+                    <div className="bg-gradient-to-r from-amber-900 via-orange-950 to-slate-900 text-white p-4 font-bold text-xs flex items-center justify-between border-b border-amber-800">
+                      <div className="flex items-center gap-2.5">
+                        <ShieldAlert className="h-5 w-5 text-amber-400 shrink-0" />
+                        <span className="text-xs md:text-sm font-black">
+                          بند ۹ - قوانین ممانعت از خروج بدون هدف داده کاربری به خارج از محصول (الزام افتا)
+                        </span>
+                      </div>
+                      <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/30 text-[10px] shrink-0">
+                        بند ۹ الزام افتا
+                      </Badge>
+                    </div>
+
+                    <div className="p-5 space-y-4">
+                      {/* توضیحات صورت الزام بالای کارت */}
+                      <div className="bg-amber-50/60 dark:bg-amber-950/30 p-4 rounded-xl border border-amber-200/80 dark:border-amber-900/50 flex items-start gap-3">
+                        <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                        <p className="text-xs text-amber-950 dark:text-amber-200 font-semibold leading-relaxed">
+                          «۹ - محصول باید هنگام خروج داده کاربری به خارج از محصول، قوانینی را اعمال نماید.»
+                        </p>
+                      </div>
+
+                      {/* جدول اختصاصی مطابق ساختار بند ۹ تصویر افتا */}
+                      <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+                        <table className="w-full text-xs text-right border-collapse">
+                          <thead>
+                            <tr className="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border-b border-slate-200 dark:border-slate-700">
+                              <th className="p-3 w-12 text-center font-extrabold border-l border-slate-200 dark:border-slate-700">انتخاب</th>
+                              <th className="p-3 font-extrabold text-slate-900 dark:text-slate-100">
+                                قوانینی که در هنگام خروج داده از محصول اعمال می‌شوند، مشخص شوند
+                              </th>
+                              <th className="p-3 w-48 font-extrabold text-center border-r border-slate-200 dark:border-slate-700">پیکربندی / وضعیت قانون</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                            {/* سطر ۱: قانون محدودسازی خروج بدون هدف توسط مدیر سیستم */}
+                            <tr className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
+                              <td className="p-3 text-center border-l border-slate-200 dark:border-slate-800">
+                                <input
+                                  type="checkbox"
+                                  checked={settings.targetedDataEgressRules?.preventUntargetedDataEgress ?? true}
+                                  onChange={e => {
+                                    set("targetedDataEgressRules", {
+                                      ...settings.targetedDataEgressRules,
+                                      preventUntargetedDataEgress: e.target.checked
+                                    });
+                                  }}
+                                  className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+                                />
+                              </td>
+                              <td className="p-3 font-bold text-slate-800 dark:text-slate-200">
+                                مدیر سیستم باید خروج داده‌ها را محدود نماید، به طوریکه کاربران محصول، قادر به خروج بدون هدف داده به خارج از محصول نباشند.
+                                <p className="text-[11px] text-muted-foreground font-normal mt-1 leading-relaxed">
+                                  الزام مشخص بودن علت شغلی و مقصد خروج داده‌ها و ممانعت از دانلودهای آزادانه یا صادرات بدون مجوز اداری ثبت‌شده.
+                                </p>
+                              </td>
+                              <td className="p-3 text-center border-r border-slate-200 dark:border-slate-800">
+                                <Badge className="bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border-amber-300 text-[10px]">
+                                  ممانعت از خروج بدون هدف
+                                </Badge>
+                              </td>
+                            </tr>
+
+                            {/* سطر ۲: سایر موارد */}
+                            <tr className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
+                              <td className="p-3 text-center border-l border-slate-200 dark:border-slate-800">
+                                <input
+                                  type="checkbox"
+                                  checked={settings.targetedDataEgressRules?.auditUntargetedEgressAttempts ?? true}
+                                  onChange={e => {
+                                    set("targetedDataEgressRules", {
+                                      ...settings.targetedDataEgressRules,
+                                      auditUntargetedEgressAttempts: e.target.checked
+                                    });
+                                  }}
+                                  className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+                                />
+                              </td>
+                              <td className="p-3 font-bold text-slate-800 dark:text-slate-200">
+                                سایر موارد
+                                <p className="text-[11px] text-muted-foreground font-normal mt-0.5">
+                                  احراز آدرس مقاصد خروجی مجاز، الزام تایید مدیر سیستم برای خروجی‌های انبوه و ثبت تلاش‌های غیرمجاز خروج در لاگ افتا
+                                </p>
+                              </td>
+                              <td className="p-3 text-center border-r border-slate-200 dark:border-slate-800">
+                                <Badge className="bg-orange-100 dark:bg-orange-950 text-orange-800 dark:text-orange-300 border-orange-300 text-[10px]">
+                                  تایید مدیر & لاگ افتا
+                                </Badge>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
                       </div>
                     </div>
                   </div>

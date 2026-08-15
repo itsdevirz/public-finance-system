@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { useAssets } from "@/context/AssetContext";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
+import { validateEgressPermission } from "@/lib/egressValidator";
 
 // ─── STYLING FOR DYNAMIC VIEWS ────────────────────────────────────────────────
 const VIEW_META = {
@@ -2120,7 +2121,12 @@ export default function Warehouse() {
     });
   }, [aggregatedLogs, reportSearch]);
 
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
+    const check = await validateEgressPermission({ exportType: "CSV", recordCount: 500 });
+    if (!check.allowed) {
+      alert(`ممانعت از خروجی داده (الزام بند ۹ افتا):\n${check.reason}`);
+      return;
+    }
     let csvContent = "\uFEFF"; // UTF-8 BOM
     let fileName = `report_${reportType}_${Date.now()}.csv`;
 

@@ -203,8 +203,13 @@ router.post("/login", async (c) => {
     }
   }
 
-  // Check Concurrent Session Limit & Apply Session Establishment Rules
-  const maxSessions = secPolicy.sessionPolicy?.maxConcurrentSessions || 3;
+  // Check Concurrent Session Limit & Apply Session Establishment Rules (including activeToInactivePreventionRules threshold)
+  const preventionRules = secPolicy.activeToInactivePreventionRules;
+  const thresholdFromPreventionRule = (preventionRules?.preventAccessOnExceedingSessionThreshold && typeof preventionRules?.sessionThresholdLimit === "number")
+    ? preventionRules.sessionThresholdLimit
+    : null;
+
+  const maxSessions = thresholdFromPreventionRule ?? secPolicy.sessionPolicy?.maxConcurrentSessions ?? 3;
   const overflowAction = secPolicy.sessionPolicy?.overflowAction || "block"; // "block" or "evict_oldest"
   
   // 1. Automatically prune expired or revoked sessions first

@@ -67,7 +67,12 @@ function fmtNum(n) {
 }
 
 // ─── خروجی Excel ─────────────────────────────────────────────────────────────
-function exportToCSV(rows, totals, colDefs, title) {
+async function exportToCSV(rows, totals, colDefs, title) {
+  const check = await validateEgressPermission({ exportType: "CSV", recordCount: rows.length || 1 });
+  if (!check.allowed) {
+    alert(`ممانعت از خروجی داده (الزام بند ۹ افتا):\n${check.reason}`);
+    return;
+  }
   const headers = ["کد حساب", "عنوان حساب", ...colDefs.map((c) => c.label)];
   const toRow = (r) =>
     [r.code, r.name, ...colDefs.map((c) => r[c.key] ?? 0)].join(",");
