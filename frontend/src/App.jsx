@@ -1,6 +1,6 @@
-import { lazy, Suspense } from "react";
+import React, { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { Landmark, Loader2 } from "lucide-react";
+import { Landmark, Loader2, AlertCircle, RefreshCw } from "lucide-react";
 import { AuthProvider } from "./context/AuthContext";
 import { AssetProvider } from "./context/AssetContext";
 import { InventoryProvider } from "./context/InventoryContext";
@@ -10,14 +10,54 @@ import Login from "./pages/Login";
 import Placeholder from "./pages/Placeholder";
 import Dashboard from "./pages/Dashboard";
 import { buildLayoutRoutes } from "./config/appRoutes";
+import { Button } from "./components/ui/button";
 
-// بارگذاری تنبل فرم‌های جانبی برای حداکثر سرعت
 const GuaranteeContractForm = lazy(() => import("./modules/treasury/pages/GuaranteeContractForm"));
 const DepositManualForm = lazy(() => import("./modules/treasury/pages/DepositManualForm"));
 
 const layoutRoutes = buildLayoutRoutes(Dashboard);
 
-// ─── صفحه بارگذاری زیبا و شکیل برای Suspense ────────────────────────────────
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error("ErrorBoundary caught an error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex min-h-screen flex-col items-center justify-center p-6 bg-background text-foreground text-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-destructive/10 text-destructive mb-4">
+            <AlertCircle className="h-8 w-8" />
+          </div>
+          <h2 className="text-xl font-bold text-foreground">خطایی در بارگذاری این صفحه رخ داده است</h2>
+          <p className="text-xs text-muted-foreground mt-2 max-w-md">
+            {this.state.error?.message || "مشکلی در پردازش اطلاعات رخ داد."}
+          </p>
+          <Button
+            onClick={() => {
+              this.setState({ hasError: false, error: null });
+              window.location.reload();
+            }}
+            className="mt-5 text-xs font-bold gap-2"
+          >
+            <RefreshCw className="h-4 w-4" /> بازنشانی و تلاش مجدد
+          </Button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function PageLoader() {
   return (
     <div className="flex min-h-[80vh] flex-col items-center justify-center gap-4 p-8 animate-in fade-in duration-300">
@@ -65,22 +105,24 @@ function Layout() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Suspense fallback={<PageLoader />}>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route
-              path="/*"
-              element={
-                <PrivateRoute>
-                  <Layout />
-                </PrivateRoute>
-              }
-            />
-          </Routes>
-        </Suspense>
-      </BrowserRouter>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <BrowserRouter>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route
+                path="/*"
+                element={
+                  <PrivateRoute>
+                    <Layout />
+                  </PrivateRoute>
+                }
+              />
+            </Routes>
+          </Suspense>
+        </BrowserRouter>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }

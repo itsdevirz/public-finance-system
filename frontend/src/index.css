@@ -193,6 +193,54 @@
   .scrollbar-sidebar::-webkit-scrollbar-thumb:hover {
     background: hsl(var(--sidebar-primary) / 0.7);
   }
+
+  /* 3D Visual Depth & Perspective Utilities */
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+  .perspective-2000 {
+    perspective: 2000px;
+  }
+  .preserve-3d {
+    transform-style: preserve-3d;
+  }
+  .translate-z-5 {
+    transform: translateZ(5px);
+  }
+  .translate-z-10 {
+    transform: translateZ(10px);
+  }
+  .translate-z-20 {
+    transform: translateZ(20px);
+  }
+  .translate-z-30 {
+    transform: translateZ(30px);
+  }
+  .translate-z-50 {
+    transform: translateZ(50px);
+  }
+  .glass-card-3d {
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.08), 0 4px 12px -2px rgba(0, 0, 0, 0.04);
+  }
+  .glow-cyan {
+    box-shadow: 0 0 25px -5px rgba(20, 184, 166, 0.4);
+  }
+  .glow-amber {
+    box-shadow: 0 0 25px -5px rgba(245, 158, 11, 0.4);
+  }
+  .glow-emerald {
+    box-shadow: 0 0 25px -5px rgba(16, 185, 129, 0.4);
+  }
+  .glow-indigo {
+    box-shadow: 0 0 25px -5px rgba(99, 102, 241, 0.4);
+  }
+  .glow-rose {
+    box-shadow: 0 0 25px -5px rgba(244, 63, 94, 0.4);
+  }
 }
 
 @media print {

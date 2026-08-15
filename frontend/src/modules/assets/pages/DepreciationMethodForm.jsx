@@ -28,13 +28,8 @@ const CALC_COLORS = {
   custom:    "bg-slate-100 text-slate-600",
 };
 
-// ─── نمونه داده ──────────────────────────────────────────────────────────────
-const SAMPLE_DATA = [
-  { id: 1, code: "D01", title: "خط مستقیم استاندارد",  calcType: "straight",  rate: 10,   salvageRate: 10, minYears: "", maxYears: "", applyMonthly: true,  inactive: false },
-  { id: 2, code: "D02", title: "نزولی مضاعف ۲۰٪",      calcType: "declining", rate: 20,   salvageRate: 5,  minYears: "", maxYears: "", applyMonthly: true,  inactive: false },
-  { id: 3, code: "D03", title: "مجموع سنوات ۵ ساله",   calcType: "sum_years", rate: "",   salvageRate: 10, minYears: 3,  maxYears: 7,  applyMonthly: false, inactive: false },
-  { id: 4, code: "D04", title: "بر اساس ساعت کارکرد",  calcType: "unit",      rate: "",   salvageRate: 0,  minYears: "", maxYears: "", applyMonthly: false, inactive: false },
-];
+// ─── روش‌های استهلاک ────────────────────────────────────────────────────────
+const SAMPLE_DATA = [];
 
 const INITIAL_FORM = {
   code: "", title: "",

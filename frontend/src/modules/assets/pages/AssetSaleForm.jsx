@@ -35,16 +35,8 @@ const STATUS_STYLE = {
   cancelled: { badge: "bg-red-100 text-red-700",         icon: Pencil       },
 };
 
-// ─── نمونه داده اولیه ────────────────────────────────────────────────────────
-const SAMPLE_DATA = [
-  {
-    id: 1, assetCode: "A999", assetTitle: "خودرو پژو ۴۰۵ مدل ۱۳۸۵",
-    saleMethod: "auction", saleDate: "1403/09/15",
-    basePrice: "180000000", salePrice: "210000000",
-    buyerName: "شرکت خودروسازی الف", buyerNationalId: "1010987654",
-    docNumber: "FR-1403-001", saleStatus: "sold", note: "",
-  },
-];
+// ─── لیست فروش اموال ─────────────────────────────────────────────────────────
+const SAMPLE_DATA = [];
 
 const INITIAL_FORM = {
   assetCode: "", assetTitle: "", assetGroup: "", assetBrand: "", assetModel: "",

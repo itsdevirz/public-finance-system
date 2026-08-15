@@ -359,6 +359,15 @@ export function InventoryProvider({ children }) {
 
 export function useInventory() {
   const ctx = useContext(InventoryContext);
-  if (!ctx) throw new Error("useInventory must be used within InventoryProvider");
+  if (!ctx) {
+    return {
+      consumables: [], warehouses: [], receipts: [], issues: [], alerts: [], loading: false,
+      addWarehouse: async () => {}, updateWarehouse: async () => {}, deleteWarehouse: async () => {},
+      addReceipt: async () => {}, updateReceipt: async () => {}, deleteReceipt: async () => {},
+      addIssue: async () => {}, updateIssue: async () => {}, deleteIssue: async () => {},
+      addAlert: async () => {}, updateAlert: async () => {}, deleteAlert: async () => {},
+      getStockBalances: () => [], getSingleItemBalance: () => 0, getItemKardex: () => []
+    };
+  }
   return ctx;
 }

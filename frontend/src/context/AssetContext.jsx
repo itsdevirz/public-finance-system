@@ -172,6 +172,16 @@ export function AssetProvider({ children }) {
 
 export function useAssets() {
   const ctx = useContext(AssetContext);
-  if (!ctx) throw new Error("useAssets must be used within AssetProvider");
+  if (!ctx) {
+    return {
+      assets: [],
+      refreshAssets: async () => {},
+      groups: [], subgroups: [], types: [], natures: [], units: [], locations: [], suppliers: [],
+      items: [], requests: [], transfers: [], warehouses: [], receipts: [], issues: [], employees: [],
+      employeeContracts: [], employeeDecrees: [], attendanceRecords: [], employeeLeaves: [], employeeMissions: [],
+      payrollCalculations: [], insuranceSettings: [], employeeLoans: [], employeeAdvances: [], audits: [],
+      addConfig: async () => {}, updateConfig: async () => {}, deleteConfig: async () => {}, refreshAllConfigs: async () => {}
+    };
+  }
   return ctx;
 }

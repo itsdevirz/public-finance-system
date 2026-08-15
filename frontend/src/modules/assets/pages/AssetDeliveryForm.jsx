@@ -14,12 +14,8 @@ import { useAssets } from "@/context/AssetContext";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 
-// ─── نمونه داده تحویل‌ها ──────────────────────────────────────────────────────
-const SAMPLE_DATA = [
-  { id: 1, assetCode: "A001", assetTitle: "لپ‌تاپ Dell Latitude 5520", personnelCode: "P001", personnelName: "علی رضایی",    department: "فناوری اطلاعات", deliveryDate: "1403/01/15", returnDate: "",          status: "delivered", note: "" },
-  { id: 2, assetCode: "A003", assetTitle: "میز کار اداری",             personnelCode: "P002", personnelName: "مریم احمدی",   department: "حسابداری",       deliveryDate: "1403/02/01", returnDate: "",          status: "delivered", note: "" },
-  { id: 3, assetCode: "A006", assetTitle: "پروژکتور Epson EB-X51",     personnelCode: "P003", personnelName: "حسن محمدی",    department: "آموزش",          deliveryDate: "1402/10/01", returnDate: "1403/03/20", status: "returned",  note: "عودت پس از اتمام دوره آموزشی" },
-];
+// ─── لیست تحویل‌ها ────────────────────────────────────────────────────────────
+const SAMPLE_DATA = [];
 
 const STATUS_OPTIONS = [
   { value: "delivered", label: "تحویل داده شده" },
