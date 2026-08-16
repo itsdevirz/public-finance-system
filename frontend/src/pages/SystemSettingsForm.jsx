@@ -248,6 +248,77 @@ const INITIAL_SETTINGS = {
     auditRoleAssignmentChanges: true,
   },
 
+  // ۲۵. رده ۲-۶ بند ۱ افتا: حفظ وضعیت امن محصول هنگام رخ دادن خرابی، اشکال یا شکست
+  secureFailureStatePolicy: {
+    enableSecureFailureState: true,
+    softwareFailureProtection: true, // خرابی‌های نرم‌افزاری
+    hardwareFailureProtection: true, // خرابی‌های سخت‌افزاری / قطع ارتباط با دیتابیس
+    preserveDataIntegrityOnCrash: true, // حفظ صحت داده‌ها
+    maintainAccessControlRulesOnFailure: true, // حفظ خط‌مشی کنترل دسترسی
+    auditLogFailureEvents: true,
+  },
+
+  // ۲۶. رده ۲-۶ بند ۲ افتا: جلوگیری از افشاء یا تغییر داده هنگام انتقال بین بخش‌های مجزای محصول
+  internalTransitProtectionPolicy: {
+    enableInternalTransitProtection: true,
+    preventDataLeakageInTransit: true, // جلوگیری از افشای داده
+    preventDataTamperingInTransit: true, // جلوگیری از تغییر داده
+    enforceInternalComponentTLS: true, // بستر و زیرساخت امن انتقال بین اجزاء
+    auditTransitSecurityViolations: true,
+  },
+
+  // ۲۷. رده ۲-۶ بند ۳ افتا: تفسیر سازگار و یکسان داده‌های امنیتی قابل اشتراک‌گذاری با سایر محصولات IT
+  securityDataInteroperabilityPolicy: {
+    enableSecurityDataInteroperability: true,
+    supportedShareableData: {
+      authData: true, // داده‌های احراز هویت
+      cryptoKeys: true, // کلید
+      digitalSignature: true, // امضای دیجیتال
+      auditLogs: true, // ثبت‌نشان‌ها (داده‌های ممیزی)
+      otherSecurityAttributes: true, // سایر موارد
+    },
+    enforceStandardFormatInterpretation: true,
+  },
+
+  // ۲۸. رده ۲-۶ بند ۴ افتا: زمان و تاریخ معتبر و استفاده از مهرهای زمانی معتبر (مطابق تصویر فایل ورد افتا)
+  trustedTimestampPolicy: {
+    enableTrustedTimestamping: true,
+    timestampMethods: {
+      getTimestampFromNtpServer: true, // گرفتن مهرهای زمانی از سرور NTP
+      setTimestampViaInternet: true, // تنظیم مهرهای زمانی از طریق اینترنت
+      setDefaultTrustedTimestamp: true, // تنظیم مهرهای زمانی به صورت پیش‌فرض (معتبر و عدم امکان دستکاری غیرمجاز)
+      otherMethods: true, // سایر موارد
+    },
+    verifyTimestampIntegrity: true,
+  },
+
+  // ۲۹. الزام افتا: بروزرسانی نرم‌افزار و میان‌افزار محصول برای مدیر سیستم (مطابق تصویر سند افتا)
+  productSoftwareUpdatePolicy: {
+    enableSoftwareUpdateManagement: true,
+    updateMethods: {
+      manualUpdate: true, // بروزرسانی دستی
+      autoSearchForUpdates: true, // جستجوی خودکار بروزرسانی‌ها
+      automaticUpdates: false, // بروزرسانی‌های خودکار
+      manualUpdateAfterSecurityVerification: true, // بروزرسانی دستی بعد از اطمینان از امنیت وصله و یا فایل بروزرسانی
+    },
+    autoUpdateAuthenticityVerification: {
+      enableAuthenticityVerification: true,
+      digitalSignature: true, // امضای دیجیتال
+      publishedHash: true, // درهم‌ساز منتشرشده
+    },
+    requireAdminApprovalForUpdates: true,
+    auditLogUpdateEvents: true,
+  },
+
+  // ۳۰. الزام افتا: اطمینان از عملکرد کارکردهای اصلی محصول در زمان رخداد هرگونه اشکال و خرابی (شکست) نرم‌افزاری
+  coreFunctionsSoftwareFaultTolerancePolicy: {
+    enableFaultTolerancePolicy: true,
+    isolationOfFaultyModules: true, // جداسازی ماژول‌های دچار خطای زمان اجرا جهت عدم اختلال در سایر کارکردها
+    fallbackToCoreOperationalMode: true, // بازگشت به حالت عملیاتی پایه و فعال نگه‌داشتن کارکردهای اصلی سیستم
+    gracefulDegradation: true, // افت کیفیت کنترل‌شده (Graceful Degradation) بدون از کار افتادن وظایف اصلی
+    auditLogFaultEvents: true, // ثبت دقیق رویدادهای خرابی و ناهنجاری نرم‌افزاری در لاگ حسابرسی افتا
+  },
+
   lastUpdated: null,
 };
 
@@ -391,6 +462,12 @@ export default function SystemSettingsForm() {
     "afta_sec_mgmt_capabilities",
     "afta_product_roles_def",
     "afta_user_role_assignment",
+    "afta_fpt_item1_secure_failure_state",
+    "afta_fpt_item2_internal_transit",
+    "afta_fpt_item3_security_data_interoperability",
+    "afta_fpt_item4_trusted_timestamps",
+    "afta_product_software_update",
+    "afta_core_functions_fault_tolerance",
     "afta_active_sessions"
   ];
 
@@ -507,6 +584,12 @@ export default function SystemSettingsForm() {
           targetedDataEgressRules: p.targetedDataEgressRules || prev.targetedDataEgressRules,
           productRolesDefinitionPolicy: p.productRolesDefinitionPolicy || prev.productRolesDefinitionPolicy,
           userRoleAssignmentPolicy: p.userRoleAssignmentPolicy || prev.userRoleAssignmentPolicy,
+          secureFailureStatePolicy: p.secureFailureStatePolicy || prev.secureFailureStatePolicy,
+          internalTransitProtectionPolicy: p.internalTransitProtectionPolicy || prev.internalTransitProtectionPolicy,
+          securityDataInteroperabilityPolicy: p.securityDataInteroperabilityPolicy || prev.securityDataInteroperabilityPolicy,
+          trustedTimestampPolicy: p.trustedTimestampPolicy || prev.trustedTimestampPolicy,
+          productSoftwareUpdatePolicy: p.productSoftwareUpdatePolicy || prev.productSoftwareUpdatePolicy,
+          coreFunctionsSoftwareFaultTolerancePolicy: p.coreFunctionsSoftwareFaultTolerancePolicy || prev.coreFunctionsSoftwareFaultTolerancePolicy,
         }));
 
         if (Array.isArray(p.entityAccessPolicies) && p.entityAccessPolicies.length > 0) {
@@ -581,6 +664,12 @@ export default function SystemSettingsForm() {
       targetedDataEgressRules: s.targetedDataEgressRules,
       productRolesDefinitionPolicy: s.productRolesDefinitionPolicy,
       userRoleAssignmentPolicy: s.userRoleAssignmentPolicy,
+      secureFailureStatePolicy: s.secureFailureStatePolicy,
+      internalTransitProtectionPolicy: s.internalTransitProtectionPolicy,
+      securityDataInteroperabilityPolicy: s.securityDataInteroperabilityPolicy,
+      trustedTimestampPolicy: s.trustedTimestampPolicy,
+      productSoftwareUpdatePolicy: s.productSoftwareUpdatePolicy,
+      coreFunctionsSoftwareFaultTolerancePolicy: s.coreFunctionsSoftwareFaultTolerancePolicy,
     };
     await api.put("/api/security/policy", payload);
   };
@@ -3307,6 +3396,768 @@ export default function SystemSettingsForm() {
                             className="h-4 w-4 rounded border-slate-300 text-emerald-600"
                           />
                           <span>ثبت دقیق کلیه تغییرات و انتساب نقش کاربران در لاگ حسابرسی افتا (Audit Log)</span>
+                        </label>
+                      </div>
+                    </div>
+                  </AftaAccordionCard>
+
+                  {/* ۲۵. 🌟 رده ۲-۶ بند ۱ افتا: حفظ وضعیت امن محصول هنگام رخ دادن خرابی، اشکال یا شکست */}
+                  <AftaAccordionCard
+                    id="afta_fpt_item1_secure_failure_state"
+                    number="رده ۲-۶ بند ۱ افتا"
+                    title="حفاظت در برابر شکست و حفظ وضعیت امن هنگام خرابی‌های نرم‌افزاری و سخت‌افزاری"
+                    description="قرارگیری محصول در وضعیت امن، حفظ صحت داده‌ها و تداوم خط‌مشی کنترل دسترسی در زمان بروز اختلال یا قطعی ارتباط با دیتابیس"
+                    isOpen={!!openAftaSections["afta_fpt_item1_secure_failure_state"]}
+                    onToggle={toggleAftaSection}
+                    icon={ShieldAlert}
+                  >
+                    <div className="space-y-4">
+                      <div className="bg-rose-50 dark:bg-rose-950/30 p-3.5 rounded-xl border border-rose-200 dark:border-rose-900/50">
+                        <span className="text-xs font-bold text-rose-900 dark:text-rose-200 block mb-1">
+                          الزام رده ۲-۶ بند ۱ افتا: محصول باید هنگام رخ دادن هرگونه خرابی، اشکال یا شکست مانند از کار افتادن محصول، قطع شدن ارتباط محصول با پایگاه داده و یا اختلال در کارکردهای محصول، در وضعیت امن قرار گرفته، صحت داده‌ها و خط‌مشی کنترل دسترسی را حفظ نماید.
+                        </span>
+                        <p className="text-[11px] text-rose-800 dark:text-rose-300 leading-relaxed">
+                          توضیح خلاصه جهت گزارش به افتا: نرم‌افزار هنگام بروز خرابی‌های نرم‌افزاری، سخت‌افزاری و قطعی شبکه با دیتابیس بلافاصله تراکنش‌ها را به‌صورت غیرمخرب متوقف نموده، از افشای اطلاعات ممانعت کرده و صحت داده‌ها و خط‌مشی کنترل دسترسی را کاملاً حفظ می‌نماید.
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={settings.secureFailureStatePolicy?.softwareFailureProtection ?? true}
+                            onChange={e => {
+                              set("secureFailureStatePolicy", {
+                                ...settings.secureFailureStatePolicy,
+                                softwareFailureProtection: e.target.checked
+                              });
+                            }}
+                            className="h-4 w-4 rounded border-slate-300 text-rose-600 mt-0.5"
+                          />
+                          <div>
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                              ۱. خرابی‌های نرم‌افزاری (Software Failures)
+                            </span>
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                              مدیریت خطاهای غیرمنتظره زمان اجرا و Crash، هدایت امن کاربر به وضعیت Fail-Safe و ممانعت از افشای حافظه یا پشته خطاهای امنیتی.
+                            </span>
+                          </div>
+                        </label>
+
+                        <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={settings.secureFailureStatePolicy?.hardwareFailureProtection ?? true}
+                            onChange={e => {
+                              set("secureFailureStatePolicy", {
+                                ...settings.secureFailureStatePolicy,
+                                hardwareFailureProtection: e.target.checked
+                              });
+                            }}
+                            className="h-4 w-4 rounded border-slate-300 text-rose-600 mt-0.5"
+                          />
+                          <div>
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                              ۲. خرابی‌های سخت‌افزاری و قطع ارتباط با دیتابیس (Hardware Failures & DB Disconnect)
+                            </span>
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                              مدیریت قطعی سخت‌افزار، سرور و اتصال دیتابیس با بازگردانی (Rollback) تراکنش‌های ناتمام و قفل‌گذاری حساب‌های حساس.
+                            </span>
+                          </div>
+                        </label>
+
+                        <label className="flex items-center gap-2.5 text-xs text-slate-700 dark:text-slate-300 font-medium cursor-pointer p-3 rounded-xl border bg-white dark:bg-slate-900">
+                          <input
+                            type="checkbox"
+                            checked={settings.secureFailureStatePolicy?.preserveDataIntegrityOnCrash ?? true}
+                            onChange={e => {
+                              set("secureFailureStatePolicy", {
+                                ...settings.secureFailureStatePolicy,
+                                preserveDataIntegrityOnCrash: e.target.checked
+                              });
+                            }}
+                            className="h-4 w-4 rounded border-slate-300 text-rose-600"
+                          />
+                          <span>حفظ صحت کامل داده‌ها (Data Integrity) پس از بازیابی از شرایط خرابی</span>
+                        </label>
+
+                        <label className="flex items-center gap-2.5 text-xs text-slate-700 dark:text-slate-300 font-medium cursor-pointer p-3 rounded-xl border bg-white dark:bg-slate-900">
+                          <input
+                            type="checkbox"
+                            checked={settings.secureFailureStatePolicy?.maintainAccessControlRulesOnFailure ?? true}
+                            onChange={e => {
+                              set("secureFailureStatePolicy", {
+                                ...settings.secureFailureStatePolicy,
+                                maintainAccessControlRulesOnFailure: e.target.checked
+                              });
+                            }}
+                            className="h-4 w-4 rounded border-slate-300 text-rose-600"
+                          />
+                          <span>حفظ و عدم تنزل خط‌مشی‌های کنترل دسترسی (ACL Rules) در زمان اختلال سیستم</span>
+                        </label>
+                      </div>
+                    </div>
+                  </AftaAccordionCard>
+
+                  {/* ۲۶. 🌟 رده ۲-۶ بند ۲ افتا: حفاظت از داده هنگام انتقال بین بخش‌های مجزای محصول */}
+                  <AftaAccordionCard
+                    id="afta_fpt_item2_internal_transit"
+                    number="رده ۲-۶ بند ۲ افتا"
+                    title="حفاظت از داده‌ها هنگام انتقال بین بخش‌های مجزای محصول (ممانعت از افشاء و تغییر)"
+                    description="ایجاد بستر و زیرساخت امن جهت جلوگیری از افشاء یا تغییر داده‌ها هنگام انتقال بین ماژول‌ها و سرویس‌های داخلی"
+                    isOpen={!!openAftaSections["afta_fpt_item2_internal_transit"]}
+                    onToggle={toggleAftaSection}
+                    icon={Lock}
+                  >
+                    <div className="space-y-4">
+                      <div className="bg-blue-50 dark:bg-blue-950/30 p-3.5 rounded-xl border border-blue-200 dark:border-blue-900/50">
+                        <span className="text-xs font-bold text-blue-900 dark:text-blue-200 block mb-1">
+                          الزام رده ۲-۶ بند ۲ افتا: محصول باید از طریق فراهم نمودن بستر و زیرساخت امن، توانایی جلوگیری از افشاء یا تغییر داده، هنگام انتقال بین بخش‌های مجزای خود را داشته باشد.
+                        </span>
+                        <p className="text-[11px] text-blue-800 dark:text-blue-300 leading-relaxed">
+                          توضیح خلاصه جهت گزارش به افتا: کلیه ارتباطات و انتقال داده‌ها بین بخش‌های مختلف محصول از طریق پروتکل‌های رمزنگاری‌شده (TLS/HTTPS و بستر امن IPC) صورت گرفته و در برابر شنود، افشاء یا دستکاری محافظت می‌شود.
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <label className="flex items-center gap-2.5 text-xs text-slate-700 dark:text-slate-300 font-medium cursor-pointer p-3 rounded-xl border bg-white dark:bg-slate-900">
+                          <input
+                            type="checkbox"
+                            checked={settings.internalTransitProtectionPolicy?.preventDataLeakageInTransit ?? true}
+                            onChange={e => {
+                              set("internalTransitProtectionPolicy", {
+                                ...settings.internalTransitProtectionPolicy,
+                                preventDataLeakageInTransit: e.target.checked
+                              });
+                            }}
+                            className="h-4 w-4 rounded border-slate-300 text-blue-600"
+                          />
+                          <span>جلوگیری از افشای داده‌ها هنگام انتقال بین بخش‌های مجزای محصول (Prevent Data Leakage)</span>
+                        </label>
+
+                        <label className="flex items-center gap-2.5 text-xs text-slate-700 dark:text-slate-300 font-medium cursor-pointer p-3 rounded-xl border bg-white dark:bg-slate-900">
+                          <input
+                            type="checkbox"
+                            checked={settings.internalTransitProtectionPolicy?.preventDataTamperingInTransit ?? true}
+                            onChange={e => {
+                              set("internalTransitProtectionPolicy", {
+                                ...settings.internalTransitProtectionPolicy,
+                                preventDataTamperingInTransit: e.target.checked
+                              });
+                            }}
+                            className="h-4 w-4 rounded border-slate-300 text-blue-600"
+                          />
+                          <span>جلوگیری از تغییر یا دستکاری داده‌ها در بستر انتقال داخلی (Prevent Data Tampering)</span>
+                        </label>
+
+                        <label className="flex items-center gap-2.5 text-xs text-slate-700 dark:text-slate-300 font-medium cursor-pointer p-3 rounded-xl border bg-white dark:bg-slate-900 md:col-span-2">
+                          <input
+                            type="checkbox"
+                            checked={settings.internalTransitProtectionPolicy?.enforceInternalComponentTLS ?? true}
+                            onChange={e => {
+                              set("internalTransitProtectionPolicy", {
+                                ...settings.internalTransitProtectionPolicy,
+                                enforceInternalComponentTLS: e.target.checked
+                              });
+                            }}
+                            className="h-4 w-4 rounded border-slate-300 text-blue-600"
+                          />
+                          <span>الزام بستر رمزنگاری TLS/IPC در تمامی ارتباطات فرانت‌اند، بک‌اند و سرویس‌های داخلی</span>
+                        </label>
+                      </div>
+                    </div>
+                  </AftaAccordionCard>
+
+                  {/* ۲۷. 🌟 رده ۲-۶ بند ۳ افتا: تفسیر سازگار و یکسان داده‌های امنیتی قابل اشتراک‌گذاری با سایر محصولات IT */}
+                  <AftaAccordionCard
+                    id="afta_fpt_item3_security_data_interoperability"
+                    number="رده ۲-۶ بند ۳ افتا"
+                    title="تفسیر سازگار و یکسان داده‌های امنیتی هنگام اشتراک‌گذاری با سایر محصولات IT"
+                    description="تفسیر یکنواخت داده‌های امنیتی (احراز هویت، کلید، امضای دیجیتال، ثبت‌نشان‌ها و سایر موارد) در تبادل با محصولات امن IT"
+                    isOpen={!!openAftaSections["afta_fpt_item3_security_data_interoperability"]}
+                    onToggle={toggleAftaSection}
+                    icon={Activity}
+                  >
+                    <div className="space-y-4">
+                      <div className="bg-purple-50 dark:bg-purple-950/30 p-3.5 rounded-xl border border-purple-200 dark:border-purple-900/50">
+                        <span className="text-xs font-bold text-purple-900 dark:text-purple-200 block mb-1">
+                          الزام رده ۲-۶ بند ۳ افتا: در صورتی که محصول از محصولات امن IT دیگری استفاده می‌کند، باید تفسیر سازگار و یکسانی را از داده امنیتی در زمان اشتراک‌گذاری آن بین خود و دیگر محصولات امن IT، فراهم آورد.
+                        </span>
+                        <p className="text-[11px] text-purple-800 dark:text-purple-300 leading-relaxed">
+                          توضیح خلاصه جهت گزارش به افتا: ساختار و تفسیر داده‌های امنیتی قابل اشتراک‌گذاری کاملاً منطبق بر استانداردهای امنیتی IT بوده و با سایر سامانه‌های امنیتی به‌صورت سازگار مبادله می‌شود.
+                        </p>
+                      </div>
+
+                      <div className="space-y-3">
+                        <h4 className="text-xs font-black text-purple-900 dark:text-purple-300 flex items-center gap-2 border-b pb-2">
+                          داده‌های امنیتی قابل اشتراک‌گذاری پشتیبانی‌شده در محصول (مطابق جدول افتا):
+                        </h4>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={settings.securityDataInteroperabilityPolicy?.supportedShareableData?.authData ?? true}
+                              onChange={e => {
+                                set("securityDataInteroperabilityPolicy", {
+                                  ...settings.securityDataInteroperabilityPolicy,
+                                  supportedShareableData: {
+                                    ...settings.securityDataInteroperabilityPolicy?.supportedShareableData,
+                                    authData: e.target.checked
+                                  }
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-purple-600 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                ۱. داده‌های احراز هویت (Authentication Data)
+                              </span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                                پشتیبانی از توکن‌ها، ادعاهای هویت و هش‌های احراز هویت استاندارد (JWT / OAuth2 / SAML2).
+                              </span>
+                            </div>
+                          </label>
+
+                          <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={settings.securityDataInteroperabilityPolicy?.supportedShareableData?.cryptoKeys ?? true}
+                              onChange={e => {
+                                set("securityDataInteroperabilityPolicy", {
+                                  ...settings.securityDataInteroperabilityPolicy,
+                                  supportedShareableData: {
+                                    ...settings.securityDataInteroperabilityPolicy?.supportedShareableData,
+                                    cryptoKeys: e.target.checked
+                                  }
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-purple-600 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                ۲. کلید (Cryptographic Keys)
+                              </span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                                تبادل و تفسیر سازگار کلیدهای عمومی و گواهی‌های رمزنگاری (JWK / PEM / PKCS#8).
+                              </span>
+                            </div>
+                          </label>
+
+                          <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={settings.securityDataInteroperabilityPolicy?.supportedShareableData?.digitalSignature ?? true}
+                              onChange={e => {
+                                set("securityDataInteroperabilityPolicy", {
+                                  ...settings.securityDataInteroperabilityPolicy,
+                                  supportedShareableData: {
+                                    ...settings.securityDataInteroperabilityPolicy?.supportedShareableData,
+                                    digitalSignature: e.target.checked
+                                  }
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-purple-600 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                ۳. امضای دیجیتال (Digital Signatures / PKI)
+                              </span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                                پشتیبانی و اعتبارسنجی یکسان امضاهای دیجیتال ممهور به گواهی‌های معتبر (X.509).
+                              </span>
+                            </div>
+                          </label>
+
+                          <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={settings.securityDataInteroperabilityPolicy?.supportedShareableData?.auditLogs ?? true}
+                              onChange={e => {
+                                set("securityDataInteroperabilityPolicy", {
+                                  ...settings.securityDataInteroperabilityPolicy,
+                                  supportedShareableData: {
+                                    ...settings.securityDataInteroperabilityPolicy?.supportedShareableData,
+                                    auditLogs: e.target.checked
+                                  }
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-purple-600 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                ۴. ثبت‌نشان‌ها / داده‌های ممیزی (Audit Logs / Security Trail)
+                              </span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                                تولید لاگ‌های حسابرسی طبق ساختار استاندارد قابل پردازش توسط SIEM و مرکز عملیات امنیت.
+                              </span>
+                            </div>
+                          </label>
+
+                          <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer md:col-span-2">
+                            <input
+                              type="checkbox"
+                              checked={settings.securityDataInteroperabilityPolicy?.supportedShareableData?.otherSecurityAttributes ?? true}
+                              onChange={e => {
+                                set("securityDataInteroperabilityPolicy", {
+                                  ...settings.securityDataInteroperabilityPolicy,
+                                  supportedShareableData: {
+                                    ...settings.securityDataInteroperabilityPolicy?.supportedShareableData,
+                                    otherSecurityAttributes: e.target.checked
+                                  }
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-purple-600 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                ۵. سایر موارد (Other Security Attributes)
+                              </span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                                برچسب‌های امنیتی، سطوح محرمانگی داده‌ها و مشخصه‌های کنترل دسترسی نقش‌محور.
+                              </span>
+                            </div>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </AftaAccordionCard>
+
+                  {/* ۲۸. 🌟 رده ۲-۶ بند ۴ افتا: تولید و استفاده از مهرهای زمانی معتبر (مطابق تصویر فایل ورد افتا) */}
+                  <AftaAccordionCard
+                    id="afta_fpt_item4_trusted_timestamps"
+                    number="رده ۲-۶ بند ۴ افتا"
+                    title="تولید و استفاده از زمان و تاریخ معتبر (مهرهای زمانی معتبر - Trusted Timestamps)"
+                    description="الزام تولید و استفاده از مهرهای زمانی معتبر، گرفتن زمان از NTP، اینترنت، تنظیم پیش‌فرض معتبر و سایر موارد"
+                    isOpen={!!openAftaSections["afta_fpt_item4_trusted_timestamps"]}
+                    onToggle={toggleAftaSection}
+                    icon={Clock}
+                  >
+                    <div className="space-y-4">
+                      <div className="bg-emerald-50 dark:bg-emerald-950/30 p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-900/50">
+                        <span className="text-xs font-bold text-emerald-900 dark:text-emerald-200 block mb-1">
+                          الزام رده ۲-۶ بند ۴ افتا: محصول باید زمان و تاریخ معتبری داشته باشد، بنابراین باید مهرهای زمانی معتبر را تولید یا از آن‌ها استفاده نماید.
+                        </span>
+                        <p className="text-[11px] text-emerald-800 dark:text-emerald-300 leading-relaxed">
+                          توضیح خلاصه جهت گزارش به افتا: روش‌های انتخاب و ایجاد مهرهای زمانی معتبر در محصول فعال بوده و از دستکاری غیرمجاز زمان سیستم و تراکنش‌ها ممانعت می‌گردد.
+                        </p>
+                      </div>
+
+                      <div className="space-y-3">
+                        <h4 className="text-xs font-black text-emerald-900 dark:text-emerald-300 flex items-center gap-2 border-b pb-2">
+                          روش‌های ایجاد مهرهای زمانی معتبر انتخاب شود (مطابق جدول افتا):
+                        </h4>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={settings.trustedTimestampPolicy?.timestampMethods?.getTimestampFromNtpServer ?? true}
+                              onChange={e => {
+                                set("trustedTimestampPolicy", {
+                                  ...settings.trustedTimestampPolicy,
+                                  timestampMethods: {
+                                    ...settings.trustedTimestampPolicy?.timestampMethods,
+                                    getTimestampFromNtpServer: e.target.checked
+                                  }
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-emerald-600 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                ۱. گرفتن مهرهای زمانی از سرور NTP
+                              </span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                                دریافت و همگام‌سازی زمان و مهرهای زمانی مرجع از سرور شبکه (NTP Server).
+                              </span>
+                            </div>
+                          </label>
+
+                          <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={settings.trustedTimestampPolicy?.timestampMethods?.setTimestampViaInternet ?? true}
+                              onChange={e => {
+                                set("trustedTimestampPolicy", {
+                                  ...settings.trustedTimestampPolicy,
+                                  timestampMethods: {
+                                    ...settings.trustedTimestampPolicy?.timestampMethods,
+                                    setTimestampViaInternet: e.target.checked
+                                  }
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-emerald-600 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                ۲. تنظیم مهرهای زمانی از طریق اینترنت
+                              </span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                                همگام‌سازی آنلاین و دریافت مهرهای زمانی از سرورهای مرجع اینترنتی (Internet Time Protocol).
+                              </span>
+                            </div>
+                          </label>
+
+                          <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={settings.trustedTimestampPolicy?.timestampMethods?.setDefaultTrustedTimestamp ?? true}
+                              onChange={e => {
+                                set("trustedTimestampPolicy", {
+                                  ...settings.trustedTimestampPolicy,
+                                  timestampMethods: {
+                                    ...settings.trustedTimestampPolicy?.timestampMethods,
+                                    setDefaultTrustedTimestamp: e.target.checked
+                                  }
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-emerald-600 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                ۳. تنظیم مهرهای زمانی به صورت پیش‌فرض (معتبر و عدم امکان دستکاری غیرمجاز)
+                              </span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                                اعمال مهر زمانی پیش‌فرض سیستم با حفاظت در برابر دستکاری و تغییرات غیرمجاز زمان.
+                              </span>
+                            </div>
+                          </label>
+
+                          <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={settings.trustedTimestampPolicy?.timestampMethods?.otherMethods ?? true}
+                              onChange={e => {
+                                set("trustedTimestampPolicy", {
+                                  ...settings.trustedTimestampPolicy,
+                                  timestampMethods: {
+                                    ...settings.trustedTimestampPolicy?.timestampMethods,
+                                    otherMethods: e.target.checked
+                                  }
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-emerald-600 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                ۴. سایر موارد
+                              </span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                                استفاده از سخت‌افزارهای امنیتی زمات‌سنجی (HSM) و مراکز گواهی مهر زمانی (TSA).
+                              </span>
+                            </div>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </AftaAccordionCard>
+
+                  {/* ۲۹. 🌟 الزام افتا: بروزرسانی نرم‌افزار و میان‌افزار محصول برای مدیر سیستم (مطابق تصویر فایل ورد افتا) */}
+                  <AftaAccordionCard
+                    id="afta_product_software_update"
+                    number="الزام بروزرسانی افتا"
+                    title="الزام افتا: بروزرسانی نرم‌افزار و میان‌افزار محصول برای مدیر سیستم"
+                    description="فراهم نمودن امکان بروزرسانی محصول با تعیین روش‌های بروزرسانی دستی، جستجوی خودکار، بروزرسانی خودکار و اعتبارسنجی امنیتی وصله‌ها"
+                    isOpen={!!openAftaSections["afta_product_software_update"]}
+                    onToggle={toggleAftaSection}
+                    icon={RefreshCw}
+                  >
+                    <div className="space-y-4">
+                      <div className="bg-sky-50 dark:bg-sky-950/30 p-3.5 rounded-xl border border-sky-200 dark:border-sky-900/50">
+                        <span className="text-xs font-bold text-sky-900 dark:text-sky-200 block mb-1">
+                          الزام افتا: محصول باید امکان بروزرسانی نرم‌افزار و میان‌افزار محصول را برای مدیر سیستم فراهم نماید.
+                        </span>
+                        <p className="text-[11px] text-sky-800 dark:text-sky-300 leading-relaxed">
+                          توضیح خلاصه جهت گزارش به افتا: امکان بروزرسانی امن نرم‌افزار و میان‌افزار سیستم برای مدیر ارشد فراهم شده و روش‌های بروزرسانی بر اساس ضوابط امنیتی افتا تعیین و اعتبارسنجی می‌گردند.
+                        </p>
+                      </div>
+
+                      <div className="space-y-3">
+                        <h4 className="text-xs font-black text-sky-900 dark:text-sky-300 flex items-center gap-2 border-b pb-2">
+                          روش بروزرسانی مورد استفاده در محصول، مشخص گردد (مطابق جدول افتا - حداقل یک مورد لازم و کافی است):
+                        </h4>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={settings.productSoftwareUpdatePolicy?.updateMethods?.manualUpdate ?? true}
+                              onChange={e => {
+                                set("productSoftwareUpdatePolicy", {
+                                  ...settings.productSoftwareUpdatePolicy,
+                                  updateMethods: {
+                                    ...settings.productSoftwareUpdatePolicy?.updateMethods,
+                                    manualUpdate: e.target.checked
+                                  }
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-sky-600 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                ۱. بروزرسانی دستی (Manual Update)
+                              </span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                                بارگذاری و نصب دستی فایل‌های بروزرسانی یا بسته وصله‌های نرم‌افزاری/میان‌افزاری توسط مدیر سیستم.
+                              </span>
+                            </div>
+                          </label>
+
+                          <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={settings.productSoftwareUpdatePolicy?.updateMethods?.autoSearchForUpdates ?? true}
+                              onChange={e => {
+                                set("productSoftwareUpdatePolicy", {
+                                  ...settings.productSoftwareUpdatePolicy,
+                                  updateMethods: {
+                                    ...settings.productSoftwareUpdatePolicy?.updateMethods,
+                                    autoSearchForUpdates: e.target.checked
+                                  }
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-sky-600 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                ۲. جستجوی خودکار بروزرسانی‌ها (Auto Search for Updates)
+                              </span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                                برقراری ارتباط دوره‌ای خودکار با مخزن مرجع جهت بررسی و اطلاع‌رسانی انتشار نسخه‌ها و وصله‌های جدید.
+                              </span>
+                            </div>
+                          </label>
+
+                          <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={settings.productSoftwareUpdatePolicy?.updateMethods?.automaticUpdates ?? false}
+                              onChange={e => {
+                                set("productSoftwareUpdatePolicy", {
+                                  ...settings.productSoftwareUpdatePolicy,
+                                  updateMethods: {
+                                    ...settings.productSoftwareUpdatePolicy?.updateMethods,
+                                    automaticUpdates: e.target.checked
+                                  }
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-sky-600 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                ۳. بروزرسانی‌های خودکار (Automatic Updates)
+                              </span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                                دریافت و اعمال خودکار بروزرسانی‌های امنیتی و وصله‌های بحرانی در زمان‌های کم‌ترافیک سیستم.
+                              </span>
+                            </div>
+                          </label>
+
+                          <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={settings.productSoftwareUpdatePolicy?.updateMethods?.manualUpdateAfterSecurityVerification ?? true}
+                              onChange={e => {
+                                set("productSoftwareUpdatePolicy", {
+                                  ...settings.productSoftwareUpdatePolicy,
+                                  updateMethods: {
+                                    ...settings.productSoftwareUpdatePolicy?.updateMethods,
+                                    manualUpdateAfterSecurityVerification: e.target.checked
+                                  }
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-sky-600 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                ۴. بروزرسانی دستی بعد از اطمینان از امنیت وصله و یا فایل بروزرسانی
+                              </span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                                اعتبارسنجی امضای دیجیتال توسعه‌دهنده، هش فایل وصله (SHA-256 Checksum) و سلامت فایل قبل از نصب دستی.
+                              </span>
+                            </div>
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* الزام دوم افتا: احراز اصالت پیش از نصب خودکار بروزرسانی‌ها */}
+                      <div className="space-y-3 pt-3 border-t">
+                        <div className="bg-amber-50 dark:bg-amber-950/30 p-3.5 rounded-xl border border-amber-200 dark:border-amber-900/50">
+                          <span className="text-xs font-bold text-amber-900 dark:text-amber-200 block mb-1">
+                            الزام افتا (احراز اصالت بروزرسانی‌های خودکار): در صورت استفاده از بروزرسانی به روش خودکار، محصول باید پیش از نصب بروزرسانی‌های نرم‌افزاری و میان‌افزاری، امکان احراز اصالت میان‌افزار یا نرم‌افزار را فراهم نماید.
+                          </span>
+                          <p className="text-[11px] text-amber-800 dark:text-amber-300 leading-relaxed">
+                            توضیح خلاصه جهت گزارش به افتا: سازوکارهای اعتبارسنجی اصالت فایل‌های بروزرسانی (امضای دیجیتال و درهم‌ساز منتشرشده) جهت ممانعت از نصب وصله‌های آلوده یا غیرمجاز فعال می‌باشد.
+                          </p>
+                        </div>
+
+                        <h4 className="text-xs font-black text-amber-900 dark:text-amber-300 flex items-center gap-2 border-b pb-2">
+                          سازوکار مورد استفاده برای صحت‌سنجی (اصالت‌سنجی) بروزرسانی‌ها انتخاب گردد (مطابق جدول افتا):
+                        </h4>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={settings.productSoftwareUpdatePolicy?.autoUpdateAuthenticityVerification?.digitalSignature ?? true}
+                              onChange={e => {
+                                set("productSoftwareUpdatePolicy", {
+                                  ...settings.productSoftwareUpdatePolicy,
+                                  autoUpdateAuthenticityVerification: {
+                                    ...settings.productSoftwareUpdatePolicy?.autoUpdateAuthenticityVerification,
+                                    digitalSignature: e.target.checked
+                                  }
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-amber-600 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                ۱. امضای دیجیتال (Digital Signature)
+                              </span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                                بررسی و اعتبارسنجی امضای دیجیتال معتبر سازنده بر روی کلیه پکیج‌های بروزرسانی خودکار قبل از نصب.
+                              </span>
+                            </div>
+                          </label>
+
+                          <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={settings.productSoftwareUpdatePolicy?.autoUpdateAuthenticityVerification?.publishedHash ?? true}
+                              onChange={e => {
+                                set("productSoftwareUpdatePolicy", {
+                                  ...settings.productSoftwareUpdatePolicy,
+                                  autoUpdateAuthenticityVerification: {
+                                    ...settings.productSoftwareUpdatePolicy?.autoUpdateAuthenticityVerification,
+                                    publishedHash: e.target.checked
+                                  }
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-amber-600 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                ۲. درهم‌ساز منتشرشده (Published Hash / Digest)
+                              </span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                                محاسبه و تطبیق درهم‌ساز رمزنگاری‌شده (SHA-256 Checksum) با مقدار هش رسمی انتشاریافته شرکت.
+                              </span>
+                            </div>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </AftaAccordionCard>
+
+                  {/* ۳۰. 🌟 الزام افتا: اطمینان از عملکرد کارکردهای اصلی محصول در زمان رخداد هرگونه اشکال و خرابی (شکست) نرم‌افزاری */}
+                  <AftaAccordionCard
+                    id="afta_core_functions_fault_tolerance"
+                    number="الزام تداوم کارکرد افتا"
+                    title="الزام افتا: اطمینان از عملکرد کارکردهای اصلی محصول هنگام بروز اشکال و خرابی (شکست) نرم‌افزاری"
+                    description="تضمین پایداری و تداوم ارائه خدمات اصلی سیستم و جداسازی ماژول‌های معیوب در صورت وقوع خطاهای زمان اجرا و Crash"
+                    isOpen={!!openAftaSections["afta_core_functions_fault_tolerance"]}
+                    onToggle={toggleAftaSection}
+                    icon={ShieldCheck}
+                  >
+                    <div className="space-y-4">
+                      <div className="bg-emerald-50 dark:bg-emerald-950/30 p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-900/50">
+                        <span className="text-xs font-bold text-emerald-900 dark:text-emerald-200 block mb-1">
+                          الزام افتا: محصول باید در زمان رخداد هرگونه اشکال و خرابی (شکست) نرم‌افزاری، از عملکرد کارکردهای اصلی محصول اطمینان حاصل نماید.
+                        </span>
+                        <p className="text-[11px] text-emerald-800 dark:text-emerald-300 leading-relaxed">
+                          توضیح خلاصه جهت گزارش به افتا: سامانه به مکانیزم‌های تحمل خطا (Fault Tolerance) و جداسازی ماژول‌ها مجهز بوده و هنگام بروز خطا در یک بخش، تداوم فعالیت کارکردهای اصلی محصول را تضمین می‌نماید.
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={settings.coreFunctionsSoftwareFaultTolerancePolicy?.isolationOfFaultyModules ?? true}
+                            onChange={e => {
+                              set("coreFunctionsSoftwareFaultTolerancePolicy", {
+                                ...settings.coreFunctionsSoftwareFaultTolerancePolicy,
+                                isolationOfFaultyModules: e.target.checked
+                              });
+                            }}
+                            className="h-4 w-4 rounded border-slate-300 text-emerald-600 mt-0.5"
+                          />
+                          <div>
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                              ۱. جداسازی ماژول‌های دارای خطای نرم‌افزاری (Faulty Module Isolation)
+                            </span>
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                              جداسازی ایزوله سرویس‌ها و ماژول‌های دچار خطای زمان اجرا جهت ممانعت از تسری خطا به سایر کارکردهای اصلی.
+                            </span>
+                          </div>
+                        </label>
+
+                        <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={settings.coreFunctionsSoftwareFaultTolerancePolicy?.fallbackToCoreOperationalMode ?? true}
+                            onChange={e => {
+                              set("coreFunctionsSoftwareFaultTolerancePolicy", {
+                                ...settings.coreFunctionsSoftwareFaultTolerancePolicy,
+                                fallbackToCoreOperationalMode: e.target.checked
+                              });
+                            }}
+                            className="h-4 w-4 rounded border-slate-300 text-emerald-600 mt-0.5"
+                          />
+                          <div>
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                              ۲. فعال نگه‌داشتن کارکردهای اصلی محصول (Core Functionality Preservation)
+                            </span>
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                              هدایت سامانه به وضعیت عملیاتی امن و پایداری ارائه سرویس‌های اصلی مالی، حسابداری و کنترل اسناد.
+                            </span>
+                          </div>
+                        </label>
+
+                        <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={settings.coreFunctionsSoftwareFaultTolerancePolicy?.gracefulDegradation ?? true}
+                            onChange={e => {
+                              set("coreFunctionsSoftwareFaultTolerancePolicy", {
+                                ...settings.coreFunctionsSoftwareFaultTolerancePolicy,
+                                gracefulDegradation: e.target.checked
+                              });
+                            }}
+                            className="h-4 w-4 rounded border-slate-300 text-emerald-600 mt-0.5"
+                          />
+                          <div>
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                              ۳. افت کیفیت کنترل‌شده نرم‌افزار (Graceful Degradation)
+                            </span>
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                              غیرفعال‌سازی موقت ماژول‌های فرعی و غیرضروری در شرایط اختلال شدید جهت حفظ پایداری کامل وظایف کلیدی.
+                            </span>
+                          </div>
+                        </label>
+
+                        <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={settings.coreFunctionsSoftwareFaultTolerancePolicy?.auditLogFaultEvents ?? true}
+                            onChange={e => {
+                              set("coreFunctionsSoftwareFaultTolerancePolicy", {
+                                ...settings.coreFunctionsSoftwareFaultTolerancePolicy,
+                                auditLogFaultEvents: e.target.checked
+                              });
+                            }}
+                            className="h-4 w-4 rounded border-slate-300 text-emerald-600 mt-0.5"
+                          />
+                          <div>
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                              ۴. ثبت‌نشان رویدادهای اشکال و خرابی نرم‌افزار (Fault Audit Logging)
+                            </span>
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                              ثبت دقیق پشته خطاهای زمان اجرا، رخدادهای غیرمنتظره و منشاء اشکال در لاگ حسابرسی امنیتی افتا (Audit Log).
+                            </span>
+                          </div>
                         </label>
                       </div>
                     </div>

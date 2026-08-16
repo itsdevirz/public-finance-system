@@ -164,6 +164,78 @@ export interface UserRoleAssignmentPolicy {
   auditRoleAssignmentChanges: boolean;
 }
 
+// رده ۲-۶ بند ۱ افتا: حفظ وضعیت امن محصول هنگام رخ دادن خرابی، اشکال یا شکست
+export interface SecureFailureStatePolicy {
+  enableSecureFailureState: boolean;
+  softwareFailureProtection: boolean; // خرابی‌های نرم‌افزاری
+  hardwareFailureProtection: boolean; // خرابی‌های سخت‌افزاری
+  preserveDataIntegrityOnCrash: boolean; // حفظ صحت داده‌ها
+  maintainAccessControlRulesOnFailure: boolean; // حفظ خط‌مشی کنترل دسترسی
+  auditLogFailureEvents: boolean;
+}
+
+// رده ۲-۶ بند ۲ افتا: حفاظت از داده هنگام انتقال بین بخش‌های مجزای محصول (ممانعت از افشاء و تغییر)
+export interface InternalTransitProtectionPolicy {
+  enableInternalTransitProtection: boolean;
+  preventDataLeakageInTransit: boolean; // جلوگیری از افشای داده
+  preventDataTamperingInTransit: boolean; // جلوگیری از تغییر داده
+  enforceInternalComponentTLS: boolean; // بستر و زیرساخت امن انتقال بین اجزاء
+  auditTransitSecurityViolations: boolean;
+}
+
+// رده ۲-۶ بند ۳ افتا: تفسیر سازگار و یکسان داده‌های امنیتی قابل اشتراک‌گذاری با سایر محصولات IT
+export interface SecurityDataInteroperabilityPolicy {
+  enableSecurityDataInteroperability: boolean;
+  supportedShareableData: {
+    authData: boolean; // داده‌های احراز هویت
+    cryptoKeys: boolean; // کلید
+    digitalSignature: boolean; // امضای دیجیتال
+    auditLogs: boolean; // ثبت‌نشان‌ها (داده‌های ممیزی)
+    otherSecurityAttributes: boolean; // سایر موارد
+  };
+  enforceStandardFormatInterpretation: boolean;
+}
+
+// رده ۲-۶ بند ۴ افتا: زمان و تاریخ معتبر و استفاده از مهرهای زمانی معتبر (Trusted Timestamps)
+export interface TrustedTimestampPolicy {
+  enableTrustedTimestamping: boolean;
+  timestampMethods: {
+    getTimestampFromNtpServer: boolean; // گرفتن مهرهای زمانی از سرور NTP
+    setTimestampViaInternet: boolean; // تنظیم مهرهای زمانی از طریق اینترنت
+    setDefaultTrustedTimestamp: boolean; // تنظیم مهرهای زمانی به صورت پیش‌فرض (معتبر و عدم امکان دستکاری غیرمجاز)
+    otherMethods: boolean; // سایر موارد
+  };
+  verifyTimestampIntegrity: boolean;
+}
+
+// الزام افتا: بروزرسانی نرم‌افزار و میان‌افزار محصول برای مدیر سیستم
+export interface ProductSoftwareUpdatePolicy {
+  enableSoftwareUpdateManagement: boolean;
+  updateMethods: {
+    manualUpdate: boolean; // بروزرسانی دستی
+    autoSearchForUpdates: boolean; // جستجوی خودکار بروزرسانی‌ها
+    automaticUpdates: boolean; // بروزرسانی‌های خودکار
+    manualUpdateAfterSecurityVerification: boolean; // بروزرسانی دستی بعد از اطمینان از امنیت وصله و یا فایل بروزرسانی
+  };
+  // الزام جدید افتا: سازوکار مورد استفاده برای صحت‌سنجی (اصالت‌سنجی) بروزرسانی‌های خودکار پیش از نصب
+  autoUpdateAuthenticityVerification: {
+    enableAuthenticityVerification: boolean;
+    digitalSignature: boolean; // امضای دیجیتال
+    publishedHash: boolean; // درهم‌ساز منتشرشده
+  };
+  requireAdminApprovalForUpdates: boolean;
+  auditLogUpdateEvents: boolean;
+}
+
+// الزام جدید افتا: اطمینان از عملکرد کارکردهای اصلی محصول در زمان رخداد هرگونه اشکال و خرابی (شکست) نرم‌افزاری
+export interface CoreFunctionsSoftwareFaultTolerancePolicy {
+  enableFaultTolerancePolicy: boolean;
+  isolationOfFaultyModules: boolean; // جداسازی ماژول‌های دچار خطای زمان اجرا جهت عدم اختلال در سایر کارکردها
+  fallbackToCoreOperationalMode: boolean; // بازگشت به حالت عملیاتی پایه و فعال نگه‌داشتن کارکردهای اصلی سیستم
+  gracefulDegradation: boolean; // افت کیفیت کنترل‌شده (Graceful Degradation) بدون از کار افتادن وظایف اصلی
+  auditLogFaultEvents: boolean; // ثبت دقیق رویدادهای خرابی و ناهنجاری نرم‌افزاری در لاگ حسابرسی افتا
+}
+
 export interface SecurityPolicyConfig {
   passwordPolicy: PasswordPolicy;
   lockoutPolicy: LockoutPolicy;
@@ -182,6 +254,12 @@ export interface SecurityPolicyConfig {
   targetedDataEgressRules?: TargetedDataEgressRules;
   productRolesDefinitionPolicy?: ProductRolesDefinitionPolicy;
   userRoleAssignmentPolicy?: UserRoleAssignmentPolicy;
+  secureFailureStatePolicy?: SecureFailureStatePolicy;
+  internalTransitProtectionPolicy?: InternalTransitProtectionPolicy;
+  securityDataInteroperabilityPolicy?: SecurityDataInteroperabilityPolicy;
+  trustedTimestampPolicy?: TrustedTimestampPolicy;
+  productSoftwareUpdatePolicy?: ProductSoftwareUpdatePolicy;
+  coreFunctionsSoftwareFaultTolerancePolicy?: CoreFunctionsSoftwareFaultTolerancePolicy;
 }
 
 export const DEFAULT_ENTITY_ACCESS_POLICIES: EntityAccessPolicy[] = [
@@ -351,6 +429,65 @@ export const DEFAULT_SECURITY_POLICY: SecurityPolicyConfig = {
     singleRolePerAccountEnforcement: true,
     allowMultiUsersPerRole: true,
     auditRoleAssignmentChanges: true,
+  },
+  secureFailureStatePolicy: {
+    enableSecureFailureState: true,
+    softwareFailureProtection: true,
+    hardwareFailureProtection: true,
+    preserveDataIntegrityOnCrash: true,
+    maintainAccessControlRulesOnFailure: true,
+    auditLogFailureEvents: true,
+  },
+  internalTransitProtectionPolicy: {
+    enableInternalTransitProtection: true,
+    preventDataLeakageInTransit: true,
+    preventDataTamperingInTransit: true,
+    enforceInternalComponentTLS: true,
+    auditTransitSecurityViolations: true,
+  },
+  securityDataInteroperabilityPolicy: {
+    enableSecurityDataInteroperability: true,
+    supportedShareableData: {
+      authData: true,
+      cryptoKeys: true,
+      digitalSignature: true,
+      auditLogs: true,
+      otherSecurityAttributes: true,
+    },
+    enforceStandardFormatInterpretation: true,
+  },
+  trustedTimestampPolicy: {
+    enableTrustedTimestamping: true,
+    timestampMethods: {
+      getTimestampFromNtpServer: true,
+      setTimestampViaInternet: true,
+      setDefaultTrustedTimestamp: true,
+      otherMethods: true,
+    },
+    verifyTimestampIntegrity: true,
+  },
+  productSoftwareUpdatePolicy: {
+    enableSoftwareUpdateManagement: true,
+    updateMethods: {
+      manualUpdate: true,
+      autoSearchForUpdates: true,
+      automaticUpdates: false,
+      manualUpdateAfterSecurityVerification: true,
+    },
+    autoUpdateAuthenticityVerification: {
+      enableAuthenticityVerification: true,
+      digitalSignature: true,
+      publishedHash: true,
+    },
+    requireAdminApprovalForUpdates: true,
+    auditLogUpdateEvents: true,
+  },
+  coreFunctionsSoftwareFaultTolerancePolicy: {
+    enableFaultTolerancePolicy: true,
+    isolationOfFaultyModules: true,
+    fallbackToCoreOperationalMode: true,
+    gracefulDegradation: true,
+    auditLogFaultEvents: true,
   }
 };
 

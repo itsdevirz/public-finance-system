@@ -70,6 +70,12 @@ router.put("/policy", requireRole(["admin"]), async (c) => {
       targetedDataEgressRules: body.targetedDataEgressRules || existingVal.targetedDataEgressRules || DEFAULT_SECURITY_POLICY.targetedDataEgressRules,
       productRolesDefinitionPolicy: body.productRolesDefinitionPolicy || existingVal.productRolesDefinitionPolicy || DEFAULT_SECURITY_POLICY.productRolesDefinitionPolicy,
       userRoleAssignmentPolicy: body.userRoleAssignmentPolicy || existingVal.userRoleAssignmentPolicy || DEFAULT_SECURITY_POLICY.userRoleAssignmentPolicy,
+      secureFailureStatePolicy: body.secureFailureStatePolicy || existingVal.secureFailureStatePolicy || DEFAULT_SECURITY_POLICY.secureFailureStatePolicy,
+      internalTransitProtectionPolicy: body.internalTransitProtectionPolicy || existingVal.internalTransitProtectionPolicy || DEFAULT_SECURITY_POLICY.internalTransitProtectionPolicy,
+      securityDataInteroperabilityPolicy: body.securityDataInteroperabilityPolicy || existingVal.securityDataInteroperabilityPolicy || DEFAULT_SECURITY_POLICY.securityDataInteroperabilityPolicy,
+      trustedTimestampPolicy: body.trustedTimestampPolicy || existingVal.trustedTimestampPolicy || DEFAULT_SECURITY_POLICY.trustedTimestampPolicy,
+      productSoftwareUpdatePolicy: body.productSoftwareUpdatePolicy || existingVal.productSoftwareUpdatePolicy || DEFAULT_SECURITY_POLICY.productSoftwareUpdatePolicy,
+      coreFunctionsSoftwareFaultTolerancePolicy: body.coreFunctionsSoftwareFaultTolerancePolicy || existingVal.coreFunctionsSoftwareFaultTolerancePolicy || DEFAULT_SECURITY_POLICY.coreFunctionsSoftwareFaultTolerancePolicy,
     };
 
     await db.collection("system_settings").updateOne(
