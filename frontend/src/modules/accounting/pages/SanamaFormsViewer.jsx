@@ -141,14 +141,20 @@ export default function SanamaFormsViewer() {
         const res = await api.get("/api/credits/sanama-forms");
         if (res.data?.data) {
           const d = res.data.data;
-          if (d.form1Data) setForm1Data(d.form1Data);
-          if (d.form46Data) setForm46Data(d.form46Data);
-          if (d.form75CapData || d.form75Data) setForm75Data(d.form75CapData || d.form75Data);
-          if (d.form8Data) setForm8Data(d.form8Data);
-          if (d.form9Data) setForm9Data(d.form9Data);
-          if (d.form10Data) setForm10Data(d.form10Data);
-          if (d.form11Data) setForm11Data(d.form11Data);
-          if (d.form13Data) setForm13Data(d.form13Data);
+          if (d.form1Data && typeof d.form1Data === "object") setForm1Data(prev => ({ ...INITIAL_FORM1, ...d.form1Data }));
+          if (Array.isArray(d.form46Data) && d.form46Data.length > 0) setForm46Data(d.form46Data);
+          if (Array.isArray(d.form75CapData || d.form75Data) && (d.form75CapData || d.form75Data).length > 0) setForm75Data(d.form75CapData || d.form75Data);
+          if (Array.isArray(d.form8Data) && d.form8Data.length > 0) setForm8Data(d.form8Data);
+          if (d.form9Data && typeof d.form9Data === "object") {
+            setForm9Data({
+              prepayments: { ...INITIAL_FORM_9.prepayments, ...(d.form9Data.prepayments || {}) },
+              inventories: { ...INITIAL_FORM_9.inventories, ...(d.form9Data.inventories || {}) },
+              onAccounts: { ...INITIAL_FORM_9.onAccounts, ...(d.form9Data.onAccounts || {}) }
+            });
+          }
+          if (Array.isArray(d.form10Data) && d.form10Data.length > 0) setForm10Data(d.form10Data);
+          if (Array.isArray(d.form11Data) && d.form11Data.length > 0) setForm11Data(d.form11Data);
+          if (Array.isArray(d.form13Data) && d.form13Data.length > 0) setForm13Data(d.form13Data);
         }
       } catch (e) {
         console.error("خطا در دریافت فرم‌های سناما از دیتابیس:", e);
@@ -158,60 +164,80 @@ export default function SanamaFormsViewer() {
   }, []);
 
   // فرمول‌های محاسباتی فرم ۱
-  const calculatedForm1Final = form1Data.initialBudget + form1Data.legalAdjustments + form1Data.increase - form1Data.decrease - form1Data.drafts;
+  const calculatedForm1Final = (Number(form1Data?.initialBudget) || 0) + (Number(form1Data?.legalAdjustments) || 0) + (Number(form1Data?.increase) || 0) - (Number(form1Data?.decrease) || 0) - (Number(form1Data?.drafts) || 0);
 
   // فرمول‌های محاسباتی فرم ۹ (وجوه انتقالی)
   const calculateForm9Transferred = (sec) => {
-    return sec.initialBalance - (sec.consumedTransferred + (sec.inventory || 0) + sec.objectionTransferred + sec.deficitTransferred + sec.sentToTreasury + sec.yearEndBalance);
+    if (!sec) return 0;
+    return (Number(sec.initialBalance) || 0) - (
+      (Number(sec.consumedTransferred) || 0) +
+      (Number(sec.inventory) || 0) +
+      (Number(sec.objectionTransferred) || 0) +
+      (Number(sec.deficitTransferred) || 0) +
+      (Number(sec.sentToTreasury) || 0) +
+      (Number(sec.yearEndBalance) || 0)
+    );
   };
 
   // فرمول‌های محاسباتی فرم ۴-۶
-  const f46Received = form46Data.find(r => r.id === 3)?.approvedAmount || 0;
-  const f46Consumed = form46Data.find(r => r.id === 4)?.approvedAmount || 0;
-  const f46Prepay = form46Data.find(r => r.id === 5)?.approvedAmount || 0;
-  const f46PrepayLetter = form46Data.find(r => r.id === 6)?.approvedAmount || 0;
-  const f46OnAccount = form46Data.find(r => r.id === 7)?.approvedAmount || 0;
-  const f46Objection = form46Data.find(r => r.id === 8)?.approvedAmount || 0;
-  const f46Deficit = form46Data.find(r => r.id === 9)?.approvedAmount || 0;
-  const f46Bonds = form46Data.find(r => r.id === 11)?.approvedAmount || 0;
+  const safeForm46Data = Array.isArray(form46Data) ? form46Data : INITIAL_FORM_4_6_EXPENSE;
+  const safeForm75Data = Array.isArray(form75Data) ? form75Data : INITIAL_FORM_7_5_CAPITAL;
+  const safeForm8Data = Array.isArray(form8Data) ? form8Data : INITIAL_FORM_8_RESOURCES;
+  const safeForm10Data = Array.isArray(form10Data) ? form10Data : INITIAL_FORM_10;
+  const safeForm11Data = Array.isArray(form11Data) ? form11Data : INITIAL_FORM_11;
+  const safeForm13Data = Array.isArray(form13Data) ? form13Data : INITIAL_FORM_13;
+
+  const f46Received = safeForm46Data.find(r => r?.id === 3)?.approvedAmount || 0;
+  const f46Consumed = safeForm46Data.find(r => r?.id === 4)?.approvedAmount || 0;
+  const f46Prepay = safeForm46Data.find(r => r?.id === 5)?.approvedAmount || 0;
+  const f46PrepayLetter = safeForm46Data.find(r => r?.id === 6)?.approvedAmount || 0;
+  const f46OnAccount = safeForm46Data.find(r => r?.id === 7)?.approvedAmount || 0;
+  const f46Objection = safeForm46Data.find(r => r?.id === 8)?.approvedAmount || 0;
+  const f46Deficit = safeForm46Data.find(r => r?.id === 9)?.approvedAmount || 0;
+  const f46Bonds = safeForm46Data.find(r => r?.id === 11)?.approvedAmount || 0;
   const calculatedF46Transferred = f46Received - (f46Consumed + f46Prepay + f46PrepayLetter + f46OnAccount + f46Objection + f46Deficit + f46Bonds);
 
   useEffect(() => {
-    const auditPayload = [
-      {
-        id: "FORM-1",
-        form_type: 1,
-        credit_type: "مصوب",
-        credit_location: "استانی",
-        program_number: "10101",
-        final_credit_budget: calculatedForm1Final,
-        initial_credit_budget: form1Data.initialBudget,
-        increase: form1Data.increase,
-        decrease: form1Data.decrease,
-        drafts: form1Data.drafts,
-        legal_adjustments: form1Data.legalAdjustments,
-        allocated_credit: form46Data.find(r => r.id === 2)?.approvedAmount || 0,
-        received_credit: f46Received,
-        consumed_credit: f46Consumed,
-      },
-      {
-        id: "FORM-4-6",
-        form_type: 4,
-        credit_type: "ابلاغی",
-        credit_location: "متمرکز",
-        program_number: "10102",
-        notifier_budget_row: "102000",
-        executive_body_budget_row: "101000",
-        final_credit_budget: form46Data.find(r => r.id === 1)?.approvedAmount || 0,
-        allocated_credit: form46Data.find(r => r.id === 2)?.approvedAmount || 0,
-        received_credit: f46Received,
-        consumed_credit: f46Consumed,
-      }
-    ];
+    try {
+      const auditPayload = [
+        {
+          id: "FORM-1",
+          form_type: 1,
+          credit_type: "مصوب",
+          credit_location: "استانی",
+          program_number: "10101",
+          final_credit_budget: calculatedForm1Final,
+          initial_credit_budget: Number(form1Data?.initialBudget || 0),
+          increase: Number(form1Data?.increase || 0),
+          decrease: Number(form1Data?.decrease || 0),
+          drafts: Number(form1Data?.drafts || 0),
+          legal_adjustments: Number(form1Data?.legalAdjustments || 0),
+          allocated_credit: safeForm46Data.find(r => r?.id === 2)?.approvedAmount || 0,
+          received_credit: f46Received,
+          consumed_credit: f46Consumed,
+        },
+        {
+          id: "FORM-4-6",
+          form_type: 4,
+          credit_type: "ابلاغی",
+          credit_location: "متمرکز",
+          program_number: "10102",
+          notifier_budget_row: "102000",
+          executive_body_budget_row: "101000",
+          final_credit_budget: safeForm46Data.find(r => r?.id === 1)?.approvedAmount || 0,
+          allocated_credit: safeForm46Data.find(r => r?.id === 2)?.approvedAmount || 0,
+          received_credit: f46Received,
+          consumed_credit: f46Consumed,
+        }
+      ];
 
-    const errs = validateSanamaPerformanceForms(auditPayload);
-    setAuditErrors(errs);
-  }, [form1Data, form46Data, form75Data, form9Data]);
+      const errs = validateSanamaPerformanceForms(auditPayload);
+      setAuditErrors(errs || []);
+    } catch (err) {
+      console.error("خطا در اعتبارسنجی فرم‌های سناما:", err);
+      setAuditErrors([]);
+    }
+  }, [form1Data, safeForm46Data, safeForm75Data, form9Data]);
 
   const handleExportExcel = () => {
     let title = "";
@@ -596,7 +622,7 @@ export default function SanamaFormsViewer() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {form46Data.map((row) => (
+                    {safeForm46Data.map((row) => (
                       <tr key={row.id} className={cn("hover:bg-slate-50/50", row.isCalculated && "bg-amber-100/50 font-bold")}>
                         <td className="p-3 text-center font-mono font-semibold">{toPersianDigits(row.id)}</td>
                         <td className="p-3 font-semibold text-slate-800">{row.title}</td>
@@ -646,7 +672,7 @@ export default function SanamaFormsViewer() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {form75Data.map((row) => (
+                    {safeForm75Data.map((row) => (
                       <tr key={row.id} className="hover:bg-slate-50/50">
                         <td className="p-3 text-center font-mono font-semibold">{toPersianDigits(row.id)}</td>
                         <td className="p-3 font-semibold text-slate-800">{row.title}</td>
@@ -692,7 +718,7 @@ export default function SanamaFormsViewer() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {form8Data.map((row) => (
+                    {safeForm8Data.map((row) => (
                       <tr key={row.id} className="hover:bg-slate-50/50">
                         <td className="p-3 text-center font-mono font-semibold">{toPersianDigits(row.id)}</td>
                         <td className="p-3 font-bold text-slate-800">{row.resourceKind}</td>
@@ -744,24 +770,24 @@ export default function SanamaFormsViewer() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                   <div>
                     <label className="text-[11px] text-muted-foreground">مانده ابتدای سال</label>
-                    <PersianAmountInput value={form9Data.prepayments.initialBalance} onChange={val => setForm9Data({...form9Data, prepayments: {...form9Data.prepayments, initialBalance: val}})} className="mt-1" />
+                    <PersianAmountInput value={form9Data?.prepayments?.initialBalance} onChange={val => setForm9Data({...form9Data, prepayments: {...form9Data?.prepayments, initialBalance: val}})} className="mt-1" />
                   </div>
                   <div>
                     <label className="text-[11px] text-muted-foreground">اعتبار انتقالی مصرف شده</label>
-                    <PersianAmountInput value={form9Data.prepayments.consumedTransferred} onChange={val => setForm9Data({...form9Data, prepayments: {...form9Data.prepayments, consumedTransferred: val}})} className="mt-1" />
+                    <PersianAmountInput value={form9Data?.prepayments?.consumedTransferred} onChange={val => setForm9Data({...form9Data, prepayments: {...form9Data?.prepayments, consumedTransferred: val}})} className="mt-1" />
                   </div>
                   <div>
                     <label className="text-[11px] text-muted-foreground">وجوه ارسالی به خزانه</label>
-                    <PersianAmountInput value={form9Data.prepayments.sentToTreasury} onChange={val => setForm9Data({...form9Data, prepayments: {...form9Data.prepayments, sentToTreasury: val}})} className="mt-1" />
+                    <PersianAmountInput value={form9Data?.prepayments?.sentToTreasury} onChange={val => setForm9Data({...form9Data, prepayments: {...form9Data?.prepayments, sentToTreasury: val}})} className="mt-1" />
                   </div>
                   <div>
                     <label className="text-[11px] text-muted-foreground">مانده پایان سال (معین {toPersianDigits("98003/98004")})</label>
-                    <PersianAmountInput value={form9Data.prepayments.yearEndBalance} onChange={val => setForm9Data({...form9Data, prepayments: {...form9Data.prepayments, yearEndBalance: val}})} className="mt-1" textColor="text-purple-700" />
+                    <PersianAmountInput value={form9Data?.prepayments?.yearEndBalance} onChange={val => setForm9Data({...form9Data, prepayments: {...form9Data?.prepayments, yearEndBalance: val}})} className="mt-1" textColor="text-purple-700" />
                   </div>
                 </div>
                 <div className="mt-3 p-2 bg-purple-100 rounded text-xs font-mono font-bold text-purple-900 flex justify-between">
                   <span>ستون وجوه انتقالی (فرمول محاسباتی):</span>
-                  <span>{formatPersianAmount(calculateForm9Transferred(form9Data.prepayments))} ریال</span>
+                  <span>{formatPersianAmount(calculateForm9Transferred(form9Data?.prepayments))} ریال</span>
                 </div>
               </div>
 
@@ -771,24 +797,24 @@ export default function SanamaFormsViewer() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                   <div>
                     <label className="text-[11px] text-muted-foreground">مانده ابتدای سال</label>
-                    <PersianAmountInput value={form9Data.inventories.initialBalance} onChange={val => setForm9Data({...form9Data, inventories: {...form9Data.inventories, initialBalance: val}})} className="mt-1" />
+                    <PersianAmountInput value={form9Data?.inventories?.initialBalance} onChange={val => setForm9Data({...form9Data, inventories: {...form9Data?.inventories, initialBalance: val}})} className="mt-1" />
                   </div>
                   <div>
                     <label className="text-[11px] text-muted-foreground">اعتبار انتقالی مصرف شده</label>
-                    <PersianAmountInput value={form9Data.inventories.consumedTransferred} onChange={val => setForm9Data({...form9Data, inventories: {...form9Data.inventories, consumedTransferred: val}})} className="mt-1" />
+                    <PersianAmountInput value={form9Data?.inventories?.consumedTransferred} onChange={val => setForm9Data({...form9Data, inventories: {...form9Data?.inventories, consumedTransferred: val}})} className="mt-1" />
                   </div>
                   <div>
                     <label className="text-[11px] text-muted-foreground">وجوه ارسالی به خزانه</label>
-                    <PersianAmountInput value={form9Data.inventories.sentToTreasury} onChange={val => setForm9Data({...form9Data, inventories: {...form9Data.inventories, sentToTreasury: val}})} className="mt-1" />
+                    <PersianAmountInput value={form9Data?.inventories?.sentToTreasury} onChange={val => setForm9Data({...form9Data, inventories: {...form9Data?.inventories, sentToTreasury: val}})} className="mt-1" />
                   </div>
                   <div>
                     <label className="text-[11px] text-muted-foreground">مانده پایان سال</label>
-                    <PersianAmountInput value={form9Data.inventories.yearEndBalance} onChange={val => setForm9Data({...form9Data, inventories: {...form9Data.inventories, yearEndBalance: val}})} className="mt-1" textColor="text-purple-700" />
+                    <PersianAmountInput value={form9Data?.inventories?.yearEndBalance} onChange={val => setForm9Data({...form9Data, inventories: {...form9Data?.inventories, yearEndBalance: val}})} className="mt-1" textColor="text-purple-700" />
                   </div>
                 </div>
                 <div className="mt-3 p-2 bg-purple-100 rounded text-xs font-mono font-bold text-purple-900 flex justify-between">
                   <span>ستون وجوه انتقالی (فرمول محاسباتی):</span>
-                  <span>{formatPersianAmount(calculateForm9Transferred(form9Data.inventories))} ریال</span>
+                  <span>{formatPersianAmount(calculateForm9Transferred(form9Data?.inventories))} ریال</span>
                 </div>
               </div>
 
@@ -817,7 +843,7 @@ export default function SanamaFormsViewer() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {form10Data.map((row) => (
+                    {safeForm10Data.map((row) => (
                       <tr key={row.id} className="hover:bg-slate-50">
                         <td className="p-3 font-bold text-slate-800">{row.section}</td>
                         <td className="p-3 font-mono text-teal-700 font-semibold">{toPersianDigits(row.transferredDraftsExpense || row.transferredFunds)}</td>
@@ -855,7 +881,7 @@ export default function SanamaFormsViewer() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {form11Data.map((row) => (
+                    {safeForm11Data.map((row) => (
                       <tr key={row.id} className="hover:bg-slate-50">
                         <td className="p-3 font-bold text-slate-800">{row.rowType}</td>
                         <td className="p-3 font-mono text-indigo-700 font-semibold">{toPersianDigits(row.moeinExpense || row.yearEndMoeinExpense)}</td>
@@ -893,7 +919,7 @@ export default function SanamaFormsViewer() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {form13Data.map((row) => (
+                    {safeForm13Data.map((row) => (
                       <tr key={row.id} className="hover:bg-slate-50">
                         <td className="p-3 font-bold text-slate-800">{row.rowType}</td>
                         <td className="p-3 text-center font-mono">{row.accountType}</td>
