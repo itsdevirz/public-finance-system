@@ -4,6 +4,8 @@ import { Landmark, Loader2, AlertCircle, RefreshCw } from "lucide-react";
 import { AuthProvider } from "./context/AuthContext";
 import { AssetProvider } from "./context/AssetContext";
 import { InventoryProvider } from "./context/InventoryContext";
+import { TabProvider } from "./context/TabContext";
+import TabBar from "./components/layout/TabBar";
 import PrivateRoute from "./components/PrivateRoute";
 import Sidebar from "./components/Sidebar";
 import Login from "./pages/Login";
@@ -90,14 +92,19 @@ function Layout() {
   return (
     <AssetProvider>
       <InventoryProvider>
-        <div className="flex min-h-screen bg-background selection:bg-accent/20 selection:text-primary">
-          <Sidebar />
-          <main className="flex-1 overflow-y-auto px-2 md:px-4 transition-all duration-300">
-            <Suspense fallback={<PageLoader />}>
-              <AppRoutes routes={layoutRoutes} />
-            </Suspense>
-          </main>
-        </div>
+        <TabProvider>
+          <div className="flex h-screen overflow-hidden bg-background selection:bg-accent/20 selection:text-primary">
+            <Sidebar />
+            <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
+              <TabBar />
+              <main className="flex-1 overflow-y-auto px-2 md:px-4 py-3 transition-all duration-300">
+                <Suspense fallback={<PageLoader />}>
+                  <AppRoutes routes={layoutRoutes} />
+                </Suspense>
+              </main>
+            </div>
+          </div>
+        </TabProvider>
       </InventoryProvider>
     </AssetProvider>
   );
