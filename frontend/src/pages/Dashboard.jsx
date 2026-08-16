@@ -487,10 +487,6 @@ export default function Dashboard() {
                 <Sparkles className="h-3.5 w-3.5 text-accent animate-pulse" />
                 سامانه هوشمند نظام مالی بخش عمومی
               </span>
-              <span className="flex items-center gap-1 text-emerald-300 text-xs font-bold bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/30 backdrop-blur-md">
-                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
-                وضعیت: ۱۰۰٪ عملیاتی
-              </span>
             </div>
 
             <h1 className="text-2xl md:text-4xl font-black tracking-tight leading-snug">
@@ -562,12 +558,12 @@ export default function Dashboard() {
         ))}
       </StaggerContainer>
 
-      {/* ─── 3. کارت‌های شاخص‌های کلیدی ۳D (داده‌های واقعی دیتابیس) ───────────────── */}
+      {/* ─── 3. کارت‌های شاخص‌های کلیدی ۳D ───────────────── */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-black text-primary border-r-4 border-accent pr-3 flex items-center gap-2">
             <Activity className="h-5 w-5 text-accent" />
-            خلاصه وضعیت و شاخص‌های کلیدی عملکرد (اطلاعات واقعی دیتابیس)
+            خلاصه وضعیت و شاخص‌های کلیدی عملکرد
           </h2>
           <span className="text-xs font-medium text-muted-foreground">به‌روزرسانی لحظه‌ای سیستم</span>
         </div>

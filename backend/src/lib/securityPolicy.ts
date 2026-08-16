@@ -144,6 +144,26 @@ export interface TargetedDataEgressRules {
   auditUntargetedEgressAttempts: boolean;
 }
 
+// بند ۵ افتا: توانایی تعریف نقش‌های مختلف در محصول
+export interface ProductRolesDefinitionPolicy {
+  enableRolesDefinition: boolean;
+  supportedRoles: {
+    systemAdmin: boolean; // مدیر سیستم
+    advancedSupportUser: boolean; // پشتیبانی / کاربر پیشرفته
+    regularUser: boolean; // کاربر عادی
+    otherCustomRoles: boolean; // سایر موارد
+  };
+  auditLogRoleChanges: boolean;
+}
+
+// بند ۶ افتا: ارتباط کاربران به نقش‌های تعریف‌شده و الزام ۱ نقش به هر حساب
+export interface UserRoleAssignmentPolicy {
+  enableRoleAssignment: boolean;
+  singleRolePerAccountEnforcement: boolean; // هر حساب کاربری تنها به یک نقش مرتبط است
+  allowMultiUsersPerRole: boolean; // چندین کاربر می‌توانند نقش مشابهی داشته باشند
+  auditRoleAssignmentChanges: boolean;
+}
+
 export interface SecurityPolicyConfig {
   passwordPolicy: PasswordPolicy;
   lockoutPolicy: LockoutPolicy;
@@ -160,6 +180,8 @@ export interface SecurityPolicyConfig {
   secureDataTransportPolicy?: SecureDataTransportPolicy;
   userDataEgressAccessPolicy?: UserDataEgressAccessPolicy;
   targetedDataEgressRules?: TargetedDataEgressRules;
+  productRolesDefinitionPolicy?: ProductRolesDefinitionPolicy;
+  userRoleAssignmentPolicy?: UserRoleAssignmentPolicy;
 }
 
 export const DEFAULT_ENTITY_ACCESS_POLICIES: EntityAccessPolicy[] = [
@@ -249,7 +271,7 @@ export const DEFAULT_SECURITY_POLICY: SecurityPolicyConfig = {
     createInactiveEntity: { requireAdminApproval: true, auditLog: true, rbacCheck: true },
     deleteInactiveEntity: { preventHardDelete: true, requireAdminApproval: true, auditLog: true },
     changeInactiveAccess: { requireAdminApproval: true, auditLog: true, notifySecurityOfficer: true },
-    inactiveMetadataOps: { readOnlyMetadata: true, auditLog: true, checkIntegrity: true },
+    inactiveMetadataOps: { requireAdminApproval: true, readOnlyMetadata: true, auditLog: true, checkIntegrity: true },
     otherInactiveOps: { requireAdminApproval: true, auditLog: true }
   },
   inactiveEntityPolicyCriteria: {
@@ -313,6 +335,22 @@ export const DEFAULT_SECURITY_POLICY: SecurityPolicyConfig = {
     requireAdminApprovalForBulkEgress: true,
     preventEgressToUnauthorizedEndpoints: true,
     auditUntargetedEgressAttempts: true,
+  },
+  productRolesDefinitionPolicy: {
+    enableRolesDefinition: true,
+    supportedRoles: {
+      systemAdmin: true,
+      advancedSupportUser: true,
+      regularUser: true,
+      otherCustomRoles: true,
+    },
+    auditLogRoleChanges: true,
+  },
+  userRoleAssignmentPolicy: {
+    enableRoleAssignment: true,
+    singleRolePerAccountEnforcement: true,
+    allowMultiUsersPerRole: true,
+    auditRoleAssignmentChanges: true,
   }
 };
 

@@ -18,6 +18,18 @@ import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import { useAuth } from "@/context/AuthContext";
 
 const ROLE_PRESETS = {
+  "مدیر سیستم": {
+    "doc.create": true, "doc.edit": true, "doc.delete": true, "doc.approve": true,
+    "acct.view": true, "acct.create": true,
+    "rep.trial": true, "rep.ledger": true, "rep.statement": true,
+    "set.users": true, "set.year": true
+  },
+  "پشتیبانی / کاربر پیشرفته": {
+    "doc.create": true, "doc.edit": true, "doc.delete": true, "doc.approve": true,
+    "acct.view": true, "acct.create": true,
+    "rep.trial": true, "rep.ledger": true, "rep.statement": true,
+    "set.users": false, "set.year": false
+  },
   "مدیر مالی": {
     "doc.create": true, "doc.edit": true, "doc.delete": true, "doc.approve": true,
     "acct.view": true, "acct.create": true,
@@ -30,10 +42,22 @@ const ROLE_PRESETS = {
     "rep.trial": true, "rep.ledger": true, "rep.statement": false,
     "set.users": false, "set.year": false
   },
+  "کاربر عادی": {
+    "doc.create": true, "doc.edit": false, "doc.delete": false, "doc.approve": false,
+    "acct.view": true, "acct.create": false,
+    "rep.trial": true, "rep.ledger": false, "rep.statement": false,
+    "set.users": false, "set.year": false
+  },
   "خزانه‌دار": {
     "doc.create": true, "doc.edit": true, "doc.delete": false, "doc.approve": false,
     "acct.view": true, "acct.create": false,
     "rep.trial": true, "rep.ledger": true, "rep.statement": false,
+    "set.users": false, "set.year": false
+  },
+  "سایر موارد": {
+    "doc.create": true, "doc.edit": false, "doc.delete": false, "doc.approve": false,
+    "acct.view": true, "acct.create": false,
+    "rep.trial": false, "rep.ledger": false, "rep.statement": false,
     "set.users": false, "set.year": false
   }
 };
@@ -686,16 +710,30 @@ export default function Users() {
               {/* TAB 3: ROLE & RBAC TREE */}
               {activeFormTab === "rbac" && (
                 <div className="space-y-4">
+                  <div className="bg-indigo-50/70 dark:bg-indigo-950/30 p-3.5 rounded-xl border border-indigo-200 dark:border-indigo-900/50 space-y-1.5">
+                    <span className="text-xs font-bold text-indigo-900 dark:text-indigo-200 block">
+                      🛡️ الزامات الزامات ۵ و ۶ افتا (مدیریت نقش‌ها و انحصار نقش کاربری)
+                    </span>
+                    <p className="text-[11px] text-indigo-800 dark:text-indigo-300 leading-relaxed">
+                      <strong>بند ۵:</strong> پشتیبانی از نقش‌های تعریف‌شده (مدیر سیستم، پشتیبانی / کاربر پیشرفته، کاربر عادی و سایر موارد سفارشی).<br />
+                      <strong>بند ۶:</strong> هر حساب کاربری منحصراً به یک نقش مرتبط است، در حالی که چندین کاربر می‌توانند دارای یک نقش یکسان باشند.
+                    </p>
+                  </div>
+
                   <div className="space-y-1 max-w-sm">
-                    <Label className="text-xs font-bold text-foreground">انتخاب نقش دسترسی کلی</Label>
+                    <Label className="text-xs font-bold text-foreground">انتخاب نقش دسترسی فعال کاربر</Label>
                     <select
                       value={formState.role}
                       onChange={(e) => handleRoleChange(e.target.value)}
                       className="w-full h-8.5 text-xs rounded-lg border px-3 font-semibold"
                     >
-                      <option value="مدیر مالی">مدیر مالی (دسترسی کامل)</option>
-                      <option value="حسابدار">حسابدار</option>
-                      <option value="خزانه‌دار">خزانه‌دار</option>
+                      <option value="مدیر سیستم">۱. مدیر سیستم (System Admin)</option>
+                      <option value="پشتیبانی / کاربر پیشرفته">۲. پشتیبانی / کاربر پیشرفته (Advanced Support User)</option>
+                      <option value="مدیر مالی">۳. مدیر مالی (دسترسی ارشد)</option>
+                      <option value="حسابدار">۴. حسابدار</option>
+                      <option value="کاربر عادی">۵. کاربر عادی (Regular User)</option>
+                      <option value="خزانه‌دار">۶. خزانه‌دار</option>
+                      <option value="سایر موارد">۷. سایر موارد (Custom Role)</option>
                     </select>
                   </div>
 

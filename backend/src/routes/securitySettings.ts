@@ -68,6 +68,8 @@ router.put("/policy", requireRole(["admin"]), async (c) => {
       secureDataTransportPolicy: body.secureDataTransportPolicy || existingVal.secureDataTransportPolicy || DEFAULT_SECURITY_POLICY.secureDataTransportPolicy,
       userDataEgressAccessPolicy: body.userDataEgressAccessPolicy || existingVal.userDataEgressAccessPolicy || DEFAULT_SECURITY_POLICY.userDataEgressAccessPolicy,
       targetedDataEgressRules: body.targetedDataEgressRules || existingVal.targetedDataEgressRules || DEFAULT_SECURITY_POLICY.targetedDataEgressRules,
+      productRolesDefinitionPolicy: body.productRolesDefinitionPolicy || existingVal.productRolesDefinitionPolicy || DEFAULT_SECURITY_POLICY.productRolesDefinitionPolicy,
+      userRoleAssignmentPolicy: body.userRoleAssignmentPolicy || existingVal.userRoleAssignmentPolicy || DEFAULT_SECURITY_POLICY.userRoleAssignmentPolicy,
     };
 
     await db.collection("system_settings").updateOne(
@@ -176,8 +178,8 @@ router.post("/validate-egress", async (c) => {
       userId: payload?.sub,
       username: payload?.username,
       userRole,
-      action: AFTA_LOG_EVENT_TYPES.DATA_EXPORT,
-      eventType: AFTA_LOG_EVENT_TYPES.DATA_EXPORT,
+      action: AFTA_LOG_EVENT_TYPES.DATA_EXPORT_ATTEMPT,
+      eventType: AFTA_LOG_EVENT_TYPES.DATA_EXPORT_ATTEMPT,
       resource: c.req.path,
       method: "POST",
       result: "SUCCESS",

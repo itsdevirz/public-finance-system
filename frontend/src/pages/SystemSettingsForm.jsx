@@ -11,7 +11,7 @@ import {
   FileText, Printer, Lock, Sliders, Bell, Database, Download, Upload,
   Calendar, Clock, Trash2, FileCheck, HelpCircle, HardDrive, Check,
   FolderArchive, Sparkles, ArrowDownToLine, ArrowUpFromLine, Laptop, Activity, LogOut,
-  User, KeyRound, Shield, ShieldAlert, ChevronDown, ChevronUp
+  User, UserCheck, KeyRound, Shield, ShieldAlert, ChevronDown, ChevronUp
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import api from "@/api";
@@ -228,6 +228,26 @@ const INITIAL_SETTINGS = {
     defaultUsersInactivityTimeoutConfig: true, // سطر ۲ تصویر ۲
   },
 
+  // ۲۳. بند ۵ افتا: توانایی تعریف نقش‌های مختلف در محصول
+  productRolesDefinitionPolicy: {
+    enableRolesDefinition: true,
+    supportedRoles: {
+      systemAdmin: true, // مدیر سیستم
+      advancedSupportUser: true, // پشتیبانی / کاربر پیشرفته
+      regularUser: true, // کاربر عادی
+      otherCustomRoles: true, // سایر موارد
+    },
+    auditLogRoleChanges: true,
+  },
+
+  // ۲۴. بند ۶ افتا: ارتباط کاربران به نقش‌های تعریف‌شده و الزام ۱ نقش به هر حساب
+  userRoleAssignmentPolicy: {
+    enableRoleAssignment: true,
+    singleRolePerAccountEnforcement: true, // هر حساب کاربری تنها به یک نقش مرتبط است
+    allowMultiUsersPerRole: true, // چندین کاربر می‌توانند نقش مشابهی داشته باشند
+    auditRoleAssignmentChanges: true,
+  },
+
   lastUpdated: null,
 };
 
@@ -369,6 +389,8 @@ export default function SystemSettingsForm() {
     "afta_sec_mgmt_auth_attrs",
     "afta_sec_mgmt_product_data",
     "afta_sec_mgmt_capabilities",
+    "afta_product_roles_def",
+    "afta_user_role_assignment",
     "afta_active_sessions"
   ];
 
@@ -483,6 +505,8 @@ export default function SystemSettingsForm() {
           secureDataTransportPolicy: p.secureDataTransportPolicy || prev.secureDataTransportPolicy,
           userDataEgressAccessPolicy: p.userDataEgressAccessPolicy || prev.userDataEgressAccessPolicy,
           targetedDataEgressRules: p.targetedDataEgressRules || prev.targetedDataEgressRules,
+          productRolesDefinitionPolicy: p.productRolesDefinitionPolicy || prev.productRolesDefinitionPolicy,
+          userRoleAssignmentPolicy: p.userRoleAssignmentPolicy || prev.userRoleAssignmentPolicy,
         }));
 
         if (Array.isArray(p.entityAccessPolicies) && p.entityAccessPolicies.length > 0) {
@@ -555,6 +579,8 @@ export default function SystemSettingsForm() {
       secureDataTransportPolicy: s.secureDataTransportPolicy,
       userDataEgressAccessPolicy: s.userDataEgressAccessPolicy,
       targetedDataEgressRules: s.targetedDataEgressRules,
+      productRolesDefinitionPolicy: s.productRolesDefinitionPolicy,
+      userRoleAssignmentPolicy: s.userRoleAssignmentPolicy,
     };
     await api.put("/api/security/policy", payload);
   };
@@ -3091,6 +3117,197 @@ export default function SystemSettingsForm() {
                             <span>تعیین زمان پیش‌فرض غیرفعال بودن کاربران که پس از آن، نشست خاتمه یابد (سطر ۲ تصویر ۲)</span>
                           </label>
                         </div>
+                      </div>
+                    </div>
+                  </AftaAccordionCard>
+
+                  {/* ۲۳. 🌟 بند ۵ افتا (مطابق تصویر جدید): توانایی تعریف نقش‌های مختلف در محصول */}
+                  <AftaAccordionCard
+                    id="afta_product_roles_def"
+                    title="بند ۵ افتا: توانایی تعریف نقش‌های مختلف در محصول"
+                    description="تعریف و تفکیک نقش‌های استاندارد نظیر مدیر سیستم، پشتیبانی / کاربر پیشرفته، کاربر عادی و سایر موارد"
+                    isOpen={!!openAftaSections["afta_product_roles_def"]}
+                    onToggle={toggleAftaSection}
+                    icon={User}
+                  >
+                    <div className="space-y-4">
+                      <div className="bg-indigo-50 dark:bg-indigo-950/30 p-3.5 rounded-xl border border-indigo-200 dark:border-indigo-900/50">
+                        <span className="text-xs font-bold text-indigo-900 dark:text-indigo-200 block mb-1">
+                          الزام بند ۵ افتا: محصول باید توانایی تعریف نقش‌های مختلف را داشته باشد.
+                        </span>
+                        <p className="text-[11px] text-indigo-800 dark:text-indigo-300 leading-relaxed">
+                          توضیح خلاصه: سیستم قابلیت تعریف و پشتیبانی از نقش‌های مختلف کاربری را بر اساس مسئولیت‌های اصلی سازمان فراهم می‌سازد. نقش‌های مشخص‌شده در زیر پشتیبانی می‌گردند:
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={settings.productRolesDefinitionPolicy?.supportedRoles?.systemAdmin ?? true}
+                            onChange={e => {
+                              set("productRolesDefinitionPolicy", {
+                                ...settings.productRolesDefinitionPolicy,
+                                supportedRoles: {
+                                  ...settings.productRolesDefinitionPolicy?.supportedRoles,
+                                  systemAdmin: e.target.checked
+                                }
+                              });
+                            }}
+                            className="h-4 w-4 rounded border-slate-300 text-indigo-600 mt-0.5"
+                          />
+                          <div>
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                              ۱. مدیر سیستم (System Admin)
+                            </span>
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                              مدیریت ارشد کاربران، پیکربندی زیرسیستم‌ها، تنظیمات خط‌مشی‌های امنیتی و بررسی لاگ‌های حسابرسی افتا.
+                            </span>
+                          </div>
+                        </label>
+
+                        <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={settings.productRolesDefinitionPolicy?.supportedRoles?.advancedSupportUser ?? true}
+                            onChange={e => {
+                              set("productRolesDefinitionPolicy", {
+                                ...settings.productRolesDefinitionPolicy,
+                                supportedRoles: {
+                                  ...settings.productRolesDefinitionPolicy?.supportedRoles,
+                                  advancedSupportUser: e.target.checked
+                                }
+                              });
+                            }}
+                            className="h-4 w-4 rounded border-slate-300 text-indigo-600 mt-0.5"
+                          />
+                          <div>
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                              ۲. پشتیبانی / کاربر پیشرفته (Advanced Support User)
+                            </span>
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                              دسترسی پشتیبانی فنی، عملیات ارشد حسابداری، بررسی اسناد و تایید در گردش‌کارهای مالی.
+                            </span>
+                          </div>
+                        </label>
+
+                        <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={settings.productRolesDefinitionPolicy?.supportedRoles?.regularUser ?? true}
+                            onChange={e => {
+                              set("productRolesDefinitionPolicy", {
+                                ...settings.productRolesDefinitionPolicy,
+                                supportedRoles: {
+                                  ...settings.productRolesDefinitionPolicy?.supportedRoles,
+                                  regularUser: e.target.checked
+                                }
+                              });
+                            }}
+                            className="h-4 w-4 rounded border-slate-300 text-indigo-600 mt-0.5"
+                          />
+                          <div>
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                              ۳. کاربر عادی (Regular User)
+                            </span>
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                              دسترسی استاندارد جهت ثبت اولیه اطلاعات، صدور اسناد و مشاهده گزارش‌های مرتبط با واحد کاری.
+                            </span>
+                          </div>
+                        </label>
+
+                        <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={settings.productRolesDefinitionPolicy?.supportedRoles?.otherCustomRoles ?? true}
+                            onChange={e => {
+                              set("productRolesDefinitionPolicy", {
+                                ...settings.productRolesDefinitionPolicy,
+                                supportedRoles: {
+                                  ...settings.productRolesDefinitionPolicy?.supportedRoles,
+                                  otherCustomRoles: e.target.checked
+                                }
+                              });
+                            }}
+                            className="h-4 w-4 rounded border-slate-300 text-indigo-600 mt-0.5"
+                          />
+                          <div>
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                              ۴. سایر موارد (Custom Roles / نقش‌های سفارشی)
+                            </span>
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                              تعریف و تخصیص نقش‌های تخصصی دستگاه نظیر خزانه‌دار، حسابرس، انباردار و کارشناس اعتبارات.
+                            </span>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+                  </AftaAccordionCard>
+
+                  {/* ۲۴. 🌟 بند ۶ افتا (مطابق تصویر جدید): ارتباط کاربران به نقش‌های تعریف‌شده و الزام ۱ نقش به هر حساب */}
+                  <AftaAccordionCard
+                    id="afta_user_role_assignment"
+                    title="بند ۶ افتا: ارتباط کاربران به نقش‌های تعریف‌شده (انحصار ۱ نقش برای هر حساب کاربری)"
+                    description="الزام ارتباط هر حساب کاربری تنها به یک نقش مرتبط و امکان تخصیص یک نقش مشترک به چندین کاربر"
+                    isOpen={!!openAftaSections["afta_user_role_assignment"]}
+                    onToggle={toggleAftaSection}
+                    icon={UserCheck}
+                  >
+                    <div className="space-y-4">
+                      <div className="bg-emerald-50 dark:bg-emerald-950/30 p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-900/50">
+                        <span className="text-xs font-bold text-emerald-900 dark:text-emerald-200 block mb-1">
+                          الزام بند ۶ افتا: محصول باید قادر باشد کاربران را به نقش‌های تعریف‌شده یا قابل تعریف مرتبط نماید، همچنین لازم است هر حساب کاربری تنها به یک نقش مرتبط شده باشد، اما ممکن است نقش‌ها تنها به یک کاربر محدود نشوند و چندین کاربر نقش مشابهی داشته باشند.
+                        </span>
+                        <p className="text-[11px] text-emerald-800 dark:text-emerald-300 leading-relaxed">
+                          توضیح خلاصه: هر حساب کاربری در سیستم انحصاراتً دارای یک نقش فعال اصلی می‌باشد تا از تداخل دسترسی‌ها جلوگیری شود؛ با این حال، چندین کاربر می‌توانند یک نقش مشابه را بر عهده داشته باشند.
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <label className="flex items-center gap-2.5 text-xs text-slate-700 dark:text-slate-300 font-medium cursor-pointer p-3 rounded-xl border bg-white dark:bg-slate-900">
+                          <input
+                            type="checkbox"
+                            checked={settings.userRoleAssignmentPolicy?.singleRolePerAccountEnforcement ?? true}
+                            onChange={e => {
+                              set("userRoleAssignmentPolicy", {
+                                ...settings.userRoleAssignmentPolicy,
+                                singleRolePerAccountEnforcement: e.target.checked
+                              });
+                            }}
+                            className="h-4 w-4 rounded border-slate-300 text-emerald-600"
+                          />
+                          <span>الزام انحصار هر حساب کاربری تنها به یک نقش مرتبط (Single Active Role per Account)</span>
+                        </label>
+
+                        <label className="flex items-center gap-2.5 text-xs text-slate-700 dark:text-slate-300 font-medium cursor-pointer p-3 rounded-xl border bg-white dark:bg-slate-900">
+                          <input
+                            type="checkbox"
+                            checked={settings.userRoleAssignmentPolicy?.allowMultiUsersPerRole ?? true}
+                            onChange={e => {
+                              set("userRoleAssignmentPolicy", {
+                                ...settings.userRoleAssignmentPolicy,
+                                allowMultiUsersPerRole: e.target.checked
+                              });
+                            }}
+                            className="h-4 w-4 rounded border-slate-300 text-emerald-600"
+                          />
+                          <span>امکان تخصیص یک نقش مشابه به چندین کاربر مختلف (Multi-User Role Binding)</span>
+                        </label>
+
+                        <label className="flex items-center gap-2.5 text-xs text-slate-700 dark:text-slate-300 font-medium cursor-pointer p-3 rounded-xl border bg-white dark:bg-slate-900 md:col-span-2">
+                          <input
+                            type="checkbox"
+                            checked={settings.userRoleAssignmentPolicy?.auditRoleAssignmentChanges ?? true}
+                            onChange={e => {
+                              set("userRoleAssignmentPolicy", {
+                                ...settings.userRoleAssignmentPolicy,
+                                auditRoleAssignmentChanges: e.target.checked
+                              });
+                            }}
+                            className="h-4 w-4 rounded border-slate-300 text-emerald-600"
+                          />
+                          <span>ثبت دقیق کلیه تغییرات و انتساب نقش کاربران در لاگ حسابرسی افتا (Audit Log)</span>
+                        </label>
                       </div>
                     </div>
                   </AftaAccordionCard>
