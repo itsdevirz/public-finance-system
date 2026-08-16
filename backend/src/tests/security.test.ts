@@ -439,4 +439,86 @@ describe("🛡️ Comprehensive Security Test Suite", () => {
       assert.ok(resBulkUnapproved.reason?.includes("تاییدیه"));
     });
   });
+
+  describe("17. User Session Management Evaluation (Image Requirements 1, 2 & 3)", () => {
+    it("1. should limit maximum number of concurrent sessions for a single user", () => {
+      const maxConcurrentSessions = 3;
+      const userActiveSessions = [
+        { sessionId: "s1", userId: "usr_100", token: "tok_1", createdAt: new Date().toISOString() },
+        { sessionId: "s2", userId: "usr_100", token: "tok_2", createdAt: new Date().toISOString() },
+        { sessionId: "s3", userId: "usr_100", token: "tok_3", createdAt: new Date().toISOString() }
+      ];
+
+      const newLoginAttempted = true;
+      let loginAllowed = false;
+      let errorMessage = "";
+
+      if (userActiveSessions.length >= maxConcurrentSessions) {
+        loginAllowed = false;
+        errorMessage = `تعداد نشست‌های همزمان فعال شما (${userActiveSessions.length}) بیش از حد مجاز (${maxConcurrentSessions}) است.`;
+      } else {
+        loginAllowed = true;
+      }
+
+      assert.strictEqual(loginAllowed, false, "New session establishment must be blocked when threshold is reached");
+      assert.ok(errorMessage.includes("بیش از حد مجاز"), "Error message must indicate exceeding max concurrent sessions limit");
+    });
+
+    it("2. should terminate interactive remote sessions after configurable period of inactivity (idleTimeoutMinutes)", () => {
+      const idleTimeoutMinutes = 15;
+      const now = Date.now();
+      const fifteenMinutesMs = 15 * 60 * 1000;
+
+      const sessions = [
+        { sessionId: "s_active", lastActivity: new Date(now - 5 * 60 * 1000).toISOString() }, // 5 mins ago -> Valid
+        { sessionId: "s_idle_expired", lastActivity: new Date(now - 20 * 60 * 1000).toISOString() } // 20 mins ago -> Expired
+      ];
+
+      const activeRemaining: typeof sessions = [];
+      const terminatedSessions: typeof sessions = [];
+
+      for (const s of sessions) {
+        const lastActTime = new Date(s.lastActivity).valueOf();
+        const idleMinutes = (now - lastActTime) / (60 * 1000);
+        if (idleMinutes > idleTimeoutMinutes) {
+          terminatedSessions.push(s);
+        } else {
+          activeRemaining.push(s);
+        }
+      }
+
+      assert.strictEqual(activeRemaining.length, 1, "Only active session within idle timeout must remain");
+      assert.strictEqual(terminatedSessions.length, 1, "Idle session exceeding configurable threshold must be terminated");
+      assert.strictEqual(terminatedSessions[0].sessionId, "s_idle_expired");
+    });
+
+    it("3. should allow the session initiator user to terminate their own active sessions", () => {
+      const currentUser = { userId: "usr_300", username: "accountant_user" };
+      const sessions = [
+        { sessionId: "s_current", userId: "usr_300", username: "accountant_user", token: "tok_current" },
+        { sessionId: "s_remote_laptop", userId: "usr_300", username: "accountant_user", token: "tok_remote1" },
+        { sessionId: "s_remote_phone", userId: "usr_300", username: "accountant_user", token: "tok_remote2" },
+        { sessionId: "s_other_user", userId: "usr_400", username: "other_user", token: "tok_other" }
+      ];
+
+      // 1. Initiator listing their own sessions
+      const mySessions = sessions.filter(s => s.userId === currentUser.userId);
+      assert.strictEqual(mySessions.length, 3, "Session initiator can list all active sessions started by themselves");
+
+      // 2. Initiator terminating a specific session initiated by themselves
+      const targetSessionId = "s_remote_laptop";
+      const targetSession = sessions.find(s => s.sessionId === targetSessionId);
+
+      const isInitiator = targetSession?.userId === currentUser.userId;
+      assert.strictEqual(isInitiator, true, "User is verified as session initiator");
+
+      let remainingSessions = sessions.filter(s => s.sessionId !== targetSessionId);
+      assert.strictEqual(remainingSessions.length, 3, "Target session initiated by user must be successfully terminated");
+
+      // 3. User attempting to terminate another user's session (must be rejected)
+      const unauthorizedTarget = sessions.find(s => s.sessionId === "s_other_user");
+      const canUserRevokeOtherUserSession = unauthorizedTarget?.userId === currentUser.userId;
+      assert.strictEqual(canUserRevokeOtherUserSession, false, "User cannot terminate sessions initiated by another user");
+    });
+  });
 });

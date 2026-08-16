@@ -422,4 +422,154 @@ router.get("/me", async (c) => {
   });
 });
 
+// GET /api/auth/my-sessions - List active sessions for the current logged-in user (Session Initiator)
+router.get("/my-sessions", async (c) => {
+  const header = c.req.header("Authorization");
+  if (!header?.startsWith("Bearer ")) return c.json({ success: false, message: "توکن یافت نشد" }, 401);
+
+  const currentToken = header.slice(7);
+  const payload = verifyToken(currentToken);
+  if (!payload) return c.json({ success: false, message: "توکن نامعتبر یا منقضی شده" }, 401);
+
+  const db = getDb();
+  const userId = new ObjectId(payload.sub);
+
+  // 1. Prune expired or idle sessions first
+  const { pruneExpiredSessions } = await import("../lib/sessionHelper.js");
+  const userSessions = await pruneExpiredSessions(db, userId);
+
+  // 2. Mark current session
+  const enrichedSessions = userSessions.map((session: any) => ({
+    ...session,
+    isCurrent: session.token === currentToken
+  }));
+
+  return c.json({ success: true, data: enrichedSessions });
+});
+
+// POST /api/auth/revoke-my-session - Allow session initiator to terminate a specific session initiated by themselves
+router.post("/revoke-my-session", async (c) => {
+  const header = c.req.header("Authorization");
+  if (!header?.startsWith("Bearer ")) return c.json({ success: false, message: "توکن یافت نشد" }, 401);
+
+  const currentToken = header.slice(7);
+  const payload = verifyToken(currentToken);
+  if (!payload) return c.json({ success: false, message: "توکن نامعتبر یا منقضی شده" }, 401);
+
+  const db = getDb();
+  const body = await c.req.json().catch(() => ({}));
+  const { sessionId, token: targetToken } = body;
+
+  if (!sessionId && !targetToken) {
+    return c.json({ success: false, message: "شناسه نشست یا توکن جهت ابطال الزامی است." }, 400);
+  }
+
+  let queryFilter: any = {};
+  if (targetToken) {
+    queryFilter = { token: targetToken };
+  } else if (sessionId) {
+    try {
+      if (typeof sessionId === "string" && ObjectId.isValid(sessionId)) {
+        queryFilter = { $or: [{ _id: sessionId }, { _id: new ObjectId(sessionId) }] };
+      } else {
+        queryFilter = { _id: sessionId };
+      }
+    } catch (_) {
+      queryFilter = { _id: sessionId };
+    }
+  }
+
+  const session = await db.collection("active_sessions").findOne(queryFilter);
+
+  if (!session) {
+    return c.json({ success: false, message: "نشست مورد نظر یافت نشد یا قبلاً خاتمه یافته است." }, 404);
+  }
+
+  // Verification: User must be the initiator of the session (matching userId or username)
+  const isInitiator = session.userId?.toString() === payload.sub || session.username === payload.username;
+  if (!isInitiator && payload.role !== "admin") {
+    return c.json({ success: false, message: "شما تنها مجاز به خاتمه دادن به نشست‌های آغازشده توسط خودتان هستید." }, 403);
+  }
+
+  if (session.token) {
+    await db.collection("revoked_tokens").updateOne(
+      { token: session.token },
+      { $set: { token: session.token, revokedAt: new Date().toISOString(), reason: "خاتمه نشست توسط کاربر آغازگر" } },
+      { upsert: true }
+    );
+  }
+  await db.collection("active_sessions").deleteOne({ _id: session._id });
+
+  await logAuditEvent({
+    userId: payload.sub,
+    username: payload.username,
+    userRole: payload.role,
+    action: AFTA_LOG_EVENT_TYPES.SESSION_TERMINATED_BY_USER,
+    eventType: AFTA_LOG_EVENT_TYPES.SESSION_TERMINATED_BY_USER,
+    resource: "active_sessions",
+    result: "SUCCESS",
+    ip: c.req.header("x-forwarded-for") || "127.0.0.1",
+    userAgent: c.req.header("user-agent"),
+    details: { terminatedSessionId: session._id, targetToken: session.token, isCurrentSession: session.token === currentToken }
+  });
+
+  return c.json({
+    success: true,
+    message: session.token === currentToken
+      ? "نشست جاری شما با موفقیت خاتمه یافت."
+      : "نشست منتخب با موفقیت خاتمه یافت.",
+    isCurrentTerminated: session.token === currentToken
+  });
+});
+
+// POST /api/auth/revoke-other-sessions - Allow user to terminate all other remote active sessions started by themselves
+router.post("/revoke-other-sessions", async (c) => {
+  const header = c.req.header("Authorization");
+  if (!header?.startsWith("Bearer ")) return c.json({ success: false, message: "توکن یافت نشد" }, 401);
+
+  const currentToken = header.slice(7);
+  const payload = verifyToken(currentToken);
+  if (!payload) return c.json({ success: false, message: "توکن نامعتبر یا منقضی شده" }, 401);
+
+  const db = getDb();
+  const userId = new ObjectId(payload.sub);
+
+  const otherSessions = await db.collection("active_sessions").find({
+    userId,
+    token: { $ne: currentToken }
+  }).toArray();
+
+  if (otherSessions.length === 0) {
+    return c.json({ success: true, message: "هیچ نشست همزمان دیگری برای کاربر یافت نشد." });
+  }
+
+  const tokensToRevoke = otherSessions.map((s) => ({
+    token: s.token,
+    revokedAt: new Date().toISOString(),
+    reason: "خاتمه سایر نشست‌ها توسط کاربر آغازگر"
+  }));
+
+  await db.collection("revoked_tokens").insertMany(tokensToRevoke);
+  const sessionIds = otherSessions.map((s) => s._id);
+  await db.collection("active_sessions").deleteMany({ _id: { $in: sessionIds } });
+
+  await logAuditEvent({
+    userId: payload.sub,
+    username: payload.username,
+    userRole: payload.role,
+    action: AFTA_LOG_EVENT_TYPES.SESSION_TERMINATED_BY_USER,
+    eventType: AFTA_LOG_EVENT_TYPES.SESSION_TERMINATED_BY_USER,
+    resource: "active_sessions",
+    result: "SUCCESS",
+    ip: c.req.header("x-forwarded-for") || "127.0.0.1",
+    userAgent: c.req.header("user-agent"),
+    details: { count: otherSessions.length }
+  });
+
+  return c.json({
+    success: true,
+    message: `تعداد ${otherSessions.length} نشست فعال دیگر شما با موفقیت خاتمه یافتند.`
+  });
+});
+
 export default router;

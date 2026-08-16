@@ -83,7 +83,10 @@ export const AFTA_LOG_EVENT_TYPES = {
   INACTIVE_SESSION_TERMINATED_BY_LOCK: "خاتمه دادن به نشست غیرفعال توسط سازوکار قفل نشست",
 
   // ۲۴. خاتمه به نشست غیرفعال توسط مدیر سیستم
-  INACTIVE_SESSION_TERMINATED_BY_ADMIN: "خاتمه به نشست غیرفعال توسط مدیر سیستم"
+  INACTIVE_SESSION_TERMINATED_BY_ADMIN: "خاتمه به نشست غیرفعال توسط مدیر سیستم",
+
+  // ۲۵. خاتمه نشست توسط کاربر آغازگر
+  SESSION_TERMINATED_BY_USER: "خاتمه نشست توسط کاربر آغازگر"
 } as const;
 
 export interface AuditLogParams {

@@ -411,61 +411,87 @@ router.get("/audit-logs/verify-integrity", requireRole(["admin"]), async (c) => 
   }
 });
 
-// GET /api/security/active-sessions - List active user sessions (Admin only)
-router.get("/active-sessions", requireRole(["admin"]), async (c) => {
+// GET /api/security/active-sessions - List active user sessions (Admin gets all, regular user gets own)
+router.get("/active-sessions", async (c) => {
   try {
+    const payload = (c.get as any)("jwtPayload");
     const db = getDb();
-    const sessions = await pruneExpiredSessions(db);
+    const isAdmin = payload?.role === "admin";
+    const userIdFilter = isAdmin ? undefined : payload?.sub;
+
+    const sessions = await pruneExpiredSessions(db, userIdFilter);
     return c.json({ success: true, data: sessions });
   } catch (error: any) {
     return c.json({ success: false, message: error.message }, 500);
   }
 });
 
-// POST /api/security/revoke-session - Revoke session / token (Admin only)
-router.post("/revoke-session", requireRole(["admin"]), async (c) => {
+// POST /api/security/revoke-session - Revoke session / token (Admin or Session Initiator User)
+router.post("/revoke-session", async (c) => {
   try {
     const payload = (c.get as any)("jwtPayload");
     const { token, sessionId } = await c.req.json();
     const db = getDb();
+    const isAdmin = payload?.role === "admin";
 
+    let queryFilter: any = {};
     if (token) {
+      queryFilter = { token };
+    } else if (sessionId) {
+      try {
+        if (typeof sessionId === "string" && ObjectId.isValid(sessionId)) {
+          queryFilter = { $or: [{ _id: sessionId }, { _id: new ObjectId(sessionId) }] };
+        } else {
+          queryFilter = { _id: sessionId };
+        }
+      } catch (_) {
+        queryFilter = { _id: sessionId };
+      }
+    } else {
+      return c.json({ success: false, message: "شناسه نشست یا توکن جهت ابطال الزامی است." }, 400);
+    }
+
+    const session = await db.collection("active_sessions").findOne(queryFilter);
+
+    if (session) {
+      // Permission check: User must be Admin or the initiator of the session
+      const isInitiator = session.userId?.toString() === payload?.sub || session.username === payload?.username;
+      if (!isAdmin && !isInitiator) {
+        return c.json({ success: false, message: "دسترسی غیرمجاز. شما تنها مجاز به ابطال نشست‌های خودتان هستید." }, 403);
+      }
+
+      const sessionToken = session.token || token;
+      if (sessionToken) {
+        await db.collection("revoked_tokens").updateOne(
+          { token: sessionToken },
+          { $set: { token: sessionToken, revokedAt: new Date().toISOString(), reason: isAdmin ? "خروج توسط مدیر سیستم" : "خاتمه نشست توسط کاربر آغازگر" } },
+          { upsert: true }
+        );
+      }
+      await db.collection("active_sessions").deleteOne({ _id: session._id });
+    } else if (token && isAdmin) {
+      // Direct token revocation by admin
       await db.collection("revoked_tokens").updateOne(
         { token },
         { $set: { token, revokedAt: new Date().toISOString(), reason: "خروج توسط مدیر سیستم" } },
         { upsert: true }
       );
       await db.collection("active_sessions").deleteOne({ token });
-    } else if (sessionId) {
-      let queryFilter: any = { _id: sessionId };
-      try {
-        if (typeof sessionId === "string" && ObjectId.isValid(sessionId)) {
-          queryFilter = { $or: [{ _id: sessionId }, { _id: new ObjectId(sessionId) }] };
-        }
-      } catch (_) {}
-
-      const session = await db.collection("active_sessions").findOne(queryFilter);
-      if (session?.token) {
-        await db.collection("revoked_tokens").updateOne(
-          { token: session.token },
-          { $set: { token: session.token, revokedAt: new Date().toISOString(), reason: "خروج توسط مدیر سیستم" } },
-          { upsert: true }
-        );
-      }
-      await db.collection("active_sessions").deleteMany(queryFilter);
+    } else {
+      return c.json({ success: false, message: "نشست یافت نشد یا قبلاً باطل شده است." }, 404);
     }
 
     await logAuditEvent({
       userId: payload.sub,
       username: payload.username,
       userRole: payload.role,
-      action: AFTA_LOG_EVENT_TYPES.INACTIVE_SESSION_TERMINATED_BY_ADMIN,
-      eventType: AFTA_LOG_EVENT_TYPES.INACTIVE_SESSION_TERMINATED_BY_ADMIN,
+      action: isAdmin ? AFTA_LOG_EVENT_TYPES.INACTIVE_SESSION_TERMINATED_BY_ADMIN : AFTA_LOG_EVENT_TYPES.SESSION_TERMINATED_BY_USER,
+      eventType: isAdmin ? AFTA_LOG_EVENT_TYPES.INACTIVE_SESSION_TERMINATED_BY_ADMIN : AFTA_LOG_EVENT_TYPES.SESSION_TERMINATED_BY_USER,
       resource: "active_sessions",
       result: "SUCCESS",
       ip: c.req.header("x-forwarded-for") || "127.0.0.1",
       userAgent: c.req.header("user-agent"),
-      details: { sessionId, tokenRevoked: !!token }
+      details: { sessionId, tokenRevoked: true, terminatedByAdmin: isAdmin }
     });
 
     return c.json({ success: true, message: "نشست کاربر با موفقیت باطل شد." });
