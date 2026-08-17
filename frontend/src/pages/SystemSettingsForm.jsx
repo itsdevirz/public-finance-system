@@ -410,6 +410,171 @@ const INITIAL_SETTINGS = {
     },
   },
 
+  // ۴۵-۲. الزامات امنیتی پروتکل TLS Server (افتا - رده ۳-۳)
+  tlsServerPolicy: {
+    enable: true,
+    enforceTls12Only: true,
+    rejectLegacyProtocols: {
+      ssl10: true,
+      ssl20: true,
+      ssl30: true,
+      tls10: true,
+      tls11: true,
+    },
+    keyExchangeParameters: {
+      rsaKeySizes: {
+        rsa2048: true,
+        rsa3072: true,
+        rsa4096: true,
+      },
+      ecdhNistCurves: {
+        secp256r1: true,
+        secp384r1: true,
+        secp521r1: true,
+        disallowOtherCurves: true,
+      },
+      dhKeySizes: {
+        dh2048: true,
+        dh3072: true,
+      },
+    },
+    cipherSuites: {
+      tls_aes_256_gcm_sha384: true,
+      tls_aes_128_gcm_sha256: true,
+      tls_dhe_rsa_with_aes_256_gcm_sha384: true,
+      tls_dhe_rsa_with_aes_128_gcm_sha256: true,
+      tls_ecdhe_rsa_with_aes_128_gcm_sha256: true,
+      tls_ecdhe_rsa_with_aes_256_gcm_sha384: true,
+      tls_ecdhe_ecdsa_with_aes_256_gcm_sha384: true,
+      tls_ecdhe_ecdsa_with_aes_128_gcm_sha256: true,
+      tls_rsa_with_aes_256_gcm_sha384: true,
+      tls_rsa_with_aes_128_gcm_sha256: true,
+      tls_ecdh_ecdsa_with_aes_256_gcm_sha384: true,
+      tls_ecdh_ecdsa_with_aes_128_gcm_sha256: true,
+      tls_ecdh_rsa_with_aes_256_gcm_sha384: true,
+      tls_ecdh_rsa_with_aes_128_gcm_sha256: true,
+      tls_dh_rsa_with_aes_256_gcm_sha384: true,
+      tls_dh_rsa_with_aes_128_gcm_sha256: true,
+    },
+  },
+
+  // ۴۵-۳. الزامات امنیتی پروتکل TLS مشترک کلاینت و سرور (افتا - رده ۳-۴)
+  mutualTlsPolicy: {
+    enable: true,
+    enableMutualAuthX509v3: true,
+    enforceSubjectIdentityMatching: true,
+    mismatchedIdentityAction: "disconnect",
+  },
+
+  // ۴۵-۴. الزامات اعتبارسنجی گواهی‌نامه (افتا - رده ۳-۵)
+  certificateValidationPolicy: {
+    enable: true,
+    pathValidationRules: {
+      rfc5280PathValidation: true,
+      endWithTrustedCA: true,
+      requireBasicConstraintsCaTrue: true,
+    },
+    strictCaAcceptanceOnlyWithBasicConstraints: true,
+    x509v3Rfc5280AuthenticationScopes: {
+      https: true,
+      tls: true,
+      ssh: true,
+      codeSigningSoftwareUpdates: true,
+      codeSigningIntegrityVerification: true,
+      otherUseCases: true,
+    },
+    revocationCheckingMethods: {
+      ocspRfc696: true,
+      crlRfc5280Section63: true,
+      crlRfc5759Section5: true,
+      disallowOtherRevocationMethods: true,
+    },
+    extendedKeyUsageRules: {
+      codeSigningOid: true,
+      serverAuthOid: true,
+      clientAuthOid: true,
+      ocspSigningOid: true,
+    },
+  },
+
+  // ۴۵-۵. الزامات امنیتی پروتکل SSH (افتا - رده ۳-۶)
+  sshProtocolPolicy: {
+    enable: true,
+    rfcCompliance: {
+      rfc4251: true,
+      rfc4252: true,
+      rfc4253: true,
+      rfc4254: true,
+      rfc5656: true,
+      rfc6668: true,
+    },
+    authMethods: {
+      publicKeyAuth: true,
+      passwordAuth: true,
+    },
+    packetSizeLimit: {
+      enableMaxPacketCheck: true,
+      maxPacketSizeBytes: 35000,
+    },
+    encryptionAlgorithms: {
+      aes128Cbc: true,
+      aes192Cbc: true,
+      aes256Cbc: true,
+      aes128Ctr: true,
+      aes192Ctr: true,
+      aes256Ctr: true,
+      aeadAes128Gcm: true,
+      aeadAes256Gcm: true,
+    },
+    hostKeyAlgorithms: {
+      sshEd25519: true,
+      sshEd448: true,
+      rsaSha2512: true,
+      rsaSha2256: true,
+      ecdsaSha2Nistp521: true,
+      ecdsaSha2Nistp384: true,
+      ecdsaSha2Nistp256: true,
+      x509v3EcdsaSha2Nistp521: true,
+      x509v3EcdsaSha2Nistp384: true,
+      x509v3EcdsaSha2Nistp256: true,
+      x509v3Rsa2048Sha256: true,
+      sshRsa: true,
+      x509v3SshRsa: true,
+    },
+    macAlgorithms: {
+      aeadAes256Gcm: true,
+      aeadAes128Gcm: true,
+      hmacSha2512: true,
+      hmacSha2256: true,
+      hmacSha196: true,
+      hmacSha1: true,
+    },
+    kexAlgorithms: {
+      curve25519Sha256: true,
+      curve448Sha512: true,
+      dhGroupExchangeSha256: true,
+      dhGroup18Sha512: true,
+      dhGroup17Sha512: true,
+      dhGroup16Sha512: true,
+      dhGroup15Sha512: true,
+      ecdhSha2Nistp521: true,
+      ecdhSha2Nistp384: true,
+      ecdhSha2Nistp256: true,
+      rsa2048Sha256: true,
+      dhGroupExchangeSha1: true,
+      dhGroup14Sha256: true,
+    },
+    rekeyingPolicy: {
+      enableRekeying: true,
+      maxDurationMinutes: 60,
+      maxDataTransferredMb: 1024,
+    },
+    hostVerificationPolicy: {
+      enableHostVerification: true,
+      useLocalKnownHostsDb: true,
+    },
+  },
+
   lastUpdated: null,
 };
 
@@ -559,6 +724,10 @@ export default function SystemSettingsForm() {
     "afta_fpt_item4_trusted_timestamps",
     "afta_product_software_update",
     "afta_core_functions_fault_tolerance",
+    "afta_tls_server_protocol",
+    "afta_mutual_tls_protocol",
+    "afta_certificate_validation_policy",
+    "afta_ssh_protocol",
     "afta_active_sessions"
   ];
 
@@ -688,6 +857,10 @@ export default function SystemSettingsForm() {
           trustedChannelPolicy: p.trustedChannelPolicy || prev.trustedChannelPolicy,
           httpsProtocolPolicy: p.httpsProtocolPolicy || prev.httpsProtocolPolicy,
           tlsClientPolicy: p.tlsClientPolicy || prev.tlsClientPolicy,
+          tlsServerPolicy: p.tlsServerPolicy || prev.tlsServerPolicy,
+          mutualTlsPolicy: p.mutualTlsPolicy || prev.mutualTlsPolicy,
+          certificateValidationPolicy: p.certificateValidationPolicy || prev.certificateValidationPolicy,
+          sshProtocolPolicy: p.sshProtocolPolicy || prev.sshProtocolPolicy,
         }));
 
         if (Array.isArray(p.entityAccessPolicies) && p.entityAccessPolicies.length > 0) {
@@ -775,6 +948,10 @@ export default function SystemSettingsForm() {
       trustedChannelPolicy: s.trustedChannelPolicy,
       httpsProtocolPolicy: s.httpsProtocolPolicy,
       tlsClientPolicy: s.tlsClientPolicy,
+      tlsServerPolicy: s.tlsServerPolicy,
+      mutualTlsPolicy: s.mutualTlsPolicy,
+      certificateValidationPolicy: s.certificateValidationPolicy,
+      sshProtocolPolicy: s.sshProtocolPolicy,
     };
     await api.put("/api/security/policy", payload);
   };
@@ -5461,6 +5638,1026 @@ export default function SystemSettingsForm() {
                             </div>
                           </div>
                         )}
+                      </div>
+                    </div>
+                  </AftaAccordionCard>
+
+                  {/* ۴۶. 🌟 پیاده‌سازی و پیکربندی پروتکل TLS Server (الزامات ۱، ۲ و ۳ افتا) */}
+                  <AftaAccordionCard
+                    id="afta_tls_server_protocol"
+                    number="الزام افتا (۳-۳)"
+                    title="پروتکل TLS Server، اجبار TLS 1.2، رد نسخه‌های ناامن و پارامترهای ساخت کلید"
+                    description="الزامات ۱، ۲ و ۳ از رده ۳-۳ افتا: پیاده‌سازی TLS 1.2، رد اتصالات SSL/TLS ناامن، تعیین مجموعه‌های رمز و پارامترهای ساخت کلید (RSA/ECDH/DH)"
+                    isOpen={!!openAftaSections["afta_tls_server_protocol"]}
+                    onToggle={toggleAftaSection}
+                    icon={ShieldCheck}
+                  >
+                    <div className="space-y-5">
+                      {/* 🟢 بخش ۱: الزام ۱ افتا - پیاده‌سازی TLS 1.2 (RFC 5246) و انتخاب مجموعه‌های رمز */}
+                      <div className="space-y-3">
+                        <div className="bg-teal-50 dark:bg-teal-950/30 p-3.5 rounded-xl border border-teal-200 dark:border-teal-900/50">
+                          <span className="text-xs font-bold text-teal-900 dark:text-teal-200 block">
+                            بند ۱) محصول باید TLS (RFC 5246 TLS 1.2) را پیاده‌سازی کند. همچنین محصول باید TLS را با پشتیبانی از مجموعه‌های رمز زیر پیاده‌سازی نماید:
+                          </span>
+                        </div>
+
+                        <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={settings.tlsServerPolicy?.enforceTls12Only ?? true}
+                            onChange={e => {
+                              set("tlsServerPolicy", {
+                                ...settings.tlsServerPolicy,
+                                enforceTls12Only: e.target.checked
+                              });
+                            }}
+                            className="h-4 w-4 rounded border-slate-300 text-teal-600 mt-0.5"
+                          />
+                          <div>
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                              ۱. پیاده‌سازی و اجبار استاندارد TLS 1.2 (مطابق با RFC 5246) در سمت TLS Server
+                            </span>
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                              پشتیبانی کامل از ساختار دست‌تکانی و رمزنگاری RFC 5246 TLS 1.2 در سرویس‌دهی سرور سامانه.
+                            </span>
+                          </div>
+                        </label>
+
+                        <h4 className="text-xs font-black text-teal-900 dark:text-teal-300 border-b pb-2 pt-2">
+                          مجموعه رمز مورد استفاده و پیاده‌سازی شده محصول، انتخاب گردد (۱۶ مجموعه رمز استاندارد):
+                        </h4>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {[
+                            { key: "tls_aes_256_gcm_sha384", name: "TLS_AES_256_GCM_SHA384", hex: "0x1302", rfc: "RFC 8446" },
+                            { key: "tls_aes_128_gcm_sha256", name: "TLS_AES_128_GCM_SHA256", hex: "0x1301", rfc: "RFC 8446" },
+                            { key: "tls_dhe_rsa_with_aes_256_gcm_sha384", name: "TLS_DHE_RSA_WITH_AES_256_GCM_SHA384", hex: "0x009F", rfc: "RFC 5288" },
+                            { key: "tls_dhe_rsa_with_aes_128_gcm_sha256", name: "TLS_DHE_RSA_WITH_AES_128_GCM_SHA256", hex: "0x009E", rfc: "RFC 5288" },
+                            { key: "tls_ecdhe_rsa_with_aes_128_gcm_sha256", name: "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256", hex: "0xC02F", rfc: "RFC 5289" },
+                            { key: "tls_ecdhe_rsa_with_aes_256_gcm_sha384", name: "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384", hex: "0xC030", rfc: "RFC 5289" },
+                            { key: "tls_ecdhe_ecdsa_with_aes_256_gcm_sha384", name: "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384", hex: "0xC02C", rfc: "RFC 5289" },
+                            { key: "tls_ecdhe_ecdsa_with_aes_128_gcm_sha256", name: "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256", hex: "0xC02B", rfc: "RFC 5289" },
+                            { key: "tls_rsa_with_aes_256_gcm_sha384", name: "TLS_RSA_WITH_AES_256_GCM_SHA384", hex: "0x009D", rfc: "RFC 5288" },
+                            { key: "tls_rsa_with_aes_128_gcm_sha256", name: "TLS_RSA_WITH_AES_128_GCM_SHA256", hex: "0x009C", rfc: "RFC 5288" },
+                            { key: "tls_ecdh_ecdsa_with_aes_256_gcm_sha384", name: "TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384", hex: "0xC02E", rfc: "RFC 5288" },
+                            { key: "tls_ecdh_ecdsa_with_aes_128_gcm_sha256", name: "TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256", hex: "0xC02D", rfc: "RFC 5289" },
+                            { key: "tls_ecdh_rsa_with_aes_256_gcm_sha384", name: "TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384", hex: "0xC032", rfc: "RFC 5289" },
+                            { key: "tls_ecdh_rsa_with_aes_128_gcm_sha256", name: "TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256", hex: "0xC031", rfc: "RFC 5289" },
+                            { key: "tls_dh_rsa_with_aes_256_gcm_sha384", name: "TLS_DH_RSA_WITH_AES_256_GCM_SHA384", hex: "0x00A1", rfc: "RFC 5288" },
+                            { key: "tls_dh_rsa_with_aes_128_gcm_sha256", name: "TLS_DH_RSA_WITH_AES_128_GCM_SHA256", hex: "0x00A0", rfc: "RFC 5288" },
+                          ].map(item => (
+                            <label key={item.key} className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-850 transition-colors">
+                              <input
+                                type="checkbox"
+                                checked={settings.tlsServerPolicy?.cipherSuites?.[item.key] ?? true}
+                                onChange={e => {
+                                  set("tlsServerPolicy", {
+                                    ...settings.tlsServerPolicy,
+                                    cipherSuites: {
+                                      ...settings.tlsServerPolicy?.cipherSuites,
+                                      [item.key]: e.target.checked
+                                    }
+                                  });
+                                }}
+                                className="h-4 w-4 rounded border-slate-300 text-teal-600 mt-0.5"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between gap-2 dir-ltr text-left">
+                                  <span className="text-xs font-mono font-bold text-slate-800 dark:text-slate-200 truncate">
+                                    {item.name}
+                                  </span>
+                                  <span className="text-[10px] font-mono bg-slate-100 dark:bg-slate-800 text-teal-600 dark:text-teal-400 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">
+                                    {item.hex}
+                                  </span>
+                                </div>
+                                <span className="text-[10px] text-slate-400 dark:text-slate-500 block mt-1 dir-rtl text-right">
+                                  مطابق با {item.rfc}
+                                </span>
+                              </div>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* 🔴 بخش ۲: الزام ۲ افتا - رد درخواست‌های اتصال ناامن SSL 1.0, SSL 2.0, SSL 3.0, TLS 1.0 و TLS 1.1 */}
+                      <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                        <div className="bg-rose-50 dark:bg-rose-950/30 p-3.5 rounded-xl border border-rose-200 dark:border-rose-900/50">
+                          <span className="text-xs font-bold text-rose-900 dark:text-rose-200 block">
+                            بند ۲) محصول باید اتصال‌های کاربرانی که درخواست SSL1.0، SSL2.0، SSL3.0، TLS1.0 و TLS1.1 دارند را رد نماید:
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          {[
+                            { key: "ssl10", label: "مسدودسازی و رد درخواست SSL 1.0" },
+                            { key: "ssl20", label: "مسدودسازی و رد درخواست SSL 2.0" },
+                            { key: "ssl30", label: "مسدودسازی و رد درخواست SSL 3.0" },
+                            { key: "tls10", label: "مسدودسازی و رد درخواست TLS 1.0" },
+                            { key: "tls11", label: "مسدودسازی و رد درخواست TLS 1.1" },
+                          ].map(item => (
+                            <label key={item.key} className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-3 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={settings.tlsServerPolicy?.rejectLegacyProtocols?.[item.key] ?? true}
+                                onChange={e => {
+                                  set("tlsServerPolicy", {
+                                    ...settings.tlsServerPolicy,
+                                    rejectLegacyProtocols: {
+                                      ...settings.tlsServerPolicy?.rejectLegacyProtocols,
+                                      [item.key]: e.target.checked
+                                    }
+                                  });
+                                }}
+                                className="h-4 w-4 rounded border-slate-300 text-rose-600"
+                              />
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                                {item.label}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* 🔵 بخش ۳: الزام ۳ افتا - پارامترهای ساخت کلید (Key Generation Parameters) */}
+                      <div className="space-y-4 pt-3 border-t border-slate-200 dark:border-slate-800">
+                        <div className="bg-blue-50 dark:bg-blue-950/30 p-3.5 rounded-xl border border-blue-200 dark:border-blue-900/50">
+                          <span className="text-xs font-bold text-blue-900 dark:text-blue-200 block">
+                            بند ۳) محصول باید پارامترهای ساخت کلید را بر اساس موارد زیر ایجاد نماید (طول کلید یا نوع خم مورد استفاده مشخص گردد):
+                          </span>
+                        </div>
+
+                        {/* ۳-۱. کلید RSA */}
+                        <div className="p-3.5 bg-slate-50/70 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2">
+                          <span className="text-xs font-black text-slate-800 dark:text-slate-200 block">
+                            ۱. استفاده از RSA با اندازه کلید ۲۰۴۸ یا ۳۰۷۲ یا ۴۰۹۶ بیت:
+                          </span>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 pt-1">
+                            {[
+                              { key: "rsa2048", label: "RSA 2048-bit (حداقل طول استاندارد)" },
+                              { key: "rsa3072", label: "RSA 3072-bit (امنیت بالا)" },
+                              { key: "rsa4096", label: "RSA 4096-bit (فوق امن)" },
+                            ].map(rsa => (
+                              <label key={rsa.key} className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-2.5 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={settings.tlsServerPolicy?.keyExchangeParameters?.rsaKeySizes?.[rsa.key] ?? true}
+                                  onChange={e => {
+                                    set("tlsServerPolicy", {
+                                      ...settings.tlsServerPolicy,
+                                      keyExchangeParameters: {
+                                        ...settings.tlsServerPolicy?.keyExchangeParameters,
+                                        rsaKeySizes: {
+                                          ...settings.tlsServerPolicy?.keyExchangeParameters?.rsaKeySizes,
+                                          [rsa.key]: e.target.checked
+                                        }
+                                      }
+                                    });
+                                  }}
+                                  className="h-4 w-4 rounded border-slate-300 text-blue-600"
+                                />
+                                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                                  {rsa.label}
+                                </span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* ۳-۲. خم‌های بیضوی ECDH(E) */}
+                        <div className="p-3.5 bg-slate-50/70 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2">
+                          <span className="text-xs font-black text-slate-800 dark:text-slate-200 block">
+                            ۲. پارامترهای (ECDH(E با استفاده از NIST Curveهای secp256r1 یا secp384r1 یا secp521r1 و هیچ مورد دیگر:
+                          </span>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 pt-1">
+                            {[
+                              { key: "secp256r1", label: "secp256r1 (NIST P-256)" },
+                              { key: "secp384r1", label: "secp384r1 (NIST P-384)" },
+                              { key: "secp521r1", label: "secp521r1 (NIST P-521)" },
+                            ].map(curve => (
+                              <label key={curve.key} className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-2.5 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={settings.tlsServerPolicy?.keyExchangeParameters?.ecdhNistCurves?.[curve.key] ?? true}
+                                  onChange={e => {
+                                    set("tlsServerPolicy", {
+                                      ...settings.tlsServerPolicy,
+                                      keyExchangeParameters: {
+                                        ...settings.tlsServerPolicy?.keyExchangeParameters,
+                                        ecdhNistCurves: {
+                                          ...settings.tlsServerPolicy?.keyExchangeParameters?.ecdhNistCurves,
+                                          [curve.key]: e.target.checked
+                                        }
+                                      }
+                                    });
+                                  }}
+                                  className="h-4 w-4 rounded border-slate-300 text-blue-600"
+                                />
+                                <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300">
+                                  {curve.label}
+                                </span>
+                              </label>
+                            ))}
+                          </div>
+                          <label className="p-2.5 rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/20 flex items-center gap-2.5 cursor-pointer mt-2">
+                            <input
+                              type="checkbox"
+                              checked={settings.tlsServerPolicy?.keyExchangeParameters?.ecdhNistCurves?.disallowOtherCurves ?? true}
+                              onChange={e => {
+                                set("tlsServerPolicy", {
+                                  ...settings.tlsServerPolicy,
+                                  keyExchangeParameters: {
+                                    ...settings.tlsServerPolicy?.keyExchangeParameters,
+                                    ecdhNistCurves: {
+                                      ...settings.tlsServerPolicy?.keyExchangeParameters?.ecdhNistCurves,
+                                      disallowOtherCurves: e.target.checked
+                                    }
+                                  }
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-amber-400 text-amber-600"
+                            />
+                            <span className="text-xs font-bold text-amber-900 dark:text-amber-200">
+                              ممانعت صریح از استفاده از هرگونه خم غیر استاندارد دیگر (به غیر از NIST Curves تاییدشده)
+                            </span>
+                          </label>
+                        </div>
+
+                        {/* ۳-۳. کلید دیفی-هلمن (DH) */}
+                        <div className="p-3.5 bg-slate-50/70 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2">
+                          <span className="text-xs font-black text-slate-800 dark:text-slate-200 block">
+                            ۳. پارامترهای دیفی-هلمن (DH) با اندازه کلید ۲۰۴۸ یا ۳۰۷۲ بیت:
+                          </span>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 pt-1">
+                            {[
+                              { key: "dh2048", label: "DH 2048-bit (پایه استاندارد)" },
+                              { key: "dh3072", label: "DH 3072-bit (پیشرفته امن)" },
+                            ].map(dh => (
+                              <label key={dh.key} className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-2.5 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={settings.tlsServerPolicy?.keyExchangeParameters?.dhKeySizes?.[dh.key] ?? true}
+                                  onChange={e => {
+                                    set("tlsServerPolicy", {
+                                      ...settings.tlsServerPolicy,
+                                      keyExchangeParameters: {
+                                        ...settings.tlsServerPolicy?.keyExchangeParameters,
+                                        dhKeySizes: {
+                                          ...settings.tlsServerPolicy?.keyExchangeParameters?.dhKeySizes,
+                                          [dh.key]: e.target.checked
+                                        }
+                                      }
+                                    });
+                                  }}
+                                  className="h-4 w-4 rounded border-slate-300 text-blue-600"
+                                />
+                                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                                  {dh.label}
+                                </span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </AftaAccordionCard>
+
+                  {/* ۴۷. 🌟 پروتکل TLS مشترک کلاینت و سرور (الزامات ۱ و ۲ افتا - رده ۳-۴) */}
+                  <AftaAccordionCard
+                    id="afta_mutual_tls_protocol"
+                    number="الزام افتا (۳-۴)"
+                    title="پروتکل TLS مشترک کلاینت و سرور (mTLS)، احراز هویت دوطرفه و مطابقت شناساننده"
+                    description="پشتیبانی از احراز هویت دوطرفه با گواهی‌نامه‌های X509v3 و ممانعت از ایجاد کانال در صورت عدم مطابقت نام متمایز (Subject DN)"
+                    isOpen={!!openAftaSections["afta_mutual_tls_protocol"]}
+                    onToggle={toggleAftaSection}
+                    icon={ShieldCheck}
+                  >
+                    <div className="space-y-4">
+                      <div className="bg-indigo-50 dark:bg-indigo-950/30 p-3.5 rounded-xl border border-indigo-200 dark:border-indigo-900/50">
+                        <span className="text-xs font-bold text-indigo-900 dark:text-indigo-200 block">
+                          الزامات احراز هویت دوطرفه TLS کلاینت و سرور (mTLS) و اعتبارسنجی گواهی‌نامه‌های X509v3 (مطابق الزامات افتا - رده ۳-۴):
+                        </span>
+                      </div>
+
+                      <div className="space-y-3">
+                        <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={settings.mutualTlsPolicy?.enableMutualAuthX509v3 ?? true}
+                            onChange={e => {
+                              set("mutualTlsPolicy", {
+                                ...settings.mutualTlsPolicy,
+                                enableMutualAuthX509v3: e.target.checked
+                              });
+                            }}
+                            className="h-4 w-4 rounded border-slate-300 text-indigo-600 mt-0.5"
+                          />
+                          <div>
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                              ۱. پشتیبانی از احراز هویت دوطرفه کلاینت‌ها/سرورهای TLS با استفاده از گواهی‌نامه‌های X509v3
+                            </span>
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                              برقراری احراز هویت متقابل کلاینت و سرور (Mutual Authentication / mTLS) بر پایه گواهی‌نامه‌های دیجیتال X.509v3.
+                            </span>
+                          </div>
+                        </label>
+
+                        <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={settings.mutualTlsPolicy?.enforceSubjectIdentityMatching ?? true}
+                            onChange={e => {
+                              set("mutualTlsPolicy", {
+                                ...settings.mutualTlsPolicy,
+                                enforceSubjectIdentityMatching: e.target.checked
+                              });
+                            }}
+                            className="h-4 w-4 rounded border-slate-300 text-indigo-600 mt-0.5"
+                          />
+                          <div>
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                              ۲. ممانعت از برقراری کانال امن در صورت عدم مطابقت نام متمایز (Subject DN) یا نام دیگر فاعل با شناساننده کلاینت مورد انتظار
+                            </span>
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                              در صورت عدم تطابق نام متمایز موجود در گواهی‌نامه با شناسه کلاینت مورد انتظار، محصول نباید کانال امن را برقرار سازد.
+                            </span>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+                  </AftaAccordionCard>
+
+                  {/* ۴۸. 🌟 اعتبارسنجی گواهی‌نامه (الزامات ۱، ۲ و ۳ افتا - رده ۳-۵) */}
+                  <AftaAccordionCard
+                    id="afta_certificate_validation_policy"
+                    number="الزام افتا (۳-۵)"
+                    title="اعتبارسنجی گواهی‌نامه، پذیرش CA، احراز هویت X509v3، روش‌های فسخ و OIDهای extendedKeyUsage"
+                    description="الزامات ۱، ۲ و ۳ از رده ۳-۵ افتا: قوانین مسیر، پذیرش CA فقط با basicConstraints، کارکردهای احراز هویت X509v3، بررسی فسخ (OCSP/CRL) و OIDهای EKU"
+                    isOpen={!!openAftaSections["afta_certificate_validation_policy"]}
+                    onToggle={toggleAftaSection}
+                    icon={ShieldCheck}
+                  >
+                    <div className="space-y-5">
+                      {/* 🔵 بخش ۱: الزام ۱ افتا - قوانین تأیید مسیر گواهی‌نامه (Certificate Path Validation Rules) */}
+                      <div className="space-y-3">
+                        <div className="bg-blue-50 dark:bg-blue-950/30 p-3.5 rounded-xl border border-blue-200 dark:border-blue-900/50">
+                          <span className="text-xs font-bold text-blue-900 dark:text-blue-200 block">
+                            بند ۱) محصول باید گواهی‌نامه‌ها را بر اساس قوانین زیر (تأیید مسیر، مسدودسازی، فسخ و OIDها) تأیید کند:
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-2.5">
+                          <label className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={settings.certificateValidationPolicy?.pathValidationRules?.rfc5280PathValidation ?? true}
+                              onChange={e => {
+                                set("certificateValidationPolicy", {
+                                  ...settings.certificateValidationPolicy,
+                                  pathValidationRules: {
+                                    ...settings.certificateValidationPolicy?.pathValidationRules,
+                                    rfc5280PathValidation: e.target.checked
+                                  }
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-blue-600 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                ۱-۱. تأیید گواهی‌نامه RFC 5280 و تأیید مسیر گواهی‌نامه که از حداقل طول مسیر ۲ گواهی‌نامه پشتیبانی می‌کند
+                              </span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5">
+                                بررسی ساختار و اعتبار زنجیره گواهی‌نامه مطابق ضوابط RFC 5280.
+                              </span>
+                            </div>
+                          </label>
+
+                          <label className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={settings.certificateValidationPolicy?.pathValidationRules?.endWithTrustedCA ?? true}
+                              onChange={e => {
+                                set("certificateValidationPolicy", {
+                                  ...settings.certificateValidationPolicy,
+                                  pathValidationRules: {
+                                    ...settings.certificateValidationPolicy?.pathValidationRules,
+                                    endWithTrustedCA: e.target.checked
+                                  }
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-blue-600 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                ۱-۲. مسیر گواهی‌نامه باید با یک گواهی‌نامه CA امن پایان یابد
+                              </span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5">
+                                الزام انتها و تایید ریشه زنجیره توسط یک صادرکننده گواهی (CA) معتبر و تاییدشده.
+                              </span>
+                            </div>
+                          </label>
+
+                          <label className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={settings.certificateValidationPolicy?.pathValidationRules?.requireBasicConstraintsCaTrue ?? true}
+                              onChange={e => {
+                                set("certificateValidationPolicy", {
+                                  ...settings.certificateValidationPolicy,
+                                  pathValidationRules: {
+                                    ...settings.certificateValidationPolicy?.pathValidationRules,
+                                    requireBasicConstraintsCaTrue: e.target.checked
+                                  }
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-blue-600 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                ۱-۳. اطمینان از وجود افزونه basicConstraints و تنظیم پرچم CA به حالت TRUE برای تمام گواهی‌نامه‌های CA
+                              </span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5">
+                                حصول اطمینان از وجود افزونه basicConstraints و مقدار CA=TRUE در گواهی‌نامه‌های میانی و ریشه.
+                              </span>
+                            </div>
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* 🔴 بخش ۲: الزام ۲ افتا - پذیرش گواهی‌نامه CA تنها با basicConstraints و پرچم CA=TRUE */}
+                      <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                        <div className="bg-amber-50 dark:bg-amber-950/30 p-3.5 rounded-xl border border-amber-200 dark:border-amber-900/50">
+                          <span className="text-xs font-bold text-amber-900 dark:text-amber-200 block">
+                            بند ۲) شرط پذیرش گواهی‌نامه به عنوان CA توسط محصول:
+                          </span>
+                        </div>
+
+                        <label className="p-3.5 rounded-xl border border-amber-200 dark:border-amber-900/50 bg-amber-50/40 dark:bg-amber-950/20 flex items-start gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={settings.certificateValidationPolicy?.strictCaAcceptanceOnlyWithBasicConstraints ?? true}
+                            onChange={e => {
+                              set("certificateValidationPolicy", {
+                                ...settings.certificateValidationPolicy,
+                                strictCaAcceptanceOnlyWithBasicConstraints: e.target.checked
+                              });
+                            }}
+                            className="h-4 w-4 rounded border-amber-400 text-amber-600 mt-0.5"
+                          />
+                          <div>
+                            <span className="text-xs font-bold text-amber-950 dark:text-amber-200 block">
+                              محصول باید تنها در صورتی که افزونه مربوط به basicConstraints از پیش تنظیم شده باشد و همچنین، پرچم CA به حالت TRUE تنظیم شده باشد، یک گواهی‌نامه را به عنوان گواهی‌نامه CA بپذیرد.
+                            </span>
+                            <span className="text-[11px] text-amber-800 dark:text-amber-300 block mt-1 leading-relaxed">
+                              جلوگیری از سوءاستفاده و پذیرش گواهی‌نامه‌های غیر مجاز فاقد پرچم صریح CA.
+                            </span>
+                          </div>
+                        </label>
+                      </div>
+
+                      {/* 🟢 بخش ۳: الزام ۳ افتا - استفاده از گواهی‌نامه‌های X509v3 تعریف‌شده در RFC 5280 برای احراز هویت */}
+                      <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                        <div className="bg-teal-50 dark:bg-teal-950/30 p-3.5 rounded-xl border border-teal-200 dark:border-teal-900/50">
+                          <span className="text-xs font-bold text-teal-900 dark:text-teal-200 block">
+                            بند ۳) محصول باید برای پشتیبانی از احراز هویت برای موارد زیر، از گواهی‌نامه‌های X509v3 تعریف‌شده در RFC 5280 استفاده کند:
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                          {[
+                            { key: "https", label: "پشتیبانی از X509v3 در پروتکل HTTPS" },
+                            { key: "tls", label: "پشتیبانی از X509v3 در کارکردهای TLS" },
+                            { key: "ssh", label: "پشتیبانی از X509v3 در پروتکل SSH" },
+                            { key: "codeSigningSoftwareUpdates", label: "امضای کد برای بروزرسانی‌های نرم‌افزار سیستم" },
+                            { key: "codeSigningIntegrityVerification", label: "امضای کد برای تأیید یکپارچگی" },
+                            { key: "otherUseCases", label: "سایر موارد و کارکردهای احراز هویت" },
+                          ].map(scope => (
+                            <label key={scope.key} className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-2.5 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={settings.certificateValidationPolicy?.x509v3Rfc5280AuthenticationScopes?.[scope.key] ?? true}
+                                onChange={e => {
+                                  set("certificateValidationPolicy", {
+                                    ...settings.certificateValidationPolicy,
+                                    x509v3Rfc5280AuthenticationScopes: {
+                                      ...settings.certificateValidationPolicy?.x509v3Rfc5280AuthenticationScopes,
+                                      [scope.key]: e.target.checked
+                                    }
+                                  });
+                                }}
+                                className="h-4 w-4 rounded border-slate-300 text-teal-600"
+                              />
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                                {scope.label}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* 🟣 بخش ۴: روش‌های تأیید وضعیت فسخ گواهی‌نامه (Revocation Checking Methods) */}
+                      <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                        <div className="bg-purple-50 dark:bg-purple-950/30 p-3.5 rounded-xl border border-purple-200 dark:border-purple-900/50">
+                          <span className="text-xs font-bold text-purple-900 dark:text-purple-200 block">
+                            بخش روش‌های تأیید وضعیت فسخ گواهی‌نامه (Revocation Checking Methods):
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                          {[
+                            { key: "ocspRfc696", label: "پروتکل وضعیت آنلاین گواهی‌نامه (OCSP) مشخص‌شده در RFC 696" },
+                            { key: "crlRfc5280Section63", label: "لیست فسخ گواهی‌نامه (CRL) مشخص‌شده در RFC 5280 بخش 6.3" },
+                            { key: "crlRfc5759Section5", label: "لیست فسخ گواهی‌نامه (CRL) مشخص‌شده در RFC 5759 بخش 5" },
+                            { key: "disallowOtherRevocationMethods", label: "عدم استفاده از هیچ روش فسخ غیرمجاز دیگری" },
+                          ].map(method => (
+                            <label key={method.key} className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-3 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={settings.certificateValidationPolicy?.revocationCheckingMethods?.[method.key] ?? true}
+                                onChange={e => {
+                                  set("certificateValidationPolicy", {
+                                    ...settings.certificateValidationPolicy,
+                                    revocationCheckingMethods: {
+                                      ...settings.certificateValidationPolicy?.revocationCheckingMethods,
+                                      [method.key]: e.target.checked
+                                    }
+                                  });
+                                }}
+                                className="h-4 w-4 rounded border-slate-300 text-purple-600"
+                              />
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                                {method.label}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* 🟢 بخش ۵: قوانین تأیید بخش extendedKeyUsage (EKU OID Validation) */}
+                      <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                        <div className="bg-emerald-50 dark:bg-emerald-950/30 p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-900/50">
+                          <span className="text-xs font-bold text-emerald-900 dark:text-emerald-200 block">
+                            بخش قوانین تأیید بخش extendedKeyUsage (مطابق با OIDهای استاندارد):
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {[
+                            {
+                              key: "codeSigningOid",
+                              title: "گواهی‌نامه‌های بروزرسانی و صحت کدهای اجرایی",
+                              purpose: "Code Signing (id-kp3)",
+                              oid: "1.3.6.1.5.5.7.3.3",
+                              desc: "باید دارای شناسه OID 1.3.6.1.5.5.7.3.3 در بخش extendedKeyUsage باشند."
+                            },
+                            {
+                              key: "serverAuthOid",
+                              title: "گواهی‌نامه‌های سرور ارائه شده برای TLS",
+                              purpose: "Server Authentication (id-kp1)",
+                              oid: "1.3.6.1.5.5.7.3.1",
+                              desc: "باید دارای شناسه OID 1.3.6.1.5.5.7.3.1 در بخش extendedKeyUsage باشند."
+                            },
+                            {
+                              key: "clientAuthOid",
+                              title: "گواهی‌نامه‌های کلاینت ارائه شده برای TLS",
+                              purpose: "Client Authentication (id-kp2)",
+                              oid: "1.3.6.1.5.5.7.3.2",
+                              desc: "باید دارای شناسه OID 1.3.6.1.5.5.7.3.2 در بخش extendedKeyUsage باشند."
+                            },
+                            {
+                              key: "ocspSigningOid",
+                              title: "گواهی‌نامه‌های پاسخ‌دهنده وضعیت فسخ OCSP",
+                              purpose: "OCSP Signing (id-pk9)",
+                              oid: "1.3.6.1.5.5.7.3.9",
+                              desc: "باید دارای شناسه OID 1.3.6.1.5.5.7.3.9 در بخش extendedKeyUsage باشند."
+                            },
+                          ].map(eku => (
+                            <label key={eku.key} className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={settings.certificateValidationPolicy?.extendedKeyUsageRules?.[eku.key] ?? true}
+                                onChange={e => {
+                                  set("certificateValidationPolicy", {
+                                    ...settings.certificateValidationPolicy,
+                                    extendedKeyUsageRules: {
+                                      ...settings.certificateValidationPolicy?.extendedKeyUsageRules,
+                                      [eku.key]: e.target.checked
+                                    }
+                                  });
+                                }}
+                                className="h-4 w-4 rounded border-slate-300 text-emerald-600 mt-0.5"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                                    {eku.title}
+                                  </span>
+                                  <span className="text-[10px] font-mono bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
+                                    {eku.purpose}
+                                  </span>
+                                </div>
+                                <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 block mt-1 dir-ltr text-left">
+                                  OID: {eku.oid}
+                                </span>
+                                <span className="text-[10px] text-slate-400 dark:text-slate-500 block mt-0.5">
+                                  {eku.desc}
+                                </span>
+                              </div>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </AftaAccordionCard>
+
+                  {/* ۴۹. 🌟 الزامات امنیتی پروتکل SSH (الزامات ۱ تا ۹ افتا - رده ۳-۶) */}
+                  <AftaAccordionCard
+                    id="afta_ssh_protocol"
+                    number="الزام افتا (۳-۶)"
+                    title="پروتکل SSH، احراز هویت، الگوریتم‌های رمزنگاری، کلید عمومی، MAC، تبادل کلید، آستانه Rekeying و اعتبارسنجی میزبان"
+                    description="الزامات ۹‌گانه رده ۳-۶ افتا: استاندارد RFCها، احراز هویت، حد بسته‌ها، الگوریتم‌های Cipher/HostKey/MAC/KEX، تجدید کلید و known_hosts"
+                    isOpen={!!openAftaSections["afta_ssh_protocol"]}
+                    onToggle={toggleAftaSection}
+                    icon={ShieldCheck}
+                  >
+                    <div className="space-y-5">
+                      {/* 🔵 الزام ۱: انطباق با RFCهای ۴۲۵۱، ۴۲۵۲، ۴۲۵۳، ۴۲۵۴، ۵۶۵۶ و ۶۶۶۸ */}
+                      <div className="space-y-3">
+                        <div className="bg-slate-100 dark:bg-slate-800 p-3.5 rounded-xl border border-slate-200 dark:border-slate-700">
+                          <span className="text-xs font-bold text-slate-900 dark:text-slate-100 block">
+                            بند ۱) محصول باید پروتکل SSH را مطابق با RFCهای 4251, 4252, 4253, 4254, 5656 و 6668 پیاده‌سازی نماید:
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+                          {["rfc4251", "rfc4252", "rfc4253", "rfc4254", "rfc5656", "rfc6668"].map(rfc => (
+                            <label key={rfc} className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between cursor-pointer">
+                              <span className="text-xs font-mono font-bold text-slate-800 dark:text-slate-200">
+                                {rfc.toUpperCase()}
+                              </span>
+                              <input
+                                type="checkbox"
+                                checked={settings.sshProtocolPolicy?.rfcCompliance?.[rfc] ?? true}
+                                onChange={e => {
+                                  set("sshProtocolPolicy", {
+                                    ...settings.sshProtocolPolicy,
+                                    rfcCompliance: {
+                                      ...settings.sshProtocolPolicy?.rfcCompliance,
+                                      [rfc]: e.target.checked
+                                    }
+                                  });
+                                }}
+                                className="h-4 w-4 rounded border-slate-300 text-blue-600"
+                              />
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* 🟢 الزام ۲: روش‌های احراز هویت (RFC 4252) */}
+                      <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                        <div className="bg-emerald-50 dark:bg-emerald-950/30 p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-900/50">
+                          <span className="text-xs font-bold text-emerald-900 dark:text-emerald-200 block">
+                            بند ۲) روش‌های احراز هویت پروتکل SSH (مطابق RFC 4252):
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <label className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={settings.sshProtocolPolicy?.authMethods?.publicKeyAuth ?? true}
+                              onChange={e => {
+                                set("sshProtocolPolicy", {
+                                  ...settings.sshProtocolPolicy,
+                                  authMethods: {
+                                    ...settings.sshProtocolPolicy?.authMethods,
+                                    publicKeyAuth: e.target.checked
+                                  }
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-emerald-600"
+                            />
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                              احراز هویت مبتنی بر کلید عمومی (Public Key Authentication)
+                            </span>
+                          </label>
+
+                          <label className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={settings.sshProtocolPolicy?.authMethods?.passwordAuth ?? true}
+                              onChange={e => {
+                                set("sshProtocolPolicy", {
+                                  ...settings.sshProtocolPolicy,
+                                  authMethods: {
+                                    ...settings.sshProtocolPolicy?.authMethods,
+                                    passwordAuth: e.target.checked
+                                  }
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-emerald-600"
+                            />
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                              احراز هویت مبتنی بر گذرواژه (Password Authentication)
+                            </span>
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* 🔴 الزام ۳: رد بسته‌های بزرگتر از مقدار مشخص (RFC 4253) */}
+                      <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                        <div className="bg-rose-50 dark:bg-rose-950/30 p-3.5 rounded-xl border border-rose-200 dark:border-rose-900/50">
+                          <span className="text-xs font-bold text-rose-900 dark:text-rose-200 block">
+                            بند ۳) کنار گذاشتن بسته‌های بزرگتر از حد آستانه مشخص‌شده (مطابق RFC 4253):
+                          </span>
+                        </div>
+                        <div className="p-3.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-4">
+                          <div>
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                              حداکثر اندازه بسته مجاز SSH (Max Packet Size Limit):
+                            </span>
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5">
+                              کنار گذاشتن صریح هرگونه بسته SSH با اندازه بیشتر از آستانه مشخص‌شده (پیش‌فرض ۳۵,۰۰۰ بایت).
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              value={settings.sshProtocolPolicy?.packetSizeLimit?.maxPacketSizeBytes ?? 35000}
+                              onChange={e => {
+                                set("sshProtocolPolicy", {
+                                  ...settings.sshProtocolPolicy,
+                                  packetSizeLimit: {
+                                    ...settings.sshProtocolPolicy?.packetSizeLimit,
+                                    maxPacketSizeBytes: Number(e.target.value) || 35000
+                                  }
+                                });
+                              }}
+                              className="w-28 px-3 py-1.5 border rounded-lg text-xs font-mono text-center font-bold dark:bg-slate-800 dark:border-slate-700"
+                            />
+                            <span className="text-xs text-slate-500 font-bold">بایت</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 🟣 الزام ۴: الگوریتم‌های رمزنگاری مجاز SSH */}
+                      <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                        <div className="bg-purple-50 dark:bg-purple-950/30 p-3.5 rounded-xl border border-purple-200 dark:border-purple-900/50">
+                          <span className="text-xs font-bold text-purple-900 dark:text-purple-200 block">
+                            بند ۴) الگوریتم‌های رمزنگاری مجاز در پیاده‌سازی SSH:
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+                          {[
+                            { key: "aes128Cbc", label: "AES128-CBC" },
+                            { key: "aes192Cbc", label: "AES192-CBC" },
+                            { key: "aes256Cbc", label: "AES256-CBC" },
+                            { key: "aes128Ctr", label: "AES128-CTR" },
+                            { key: "aes192Ctr", label: "AES192-CTR" },
+                            { key: "aes256Ctr", label: "AES256-CTR" },
+                            { key: "aeadAes128Gcm", label: "AEAD_AES_128_GCM" },
+                            { key: "aeadAes256Gcm", label: "AEAD_AES_256_GCM" },
+                          ].map(algo => (
+                            <label key={algo.key} className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between cursor-pointer">
+                              <span className="text-xs font-mono font-bold text-slate-800 dark:text-slate-200">
+                                {algo.label}
+                              </span>
+                              <input
+                                type="checkbox"
+                                checked={settings.sshProtocolPolicy?.encryptionAlgorithms?.[algo.key] ?? true}
+                                onChange={e => {
+                                  set("sshProtocolPolicy", {
+                                    ...settings.sshProtocolPolicy,
+                                    encryptionAlgorithms: {
+                                      ...settings.sshProtocolPolicy?.encryptionAlgorithms,
+                                      [algo.key]: e.target.checked
+                                    }
+                                  });
+                                }}
+                                className="h-4 w-4 rounded border-slate-300 text-purple-600"
+                              />
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* 🔵 الزام ۵: الگوریتم‌های کلید عمومی مجاز SSH */}
+                      <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                        <div className="bg-indigo-50 dark:bg-indigo-950/30 p-3.5 rounded-xl border border-indigo-200 dark:border-indigo-900/50">
+                          <span className="text-xs font-bold text-indigo-900 dark:text-indigo-200 block">
+                            بند ۵) الگوریتم‌های کلید عمومی مجاز در پروتکل انتقال SSH (۱۳ الگوریتم مجاز):
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                          {[
+                            { key: "sshEd25519", label: "ssh-ed25519" },
+                            { key: "sshEd448", label: "ssh-ed448" },
+                            { key: "rsaSha2512", label: "rsa-sha2-512" },
+                            { key: "rsaSha2256", label: "rsa-sha2-256" },
+                            { key: "ecdsaSha2Nistp521", label: "ecdsa-sha2-nistp521" },
+                            { key: "ecdsaSha2Nistp384", label: "ecdsa-sha2-nistp384" },
+                            { key: "ecdsaSha2Nistp256", label: "ecdsa-sha2-nistp256" },
+                            { key: "x509v3EcdsaSha2Nistp521", label: "x509v3-ecdsa-sha2-nistp521" },
+                            { key: "x509v3EcdsaSha2Nistp384", label: "x509v3-ecdsa-sha2-nistp384" },
+                            { key: "x509v3EcdsaSha2Nistp256", label: "x509v3-ecdsa-sha2-nistp256" },
+                            { key: "x509v3Rsa2048Sha256", label: "x509v3-rsa2048-sha256" },
+                            { key: "sshRsa", label: "ssh-rsa" },
+                            { key: "x509v3SshRsa", label: "x509v3-ssh-rsa" },
+                          ].map(algo => (
+                            <label key={algo.key} className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between cursor-pointer">
+                              <span className="text-xs font-mono font-bold text-slate-800 dark:text-slate-200 dir-ltr text-left">
+                                {algo.label}
+                              </span>
+                              <input
+                                type="checkbox"
+                                checked={settings.sshProtocolPolicy?.hostKeyAlgorithms?.[algo.key] ?? true}
+                                onChange={e => {
+                                  set("sshProtocolPolicy", {
+                                    ...settings.sshProtocolPolicy,
+                                    hostKeyAlgorithms: {
+                                      ...settings.sshProtocolPolicy?.hostKeyAlgorithms,
+                                      [algo.key]: e.target.checked
+                                    }
+                                  });
+                                }}
+                                className="h-4 w-4 rounded border-slate-300 text-indigo-600"
+                              />
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* 🟡 الزام ۶: الگوریتم‌های صحت داده MAC */}
+                      <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                        <div className="bg-amber-50 dark:bg-amber-950/30 p-3.5 rounded-xl border border-amber-200 dark:border-amber-900/50">
+                          <span className="text-xs font-bold text-amber-900 dark:text-amber-200 block">
+                            بند ۶) الگوریتم‌های صحت داده‌های MAC مجاز در SSH:
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
+                          {[
+                            { key: "aeadAes256Gcm", label: "AEAD_AES_256_GCM" },
+                            { key: "aeadAes128Gcm", label: "AEAD_AES_128_GCM" },
+                            { key: "hmacSha2512", label: "hmac-sha2-512" },
+                            { key: "hmacSha2256", label: "hmac-sha2-256" },
+                            { key: "hmacSha196", label: "hmac-sha1-96" },
+                            { key: "hmacSha1", label: "hmac-sha1" },
+                          ].map(mac => (
+                            <label key={mac.key} className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between cursor-pointer">
+                              <span className="text-xs font-mono font-bold text-slate-800 dark:text-slate-200 dir-ltr text-left">
+                                {mac.label}
+                              </span>
+                              <input
+                                type="checkbox"
+                                checked={settings.sshProtocolPolicy?.macAlgorithms?.[mac.key] ?? true}
+                                onChange={e => {
+                                  set("sshProtocolPolicy", {
+                                    ...settings.sshProtocolPolicy,
+                                    macAlgorithms: {
+                                      ...settings.sshProtocolPolicy?.macAlgorithms,
+                                      [mac.key]: e.target.checked
+                                    }
+                                  });
+                                }}
+                                className="h-4 w-4 rounded border-slate-300 text-amber-600"
+                              />
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* 🟠 الزام ۷: الگوریتم‌های تبادل کلید KEX */}
+                      <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                        <div className="bg-orange-50 dark:bg-orange-950/30 p-3.5 rounded-xl border border-orange-200 dark:border-orange-900/50">
+                          <span className="text-xs font-bold text-orange-900 dark:text-orange-200 block">
+                            بند ۷) الگوریتم‌های تبادل کلید (Key Exchange - KEX) مجاز در SSH (۱۳ الگوریتم مجاز):
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                          {[
+                            { key: "curve25519Sha256", label: "curve25519-sha256" },
+                            { key: "curve448Sha512", label: "curve448-sha512" },
+                            { key: "dhGroupExchangeSha256", label: "diffie-hellman-group-exchange-sha256" },
+                            { key: "dhGroup18Sha512", label: "diffie-hellman-group18-sha512" },
+                            { key: "dhGroup17Sha512", label: "diffie-hellman-group17-sha512" },
+                            { key: "dhGroup16Sha512", label: "diffie-hellman-group16-sha512" },
+                            { key: "dhGroup15Sha512", label: "diffie-hellman-group15-sha512" },
+                            { key: "ecdhSha2Nistp521", label: "ecdh-sha2-nistp521" },
+                            { key: "ecdhSha2Nistp384", label: "ecdh-sha2-nistp384" },
+                            { key: "ecdhSha2Nistp256", label: "ecdh-sha2-nistp256" },
+                            { key: "rsa2048Sha256", label: "rsa2048-sha256" },
+                            { key: "dhGroupExchangeSha1", label: "diffie-hellman-group-exchange-sha1" },
+                            { key: "dhGroup14Sha256", label: "diffie-hellman-group14-sha256" },
+                          ].map(kex => (
+                            <label key={kex.key} className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between cursor-pointer">
+                              <span className="text-[11px] font-mono font-bold text-slate-800 dark:text-slate-200 dir-ltr text-left truncate">
+                                {kex.label}
+                              </span>
+                              <input
+                                type="checkbox"
+                                checked={settings.sshProtocolPolicy?.kexAlgorithms?.[kex.key] ?? true}
+                                onChange={e => {
+                                  set("sshProtocolPolicy", {
+                                    ...settings.sshProtocolPolicy,
+                                    kexAlgorithms: {
+                                      ...settings.sshProtocolPolicy?.kexAlgorithms,
+                                      [kex.key]: e.target.checked
+                                    }
+                                  });
+                                }}
+                                className="h-4 w-4 rounded border-slate-300 text-orange-600"
+                              />
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* 🟤 الزام ۸: حد آستانه تجدید کلید Rekeying */}
+                      <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                        <div className="bg-teal-50 dark:bg-teal-950/30 p-3.5 rounded-xl border border-teal-200 dark:border-teal-900/50">
+                          <span className="text-xs font-bold text-teal-900 dark:text-teal-200 block">
+                            بند ۸) آستانه تجدید کلید نشست‌های SSH (Rekeying Threshold):
+                          </span>
+                        </div>
+                        <div className="p-3.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3">
+                          <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                            تجدید اجباری کلیدها در صورت رسیدن به حد آستانه زمان (۱ ساعت) یا حجم داده (۱ گیگابایت):
+                          </span>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+                              <span className="text-xs text-slate-700 dark:text-slate-300 font-bold">آستانه زمانی تجدید کلید:</span>
+                              <div className="flex items-center gap-1.5">
+                                <input
+                                  type="number"
+                                  value={settings.sshProtocolPolicy?.rekeyingPolicy?.maxDurationMinutes ?? 60}
+                                  onChange={e => {
+                                    set("sshProtocolPolicy", {
+                                      ...settings.sshProtocolPolicy,
+                                      rekeyingPolicy: {
+                                        ...settings.sshProtocolPolicy?.rekeyingPolicy,
+                                        maxDurationMinutes: Number(e.target.value) || 60
+                                      }
+                                    });
+                                  }}
+                                  className="w-20 px-2 py-1 border rounded text-xs font-mono text-center font-bold dark:bg-slate-800 dark:border-slate-700"
+                                />
+                                <span className="text-xs text-slate-500 font-bold">دقیقه (۱ ساعت)</span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+                              <span className="text-xs text-slate-700 dark:text-slate-300 font-bold">آستانه حجمی تجدید کلید:</span>
+                              <div className="flex items-center gap-1.5">
+                                <input
+                                  type="number"
+                                  value={settings.sshProtocolPolicy?.rekeyingPolicy?.maxDataTransferredMb ?? 1024}
+                                  onChange={e => {
+                                    set("sshProtocolPolicy", {
+                                      ...settings.sshProtocolPolicy,
+                                      rekeyingPolicy: {
+                                        ...settings.sshProtocolPolicy?.rekeyingPolicy,
+                                        maxDataTransferredMb: Number(e.target.value) || 1024
+                                      }
+                                    });
+                                  }}
+                                  className="w-20 px-2 py-1 border rounded text-xs font-mono text-center font-bold dark:bg-slate-800 dark:border-slate-700"
+                                />
+                                <span className="text-xs text-slate-500 font-bold">مگابایت (۱ گیگابایت)</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* ⚪ الزام ۹: احراز هویت سرور توسط کلاینت با پایگاه داده محلی known_hosts */}
+                      <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                        <div className="bg-blue-50 dark:bg-blue-950/30 p-3.5 rounded-xl border border-blue-200 dark:border-blue-900/50">
+                          <span className="text-xs font-bold text-blue-900 dark:text-blue-200 block">
+                            بند ۹) احراز هویت سرور SSH توسط کلاینت (مطابق RFC 4251 بخش 7.1):
+                          </span>
+                        </div>
+                        <label className="p-3.5 rounded-xl border border-blue-200 dark:border-blue-900/50 bg-blue-50/40 dark:bg-blue-950/20 flex items-start gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={settings.sshProtocolPolicy?.hostVerificationPolicy?.useLocalKnownHostsDb ?? true}
+                            onChange={e => {
+                              set("sshProtocolPolicy", {
+                                ...settings.sshProtocolPolicy,
+                                hostVerificationPolicy: {
+                                  ...settings.sshProtocolPolicy?.hostVerificationPolicy,
+                                  useLocalKnownHostsDb: e.target.checked
+                                }
+                              });
+                            }}
+                            className="h-4 w-4 rounded border-blue-400 text-blue-600 mt-0.5"
+                          />
+                          <div>
+                            <span className="text-xs font-bold text-blue-950 dark:text-blue-200 block">
+                              محصول باید اطمینان حاصل نماید که کلاینت SSH، سرور SSH را با استفاده از پایگاه داده محلی (مخصوص نام میزبان و کلید عمومی متناظر آن RFC 4251 Sec 7.1) احراز هویت می‌نماید.
+                            </span>
+                            <span className="text-[11px] text-blue-800 dark:text-blue-300 block mt-1 leading-relaxed">
+                              تطبیق اجباری کلید عمومی سرور با داده‌های ثبت‌شده در پایگاه داده local known_hosts جهت ممانعت از حملات Man-in-the-Middle.
+                            </span>
+                          </div>
+                        </label>
                       </div>
                     </div>
                   </AftaAccordionCard>

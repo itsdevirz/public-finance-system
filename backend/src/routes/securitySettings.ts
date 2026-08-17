@@ -83,6 +83,10 @@ router.put("/policy", requireRole(["admin"]), async (c) => {
       trustedChannelPolicy: body.trustedChannelPolicy || existingVal.trustedChannelPolicy || DEFAULT_SECURITY_POLICY.trustedChannelPolicy,
       httpsProtocolPolicy: body.httpsProtocolPolicy || existingVal.httpsProtocolPolicy || DEFAULT_SECURITY_POLICY.httpsProtocolPolicy,
       tlsClientPolicy: body.tlsClientPolicy || existingVal.tlsClientPolicy || DEFAULT_SECURITY_POLICY.tlsClientPolicy,
+      tlsServerPolicy: body.tlsServerPolicy || existingVal.tlsServerPolicy || DEFAULT_SECURITY_POLICY.tlsServerPolicy,
+      mutualTlsPolicy: body.mutualTlsPolicy || existingVal.mutualTlsPolicy || DEFAULT_SECURITY_POLICY.mutualTlsPolicy,
+      certificateValidationPolicy: body.certificateValidationPolicy || existingVal.certificateValidationPolicy || DEFAULT_SECURITY_POLICY.certificateValidationPolicy,
+      sshProtocolPolicy: body.sshProtocolPolicy || existingVal.sshProtocolPolicy || DEFAULT_SECURITY_POLICY.sshProtocolPolicy,
     };
 
     await db.collection("system_settings").updateOne(

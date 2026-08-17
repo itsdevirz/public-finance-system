@@ -1,6 +1,6 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert";
-import { DEFAULT_SECURITY_POLICY, validatePassword, validateActiveToInactiveInteractionACL, validateActiveToInactivePreventionRules, validateResourceSanitizationPolicy, validateUserDataInputAccessPolicy, validateSecureDataTransportPolicy, validateUserDataEgressAccessPolicy, validateTargetedDataEgressRules } from "../lib/securityPolicy.js";
+import { DEFAULT_SECURITY_POLICY, validatePassword, validateActiveToInactiveInteractionACL, validateActiveToInactivePreventionRules, validateResourceSanitizationPolicy, validateUserDataInputAccessPolicy, validateSecureDataTransportPolicy, validateUserDataEgressAccessPolicy, validateTargetedDataEgressRules, validateTlsServerProtocolRequest, validateTlsServerKeyExchangeParameters, validateMutualTlsIdentity, validateCertificatePathRules, validateCertificateRevocationCheck, validateExtendedKeyUsageOid, validateCaCertificateAcceptance, validateX509v3Rfc5280Scope, validateSshPacketSize, validateSshRekeyingTrigger, validateSshHostVerification } from "../lib/securityPolicy.js";
 import { encrypt, decrypt, destroyCryptoKey } from "../lib/crypto.js";
 import { validateRemoteCertificate } from "../lib/certValidator.js";
 import { verifyUpdateIntegrity, verifyUpdateSignature } from "../lib/secureUpdate.js";
@@ -519,6 +519,231 @@ describe("🛡️ Comprehensive Security Test Suite", () => {
       const unauthorizedTarget = sessions.find(s => s.sessionId === "s_other_user");
       const canUserRevokeOtherUserSession = unauthorizedTarget?.userId === currentUser.userId;
       assert.strictEqual(canUserRevokeOtherUserSession, false, "User cannot terminate sessions initiated by another user");
+    });
+  });
+
+  describe("18. TLS Server Protocol Compliance (AFTA 3-3 Requirements 1, 2 & 3)", () => {
+    it("Requirement 1: should enforce TLS 1.2 (RFC 5246) and default tlsServerPolicy in system security policy", () => {
+      const policy = DEFAULT_SECURITY_POLICY.tlsServerPolicy;
+      assert.ok(policy, "tlsServerPolicy must be defined in default security policy");
+      assert.strictEqual(policy.enable, true);
+      assert.strictEqual(policy.enforceTls12Only, true, "TLS 1.2 (RFC 5246) enforcement must be enabled by default");
+    });
+
+    it("Requirement 1: should include and support all 16 specified cipher suites with exact Hex & RFC standards", () => {
+      const cipherSuites = DEFAULT_SECURITY_POLICY.tlsServerPolicy?.cipherSuites;
+      assert.ok(cipherSuites, "Cipher suites configuration must exist");
+
+      const expectedCipherKeys = [
+        "tls_aes_256_gcm_sha384",
+        "tls_aes_128_gcm_sha256",
+        "tls_dhe_rsa_with_aes_256_gcm_sha384",
+        "tls_dhe_rsa_with_aes_128_gcm_sha256",
+        "tls_ecdhe_rsa_with_aes_128_gcm_sha256",
+        "tls_ecdhe_rsa_with_aes_256_gcm_sha384",
+        "tls_ecdhe_ecdsa_with_aes_256_gcm_sha384",
+        "tls_ecdhe_ecdsa_with_aes_128_gcm_sha256",
+        "tls_rsa_with_aes_256_gcm_sha384",
+        "tls_rsa_with_aes_128_gcm_sha256",
+        "tls_ecdh_ecdsa_with_aes_256_gcm_sha384",
+        "tls_ecdh_ecdsa_with_aes_128_gcm_sha256",
+        "tls_ecdh_rsa_with_aes_256_gcm_sha384",
+        "tls_ecdh_rsa_with_aes_128_gcm_sha256",
+        "tls_dh_rsa_with_aes_256_gcm_sha384",
+        "tls_dh_rsa_with_aes_128_gcm_sha256",
+      ];
+
+      assert.strictEqual(Object.keys(cipherSuites).length, 16, "Must contain exactly 16 TLS Server cipher suites");
+      for (const key of expectedCipherKeys) {
+        assert.strictEqual((cipherSuites as any)[key], true, `Cipher suite ${key} must be enabled by default`);
+      }
+    });
+
+    it("Requirement 2: should reject user connections requesting SSL 1.0, SSL 2.0, SSL 3.0, TLS 1.0, and TLS 1.1", () => {
+      const legacyProtocols = ["SSL1.0", "SSL 2.0", "SSL3.0", "TLS1.0", "TLS1.1"];
+      for (const proto of legacyProtocols) {
+        const res = validateTlsServerProtocolRequest(proto);
+        assert.strictEqual(res.allowed, false, `Connection requesting ${proto} must be rejected under Requirement 2`);
+        assert.ok(res.reason?.includes("مسدود و رد گردید"));
+      }
+
+      // Valid TLS 1.2 request must be allowed
+      const validRes = validateTlsServerProtocolRequest("TLS 1.2");
+      assert.strictEqual(validRes.allowed, true);
+    });
+
+    it("Requirement 3: should enforce key generation parameters for RSA (2048/3072/4096), ECDH(E) NIST curves, and DH (2048/3072)", () => {
+      // 1. RSA Key Sizes
+      assert.strictEqual(validateTlsServerKeyExchangeParameters({ keyType: "RSA", keySizeBits: 2048 }).valid, true);
+      assert.strictEqual(validateTlsServerKeyExchangeParameters({ keyType: "RSA", keySizeBits: 3072 }).valid, true);
+      assert.strictEqual(validateTlsServerKeyExchangeParameters({ keyType: "RSA", keySizeBits: 4096 }).valid, true);
+      assert.strictEqual(validateTlsServerKeyExchangeParameters({ keyType: "RSA", keySizeBits: 1024 }).valid, false, "RSA 1024-bit must be rejected");
+
+      // 2. ECDH(E) NIST Curves
+      assert.strictEqual(validateTlsServerKeyExchangeParameters({ keyType: "ECDHE", curveName: "secp256r1" }).valid, true);
+      assert.strictEqual(validateTlsServerKeyExchangeParameters({ keyType: "ECDHE", curveName: "secp384r1" }).valid, true);
+      assert.strictEqual(validateTlsServerKeyExchangeParameters({ keyType: "ECDHE", curveName: "secp521r1" }).valid, true);
+      assert.strictEqual(validateTlsServerKeyExchangeParameters({ keyType: "ECDHE", curveName: "brainpoolP256r1" }).valid, false, "Non-NIST curves must be rejected");
+
+      // 3. DH Key Sizes
+      assert.strictEqual(validateTlsServerKeyExchangeParameters({ keyType: "DH", keySizeBits: 2048 }).valid, true);
+      assert.strictEqual(validateTlsServerKeyExchangeParameters({ keyType: "DH", keySizeBits: 3072 }).valid, true);
+      assert.strictEqual(validateTlsServerKeyExchangeParameters({ keyType: "DH", keySizeBits: 1024 }).valid, false, "DH 1024-bit must be rejected");
+    });
+  });
+
+  describe("19. Mutual TLS (mTLS) Shared Client/Server Compliance (AFTA 3-4 Requirements 1 & 2)", () => {
+    it("Requirement 1: should enable mutual X509v3 client/server authentication support by default", () => {
+      const policy = DEFAULT_SECURITY_POLICY.mutualTlsPolicy;
+      assert.ok(policy, "mutualTlsPolicy must exist in default security policy");
+      assert.strictEqual(policy.enable, true);
+      assert.strictEqual(policy.enableMutualAuthX509v3, true, "X.509v3 mutual authentication must be enabled");
+    });
+
+    it("Requirement 2: should prevent secure channel establishment when Subject DN or SAN does not match expected client identifier", () => {
+      // 1. Matching Subject DN -> Allowed
+      const matchRes = validateMutualTlsIdentity({
+        subjectDN: "CN=FinanceClient01, OU=Finance, O=Gov",
+        expectedClientIdentifier: "FinanceClient01"
+      });
+      assert.strictEqual(matchRes.valid, true, "Matching client identifier in Subject DN must allow channel creation");
+
+      // 2. Mismatched Subject DN -> Blocked / Disconnected
+      const mismatchRes = validateMutualTlsIdentity({
+        subjectDN: "CN=UnauthorizedClient, OU=Guest, O=Other",
+        expectedClientIdentifier: "FinanceClient01"
+      });
+      assert.strictEqual(mismatchRes.valid, false, "Mismatched Subject DN must block secure channel establishment under Requirement 2");
+      assert.ok(mismatchRes.reason?.includes("عدم مطابقت نام متمایز"));
+    });
+  });
+
+  describe("20. Certificate Validation Compliance (AFTA 3-5 Requirements 1, 2 & 3)", () => {
+    it("Requirement 1: Path Validation Rules - should enforce RFC 5280, trusted CA end anchor, and basicConstraints CA=TRUE", () => {
+      // Valid path
+      const validPath = validateCertificatePathRules({ length: 2, endsWithTrustedCA: true, allCaHaveBasicConstraintsCaTrue: true });
+      assert.strictEqual(validPath.valid, true);
+
+      // Short path (< 2)
+      const shortPath = validateCertificatePathRules({ length: 1, endsWithTrustedCA: true, allCaHaveBasicConstraintsCaTrue: true });
+      assert.strictEqual(shortPath.valid, false);
+
+      // Untrusted CA
+      const untrustedPath = validateCertificatePathRules({ length: 2, endsWithTrustedCA: false, allCaHaveBasicConstraintsCaTrue: true });
+      assert.strictEqual(untrustedPath.valid, false);
+
+      // Missing basicConstraints CA=TRUE
+      const missingCaFlag = validateCertificatePathRules({ length: 2, endsWithTrustedCA: true, allCaHaveBasicConstraintsCaTrue: false });
+      assert.strictEqual(missingCaFlag.valid, false);
+    });
+
+    it("Requirement 2: CA Acceptance Rule - should ONLY accept cert as CA if basicConstraints is present AND CA flag is TRUE", () => {
+      // Valid CA cert with basicConstraints and CA=TRUE -> Accepted
+      assert.strictEqual(validateCaCertificateAcceptance({ basicConstraintsPresent: true, isCA: true }).valid, true);
+
+      // Cert missing basicConstraints -> Rejected as CA
+      const noConstraints = validateCaCertificateAcceptance({ basicConstraintsPresent: false, isCA: true });
+      assert.strictEqual(noConstraints.valid, false);
+      assert.ok(noConstraints.reason?.includes("basicConstraints"));
+
+      // Cert with CA=FALSE -> Rejected as CA
+      const notCA = validateCaCertificateAcceptance({ basicConstraintsPresent: true, isCA: false });
+      assert.strictEqual(notCA.valid, false);
+    });
+
+    it("Requirement 3: RFC 5280 X509v3 Scopes - should support X509v3 certificates for HTTPS, TLS, SSH, Code Signing & Integrity", () => {
+      assert.strictEqual(validateX509v3Rfc5280Scope("HTTPS").valid, true);
+      assert.strictEqual(validateX509v3Rfc5280Scope("TLS").valid, true);
+      assert.strictEqual(validateX509v3Rfc5280Scope("SSH").valid, true);
+      assert.strictEqual(validateX509v3Rfc5280Scope("CODE_SIGNING_UPDATES").valid, true);
+      assert.strictEqual(validateX509v3Rfc5280Scope("CODE_SIGNING_INTEGRITY").valid, true);
+      assert.strictEqual(validateX509v3Rfc5280Scope("OTHER").valid, true);
+    });
+
+    it("Revocation Checking Methods: should support OCSP (RFC 696) & CRL (RFC 5280/5759) and reject unauthorized methods", () => {
+      assert.strictEqual(validateCertificateRevocationCheck("OCSP_RFC696").valid, true);
+      assert.strictEqual(validateCertificateRevocationCheck("CRL_RFC5280_SEC63").valid, true);
+      assert.strictEqual(validateCertificateRevocationCheck("CRL_RFC5759_SEC5").valid, true);
+
+      const invalidRev = validateCertificateRevocationCheck("OTHER");
+      assert.strictEqual(invalidRev.valid, false);
+    });
+
+    it("ExtendedKeyUsage Rules: should validate exact OIDs for Code Signing, Server Auth, Client Auth, and OCSP Signing", () => {
+      // Code Signing: OID 1.3.6.1.5.5.7.3.3 (id-kp3)
+      assert.strictEqual(validateExtendedKeyUsageOid("CODE_SIGNING", "1.3.6.1.5.5.7.3.3").valid, true);
+      assert.strictEqual(validateExtendedKeyUsageOid("CODE_SIGNING", "1.3.6.1.5.5.7.3.1").valid, false);
+
+      // Server Authentication: OID 1.3.6.1.5.5.7.3.1 (id-kp1)
+      assert.strictEqual(validateExtendedKeyUsageOid("SERVER_AUTH", "1.3.6.1.5.5.7.3.1").valid, true);
+
+      // Client Authentication: OID 1.3.6.1.5.5.7.3.2 (id-kp2)
+      assert.strictEqual(validateExtendedKeyUsageOid("CLIENT_AUTH", "1.3.6.1.5.5.7.3.2").valid, true);
+
+      // OCSP Signing: OID 1.3.6.1.5.5.7.3.9 (id-kp9)
+      assert.strictEqual(validateExtendedKeyUsageOid("OCSP_SIGNING", "1.3.6.1.5.5.7.3.9").valid, true);
+    });
+  });
+
+  describe("21. SSH Protocol Security Compliance (AFTA 3-6 Requirements 1 to 9)", () => {
+    it("Requirement 1: should enforce RFC compliance for RFC 4251, 4252, 4253, 4254, 5656, and 6668", () => {
+      const rfc = DEFAULT_SECURITY_POLICY.sshProtocolPolicy?.rfcCompliance;
+      assert.ok(rfc);
+      assert.strictEqual(rfc.rfc4251, true);
+      assert.strictEqual(rfc.rfc4252, true);
+      assert.strictEqual(rfc.rfc4253, true);
+      assert.strictEqual(rfc.rfc4254, true);
+      assert.strictEqual(rfc.rfc5656, true);
+      assert.strictEqual(rfc.rfc6668, true);
+    });
+
+    it("Requirement 2: should support Public Key and Password authentication methods per RFC 4252", () => {
+      const auth = DEFAULT_SECURITY_POLICY.sshProtocolPolicy?.authMethods;
+      assert.ok(auth);
+      assert.strictEqual(auth.publicKeyAuth, true);
+      assert.strictEqual(auth.passwordAuth, true);
+    });
+
+    it("Requirement 3: should discard SSH packets larger than maximum size threshold (35,000 bytes)", () => {
+      // Small packet -> Valid
+      assert.strictEqual(validateSshPacketSize(1024).valid, true);
+      assert.strictEqual(validateSshPacketSize(35000).valid, true);
+
+      // Oversized packet (> 35,000 bytes) -> Rejected
+      const oversized = validateSshPacketSize(40000);
+      assert.strictEqual(oversized.valid, false);
+      assert.ok(oversized.reason?.includes("بیشتر از حد آستانه مجاز"));
+    });
+
+    it("Requirements 4, 5, 6 & 7: should configure allowed encryption ciphers, hostkeys (13), MACs (6), and KEX algorithms (13)", () => {
+      const ssh = DEFAULT_SECURITY_POLICY.sshProtocolPolicy;
+      assert.strictEqual(Object.keys(ssh?.encryptionAlgorithms!).length, 8, "Must support 8 encryption ciphers");
+      assert.strictEqual(Object.keys(ssh?.hostKeyAlgorithms!).length, 13, "Must support 13 hostkey algorithms");
+      assert.strictEqual(Object.keys(ssh?.macAlgorithms!).length, 6, "Must support 6 MAC algorithms");
+      assert.strictEqual(Object.keys(ssh?.kexAlgorithms!).length, 13, "Must support 13 KEX algorithms");
+    });
+
+    it("Requirement 8: should trigger session key rekeying when duration reaches 1 hour (60 min) or transferred data reaches 1 GB (1024 MB)", () => {
+      // Under limit -> No rekeying required
+      assert.strictEqual(validateSshRekeyingTrigger(30, 500).mustRekey, false);
+
+      // Duration threshold reached (>= 60 min) -> Rekeying triggered
+      const timeTrigger = validateSshRekeyingTrigger(60, 100);
+      assert.strictEqual(timeTrigger.mustRekey, true);
+
+      // Data threshold reached (>= 1024 MB) -> Rekeying triggered
+      const dataTrigger = validateSshRekeyingTrigger(10, 1024);
+      assert.strictEqual(dataTrigger.mustRekey, true);
+    });
+
+    it("Requirement 9: should enforce SSH server host key verification via local known_hosts database", () => {
+      // Known host key -> Allowed
+      assert.strictEqual(validateSshHostVerification({ hostname: "server1.gov.ir", hostKeyInLocalKnownHosts: true }).valid, true);
+
+      // Unknown host key -> Rejected
+      const unknownHost = validateSshHostVerification({ hostname: "untrusted.domain", hostKeyInLocalKnownHosts: false });
+      assert.strictEqual(unknownHost.valid, false);
+      assert.ok(unknownHost.reason?.includes("known_hosts"));
     });
   });
 });

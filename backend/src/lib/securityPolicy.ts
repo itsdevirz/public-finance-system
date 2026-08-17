@@ -326,6 +326,163 @@ export interface TlsClientPolicy {
   };
 }
 
+// الزام افتا (رده ۳-۳): الزامات امنیتی مبتنی بر انتخاب - پروتکل TLS Server
+export interface TlsServerPolicy {
+  enable: boolean;
+  enforceTls12Only: boolean; // الزام ۱: پیاده‌سازی TLS 1.2 (RFC 5246)
+  rejectLegacyProtocols: { // الزام ۲: رد درخواست‌های اتصال SSL 1.0, SSL 2.0, SSL 3.0, TLS 1.0 و TLS 1.1
+    ssl10: boolean;
+    ssl20: boolean;
+    ssl30: boolean;
+    tls10: boolean;
+    tls11: boolean;
+  };
+  keyExchangeParameters: { // الزام ۳: پارامترهای ساخت کلید
+    rsaKeySizes: { // ۱. استفاده از RSA با اندازه کلید ۲۰۴۸، ۳۰۷۲ یا ۴۰۹۶ بیت
+      rsa2048: boolean;
+      rsa3072: boolean;
+      rsa4096: boolean;
+    };
+    ecdhNistCurves: { // ۲. پارامترهای ECDH(E) با استفاده از NIST Curves (secp256r1, secp384r1, secp521r1)
+      secp256r1: boolean;
+      secp384r1: boolean;
+      secp521r1: boolean;
+      disallowOtherCurves: boolean;
+    };
+    dhKeySizes: { // ۳. پارامترهای دیفی-هلمن با اندازه کلید ۲۰۴۸ یا ۳۰۷۲ بیت
+      dh2048: boolean;
+      dh3072: boolean;
+    };
+  };
+  cipherSuites: { // الزام ۱ (بخش دوم): مجموعه‌های رمز
+    tls_aes_256_gcm_sha384: boolean;
+    tls_aes_128_gcm_sha256: boolean;
+    tls_dhe_rsa_with_aes_256_gcm_sha384: boolean;
+    tls_dhe_rsa_with_aes_128_gcm_sha256: boolean;
+    tls_ecdhe_rsa_with_aes_128_gcm_sha256: boolean;
+    tls_ecdhe_rsa_with_aes_256_gcm_sha384: boolean;
+    tls_ecdhe_ecdsa_with_aes_256_gcm_sha384: boolean;
+    tls_ecdhe_ecdsa_with_aes_128_gcm_sha256: boolean;
+    tls_rsa_with_aes_256_gcm_sha384: boolean;
+    tls_rsa_with_aes_128_gcm_sha256: boolean;
+    tls_ecdh_ecdsa_with_aes_256_gcm_sha384: boolean;
+    tls_ecdh_ecdsa_with_aes_128_gcm_sha256: boolean;
+    tls_ecdh_rsa_with_aes_256_gcm_sha384: boolean;
+    tls_ecdh_rsa_with_aes_128_gcm_sha256: boolean;
+    tls_dh_rsa_with_aes_256_gcm_sha384: boolean;
+    tls_dh_rsa_with_aes_128_gcm_sha256: boolean;
+  };
+}
+
+// الزام افتا (رده ۳-۵): اعتبارسنجی گواهی‌نامه (Certificate Validation)
+export interface CertificateValidationPolicy {
+  enable: boolean;
+  pathValidationRules: {
+    rfc5280PathValidation: boolean;
+    endWithTrustedCA: boolean;
+    requireBasicConstraintsCaTrue: boolean;
+  };
+  strictCaAcceptanceOnlyWithBasicConstraints: boolean; // الزام ۲: پذیرش گواهی‌نامه به عنوان CA تنها در صورت وجود basicConstraints و پرچم CA=TRUE
+  x509v3Rfc5280AuthenticationScopes: { // الزام ۳: استفاده از گواهی‌نامه‌های X509v3 تعریف‌شده در RFC 5280 برای احراز هویت
+    https: boolean;
+    tls: boolean;
+    ssh: boolean;
+    codeSigningSoftwareUpdates: boolean;
+    codeSigningIntegrityVerification: boolean;
+    otherUseCases: boolean;
+  };
+  revocationCheckingMethods: {
+    ocspRfc696: boolean;
+    crlRfc5280Section63: boolean;
+    crlRfc5759Section5: boolean;
+    disallowOtherRevocationMethods: boolean;
+  };
+  extendedKeyUsageRules: {
+    codeSigningOid: boolean;
+    serverAuthOid: boolean;
+    clientAuthOid: boolean;
+    ocspSigningOid: boolean;
+  };
+}
+
+// الزام افتا (رده ۳-۶): الزامات امنیتی پروتکل SSH (SSH Security Protocol)
+export interface SshProtocolPolicy {
+  enable: boolean;
+  rfcCompliance: {
+    rfc4251: boolean;
+    rfc4252: boolean;
+    rfc4253: boolean;
+    rfc4254: boolean;
+    rfc5656: boolean;
+    rfc6668: boolean;
+  };
+  authMethods: {
+    publicKeyAuth: boolean;
+    passwordAuth: boolean;
+  };
+  packetSizeLimit: {
+    enableMaxPacketCheck: boolean;
+    maxPacketSizeBytes: number;
+  };
+  encryptionAlgorithms: {
+    aes128Cbc: boolean;
+    aes192Cbc: boolean;
+    aes256Cbc: boolean;
+    aes128Ctr: boolean;
+    aes192Ctr: boolean;
+    aes256Ctr: boolean;
+    aeadAes128Gcm: boolean;
+    aeadAes256Gcm: boolean;
+  };
+  hostKeyAlgorithms: {
+    sshEd25519: boolean;
+    sshEd448: boolean;
+    rsaSha2512: boolean;
+    rsaSha2256: boolean;
+    ecdsaSha2Nistp521: boolean;
+    ecdsaSha2Nistp384: boolean;
+    ecdsaSha2Nistp256: boolean;
+    x509v3EcdsaSha2Nistp521: boolean;
+    x509v3EcdsaSha2Nistp384: boolean;
+    x509v3EcdsaSha2Nistp256: boolean;
+    x509v3Rsa2048Sha256: boolean;
+    sshRsa: boolean;
+    x509v3SshRsa: boolean;
+  };
+  macAlgorithms: {
+    aeadAes256Gcm: boolean;
+    aeadAes128Gcm: boolean;
+    hmacSha2512: boolean;
+    hmacSha2256: boolean;
+    hmacSha196: boolean;
+    hmacSha1: boolean;
+  };
+  kexAlgorithms: {
+    curve25519Sha256: boolean;
+    curve448Sha512: boolean;
+    dhGroupExchangeSha256: boolean;
+    dhGroup18Sha512: boolean;
+    dhGroup17Sha512: boolean;
+    dhGroup16Sha512: boolean;
+    dhGroup15Sha512: boolean;
+    ecdhSha2Nistp521: boolean;
+    ecdhSha2Nistp384: boolean;
+    ecdhSha2Nistp256: boolean;
+    rsa2048Sha256: boolean;
+    dhGroupExchangeSha1: boolean;
+    dhGroup14Sha256: boolean;
+  };
+  rekeyingPolicy: {
+    enableRekeying: boolean;
+    maxDurationMinutes: number;
+    maxDataTransferredMb: number;
+  };
+  hostVerificationPolicy: {
+    enableHostVerification: boolean;
+    useLocalKnownHostsDb: boolean;
+  };
+}
+
 export interface SecurityPolicyConfig {
   passwordPolicy: PasswordPolicy;
   lockoutPolicy: LockoutPolicy;
@@ -357,6 +514,10 @@ export interface SecurityPolicyConfig {
   trustedChannelPolicy?: TrustedChannelPolicy;
   httpsProtocolPolicy?: HttpsProtocolPolicy;
   tlsClientPolicy?: TlsClientPolicy;
+  tlsServerPolicy?: TlsServerPolicy;
+  mutualTlsPolicy?: MutualTlsPolicy;
+  certificateValidationPolicy?: CertificateValidationPolicy;
+  sshProtocolPolicy?: SshProtocolPolicy;
 }
 
 export const DEFAULT_ENTITY_ACCESS_POLICIES: EntityAccessPolicy[] = [
@@ -662,8 +823,379 @@ export const DEFAULT_SECURITY_POLICY: SecurityPolicyConfig = {
       tls_dh_rsa_with_aes_256_gcm_sha384: true,
       tls_dh_rsa_with_aes_128_gcm_sha256: true
     }
+  },
+  tlsServerPolicy: {
+    enable: true,
+    enforceTls12Only: true,
+    rejectLegacyProtocols: {
+      ssl10: true,
+      ssl20: true,
+      ssl30: true,
+      tls10: true,
+      tls11: true,
+    },
+    keyExchangeParameters: {
+      rsaKeySizes: {
+        rsa2048: true,
+        rsa3072: true,
+        rsa4096: true,
+      },
+      ecdhNistCurves: {
+        secp256r1: true,
+        secp384r1: true,
+        secp521r1: true,
+        disallowOtherCurves: true,
+      },
+      dhKeySizes: {
+        dh2048: true,
+        dh3072: true,
+      },
+    },
+    cipherSuites: {
+      tls_aes_256_gcm_sha384: true,
+      tls_aes_128_gcm_sha256: true,
+      tls_dhe_rsa_with_aes_256_gcm_sha384: true,
+      tls_dhe_rsa_with_aes_128_gcm_sha256: true,
+      tls_ecdhe_rsa_with_aes_128_gcm_sha256: true,
+      tls_ecdhe_rsa_with_aes_256_gcm_sha384: true,
+      tls_ecdhe_ecdsa_with_aes_256_gcm_sha384: true,
+      tls_ecdhe_ecdsa_with_aes_128_gcm_sha256: true,
+      tls_rsa_with_aes_256_gcm_sha384: true,
+      tls_rsa_with_aes_128_gcm_sha256: true,
+      tls_ecdh_ecdsa_with_aes_256_gcm_sha384: true,
+      tls_ecdh_ecdsa_with_aes_128_gcm_sha256: true,
+      tls_ecdh_rsa_with_aes_256_gcm_sha384: true,
+      tls_ecdh_rsa_with_aes_128_gcm_sha256: true,
+      tls_dh_rsa_with_aes_256_gcm_sha384: true,
+      tls_dh_rsa_with_aes_128_gcm_sha256: true
+    }
+  },
+  mutualTlsPolicy: {
+    enable: true,
+    enableMutualAuthX509v3: true,
+    enforceSubjectIdentityMatching: true,
+    mismatchedIdentityAction: "disconnect"
+  },
+  certificateValidationPolicy: {
+    enable: true,
+    pathValidationRules: {
+      rfc5280PathValidation: true,
+      endWithTrustedCA: true,
+      requireBasicConstraintsCaTrue: true,
+    },
+    strictCaAcceptanceOnlyWithBasicConstraints: true,
+    x509v3Rfc5280AuthenticationScopes: {
+      https: true,
+      tls: true,
+      ssh: true,
+      codeSigningSoftwareUpdates: true,
+      codeSigningIntegrityVerification: true,
+      otherUseCases: true,
+    },
+    revocationCheckingMethods: {
+      ocspRfc696: true,
+      crlRfc5280Section63: true,
+      crlRfc5759Section5: true,
+      disallowOtherRevocationMethods: true,
+    },
+    extendedKeyUsageRules: {
+      codeSigningOid: true,
+      serverAuthOid: true,
+      clientAuthOid: true,
+      ocspSigningOid: true,
+    },
+  },
+  sshProtocolPolicy: {
+    enable: true,
+    rfcCompliance: {
+      rfc4251: true,
+      rfc4252: true,
+      rfc4253: true,
+      rfc4254: true,
+      rfc5656: true,
+      rfc6668: true,
+    },
+    authMethods: {
+      publicKeyAuth: true,
+      passwordAuth: true,
+    },
+    packetSizeLimit: {
+      enableMaxPacketCheck: true,
+      maxPacketSizeBytes: 35000,
+    },
+    encryptionAlgorithms: {
+      aes128Cbc: true,
+      aes192Cbc: true,
+      aes256Cbc: true,
+      aes128Ctr: true,
+      aes192Ctr: true,
+      aes256Ctr: true,
+      aeadAes128Gcm: true,
+      aeadAes256Gcm: true,
+    },
+    hostKeyAlgorithms: {
+      sshEd25519: true,
+      sshEd448: true,
+      rsaSha2512: true,
+      rsaSha2256: true,
+      ecdsaSha2Nistp521: true,
+      ecdsaSha2Nistp384: true,
+      ecdsaSha2Nistp256: true,
+      x509v3EcdsaSha2Nistp521: true,
+      x509v3EcdsaSha2Nistp384: true,
+      x509v3EcdsaSha2Nistp256: true,
+      x509v3Rsa2048Sha256: true,
+      sshRsa: true,
+      x509v3SshRsa: true,
+    },
+    macAlgorithms: {
+      aeadAes256Gcm: true,
+      aeadAes128Gcm: true,
+      hmacSha2512: true,
+      hmacSha2256: true,
+      hmacSha196: true,
+      hmacSha1: true,
+    },
+    kexAlgorithms: {
+      curve25519Sha256: true,
+      curve448Sha512: true,
+      dhGroupExchangeSha256: true,
+      dhGroup18Sha512: true,
+      dhGroup17Sha512: true,
+      dhGroup16Sha512: true,
+      dhGroup15Sha512: true,
+      ecdhSha2Nistp521: true,
+      ecdhSha2Nistp384: true,
+      ecdhSha2Nistp256: true,
+      rsa2048Sha256: true,
+      dhGroupExchangeSha1: true,
+      dhGroup14Sha256: true,
+    },
+    rekeyingPolicy: {
+      enableRekeying: true,
+      maxDurationMinutes: 60,
+      maxDataTransferredMb: 1024,
+    },
+    hostVerificationPolicy: {
+      enableHostVerification: true,
+      useLocalKnownHostsDb: true,
+    },
   }
 };
+
+export function validateSshPacketSize(
+  packetSizeBytes: number,
+  policy: SshProtocolPolicy = DEFAULT_SECURITY_POLICY.sshProtocolPolicy!
+): { valid: boolean; reason?: string } {
+  if (policy.packetSizeLimit?.enableMaxPacketCheck) {
+    const max = policy.packetSizeLimit.maxPacketSizeBytes || 35000;
+    if (packetSizeBytes > max) {
+      return {
+        valid: false,
+        reason: `بسته SSH با اندازه ${packetSizeBytes} بایت بیشتر از حد آستانه مجاز (${max} بایت) بوده و کنار گذاشته شد (مطابق RFC 4253 و الزام ۳ رده ۳-۶ افتا).`
+      };
+    }
+  }
+  return { valid: true };
+}
+
+export function validateSshRekeyingTrigger(
+  durationMinutes: number,
+  transferredMb: number,
+  policy: SshProtocolPolicy = DEFAULT_SECURITY_POLICY.sshProtocolPolicy!
+): { mustRekey: boolean; reason?: string } {
+  if (policy.rekeyingPolicy?.enableRekeying) {
+    const maxTime = policy.rekeyingPolicy.maxDurationMinutes || 60;
+    const maxData = policy.rekeyingPolicy.maxDataTransferredMb || 1024;
+
+    if (durationMinutes >= maxTime || transferredMb >= maxData) {
+      return {
+        mustRekey: true,
+        reason: `رسیدن به حد آستانه نشست SSH (مدت زمان ${durationMinutes} دقیقه یا حجم داده ${transferredMb} مگابایت). کلیدهای نشست باید تجدید گردند (Rekeying - الزام ۸ رده ۳-۶ افتا).`
+      };
+    }
+  }
+  return { mustRekey: false };
+}
+
+export function validateSshHostVerification(
+  hostInfo: { hostname: string; hostKeyInLocalKnownHosts: boolean },
+  policy: SshProtocolPolicy = DEFAULT_SECURITY_POLICY.sshProtocolPolicy!
+): { valid: boolean; reason?: string } {
+  if (policy.hostVerificationPolicy?.enableHostVerification && policy.hostVerificationPolicy?.useLocalKnownHostsDb) {
+    if (!hostInfo.hostKeyInLocalKnownHosts) {
+      return {
+        valid: false,
+        reason: `احراز هویت سرور SSH برای میزبان ${hostInfo.hostname} در پایگاه داده محلی known_hosts ناموفق بود (مطابق RFC 4251 بخش 7.1 و الزام ۹ رده ۳-۶ افتا).`
+      };
+    }
+  }
+  return { valid: true };
+}
+
+export function validateCaCertificateAcceptance(
+  cert: { basicConstraintsPresent: boolean; isCA: boolean },
+  policy: CertificateValidationPolicy = DEFAULT_SECURITY_POLICY.certificateValidationPolicy!
+): { valid: boolean; reason?: string } {
+  if (policy.strictCaAcceptanceOnlyWithBasicConstraints) {
+    if (!cert.basicConstraintsPresent || !cert.isCA) {
+      return {
+        valid: false,
+        reason: "پذیرش گواهی‌نامه به عنوان CA رد گردید. محصول تنها در صورتی که افزونه مربوط به basicConstraints از پیش تنظیم شده باشد و همچنین، پرچم CA به حالت TRUE تنظیم شده باشد، یک گواهی‌نامه را به عنوان گواهی‌نامه CA می‌پذیرد (مطابق الزام ۲ رده ۳-۵ افتا)."
+      };
+    }
+  }
+  return { valid: true };
+}
+
+export function validateX509v3Rfc5280Scope(
+  scope: "HTTPS" | "TLS" | "SSH" | "CODE_SIGNING_UPDATES" | "CODE_SIGNING_INTEGRITY" | "OTHER",
+  policy: CertificateValidationPolicy = DEFAULT_SECURITY_POLICY.certificateValidationPolicy!
+): { valid: boolean; reason?: string } {
+  const scopes = policy.x509v3Rfc5280AuthenticationScopes;
+  if (scope === "HTTPS" && !scopes?.https) return { valid: false, reason: "پشتیبانی احراز هویت X509v3 RFC 5280 برای HTTPS غیرفعال است (الزام ۳ رده ۳-۵ افتا)." };
+  if (scope === "TLS" && !scopes?.tls) return { valid: false, reason: "پشتیبانی احراز هویت X509v3 RFC 5280 برای کارکردهای TLS غیرفعال است (الزام ۳ رده ۳-۵ افتا)." };
+  if (scope === "SSH" && !scopes?.ssh) return { valid: false, reason: "پشتیبانی احراز هویت X509v3 RFC 5280 برای SSH غیرفعال است (الزام ۳ رده ۳-۵ افتا)." };
+  if (scope === "CODE_SIGNING_UPDATES" && !scopes?.codeSigningSoftwareUpdates) return { valid: false, reason: "پشتیبانی از گواهی‌نامه امضای کد جهت بروزرسانی‌های نرم‌افزار غیرفعال است (الزام ۳ رده ۳-۵ افتا)." };
+  if (scope === "CODE_SIGNING_INTEGRITY" && !scopes?.codeSigningIntegrityVerification) return { valid: false, reason: "پشتیبانی از گواهی‌نامه امضای کد جهت تأیید یکپارچگی غیرفعال است (الزام ۳ رده ۳-۵ افتا)." };
+  if (scope === "OTHER" && !scopes?.otherUseCases) return { valid: false, reason: "پشتیبانی از سایر کارکردهای احراز هویت X509v3 غیرفعال است (الزام ۳ رده ۳-۵ افتا)." };
+
+  return { valid: true };
+}
+
+export function validateCertificatePathRules(
+  certPath: { length: number; endsWithTrustedCA: boolean; allCaHaveBasicConstraintsCaTrue: boolean },
+  policy: CertificateValidationPolicy = DEFAULT_SECURITY_POLICY.certificateValidationPolicy!
+): { valid: boolean; reason?: string } {
+  if (policy.pathValidationRules.rfc5280PathValidation && certPath.length < 2) {
+    return { valid: false, reason: "طول مسیر گواهی‌نامه به حداقل ۲ گواهی‌نامه نرسیده است (مطابق RFC 5280 و رده ۳-۵ افتا)." };
+  }
+  if (policy.pathValidationRules.endWithTrustedCA && !certPath.endsWithTrustedCA) {
+    return { valid: false, reason: "مسیر گواهی‌نامه به گواهی‌نامه CA امن و معتبر منتهی نگردیده است (مطابق رده ۳-۵ افتا)." };
+  }
+  if (policy.pathValidationRules.requireBasicConstraintsCaTrue && !certPath.allCaHaveBasicConstraintsCaTrue) {
+    return { valid: false, reason: "افزونه basicConstraints یا پرچم CA=TRUE برای تمام گواهی‌نامه‌های CA مسیر تنظیم نشده است (مطابق رده ۳-۵ افتا)." };
+  }
+  return { valid: true };
+}
+
+export function validateCertificateRevocationCheck(
+  method: "OCSP_RFC696" | "CRL_RFC5280_SEC63" | "CRL_RFC5759_SEC5" | "OTHER",
+  policy: CertificateValidationPolicy = DEFAULT_SECURITY_POLICY.certificateValidationPolicy!
+): { valid: boolean; reason?: string } {
+  if (method === "OCSP_RFC696" && policy.revocationCheckingMethods.ocspRfc696) return { valid: true };
+  if (method === "CRL_RFC5280_SEC63" && policy.revocationCheckingMethods.crlRfc5280Section63) return { valid: true };
+  if (method === "CRL_RFC5759_SEC5" && policy.revocationCheckingMethods.crlRfc5759Section5) return { valid: true };
+
+  if (policy.revocationCheckingMethods.disallowOtherRevocationMethods) {
+    return { valid: false, reason: "روش فسخ غیرمجاز است. صرفاً OCSP (RFC 696) و CRL (RFC 5280/RFC 5759) مجاز می‌باشند (مطابق رده ۳-۵ افتا)." };
+  }
+  return { valid: true };
+}
+
+export function validateExtendedKeyUsageOid(
+  usagePurpose: "CODE_SIGNING" | "SERVER_AUTH" | "CLIENT_AUTH" | "OCSP_SIGNING",
+  ekuOid: string,
+  policy: CertificateValidationPolicy = DEFAULT_SECURITY_POLICY.certificateValidationPolicy!
+): { valid: boolean; reason?: string } {
+  if (usagePurpose === "CODE_SIGNING") {
+    if (policy.extendedKeyUsageRules.codeSigningOid && ekuOid !== "1.3.6.1.5.5.7.3.3") {
+      return { valid: false, reason: "گواهی‌نامه بروزرسانی/کد باید دارای OID 1.3.6.1.5.5.7.3.3 (id-kp3 Code Signing) در بخش extendedKeyUsage باشد (مطابق رده ۳-۵ افتا)." };
+    }
+  }
+  if (usagePurpose === "SERVER_AUTH") {
+    if (policy.extendedKeyUsageRules.serverAuthOid && ekuOid !== "1.3.6.1.5.5.7.3.1") {
+      return { valid: false, reason: "گواهی‌نامه سرور TLS باید دارای OID 1.3.6.1.5.5.7.3.1 (id-kp1 Server Authentication) باشد (مطابق رده ۳-۵ افتا)." };
+    }
+  }
+  if (usagePurpose === "CLIENT_AUTH") {
+    if (policy.extendedKeyUsageRules.clientAuthOid && ekuOid !== "1.3.6.1.5.5.7.3.2") {
+      return { valid: false, reason: "گواهی‌نامه کلاینت TLS باید دارای OID 1.3.6.1.5.5.7.3.2 (id-kp2 Client Authentication) باشد (مطابق رده ۳-۵ افتا)." };
+    }
+  }
+  if (usagePurpose === "OCSP_SIGNING") {
+    if (policy.extendedKeyUsageRules.ocspSigningOid && ekuOid !== "1.3.6.1.5.5.7.3.9") {
+      return { valid: false, reason: "گواهی‌نامه پاسخ‌دهنده OCSP باید دارای OID 1.3.6.1.5.5.7.3.9 (id-kp9 OCSP Signing) باشد (مطابق رده ۳-۵ افتا)." };
+    }
+  }
+  return { valid: true };
+}
+
+export function validateMutualTlsIdentity(
+  certInfo: { subjectDN?: string; sanName?: string; expectedClientIdentifier?: string },
+  policy: MutualTlsPolicy = DEFAULT_SECURITY_POLICY.mutualTlsPolicy!
+): { valid: boolean; reason?: string } {
+  if (!policy.enableMutualAuthX509v3) {
+    return { valid: true };
+  }
+
+  if (policy.enforceSubjectIdentityMatching) {
+    const expected = certInfo.expectedClientIdentifier?.trim().toLowerCase();
+    const subject = certInfo.subjectDN?.trim().toLowerCase();
+    const san = certInfo.sanName?.trim().toLowerCase();
+
+    if (!expected || (!subject?.includes(expected) && !san?.includes(expected))) {
+      return {
+        valid: false,
+        reason: "عدم مطابقت نام متمایز (Subject DN) یا نام دیگر فاعل در گواهی‌نامه X509v3 با شناساننده کلاینت مورد انتظار. کانال امن برقرار نگردید (مطابق الزام ۲ رده ۳-۴ افتا)."
+      };
+    }
+  }
+
+  return { valid: true };
+}
+
+export function validateTlsServerProtocolRequest(
+  requestProtocol: string,
+  policy: TlsServerPolicy = DEFAULT_SECURITY_POLICY.tlsServerPolicy!
+): { allowed: boolean; reason?: string } {
+  const normProto = requestProtocol.trim().toUpperCase();
+  if (normProto === "SSL1.0" || normProto === "SSL 1.0" || normProto === "SSLV1") {
+    if (policy.rejectLegacyProtocols?.ssl10) return { allowed: false, reason: "ارتباط بر پایه SSL 1.0 طبق الزام شماره ۲ افتا (پروتکل TLS Server) مسدود و رد گردید." };
+  }
+  if (normProto === "SSL2.0" || normProto === "SSL 2.0" || normProto === "SSLV2") {
+    if (policy.rejectLegacyProtocols?.ssl20) return { allowed: false, reason: "ارتباط بر پایه SSL 2.0 طبق الزام شماره ۲ افتا (پروتکل TLS Server) مسدود و رد گردید." };
+  }
+  if (normProto === "SSL3.0" || normProto === "SSL 3.0" || normProto === "SSLV3") {
+    if (policy.rejectLegacyProtocols?.ssl30) return { allowed: false, reason: "ارتباط بر پایه SSL 3.0 طبق الزام شماره ۲ افتا (پروتکل TLS Server) مسدود و رد گردید." };
+  }
+  if (normProto === "TLS1.0" || normProto === "TLS 1.0" || normProto === "TLSV1.0") {
+    if (policy.rejectLegacyProtocols?.tls10) return { allowed: false, reason: "ارتباط بر پایه TLS 1.0 طبق الزام شماره ۲ افتا (پروتکل TLS Server) مسدود و رد گردید." };
+  }
+  if (normProto === "TLS1.1" || normProto === "TLS 1.1" || normProto === "TLSV1.1") {
+    if (policy.rejectLegacyProtocols?.tls11) return { allowed: false, reason: "ارتباط بر پایه TLS 1.1 طبق الزام شماره ۲ افتا (پروتکل TLS Server) مسدود و رد گردید." };
+  }
+  return { allowed: true };
+}
+
+export function validateTlsServerKeyExchangeParameters(
+  params: { keyType: "RSA" | "ECDH" | "ECDHE" | "DH"; keySizeBits?: number; curveName?: string },
+  policy: TlsServerPolicy = DEFAULT_SECURITY_POLICY.tlsServerPolicy!
+): { valid: boolean; reason?: string } {
+  if (params.keyType === "RSA") {
+    const size = params.keySizeBits;
+    if (size !== 2048 && size !== 3072 && size !== 4096) {
+      return { valid: false, reason: `اندازه کلید RSA (${size} بیت) معتبر نیست. اندازه کلید RSA باید ۲۰۴۸، ۳۰۷۲ یا ۴۰۹۶ بیت باشد (مطابق الزام ۳ افتا).` };
+    }
+  }
+
+  if (params.keyType === "ECDH" || params.keyType === "ECDHE") {
+    const curve = params.curveName;
+    const allowedCurves = ["secp256r1", "secp384r1", "secp521r1"];
+    if (!curve || !allowedCurves.includes(curve)) {
+      return { valid: false, reason: `منحنی بیضوی (${curve}) مجاز نمی‌باشد. پارامترهای ECDH(E) باید صرفاً از NIST Curves شامل secp256r1، secp384r1 یا secp521r1 باشند (مطابق الزام ۳ افتا).` };
+    }
+  }
+
+  if (params.keyType === "DH") {
+    const size = params.keySizeBits;
+    if (size !== 2048 && size !== 3072) {
+      return { valid: false, reason: `اندازه کلید دیفی-هلمن DH (${size} بیت) معتبر نیست. پارامترهای DH باید ۲۰۴۸ یا ۳۰۷۲ بیت باشند (مطابق الزام ۳ افتا).` };
+    }
+  }
+
+  return { valid: true };
+}
 
 export function validateTargetedDataEgressRules(
   context: { hasTargetDestination?: boolean; destinationAuthorized?: boolean; isBulkWithoutApproval?: boolean },
