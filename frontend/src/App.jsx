@@ -8,6 +8,7 @@ import { TabProvider } from "./context/TabContext";
 import TabBar from "./components/layout/TabBar";
 import PrivateRoute from "./components/PrivateRoute";
 import Sidebar from "./components/Sidebar";
+import LoginSecurityNoticeModal from "./components/LoginSecurityNoticeModal";
 import Login from "./pages/Login";
 import Placeholder from "./pages/Placeholder";
 import Dashboard from "./pages/Dashboard";
@@ -94,6 +95,7 @@ function Layout() {
       <InventoryProvider>
         <TabProvider>
           <div className="flex h-screen overflow-hidden bg-background selection:bg-accent/20 selection:text-primary">
+            <LoginSecurityNoticeModal />
             <Sidebar />
             <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
               <TabBar />

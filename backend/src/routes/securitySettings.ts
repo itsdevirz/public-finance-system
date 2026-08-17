@@ -76,6 +76,13 @@ router.put("/policy", requireRole(["admin"]), async (c) => {
       trustedTimestampPolicy: body.trustedTimestampPolicy || existingVal.trustedTimestampPolicy || DEFAULT_SECURITY_POLICY.trustedTimestampPolicy,
       productSoftwareUpdatePolicy: body.productSoftwareUpdatePolicy || existingVal.productSoftwareUpdatePolicy || DEFAULT_SECURITY_POLICY.productSoftwareUpdatePolicy,
       coreFunctionsSoftwareFaultTolerancePolicy: body.coreFunctionsSoftwareFaultTolerancePolicy || existingVal.coreFunctionsSoftwareFaultTolerancePolicy || DEFAULT_SECURITY_POLICY.coreFunctionsSoftwareFaultTolerancePolicy,
+      lastSuccessfulSessionNoticePolicy: body.lastSuccessfulSessionNoticePolicy || existingVal.lastSuccessfulSessionNoticePolicy || DEFAULT_SECURITY_POLICY.lastSuccessfulSessionNoticePolicy,
+      lastFailedSessionNoticePolicy: body.lastFailedSessionNoticePolicy || existingVal.lastFailedSessionNoticePolicy || DEFAULT_SECURITY_POLICY.lastFailedSessionNoticePolicy,
+      preserveAccessRecordsPolicy: body.preserveAccessRecordsPolicy || existingVal.preserveAccessRecordsPolicy || DEFAULT_SECURITY_POLICY.preserveAccessRecordsPolicy,
+      sessionEstablishmentPreventionPolicy: body.sessionEstablishmentPreventionPolicy || existingVal.sessionEstablishmentPreventionPolicy || DEFAULT_SECURITY_POLICY.sessionEstablishmentPreventionPolicy,
+      trustedChannelPolicy: body.trustedChannelPolicy || existingVal.trustedChannelPolicy || DEFAULT_SECURITY_POLICY.trustedChannelPolicy,
+      httpsProtocolPolicy: body.httpsProtocolPolicy || existingVal.httpsProtocolPolicy || DEFAULT_SECURITY_POLICY.httpsProtocolPolicy,
+      tlsClientPolicy: body.tlsClientPolicy || existingVal.tlsClientPolicy || DEFAULT_SECURITY_POLICY.tlsClientPolicy,
     };
 
     await db.collection("system_settings").updateOne(

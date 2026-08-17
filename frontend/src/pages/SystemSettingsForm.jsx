@@ -11,7 +11,7 @@ import {
   FileText, Printer, Lock, Sliders, Bell, Database, Download, Upload,
   Calendar, Clock, Trash2, FileCheck, HelpCircle, HardDrive, Check,
   FolderArchive, Sparkles, ArrowDownToLine, ArrowUpFromLine, Laptop, Activity, LogOut,
-  User, UserCheck, KeyRound, Shield, ShieldAlert, ChevronDown, ChevronUp
+  User, UserCheck, KeyRound, Shield, ShieldAlert, ChevronDown, ChevronUp, Globe, AlertOctagon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import api from "@/api";
@@ -319,6 +319,97 @@ const INITIAL_SETTINGS = {
     auditLogFaultEvents: true, // ثبت دقیق رویدادهای خرابی و ناهنجاری نرم‌افزاری در لاگ حسابرسی افتا
   },
 
+  // ۳۱. بند ۴ افتا: الزام نمایش آخرین تلاش موفق برای ایجاد نشست (بر اساس روز، زمان و سایر موارد)
+  lastSuccessfulSessionNoticePolicy: {
+    enable: true,
+    displayDate: true,
+    displayTime: true,
+    displayOtherInfo: true,
+  },
+
+  // ۳۲. بند ۵ افتا: الزام نمایش آخرین تلاش ناموفق برای ایجاد نشست و تعداد تلاش‌های ناموفق تا این نشست
+  lastFailedSessionNoticePolicy: {
+    enable: true,
+    displayDate: true,
+    displayTime: true,
+    displayOtherInfo: true,
+    displayFailedAttemptsCount: true,
+  },
+
+  // ۳۳. الزام عدم پاک‌سازی اطلاعات سوابق دسترسی از واسط کاربر بدون بازدید کاربر
+  preserveAccessRecordsPolicy: {
+    preventAutoClearWithoutUserView: true,
+    requireExplicitUserDismissal: true,
+  },
+
+  // ۳۴. الزام افتا: توانایی ممانعت از ایجاد نشست بر اساس پارامترهایی از قبیل مکان، شماره پورت، روز، زمان و سایر موارد
+  sessionEstablishmentPreventionPolicy: {
+    enable: true,
+    preventByLocation: true,
+    preventByPort: true,
+    preventByDay: true,
+    preventByTime: true,
+    preventByOtherParams: true,
+  },
+
+  // ۳۵-۳۷. الزامات کانال‌ها/مسیرهای مورد اعتماد (افتا)
+  trustedChannelPolicy: {
+    enable: true,
+    protocols: {
+      https: true,
+      tls: true,
+      ssh: true
+    },
+    allowRemoteConnectionOnlyViaSecureChannel: true,
+    requireSecureChannelForInitialAuth: true
+  },
+
+  // ۳۸-۴۰. الزامات امنیتی پروتکل HTTPS (افتا - رده ۳-۱)
+  httpsProtocolPolicy: {
+    enable: true,
+    rfc2818Compliance: true,
+    requireTlsForHttps: true,
+    invalidCertificateHandling: "disconnect",
+  },
+
+  // ۴۱-۴۴. الزامات امنیتی پروتکل TLS Client (افتا - رده ۳-۲)
+  tlsClientPolicy: {
+    enable: true,
+    enforceTls12Only: true,
+    rfc6125IdentityValidation: true,
+    serverCertificateValidation: {
+      requireValidCertificate: true,
+      invalidCertAction: "disconnect",
+      otherActionText: "",
+    },
+    clientHelloEllipticCurves: {
+      mode: "nistCurves",
+      curves: {
+        secp256r1: true,
+        secp384r1: true,
+        secp521r1: true,
+      },
+    },
+    cipherSuites: {
+      tls_aes_256_gcm_sha384: true,
+      tls_aes_128_gcm_sha256: true,
+      tls_dhe_rsa_with_aes_256_gcm_sha384: true,
+      tls_dhe_rsa_with_aes_128_gcm_sha256: true,
+      tls_ecdhe_rsa_with_aes_128_gcm_sha256: true,
+      tls_ecdhe_rsa_with_aes_256_gcm_sha384: true,
+      tls_ecdhe_ecdsa_with_aes_256_gcm_sha384: true,
+      tls_ecdhe_ecdsa_with_aes_128_gcm_sha256: true,
+      tls_rsa_with_aes_256_gcm_sha384: true,
+      tls_rsa_with_aes_128_gcm_sha256: true,
+      tls_ecdh_ecdsa_with_aes_256_gcm_sha384: true,
+      tls_ecdh_ecdsa_with_aes_128_gcm_sha256: true,
+      tls_ecdh_rsa_with_aes_256_gcm_sha384: true,
+      tls_ecdh_rsa_with_aes_128_gcm_sha256: true,
+      tls_dh_rsa_with_aes_256_gcm_sha384: true,
+      tls_dh_rsa_with_aes_128_gcm_sha256: true,
+    },
+  },
+
   lastUpdated: null,
 };
 
@@ -590,6 +681,13 @@ export default function SystemSettingsForm() {
           trustedTimestampPolicy: p.trustedTimestampPolicy || prev.trustedTimestampPolicy,
           productSoftwareUpdatePolicy: p.productSoftwareUpdatePolicy || prev.productSoftwareUpdatePolicy,
           coreFunctionsSoftwareFaultTolerancePolicy: p.coreFunctionsSoftwareFaultTolerancePolicy || prev.coreFunctionsSoftwareFaultTolerancePolicy,
+          lastSuccessfulSessionNoticePolicy: p.lastSuccessfulSessionNoticePolicy || prev.lastSuccessfulSessionNoticePolicy,
+          lastFailedSessionNoticePolicy: p.lastFailedSessionNoticePolicy || prev.lastFailedSessionNoticePolicy,
+          preserveAccessRecordsPolicy: p.preserveAccessRecordsPolicy || prev.preserveAccessRecordsPolicy,
+          sessionEstablishmentPreventionPolicy: p.sessionEstablishmentPreventionPolicy || prev.sessionEstablishmentPreventionPolicy,
+          trustedChannelPolicy: p.trustedChannelPolicy || prev.trustedChannelPolicy,
+          httpsProtocolPolicy: p.httpsProtocolPolicy || prev.httpsProtocolPolicy,
+          tlsClientPolicy: p.tlsClientPolicy || prev.tlsClientPolicy,
         }));
 
         if (Array.isArray(p.entityAccessPolicies) && p.entityAccessPolicies.length > 0) {
@@ -670,6 +768,13 @@ export default function SystemSettingsForm() {
       trustedTimestampPolicy: s.trustedTimestampPolicy,
       productSoftwareUpdatePolicy: s.productSoftwareUpdatePolicy,
       coreFunctionsSoftwareFaultTolerancePolicy: s.coreFunctionsSoftwareFaultTolerancePolicy,
+      lastSuccessfulSessionNoticePolicy: s.lastSuccessfulSessionNoticePolicy,
+      lastFailedSessionNoticePolicy: s.lastFailedSessionNoticePolicy,
+      preserveAccessRecordsPolicy: s.preserveAccessRecordsPolicy,
+      sessionEstablishmentPreventionPolicy: s.sessionEstablishmentPreventionPolicy,
+      trustedChannelPolicy: s.trustedChannelPolicy,
+      httpsProtocolPolicy: s.httpsProtocolPolicy,
+      tlsClientPolicy: s.tlsClientPolicy,
     };
     await api.put("/api/security/policy", payload);
   };
@@ -4159,6 +4264,1203 @@ export default function SystemSettingsForm() {
                             </span>
                           </div>
                         </label>
+                      </div>
+                    </div>
+                  </AftaAccordionCard>
+
+                  {/* ۳۱. 🌟 نمایش آخرین تلاش موفق برای ایجاد نشست */}
+                  <AftaAccordionCard
+                    id="afta_last_successful_session_notice"
+                    number="الزام افتا"
+                    title="نمایش آخرین تلاش موفق برای ایجاد نشست"
+                    description="در صورت برقراری نشست به طور موفقیت‌آمیز، محصول باید قادر به نمایش آخرین تلاش موفق برای ایجاد نشست بر اساس موارد زیر باشد"
+                    isOpen={!!openAftaSections["afta_last_successful_session_notice"]}
+                    onToggle={toggleAftaSection}
+                    icon={CheckCircle2}
+                  >
+                    <div className="space-y-4">
+                      <div className="bg-emerald-50 dark:bg-emerald-950/30 p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-900/50">
+                        <span className="text-xs font-bold text-emerald-900 dark:text-emerald-200 block">
+                          در صورت برقراری نشست به طور موفقیت‌آمیز، محصول باید قادر به نمایش آخرین تلاش موفق برای ایجاد نشست بر اساس موارد زیر باشد.
+                        </span>
+                      </div>
+
+                      <div className="space-y-3">
+                        <h4 className="text-xs font-black text-emerald-900 dark:text-emerald-300 border-b pb-2">
+                          پارامترها و موارد نمایشی آخرین تلاش موفق برای ایجاد نشست:
+                        </h4>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={settings.lastSuccessfulSessionNoticePolicy?.displayDate ?? true}
+                              onChange={e => {
+                                set("lastSuccessfulSessionNoticePolicy", {
+                                  ...settings.lastSuccessfulSessionNoticePolicy,
+                                  displayDate: e.target.checked
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-emerald-600 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                ۱. روز (تاریخ ورود موفق قبلی)
+                              </span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                                نمایش تاریخ دقیق (روز/ماه/سال) آخرین نشست موفق ایجادشده.
+                              </span>
+                            </div>
+                          </label>
+
+                          <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={settings.lastSuccessfulSessionNoticePolicy?.displayTime ?? true}
+                              onChange={e => {
+                                set("lastSuccessfulSessionNoticePolicy", {
+                                  ...settings.lastSuccessfulSessionNoticePolicy,
+                                  displayTime: e.target.checked
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-emerald-600 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                ۲. زمان (ساعت ورود موفق قبلی)
+                              </span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                                نمایش زمان دقیق (ساعت:دقیقه:ثانیه) آخرین نشست موفق.
+                              </span>
+                            </div>
+                          </label>
+
+                          <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={settings.lastSuccessfulSessionNoticePolicy?.displayOtherInfo ?? true}
+                              onChange={e => {
+                                set("lastSuccessfulSessionNoticePolicy", {
+                                  ...settings.lastSuccessfulSessionNoticePolicy,
+                                  displayOtherInfo: e.target.checked
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-emerald-600 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                ۳. سایر موارد (IP و مشخصات دستگاه)
+                              </span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                                نمایش آدرس IP، سیستم‌عامل و مرورگر کلاینت در ورود موفق قبلی.
+                              </span>
+                            </div>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </AftaAccordionCard>
+
+                  {/* ۳۲. 🌟 نمایش آخرین تلاش ناموفق و تعداد تلاش‌های ناموفق تا این نشست */}
+                  <AftaAccordionCard
+                    id="afta_last_failed_session_notice"
+                    number="الزام افتا"
+                    title="نمایش آخرین تلاش ناموفق برای ایجاد نشست و تعداد تلاش‌های ناموفق"
+                    description="در صورت برقراری نشست به طور موفقیت‌آمیز، محصول باید قادر به نمایش آخرین تلاش ناموفق و تعداد تلاش‌های ناموفق تا این نشست باشد"
+                    isOpen={!!openAftaSections["afta_last_failed_session_notice"]}
+                    onToggle={toggleAftaSection}
+                    icon={AlertTriangle}
+                  >
+                    <div className="space-y-4">
+                      <div className="bg-amber-50 dark:bg-amber-950/30 p-3.5 rounded-xl border border-amber-200 dark:border-amber-900/50">
+                        <span className="text-xs font-bold text-amber-900 dark:text-amber-200 block">
+                          در صورت برقراری نشست به طور موفقیت‌آمیز، محصول باید قادر به نمایش آخرین تلاش ناموفق برای ایجاد نشست بر اساس موارد زیر و تعداد تلاش‌های ناموفق تا آخرین نشست موفقیت‌آمیز باشد.
+                        </span>
+                      </div>
+
+                      <div className="space-y-3">
+                        <h4 className="text-xs font-black text-amber-900 dark:text-amber-300 border-b pb-2">
+                          پارامترها و موارد نمایشی آخرین تلاش ناموفق و شمارش خطاها:
+                        </h4>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={settings.lastFailedSessionNoticePolicy?.displayDate ?? true}
+                              onChange={e => {
+                                set("lastFailedSessionNoticePolicy", {
+                                  ...settings.lastFailedSessionNoticePolicy,
+                                  displayDate: e.target.checked
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-amber-600 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                ۱. روز (تاریخ آخرین تلاش ناموفق)
+                              </span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                                نمایش تاریخ روز آخرین تلاش ناموفق ثبت‌شده برای ورود.
+                              </span>
+                            </div>
+                          </label>
+
+                          <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={settings.lastFailedSessionNoticePolicy?.displayTime ?? true}
+                              onChange={e => {
+                                set("lastFailedSessionNoticePolicy", {
+                                  ...settings.lastFailedSessionNoticePolicy,
+                                  displayTime: e.target.checked
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-amber-600 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                ۲. زمان (ساعت آخرین تلاش ناموفق)
+                              </span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                                نمایش زمان دقیق (ساعت:دقیقه:ثانیه) آخرین تلاش ناموفق.
+                              </span>
+                            </div>
+                          </label>
+
+                          <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={settings.lastFailedSessionNoticePolicy?.displayOtherInfo ?? true}
+                              onChange={e => {
+                                set("lastFailedSessionNoticePolicy", {
+                                  ...settings.lastFailedSessionNoticePolicy,
+                                  displayOtherInfo: e.target.checked
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-amber-600 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                ۳. سایر موارد (آدرس IP و علت خطای ورود)
+                              </span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                                نمایش IP مبدأ، سیستم‌عامل و دلیل عدم موفقیت تلاش قبلی.
+                              </span>
+                            </div>
+                          </label>
+
+                          <label className="p-3.5 rounded-xl border border-amber-300 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20 flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={settings.lastFailedSessionNoticePolicy?.displayFailedAttemptsCount ?? true}
+                              onChange={e => {
+                                set("lastFailedSessionNoticePolicy", {
+                                  ...settings.lastFailedSessionNoticePolicy,
+                                  displayFailedAttemptsCount: e.target.checked
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-amber-400 text-amber-600 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-black text-amber-900 dark:text-amber-200 block">
+                                ۴. نمایش تعداد تلاش‌های ناموفق تا آخرین نشست موفقیت‌آمیز
+                              </span>
+                              <span className="text-[11px] text-amber-800 dark:text-amber-300 block mt-0.5 leading-relaxed">
+                                استخراج و نمایش شمارش دقیق تعداد دفعات تلاش ناموفق صورت‌گرفته تا قبل از این ورود موفق.
+                              </span>
+                            </div>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </AftaAccordionCard>
+
+                  {/* ۳۳. 🌟 عدم پاک‌سازی سوابق دسترسی از واسط کاربر بدون بازدید کاربر */}
+                  <AftaAccordionCard
+                    id="afta_preserve_access_records"
+                    number="الزام افتا"
+                    title="عدم پاک‌سازی اطلاعات سوابق دسترسی از واسط کاربر بدون بازدید کاربر"
+                    description="محصول نباید اطلاعات سوابق دسترسی را بدون بازدید کاربر، از واسط کاربر پاک نماید"
+                    isOpen={!!openAftaSections["afta_preserve_access_records"]}
+                    onToggle={toggleAftaSection}
+                    icon={Lock}
+                  >
+                    <div className="space-y-4">
+                      <div className="bg-blue-50 dark:bg-blue-950/30 p-3.5 rounded-xl border border-blue-200 dark:border-blue-900/50">
+                        <span className="text-xs font-bold text-blue-900 dark:text-blue-200 block">
+                          محصول نباید اطلاعات سوابق دسترسی را بدون بازدید کاربر، از واسط کاربر پاک نماید.
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={settings.preserveAccessRecordsPolicy?.preventAutoClearWithoutUserView ?? true}
+                            onChange={e => {
+                              set("preserveAccessRecordsPolicy", {
+                                ...settings.preserveAccessRecordsPolicy,
+                                preventAutoClearWithoutUserView: e.target.checked
+                              });
+                            }}
+                            className="h-4 w-4 rounded border-slate-300 text-blue-600 mt-0.5"
+                          />
+                          <div>
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                              ۱. ممانعت از پاک‌سازی خودکار سوابق دسترسی در UI بدون بازدید کاربر
+                            </span>
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                              جلوگیری از انقضای تایمری یا حذف پیش‌فرض اعلانات و سوابق دسترسی قبل از نمایش به کاربر.
+                            </span>
+                          </div>
+                        </label>
+
+                        <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={settings.preserveAccessRecordsPolicy?.requireExplicitUserDismissal ?? true}
+                            onChange={e => {
+                              set("preserveAccessRecordsPolicy", {
+                                ...settings.preserveAccessRecordsPolicy,
+                                requireExplicitUserDismissal: e.target.checked
+                              });
+                            }}
+                            className="h-4 w-4 rounded border-slate-300 text-blue-600 mt-0.5"
+                          />
+                          <div>
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                              ۲. الزام تایید و بسته شدن صریح توسط کاربر (Explicit Dismissal)
+                            </span>
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                              باقی ماندن پنجره و گزارش سوابق دسترسی تا زمانی که کاربر صراحتاً دکمه «مشاهده شد و تأیید» را فشارد دهد.
+                            </span>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+                  </AftaAccordionCard>
+
+                  {/* ۳۴. 🌟 ممانعت از ایجاد نشست بر اساس پارامترهایی از قبیل مکان، پورت، روز و زمان */}
+                  <AftaAccordionCard
+                    id="afta_session_establishment_prevention"
+                    number="الزام افتا"
+                    title="ممانعت از ایجاد نشست بر اساس پارامترهای مشخص"
+                    description="محصول باید توانایی ممانعت از ایجاد نشست بر اساس پارامترهایی (مکان، شماره پورت، روز، زمان و سایر موارد) را داشته باشد"
+                    isOpen={!!openAftaSections["afta_session_establishment_prevention"]}
+                    onToggle={toggleAftaSection}
+                    icon={ShieldAlert}
+                  >
+                    <div className="space-y-4">
+                      <div className="bg-rose-50 dark:bg-rose-950/30 p-3.5 rounded-xl border border-rose-200 dark:border-rose-900/50">
+                        <span className="text-xs font-bold text-rose-900 dark:text-rose-200 block">
+                          محصول باید توانایی ممانعت از ایجاد نشست بر اساس پارامترهایی را داشته باشد.
+                        </span>
+                      </div>
+
+                      <div className="space-y-3">
+                        <h4 className="text-xs font-black text-rose-900 dark:text-rose-300 border-b pb-2">
+                          پارامترهای موجود برای جلوگیری از نشست:
+                        </h4>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                          <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={settings.sessionEstablishmentPreventionPolicy?.preventByLocation ?? true}
+                              onChange={e => {
+                                set("sessionEstablishmentPreventionPolicy", {
+                                  ...settings.sessionEstablishmentPreventionPolicy,
+                                  preventByLocation: e.target.checked
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-rose-600 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                ۱. مکان (Location / Geo-IP)
+                              </span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                                ممانعت از ایجاد نشست بر اساس موقعیت مکانی، محدوده جغرافیایی و آدرس شبکه کلاینت.
+                              </span>
+                            </div>
+                          </label>
+
+                          <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={settings.sessionEstablishmentPreventionPolicy?.preventByPort ?? true}
+                              onChange={e => {
+                                set("sessionEstablishmentPreventionPolicy", {
+                                  ...settings.sessionEstablishmentPreventionPolicy,
+                                  preventByPort: e.target.checked
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-rose-600 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                ۲. شماره پورت (Port Number)
+                              </span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                                جلوگیری از برقراری نشست در صورت استفاده از پورت‌های غیرمجاز یا ناامن شبکه.
+                              </span>
+                            </div>
+                          </label>
+
+                          <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={settings.sessionEstablishmentPreventionPolicy?.preventByDay ?? true}
+                              onChange={e => {
+                                set("sessionEstablishmentPreventionPolicy", {
+                                  ...settings.sessionEstablishmentPreventionPolicy,
+                                  preventByDay: e.target.checked
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-rose-600 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                ۳. روز (Days of Week)
+                              </span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                                ممانعت از ایجاد نشست در روزهای غیرمجاز هفته یا ایام تعطیلات رسمی.
+                              </span>
+                            </div>
+                          </label>
+
+                          <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={settings.sessionEstablishmentPreventionPolicy?.preventByTime ?? true}
+                              onChange={e => {
+                                set("sessionEstablishmentPreventionPolicy", {
+                                  ...settings.sessionEstablishmentPreventionPolicy,
+                                  preventByTime: e.target.checked
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-rose-600 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                ۴. زمان (Allowed Time Windows)
+                              </span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                                ممانعت از ورود در ساعات غیرمجاز شبانه‌روز (خارج از ساعات اداری تعیین‌شده).
+                              </span>
+                            </div>
+                          </label>
+
+                          <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer lg:col-span-2">
+                            <input
+                              type="checkbox"
+                              checked={settings.sessionEstablishmentPreventionPolicy?.preventByOtherParams ?? true}
+                              onChange={e => {
+                                set("sessionEstablishmentPreventionPolicy", {
+                                  ...settings.sessionEstablishmentPreventionPolicy,
+                                  preventByOtherParams: e.target.checked
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-rose-600 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                ۵. سایر موارد (IP، سقف نشست‌های همزمان و ناهنجاری‌های امنیتی)
+                              </span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                                ممانعت بر اساس عبور از سقف مجاز نشست‌ها، تعلیق حساب، ناهنجاری IP و تغییر غیرمعمول کلاینت.
+                              </span>
+                            </div>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </AftaAccordionCard>
+
+                  {/* ۳۵. 🌟 فراهم‌سازی مسیر ارتباطی امن و متمایز منطقی (پروتکل‌های مورد اعتماد) */}
+                  <AftaAccordionCard
+                    id="afta_trusted_channel_protocols"
+                    number="الزام افتا"
+                    title="فراهم‌سازی مسیر ارتباطی امن و متمایز منطقی"
+                    description="محصول باید قادر باشد مسیر ارتباطی امنی بین خود، کاربران و دیگر محصولات IT فراهم نماید تا از تغییر و افشای داده تبادلی حفاظت نماید"
+                    isOpen={!!openAftaSections["afta_trusted_channel_protocols"]}
+                    onToggle={toggleAftaSection}
+                    icon={ShieldCheck}
+                  >
+                    <div className="space-y-4">
+                      <div className="bg-indigo-50 dark:bg-indigo-950/30 p-3.5 rounded-xl border border-indigo-200 dark:border-indigo-900/50">
+                        <span className="text-xs font-bold text-indigo-900 dark:text-indigo-200 block">
+                          محصول باید قادر باشد مسیر ارتباطی امنی بین خود، کاربران و دیگر محصولات IT فراهم نماید که به طور منطقی از دیگر کانال‌ها متمایز باشد. سپس از طریق این کانال احراز هویت را انجام دهد و از تغییر و افشای داده تبادلی حفاظت نماید و تغییرات را تشخیص دهد.
+                        </span>
+                      </div>
+
+                      <div className="space-y-3">
+                        <h4 className="text-xs font-black text-indigo-900 dark:text-indigo-300 border-b pb-2">
+                          پروتوکل‌های مورد استفاده برای ایجاد کانال امن:
+                        </h4>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={settings.trustedChannelPolicy?.protocols?.https ?? true}
+                              onChange={e => {
+                                set("trustedChannelPolicy", {
+                                  ...settings.trustedChannelPolicy,
+                                  protocols: {
+                                    ...settings.trustedChannelPolicy?.protocols,
+                                    https: e.target.checked
+                                  }
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-indigo-600 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                ۱. HTTPS (پروتکل انتقال امن ابرمتن)
+                              </span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                                استفاده از HTTPS برای ارتباطات واسط کاربری و سرویس‌های وب.
+                              </span>
+                            </div>
+                          </label>
+
+                          <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={settings.trustedChannelPolicy?.protocols?.tls ?? true}
+                              onChange={e => {
+                                set("trustedChannelPolicy", {
+                                  ...settings.trustedChannelPolicy,
+                                  protocols: {
+                                    ...settings.trustedChannelPolicy?.protocols,
+                                    tls: e.target.checked
+                                  }
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-indigo-600 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                ۲. TLS (پروتکل امنیت لایه انتقال)
+                              </span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                                برقراری رمزنگاری لایه انتقال در تبادلات داده بین اجزا و موجودیت‌های IT.
+                              </span>
+                            </div>
+                          </label>
+
+                          <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={settings.trustedChannelPolicy?.protocols?.ssh ?? true}
+                              onChange={e => {
+                                set("trustedChannelPolicy", {
+                                  ...settings.trustedChannelPolicy,
+                                  protocols: {
+                                    ...settings.trustedChannelPolicy?.protocols,
+                                    ssh: e.target.checked
+                                  }
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-indigo-600 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                ۳. SSH (پروتوکل پوسته امن)
+                              </span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                                استفاده از SSH برای دسترسی‌های مدیریتی، سروری و انتقال امن فرمان‌ها.
+                              </span>
+                            </div>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </AftaAccordionCard>
+
+                  {/* ۳۶. 🌟 مجوز آغاز ارتباطات راه‌دور صرفاً از طریق کانال امن */}
+                  <AftaAccordionCard
+                    id="afta_remote_connection_secure_channel"
+                    number="الزام افتا"
+                    title="مجوز آغاز ارتباطات راه‌دور صرفاً از طریق کانال امن"
+                    description="محصول باید به کاربر یا دیگر محصولات IT معتبر اجازه دهد که ارتباطات راه‌دور را از طریق کانال امن آغاز کنند"
+                    isOpen={!!openAftaSections["afta_remote_connection_secure_channel"]}
+                    onToggle={toggleAftaSection}
+                    icon={Lock}
+                  >
+                    <div className="space-y-4">
+                      <div className="bg-cyan-50 dark:bg-cyan-950/30 p-3.5 rounded-xl border border-cyan-200 dark:border-cyan-900/50">
+                        <span className="text-xs font-bold text-cyan-900 dark:text-cyan-200 block">
+                          محصول باید به کاربر/دیگر محصول IT معتبر اجازه دهد که ارتباطات راه‌دور را از طریق کانال امن آغاز کنند.
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-3">
+                        <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={settings.trustedChannelPolicy?.allowRemoteConnectionOnlyViaSecureChannel ?? true}
+                            onChange={e => {
+                              set("trustedChannelPolicy", {
+                                ...settings.trustedChannelPolicy,
+                                allowRemoteConnectionOnlyViaSecureChannel: e.target.checked
+                              });
+                            }}
+                            className="h-4 w-4 rounded border-slate-300 text-cyan-600 mt-0.5"
+                          />
+                          <div>
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                              ۱. برقراری و آغاز کلیه ارتباطات راه‌دور کلاینت‌ها و محصولات IT متصل فقط از طریق کانال امن
+                            </span>
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                              ممانعت از ایجاد ارتباطات راه‌دور غیرایمن یا ناامن (پروتوکل‌های بدون رمزنگاری).
+                            </span>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+                  </AftaAccordionCard>
+
+                  {/* ۳۷. 🌟 الزام استفاده از کانال امن برای احراز هویت اولیه کاربر */}
+                  <AftaAccordionCard
+                    id="afta_initial_auth_secure_channel"
+                    number="الزام افتا"
+                    title="الزام استفاده از کانال امن برای احراز هویت اولیه کاربر"
+                    description="محصول باید استفاده از کانال امن را برای احراز هویت اولیه کاربر الزامی نماید"
+                    isOpen={!!openAftaSections["afta_initial_auth_secure_channel"]}
+                    onToggle={toggleAftaSection}
+                    icon={ShieldCheck}
+                  >
+                    <div className="space-y-4">
+                      <div className="bg-violet-50 dark:bg-violet-950/30 p-3.5 rounded-xl border border-violet-200 dark:border-violet-900/50">
+                        <span className="text-xs font-bold text-violet-900 dark:text-violet-200 block">
+                          محصول باید استفاده از کانال امن را برای احراز هویت اولیه کاربر الزامی نماید.
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-3">
+                        <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={settings.trustedChannelPolicy?.requireSecureChannelForInitialAuth ?? true}
+                            onChange={e => {
+                              set("trustedChannelPolicy", {
+                                ...settings.trustedChannelPolicy,
+                                requireSecureChannelForInitialAuth: e.target.checked
+                              });
+                            }}
+                            className="h-4 w-4 rounded border-slate-300 text-violet-600 mt-0.5"
+                          />
+                          <div>
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                              ۱. اجباری نمودن گذر از کانال ارتباطی رمزنگاری‌شده در زمان احراز هویت اولیه و ارسال اعتبارنامه‌ها
+                            </span>
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                              مسدودسازی هرگونه ارسال نام‌کاربری و رمز عبور در پروتکل‌های متنی غیررمزنگاری‌شده.
+                            </span>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+                  </AftaAccordionCard>
+
+                  {/* ۳۸. 🌟 اجرای پروتکل HTTPS مطابق با RFC 2818 */}
+                  <AftaAccordionCard
+                    id="afta_https_rfc2818"
+                    number="الزام افتا"
+                    title="اجرای پروتکل HTTPS مطابق با RFC 2818"
+                    description="محصول باید پروتکل HTTPS را مطابق با استاندارد RFC 2818 اجرا کند"
+                    isOpen={!!openAftaSections["afta_https_rfc2818"]}
+                    onToggle={toggleAftaSection}
+                    icon={Globe}
+                  >
+                    <div className="space-y-4">
+                      <div className="bg-sky-50 dark:bg-sky-950/30 p-3.5 rounded-xl border border-sky-200 dark:border-sky-900/50">
+                        <span className="text-xs font-bold text-sky-900 dark:text-sky-200 block">
+                          محصول باید پروتکل HTTPS را مطابق با RFC 2818 اجرا کند.
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-3">
+                        <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={settings.httpsProtocolPolicy?.rfc2818Compliance ?? true}
+                            onChange={e => {
+                              set("httpsProtocolPolicy", {
+                                ...settings.httpsProtocolPolicy,
+                                rfc2818Compliance: e.target.checked
+                              });
+                            }}
+                            className="h-4 w-4 rounded border-slate-300 text-sky-600 mt-0.5"
+                          />
+                          <div>
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                              ۱. الزام رعایت مشخصات و استانداردهای HTTP over TLS مطابق با RFC 2818
+                            </span>
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                              تطبیق کامل نحوه ارتباطات وب، انطباق دامنه و اعتبارسنجی لایه انتقال بر اساس ضوابط RFC 2818.
+                            </span>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+                  </AftaAccordionCard>
+
+                  {/* ۳۹. 🌟 اجرای پروتکل HTTPS با استفاده از TLS */}
+                  <AftaAccordionCard
+                    id="afta_https_via_tls"
+                    number="الزام افتا"
+                    title="اجرای پروتکل HTTPS با استفاده از TLS"
+                    description="محصول باید پروتکل HTTPS را با استفاده از TLS اجرا کند"
+                    isOpen={!!openAftaSections["afta_https_via_tls"]}
+                    onToggle={toggleAftaSection}
+                    icon={ShieldCheck}
+                  >
+                    <div className="space-y-4">
+                      <div className="bg-teal-50 dark:bg-teal-950/30 p-3.5 rounded-xl border border-teal-200 dark:border-teal-900/50">
+                        <span className="text-xs font-bold text-teal-900 dark:text-teal-200 block">
+                          محصول باید پروتکل HTTPS را با استفاده از TLS اجرا کند.
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-3">
+                        <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={settings.httpsProtocolPolicy?.requireTlsForHttps ?? true}
+                            onChange={e => {
+                              set("httpsProtocolPolicy", {
+                                ...settings.httpsProtocolPolicy,
+                                requireTlsForHttps: e.target.checked
+                              });
+                            }}
+                            className="h-4 w-4 rounded border-slate-300 text-teal-600 mt-0.5"
+                          />
+                          <div>
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                              ۱. الزام استفاده از پروتکل امنیتی TLS جهت برقراری و رمزنگاری ارتباطات HTTPS
+                            </span>
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                              غیرفعال‌سازی پروتکل‌های قدیمی و ناامن (مانند SSLv2/SSLv3) و اجبار به الگوریتم‌های امن TLS.
+                            </span>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+                  </AftaAccordionCard>
+
+                  {/* ۴۰. 🌟 مواجهه با گواهی‌نامه نامعتبر در ارتباط با سایر محصولات IT */}
+                  <AftaAccordionCard
+                    id="afta_invalid_certificate_handling"
+                    number="الزام افتا"
+                    title="سیاست برخورد با گواهی‌نامه نامعتبر در ارتباط با سایر محصولات IT"
+                    description="در صورتی که گواهی‌نامه ارائه شده از سمت دیگر محصولات IT (در هنگام برقراری ارتباط) نامعتبر باشد، محصول باید بر اساس ضوابط تعیین‌شده عمل نماید"
+                    isOpen={!!openAftaSections["afta_invalid_certificate_handling"]}
+                    onToggle={toggleAftaSection}
+                    icon={AlertOctagon}
+                  >
+                    <div className="space-y-4">
+                      <div className="bg-amber-50 dark:bg-amber-950/30 p-3.5 rounded-xl border border-amber-200 dark:border-amber-900/50">
+                        <span className="text-xs font-bold text-amber-900 dark:text-amber-200 block">
+                          در صورتی که گواهی‌نامه ارائه شده از سمت دیگر محصولات IT (در هنگام برقراری ارتباط) نامعتبر باشد، محصول باید بر اساس موارد زیر عمل نماید.
+                        </span>
+                      </div>
+
+                      <div className="space-y-3">
+                        <h4 className="text-xs font-black text-amber-900 dark:text-amber-300 border-b pb-2">
+                          تعیین رفتار محصول در صورت مواجهه با گواهی‌نامه نامعتبر:
+                        </h4>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <label className={`p-3.5 rounded-xl border flex items-start gap-3 cursor-pointer transition-all ${
+                            (settings.httpsProtocolPolicy?.invalidCertificateHandling ?? "disconnect") === "disconnect"
+                              ? "border-amber-500 bg-amber-50/40 dark:bg-amber-950/30 ring-1 ring-amber-500"
+                              : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+                          }`}>
+                            <input
+                              type="radio"
+                              name="invalidCertificateHandling"
+                              checked={(settings.httpsProtocolPolicy?.invalidCertificateHandling ?? "disconnect") === "disconnect"}
+                              onChange={() => {
+                                set("httpsProtocolPolicy", {
+                                  ...settings.httpsProtocolPolicy,
+                                  invalidCertificateHandling: "disconnect"
+                                });
+                              }}
+                              className="h-4 w-4 text-amber-600 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                ۱. عدم برقراری اتصال (قطع ارتباط)
+                              </span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                                مسدودسازی کامل و ممانعت از تبادل هرگونه داده در صورت عدم اعتبار گواهی‌نامه کلاینت/سرور مقابل.
+                              </span>
+                            </div>
+                          </label>
+
+                          <label className={`p-3.5 rounded-xl border flex items-start gap-3 cursor-pointer transition-all ${
+                            settings.httpsProtocolPolicy?.invalidCertificateHandling === "promptForApproval"
+                              ? "border-amber-500 bg-amber-50/40 dark:bg-amber-950/30 ring-1 ring-amber-500"
+                              : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+                          }`}>
+                            <input
+                              type="radio"
+                              name="invalidCertificateHandling"
+                              checked={settings.httpsProtocolPolicy?.invalidCertificateHandling === "promptForApproval"}
+                              onChange={() => {
+                                set("httpsProtocolPolicy", {
+                                  ...settings.httpsProtocolPolicy,
+                                  invalidCertificateHandling: "promptForApproval"
+                                });
+                              }}
+                              className="h-4 w-4 text-amber-600 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                ۲. برای برقراری اتصال درخواست مجوز کند
+                              </span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                                توقف موقت و ارسال هشدار امنیتی به مدیر سیستم جهت بررسی و تایید/رد صریح مجوز برقراری اتصال.
+                              </span>
+                            </div>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </AftaAccordionCard>
+
+                  {/* ۴۱. 🌟 پیاده‌سازی TLS 1.2 و رد سایر نسخه‌های TLS و SSL */}
+                  <AftaAccordionCard
+                    id="afta_tls12_enforcement"
+                    number="الزام افتا"
+                    title="پیاده‌سازی پروتکل TLS 1.2 و رد سایر نسخه‌های ناامن TLS و SSL"
+                    description="محصول باید TLS 1.2 (RFC 5246) را پیاده‌سازی و دیگر نسخه‌های TLS و SSL را رد کند"
+                    isOpen={!!openAftaSections["afta_tls12_enforcement"]}
+                    onToggle={toggleAftaSection}
+                    icon={Lock}
+                  >
+                    <div className="space-y-4">
+                      <div className="bg-emerald-50 dark:bg-emerald-950/30 p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-900/50">
+                        <span className="text-xs font-bold text-emerald-900 dark:text-emerald-200 block">
+                          محصول باید TLS 1.2 (RFC 5246) را پیاده‌سازی و دیگر نسخه‌های TLS و SSL را رد کند.
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-3">
+                        <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={settings.tlsClientPolicy?.enforceTls12Only ?? true}
+                            onChange={e => {
+                              set("tlsClientPolicy", {
+                                ...settings.tlsClientPolicy,
+                                enforceTls12Only: e.target.checked
+                              });
+                            }}
+                            className="h-4 w-4 rounded border-slate-300 text-emerald-600 mt-0.5"
+                          />
+                          <div>
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                              ۱. پیاده‌سازی و اجبار استاندارد TLS 1.2 (مطابق با RFC 5246) و مسدودسازی تمامی نسخه‌های قبلی TLS/SSL
+                            </span>
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                              رد صریح هرگونه درخواست اتصال بر پایه SSLv2, SSLv3, TLS 1.0, TLS 1.1 جهت ارتقای امنیت لایه انتقال.
+                            </span>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+                  </AftaAccordionCard>
+
+                  {/* ۴۲. 🌟 پیکربندی و انتخاب مجموعه‌های رمز (Cipher Suites) در TLS Client */}
+                  <AftaAccordionCard
+                    id="afta_tls_cipher_suites"
+                    number="الزام افتا"
+                    title="پیکربندی مجموعه‌های رمز (Cipher Suites) پشتیبانی‌شده در TLS Client"
+                    description="محصول باید TLS را با پشتیبانی از مجموعه‌های رمز استاندارد تعیین‌شده پیاده‌سازی نماید"
+                    isOpen={!!openAftaSections["afta_tls_cipher_suites"]}
+                    onToggle={toggleAftaSection}
+                    icon={ShieldCheck}
+                  >
+                    <div className="space-y-4">
+                      <div className="bg-blue-50 dark:bg-blue-950/30 p-3.5 rounded-xl border border-blue-200 dark:border-blue-900/50">
+                        <span className="text-xs font-bold text-blue-900 dark:text-blue-200 block">
+                          محصول باید TLS را با پشتیبانی از مجموعه‌های رمز زیر پیاده‌سازی نماید:
+                        </span>
+                      </div>
+
+                      <div className="space-y-3">
+                        <h4 className="text-xs font-black text-blue-900 dark:text-blue-300 border-b pb-2">
+                          مجموعه رمزهای مورد استفاده و پیاده‌سازی‌شده محصول (TLS Client Cipher Suites):
+                        </h4>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {[
+                            { key: "tls_aes_256_gcm_sha384", name: "TLS_AES_256_GCM_SHA384", hex: "0x1302", rfc: "RFC 8446" },
+                            { key: "tls_aes_128_gcm_sha256", name: "TLS_AES_128_GCM_SHA256", hex: "0x1301", rfc: "RFC 8446" },
+                            { key: "tls_dhe_rsa_with_aes_256_gcm_sha384", name: "TLS_DHE_RSA_WITH_AES_256_GCM_SHA384", hex: "0x009F", rfc: "RFC 5288" },
+                            { key: "tls_dhe_rsa_with_aes_128_gcm_sha256", name: "TLS_DHE_RSA_WITH_AES_128_GCM_SHA256", hex: "0x009E", rfc: "RFC 5288" },
+                            { key: "tls_ecdhe_rsa_with_aes_128_gcm_sha256", name: "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256", hex: "0xC02F", rfc: "RFC 5289" },
+                            { key: "tls_ecdhe_rsa_with_aes_256_gcm_sha384", name: "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384", hex: "0xC030", rfc: "RFC 5289" },
+                            { key: "tls_ecdhe_ecdsa_with_aes_256_gcm_sha384", name: "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384", hex: "0xC02C", rfc: "RFC 5289" },
+                            { key: "tls_ecdhe_ecdsa_with_aes_128_gcm_sha256", name: "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256", hex: "0xC02B", rfc: "RFC 5289" },
+                            { key: "tls_rsa_with_aes_256_gcm_sha384", name: "TLS_RSA_WITH_AES_256_GCM_SHA384", hex: "0x009D", rfc: "RFC 5288" },
+                            { key: "tls_rsa_with_aes_128_gcm_sha256", name: "TLS_RSA_WITH_AES_128_GCM_SHA256", hex: "0x009C", rfc: "RFC 5288" },
+                            { key: "tls_ecdh_ecdsa_with_aes_256_gcm_sha384", name: "TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384", hex: "0xC02E", rfc: "RFC 5288" },
+                            { key: "tls_ecdh_ecdsa_with_aes_128_gcm_sha256", name: "TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256", hex: "0xC02D", rfc: "RFC 5289" },
+                            { key: "tls_ecdh_rsa_with_aes_256_gcm_sha384", name: "TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384", hex: "0xC032", rfc: "RFC 5289" },
+                            { key: "tls_ecdh_rsa_with_aes_128_gcm_sha256", name: "TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256", hex: "0xC031", rfc: "RFC 5289" },
+                            { key: "tls_dh_rsa_with_aes_256_gcm_sha384", name: "TLS_DH_RSA_WITH_AES_256_GCM_SHA384", hex: "0x00A1", rfc: "RFC 5288" },
+                            { key: "tls_dh_rsa_with_aes_128_gcm_sha256", name: "TLS_DH_RSA_WITH_AES_128_GCM_SHA256", hex: "0x00A0", rfc: "RFC 5288" },
+                          ].map(item => (
+                            <label key={item.key} className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-850 transition-colors">
+                              <input
+                                type="checkbox"
+                                checked={settings.tlsClientPolicy?.cipherSuites?.[item.key] ?? true}
+                                onChange={e => {
+                                  set("tlsClientPolicy", {
+                                    ...settings.tlsClientPolicy,
+                                    cipherSuites: {
+                                      ...settings.tlsClientPolicy?.cipherSuites,
+                                      [item.key]: e.target.checked
+                                    }
+                                  });
+                                }}
+                                className="h-4 w-4 rounded border-slate-300 text-blue-600 mt-0.5"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between gap-2 dir-ltr text-left">
+                                  <span className="text-xs font-mono font-bold text-slate-800 dark:text-slate-200 truncate">
+                                    {item.name}
+                                  </span>
+                                  <span className="text-[10px] font-mono bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">
+                                    {item.hex}
+                                  </span>
+                                </div>
+                                <span className="text-[10px] text-slate-400 dark:text-slate-500 block mt-1 dir-rtl text-right">
+                                  مطابق با {item.rfc}
+                                </span>
+                              </div>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </AftaAccordionCard>
+
+                  {/* ۴۳. 🌟 مطابقت شناسه ارائه شده با شناسه مرجع مطابق بخش 6 از RFC 6125 */}
+                  <AftaAccordionCard
+                    id="afta_rfc6125_identity_validation"
+                    number="الزام افتا"
+                    title="تایید مطابقت شناسه ارائه‌شده با شناسه مرجع (مطابق با RFC 6125)"
+                    description="محصول باید مطابقت شناسه ارائه شده با شناسه مرجع را با توجه به بخش 6 از RFC 6125، تأیید نماید"
+                    isOpen={!!openAftaSections["afta_rfc6125_identity_validation"]}
+                    onToggle={toggleAftaSection}
+                    icon={CheckCircle2}
+                  >
+                    <div className="space-y-4">
+                      <div className="bg-indigo-50 dark:bg-indigo-950/30 p-3.5 rounded-xl border border-indigo-200 dark:border-indigo-900/50">
+                        <span className="text-xs font-bold text-indigo-900 dark:text-indigo-200 block">
+                          محصول باید مطابقت شناسه ارائه شده با شناسه مرجع را با توجه به بخش 6 از RFC 6125، تأیید نماید.
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-3">
+                        <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={settings.tlsClientPolicy?.rfc6125IdentityValidation ?? true}
+                            onChange={e => {
+                              set("tlsClientPolicy", {
+                                ...settings.tlsClientPolicy,
+                                rfc6125IdentityValidation: e.target.checked
+                              });
+                            }}
+                            className="h-4 w-4 rounded border-slate-300 text-indigo-600 mt-0.5"
+                          />
+                          <div>
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                              ۱. الزام اعتبارسنجی دقیق نام دامنه/شناسه مرجع کلاینت در گواهی‌نامه بر اساس قوانین RFC 6125 (Section 6)
+                            </span>
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                              بررسی کامل انطباق Subject Alternative Name (SAN) و Common Name (CN) با سرویس‌دهنده مقصد جهت ممانعت از حملات MITM.
+                            </span>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+                  </AftaAccordionCard>
+
+                  {/* ۴۴. 🌟 رفتار سامانه هنگام مواجهه با گواهی‌نامه سرور غیرمعتبر */}
+                  <AftaAccordionCard
+                    id="afta_server_cert_validation"
+                    number="الزام افتا"
+                    title="الزام برقراری کانال امن صرفاً با گواهی‌نامه سرور معتبر و تعیین رفتار در صورت عدم اعتبار"
+                    description="محصول باید کانال امن را فقط در صورت معتبر بودن گواهی‌نامه سرور برقرار سازد؛ بنابراین اگر گواهی‌نامه سرور غیرمعتبر به نظر رسید، بر اساس ضوابط تعیین‌شده رفتار کند"
+                    isOpen={!!openAftaSections["afta_server_cert_validation"]}
+                    onToggle={toggleAftaSection}
+                    icon={AlertOctagon}
+                  >
+                    <div className="space-y-4">
+                      <div className="bg-rose-50 dark:bg-rose-950/30 p-3.5 rounded-xl border border-rose-200 dark:border-rose-900/50">
+                        <span className="text-xs font-bold text-rose-900 dark:text-rose-200 block">
+                          محصول باید کانال امن را فقط در صورت معتبر بودن گواهی‌نامه سرور برقرار سازد؛ بنابراین اگر گواهی‌نامه سرور غیرمعتبر به نظر رسید، محصول باید بر اساس موارد زیر رفتار نماید.
+                        </span>
+                      </div>
+
+                      <div className="space-y-3">
+                        <h4 className="text-xs font-black text-rose-900 dark:text-rose-300 border-b pb-2">
+                          اقدام سامانه در صورت غیرمعتبر بودن گواهی‌نامه سرور:
+                        </h4>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          <label className={`p-3.5 rounded-xl border flex items-start gap-3 cursor-pointer transition-all ${
+                            (settings.tlsClientPolicy?.serverCertificateValidation?.invalidCertAction ?? "disconnect") === "disconnect"
+                              ? "border-rose-500 bg-rose-50/40 dark:bg-rose-950/30 ring-1 ring-rose-500"
+                              : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+                          }`}>
+                            <input
+                              type="radio"
+                              name="serverInvalidCertAction"
+                              checked={(settings.tlsClientPolicy?.serverCertificateValidation?.invalidCertAction ?? "disconnect") === "disconnect"}
+                              onChange={() => {
+                                set("tlsClientPolicy", {
+                                  ...settings.tlsClientPolicy,
+                                  serverCertificateValidation: {
+                                    ...settings.tlsClientPolicy?.serverCertificateValidation,
+                                    invalidCertAction: "disconnect"
+                                  }
+                                });
+                              }}
+                              className="h-4 w-4 text-rose-600 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                ۱. ارتباط را برقرار نکند
+                              </span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                                قطع فوری اتصال و مسدودسازی کامل هرگونه ارتباط با سرور دارای گواهی‌نامه غیرمعتبر.
+                              </span>
+                            </div>
+                          </label>
+
+                          <label className={`p-3.5 rounded-xl border flex items-start gap-3 cursor-pointer transition-all ${
+                            settings.tlsClientPolicy?.serverCertificateValidation?.invalidCertAction === "promptForApproval"
+                              ? "border-rose-500 bg-rose-50/40 dark:bg-rose-950/30 ring-1 ring-rose-500"
+                              : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+                          }`}>
+                            <input
+                              type="radio"
+                              name="serverInvalidCertAction"
+                              checked={settings.tlsClientPolicy?.serverCertificateValidation?.invalidCertAction === "promptForApproval"}
+                              onChange={() => {
+                                set("tlsClientPolicy", {
+                                  ...settings.tlsClientPolicy,
+                                  serverCertificateValidation: {
+                                    ...settings.tlsClientPolicy?.serverCertificateValidation,
+                                    invalidCertAction: "promptForApproval"
+                                  }
+                                });
+                              }}
+                              className="h-4 w-4 text-rose-600 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                ۲. برای برقراری ارتباط درخواست مجوز کند
+                              </span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                                توقف برقراری اتصال و درخواست تایید رسمی/مجوز صریح از راهبر سیستم.
+                              </span>
+                            </div>
+                          </label>
+
+                          <label className={`p-3.5 rounded-xl border flex items-start gap-3 cursor-pointer transition-all ${
+                            settings.tlsClientPolicy?.serverCertificateValidation?.invalidCertAction === "otherActions"
+                              ? "border-rose-500 bg-rose-50/40 dark:bg-rose-950/30 ring-1 ring-rose-500"
+                              : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+                          }`}>
+                            <input
+                              type="radio"
+                              name="serverInvalidCertAction"
+                              checked={settings.tlsClientPolicy?.serverCertificateValidation?.invalidCertAction === "otherActions"}
+                              onChange={() => {
+                                set("tlsClientPolicy", {
+                                  ...settings.tlsClientPolicy,
+                                  serverCertificateValidation: {
+                                    ...settings.tlsClientPolicy?.serverCertificateValidation,
+                                    invalidCertAction: "otherActions"
+                                  }
+                                });
+                              }}
+                              className="h-4 w-4 text-rose-600 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                ۳. سایر موارد
+                              </span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                                ثبت دقیق لاگ رویداد امنیتی، اعلان هوشمند و اتخاذ اقدام مکمّل سفارشی.
+                              </span>
+                            </div>
+                          </label>
+                        </div>
+
+                        {settings.tlsClientPolicy?.serverCertificateValidation?.invalidCertAction === "otherActions" && (
+                          <div className="mt-3 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                            <Label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1.5">
+                              شرح و تنظیمات اقدامات جایگزین (سایر موارد):
+                            </Label>
+                            <Input
+                              type="text"
+                              value={settings.tlsClientPolicy?.serverCertificateValidation?.otherActionText || ""}
+                              onChange={e => {
+                                set("tlsClientPolicy", {
+                                  ...settings.tlsClientPolicy,
+                                  serverCertificateValidation: {
+                                    ...settings.tlsClientPolicy?.serverCertificateValidation,
+                                    otherActionText: e.target.value
+                                  }
+                                });
+                              }}
+                              placeholder="مثال: ارسال پیامک به مدیر امنیت، ثبت رویداد در SIEM و تعلیق موقت کانال..."
+                              className="text-xs h-9"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </AftaAccordionCard>
+
+                  {/* ۴۵. 🌟 ضوابط استفاده از خم‌های بیضوی در پیام ClientHello */}
+                  <AftaAccordionCard
+                    id="afta_client_hello_elliptic_curves"
+                    number="الزام افتا"
+                    title="تعیین ضوابط استفاده از خم‌های بیضوی (Elliptic Curves) در پیام ClientHello"
+                    description="محصول باید در پیام ClientHello برای استفاده از خم‌های بیضوی، بر اساس الزامات افتا عمل نماید"
+                    isOpen={!!openAftaSections["afta_client_hello_elliptic_curves"]}
+                    onToggle={toggleAftaSection}
+                    icon={ShieldAlert}
+                  >
+                    <div className="space-y-4">
+                      <div className="bg-purple-50 dark:bg-purple-950/30 p-3.5 rounded-xl border border-purple-200 dark:border-purple-900/50">
+                        <span className="text-xs font-bold text-purple-900 dark:text-purple-200 block">
+                          محصول باید در پیام ClientHello برای استفاده از خم‌های بیضوی، بر اساس موارد زیر عمل نماید.
+                        </span>
+                      </div>
+
+                      <div className="space-y-3">
+                        <h4 className="text-xs font-black text-purple-900 dark:text-purple-300 border-b pb-2">
+                          تنظیم نحوه ارائه افزونه Supported Elliptic Curves Extension:
+                        </h4>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <label className={`p-3.5 rounded-xl border flex items-start gap-3 cursor-pointer transition-all ${
+                            settings.tlsClientPolicy?.clientHelloEllipticCurves?.mode === "noExtension"
+                              ? "border-purple-500 bg-purple-50/40 dark:bg-purple-950/30 ring-1 ring-purple-500"
+                              : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+                          }`}>
+                            <input
+                              type="radio"
+                              name="ellipticCurvesMode"
+                              checked={settings.tlsClientPolicy?.clientHelloEllipticCurves?.mode === "noExtension"}
+                              onChange={() => {
+                                set("tlsClientPolicy", {
+                                  ...settings.tlsClientPolicy,
+                                  clientHelloEllipticCurves: {
+                                    ...settings.tlsClientPolicy?.clientHelloEllipticCurves,
+                                    mode: "noExtension"
+                                  }
+                                });
+                              }}
+                              className="h-4 w-4 text-purple-600 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                ۱. ارائه نكردن Supported Elliptic Curves Extension
+                              </span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                                در صورتی که محصول از خم‌های بیضوی استفاده می‌نماید، این افزونه ارائه نشود.
+                              </span>
+                            </div>
+                          </label>
+
+                          <label className={`p-3.5 rounded-xl border flex items-start gap-3 cursor-pointer transition-all ${
+                            (settings.tlsClientPolicy?.clientHelloEllipticCurves?.mode ?? "nistCurves") === "nistCurves"
+                              ? "border-purple-500 bg-purple-50/40 dark:bg-purple-950/30 ring-1 ring-purple-500"
+                              : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+                          }`}>
+                            <input
+                              type="radio"
+                              name="ellipticCurvesMode"
+                              checked={(settings.tlsClientPolicy?.clientHelloEllipticCurves?.mode ?? "nistCurves") === "nistCurves"}
+                              onChange={() => {
+                                set("tlsClientPolicy", {
+                                  ...settings.tlsClientPolicy,
+                                  clientHelloEllipticCurves: {
+                                    ...settings.tlsClientPolicy?.clientHelloEllipticCurves,
+                                    mode: "nistCurves"
+                                  }
+                                });
+                              }}
+                              className="h-4 w-4 text-purple-600 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                ۲. ارائه Supported Elliptic Curves Extension به همراه NIST Curves
+                              </span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                                نوع خم به همراه خم‌های استاندارد secp256r1 یا secp384r1 یا secp521r1 ارائه گردد.
+                              </span>
+                            </div>
+                          </label>
+                        </div>
+
+                        {(settings.tlsClientPolicy?.clientHelloEllipticCurves?.mode ?? "nistCurves") === "nistCurves" && (
+                          <div className="mt-3 p-3.5 bg-purple-50/50 dark:bg-purple-950/20 rounded-xl border border-purple-200 dark:border-purple-900/40">
+                            <span className="text-xs font-bold text-purple-900 dark:text-purple-300 block mb-2.5">
+                              انتخاب خم‌های بیضوی مجاز (NIST Curves):
+                            </span>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                              {[
+                                { key: "secp256r1", name: "secp256r1 (NIST P-256)", desc: "خم ۲۵۶ بیتی استاندارد" },
+                                { key: "secp384r1", name: "secp384r1 (NIST P-384)", desc: "خم ۳۸۴ بیتی با امنیت بالا" },
+                                { key: "secp521r1", name: "secp521r1 (NIST P-521)", desc: "خم ۵۲۱ بیتی فوق امن" },
+                              ].map(curve => (
+                                <label key={curve.key} className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-2.5 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={settings.tlsClientPolicy?.clientHelloEllipticCurves?.curves?.[curve.key] ?? true}
+                                    onChange={e => {
+                                      set("tlsClientPolicy", {
+                                        ...settings.tlsClientPolicy,
+                                        clientHelloEllipticCurves: {
+                                          ...settings.tlsClientPolicy?.clientHelloEllipticCurves,
+                                          curves: {
+                                            ...settings.tlsClientPolicy?.clientHelloEllipticCurves?.curves,
+                                            [curve.key]: e.target.checked
+                                          }
+                                        }
+                                      });
+                                    }}
+                                    className="h-4 w-4 rounded border-slate-300 text-purple-600"
+                                  />
+                                  <div>
+                                    <span className="text-xs font-mono font-bold text-slate-800 dark:text-slate-200 block">
+                                      {curve.name}
+                                    </span>
+                                    <span className="text-[10px] text-slate-400 dark:text-slate-500 block">
+                                      {curve.desc}
+                                    </span>
+                                  </div>
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </AftaAccordionCard>

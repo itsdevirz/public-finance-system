@@ -236,6 +236,96 @@ export interface CoreFunctionsSoftwareFaultTolerancePolicy {
   auditLogFaultEvents: boolean; // ثبت دقیق رویدادهای خرابی و ناهنجاری نرم‌افزاری در لاگ حسابرسی افتا
 }
 
+// بند ۴ افتا: نمایش آخرین تلاش موفق برای ایجاد نشست
+export interface LastSuccessfulSessionNoticePolicy {
+  enable: boolean;
+  displayDate: boolean;
+  displayTime: boolean;
+  displayOtherInfo: boolean;
+}
+
+// بند ۵ افتا: نمایش آخرین تلاش ناموفق برای ایجاد نشست و تعداد تلاش‌های ناموفق تا آخرین نشست موفقیت‌آمیز
+export interface LastFailedSessionNoticePolicy {
+  enable: boolean;
+  displayDate: boolean;
+  displayTime: boolean;
+  displayOtherInfo: boolean;
+  displayFailedAttemptsCount: boolean;
+}
+
+export interface PreserveAccessRecordsPolicy {
+  preventAutoClearWithoutUserView: boolean;
+  requireExplicitUserDismissal: boolean;
+}
+
+// الزام افتا: توانایی ممانعت از ایجاد نشست بر اساس پارامترهایی از قبیل مکان، شماره پورت، روز، زمان و سایر موارد
+export interface SessionEstablishmentPreventionPolicy {
+  enable: boolean;
+  preventByLocation: boolean;
+  preventByPort: boolean;
+  preventByDay: boolean;
+  preventByTime: boolean;
+  preventByOtherParams: boolean;
+}
+
+// الزام افتا (رده ۲-۹): کانال‌ها/مسیرهای مورد اعتماد
+export interface TrustedChannelPolicy {
+  enable: boolean;
+  protocols: {
+    https: boolean;
+    tls: boolean;
+    ssh: boolean;
+  };
+  allowRemoteConnectionOnlyViaSecureChannel: boolean;
+  requireSecureChannelForInitialAuth: boolean;
+}
+
+// الزام افتا (رده ۳-۱): الزامات امنیتی مبتنی بر انتخاب - پروتکل HTTPS
+export interface HttpsProtocolPolicy {
+  enable: boolean;
+  rfc2818Compliance: boolean;
+  requireTlsForHttps: boolean;
+  invalidCertificateHandling: "disconnect" | "promptForApproval";
+}
+
+// الزام افتا (رده ۳-۲): الزامات امنیتی مبتنی بر انتخاب - پروتکل TLS Client
+export interface TlsClientPolicy {
+  enable: boolean;
+  enforceTls12Only: boolean;
+  rfc6125IdentityValidation: boolean;
+  serverCertificateValidation: {
+    requireValidCertificate: boolean;
+    invalidCertAction: "disconnect" | "promptForApproval" | "otherActions";
+    otherActionText?: string;
+  };
+  clientHelloEllipticCurves: {
+    mode: "noExtension" | "nistCurves";
+    curves: {
+      secp256r1: boolean;
+      secp384r1: boolean;
+      secp521r1: boolean;
+    };
+  };
+  cipherSuites: {
+    tls_aes_256_gcm_sha384: boolean;
+    tls_aes_128_gcm_sha256: boolean;
+    tls_dhe_rsa_with_aes_256_gcm_sha384: boolean;
+    tls_dhe_rsa_with_aes_128_gcm_sha256: boolean;
+    tls_ecdhe_rsa_with_aes_128_gcm_sha256: boolean;
+    tls_ecdhe_rsa_with_aes_256_gcm_sha384: boolean;
+    tls_ecdhe_ecdsa_with_aes_256_gcm_sha384: boolean;
+    tls_ecdhe_ecdsa_with_aes_128_gcm_sha256: boolean;
+    tls_rsa_with_aes_256_gcm_sha384: boolean;
+    tls_rsa_with_aes_128_gcm_sha256: boolean;
+    tls_ecdh_ecdsa_with_aes_256_gcm_sha384: boolean;
+    tls_ecdh_ecdsa_with_aes_128_gcm_sha256: boolean;
+    tls_ecdh_rsa_with_aes_256_gcm_sha384: boolean;
+    tls_ecdh_rsa_with_aes_128_gcm_sha256: boolean;
+    tls_dh_rsa_with_aes_256_gcm_sha384: boolean;
+    tls_dh_rsa_with_aes_128_gcm_sha256: boolean;
+  };
+}
+
 export interface SecurityPolicyConfig {
   passwordPolicy: PasswordPolicy;
   lockoutPolicy: LockoutPolicy;
@@ -260,6 +350,13 @@ export interface SecurityPolicyConfig {
   trustedTimestampPolicy?: TrustedTimestampPolicy;
   productSoftwareUpdatePolicy?: ProductSoftwareUpdatePolicy;
   coreFunctionsSoftwareFaultTolerancePolicy?: CoreFunctionsSoftwareFaultTolerancePolicy;
+  lastSuccessfulSessionNoticePolicy?: LastSuccessfulSessionNoticePolicy;
+  lastFailedSessionNoticePolicy?: LastFailedSessionNoticePolicy;
+  preserveAccessRecordsPolicy?: PreserveAccessRecordsPolicy;
+  sessionEstablishmentPreventionPolicy?: SessionEstablishmentPreventionPolicy;
+  trustedChannelPolicy?: TrustedChannelPolicy;
+  httpsProtocolPolicy?: HttpsProtocolPolicy;
+  tlsClientPolicy?: TlsClientPolicy;
 }
 
 export const DEFAULT_ENTITY_ACCESS_POLICIES: EntityAccessPolicy[] = [
@@ -488,6 +585,83 @@ export const DEFAULT_SECURITY_POLICY: SecurityPolicyConfig = {
     fallbackToCoreOperationalMode: true,
     gracefulDegradation: true,
     auditLogFaultEvents: true,
+  },
+  lastSuccessfulSessionNoticePolicy: {
+    enable: true,
+    displayDate: true,
+    displayTime: true,
+    displayOtherInfo: true,
+  },
+  lastFailedSessionNoticePolicy: {
+    enable: true,
+    displayDate: true,
+    displayTime: true,
+    displayOtherInfo: true,
+    displayFailedAttemptsCount: true,
+  },
+  preserveAccessRecordsPolicy: {
+    preventAutoClearWithoutUserView: true,
+    requireExplicitUserDismissal: true,
+  },
+  sessionEstablishmentPreventionPolicy: {
+    enable: true,
+    preventByLocation: true,
+    preventByPort: true,
+    preventByDay: true,
+    preventByTime: true,
+    preventByOtherParams: true,
+  },
+  trustedChannelPolicy: {
+    enable: true,
+    protocols: {
+      https: true,
+      tls: true,
+      ssh: true
+    },
+    allowRemoteConnectionOnlyViaSecureChannel: true,
+    requireSecureChannelForInitialAuth: true
+  },
+  httpsProtocolPolicy: {
+    enable: true,
+    rfc2818Compliance: true,
+    requireTlsForHttps: true,
+    invalidCertificateHandling: "disconnect"
+  },
+  tlsClientPolicy: {
+    enable: true,
+    enforceTls12Only: true,
+    rfc6125IdentityValidation: true,
+    serverCertificateValidation: {
+      requireValidCertificate: true,
+      invalidCertAction: "disconnect",
+      otherActionText: ""
+    },
+    clientHelloEllipticCurves: {
+      mode: "nistCurves",
+      curves: {
+        secp256r1: true,
+        secp384r1: true,
+        secp521r1: true
+      }
+    },
+    cipherSuites: {
+      tls_aes_256_gcm_sha384: true,
+      tls_aes_128_gcm_sha256: true,
+      tls_dhe_rsa_with_aes_256_gcm_sha384: true,
+      tls_dhe_rsa_with_aes_128_gcm_sha256: true,
+      tls_ecdhe_rsa_with_aes_128_gcm_sha256: true,
+      tls_ecdhe_rsa_with_aes_256_gcm_sha384: true,
+      tls_ecdhe_ecdsa_with_aes_256_gcm_sha384: true,
+      tls_ecdhe_ecdsa_with_aes_128_gcm_sha256: true,
+      tls_rsa_with_aes_256_gcm_sha384: true,
+      tls_rsa_with_aes_128_gcm_sha256: true,
+      tls_ecdh_ecdsa_with_aes_256_gcm_sha384: true,
+      tls_ecdh_ecdsa_with_aes_128_gcm_sha256: true,
+      tls_ecdh_rsa_with_aes_256_gcm_sha384: true,
+      tls_ecdh_rsa_with_aes_128_gcm_sha256: true,
+      tls_dh_rsa_with_aes_256_gcm_sha384: true,
+      tls_dh_rsa_with_aes_128_gcm_sha256: true
+    }
   }
 };
 

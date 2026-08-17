@@ -277,6 +277,33 @@ router.post("/login", async (c) => {
     );
   }
 
+  // استخراج آخرین تلاش موفق، آخرین تلاش ناموفق و تعداد تلاش‌های ناموفق بر اساس خط‌مشی‌های تنظیم‌شده در سیستم
+  const previousAuthHistory = (user.authHistory || []) as any[];
+  const lastSuccessfulAttempt = [...previousAuthHistory].reverse().find((h: any) => h.result === "SUCCESS") || null;
+  const lastFailedAttempt = [...previousAuthHistory].reverse().find((h: any) => h.result === "FAILURE") || null;
+  const failedLoginCount = user.failedLoginAttempts || 0;
+
+  const successPolicy = secPolicy.lastSuccessfulSessionNoticePolicy ?? { enable: true, displayDate: true, displayTime: true, displayOtherInfo: true };
+  const failedPolicy = secPolicy.lastFailedSessionNoticePolicy ?? { enable: true, displayDate: true, displayTime: true, displayOtherInfo: true, displayFailedAttemptsCount: true };
+
+  const isSuccessNoticeEnabled = successPolicy.enable !== false && (successPolicy.displayDate || successPolicy.displayTime || successPolicy.displayOtherInfo);
+  const isFailedNoticeEnabled = failedPolicy.enable !== false && (failedPolicy.displayDate || failedPolicy.displayTime || failedPolicy.displayOtherInfo || failedPolicy.displayFailedAttemptsCount);
+
+  let sessionNotice: any = null;
+
+  if (isSuccessNoticeEnabled || isFailedNoticeEnabled) {
+    sessionNotice = {
+      lastSuccessfulAttempt: isSuccessNoticeEnabled ? lastSuccessfulAttempt : null,
+      lastFailedAttempt: isFailedNoticeEnabled ? lastFailedAttempt : null,
+      failedLoginCount: (isFailedNoticeEnabled && failedPolicy.displayFailedAttemptsCount !== false) ? failedLoginCount : 0,
+      loginTimestamp: new Date().toISOString(),
+      policy: {
+        successPolicy,
+        failedPolicy
+      }
+    };
+  }
+
   // Successful Login: Reset failed attempts, push authHistory & create token
   const successHistoryEntry = {
     timestamp: new Date().toISOString(),
@@ -351,6 +378,7 @@ router.post("/login", async (c) => {
     message: "ورود موفق",
     token,
     user: { ...safeUser, id: (user._id as ObjectId).toHexString() },
+    sessionNotice
   });
 });
 

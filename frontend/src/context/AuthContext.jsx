@@ -23,6 +23,11 @@ export function AuthProvider({ children }) {
   async function login(username, password) {
     const res = await api.post("/api/auth/login", { username, password });
     localStorage.setItem("token", res.data.token);
+    if (res.data.sessionNotice) {
+      localStorage.setItem("sessionNotice", JSON.stringify(res.data.sessionNotice));
+    } else {
+      localStorage.removeItem("sessionNotice");
+    }
     setUser(res.data.user);
     return res.data.user;
   }
