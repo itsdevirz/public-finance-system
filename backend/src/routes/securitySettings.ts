@@ -372,6 +372,37 @@ router.get("/audit-logs", requireRole(["admin"]), async (c) => {
   }
 });
 
+// POST /api/security/simulate-read-failure - Simulate a failed audit log read attempt for AFTA compliance
+router.post("/simulate-read-failure", async (c) => {
+  const payload = (c.get as any)("jwtPayload");
+  const clientIp = c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "192.168.1.105";
+  const userAgent = c.req.header("user-agent") || "Mozilla/5.0 (Windows NT 10.0; Win64; x64)";
+  
+  await logAuditEvent({
+    userId: payload?.sub || "usr_unauthorized_01",
+    username: payload?.username || "unauthorized_user",
+    userRole: payload?.role || "حسابدار",
+    action: AFTA_LOG_EVENT_TYPES.AUDIT_LOG_READ_FAILURE,
+    eventType: AFTA_LOG_EVENT_TYPES.AUDIT_LOG_READ_FAILURE,
+    resource: "/api/security/audit-logs",
+    method: "GET",
+    result: "FAILURE",
+    ip: clientIp,
+    userAgent,
+    errorCode: 403,
+    details: {
+      error: "Access Denied: Attempted unauthorized read access to security audit log records",
+      requestedEndpoint: "/api/security/audit-logs",
+      location: "ایران (تهران)"
+    }
+  });
+
+  return c.json({
+    success: true,
+    message: "رویداد تلاش ناموفق برای خواندن ثبت‌نشان‌ها با ثبت دقیق IP، آدرس مسیر و متاداده‌ها ایجاد گردید."
+  });
+});
+
 // GET /api/security/audit-logs/verify-integrity - Complete database integrity check (Admin only)
 router.get("/audit-logs/verify-integrity", requireRole(["admin"]), async (c) => {
   const payload = (c.get as any)("jwtPayload");

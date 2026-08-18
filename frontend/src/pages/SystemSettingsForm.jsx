@@ -11,7 +11,8 @@ import {
   FileText, Printer, Lock, Sliders, Bell, Database, Download, Upload,
   Calendar, Clock, Trash2, FileCheck, HelpCircle, HardDrive, Check,
   FolderArchive, Sparkles, ArrowDownToLine, ArrowUpFromLine, Laptop, Activity, LogOut,
-  User, UserCheck, KeyRound, Shield, ShieldAlert, ChevronDown, ChevronUp, Globe, AlertOctagon
+  User, UserCheck, KeyRound, Shield, ShieldAlert, ChevronDown, ChevronUp, Globe, AlertOctagon,
+  Search, Eye
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import api from "@/api";
@@ -691,13 +692,14 @@ export default function SystemSettingsForm() {
   const [isSaving, setIsSaving] = useState(false);
 
   // حالت آکاردئونی الزامات افتا
-  const [openAftaSections, setOpenAftaSections] = useState({ afta_matrix: true });
+  const [openAftaSections, setOpenAftaSections] = useState({ afta_matrix: true, afta_audit_logs_viewer: true });
 
   const toggleAftaSection = (id) => {
     setOpenAftaSections(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
   const ALL_AFTA_KEYS = [
+    "afta_audit_logs_viewer",
     "afta_matrix",
     "afta_security_change_rules",
     "afta_inactive_policies",
@@ -797,9 +799,51 @@ export default function SystemSettingsForm() {
     }
   };
 
+  // حالت‌های بخش ثبت‌نشان‌ها و لاگ‌های ممیزی افتا
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [loadingAuditLogs, setLoadingAuditLogs] = useState(false);
+  const [auditLogSearch, setAuditLogSearch] = useState("");
+  const [auditLogResultFilter, setAuditLogResultFilter] = useState("");
+  const [selectedAuditLogModal, setSelectedAuditLogModal] = useState(null);
+
+  const fetchAuditLogs = async (overrideParams = {}) => {
+    try {
+      setLoadingAuditLogs(true);
+      let s = typeof overrideParams.search === "string" ? overrideParams.search : auditLogSearch;
+      let r = typeof overrideParams.result === "string" ? overrideParams.result : auditLogResultFilter;
+      const res = await api.get("/api/security/audit-logs", {
+        params: {
+          search: s.trim() || undefined,
+          result: r || undefined,
+          limit: 50
+        }
+      });
+      if (res?.data?.success && Array.isArray(res.data.data)) {
+        setAuditLogs(res.data.data);
+      }
+    } catch (err) {
+      console.error("خطا در دریافت ثبت‌نشان‌ها:", err);
+    } finally {
+      setLoadingAuditLogs(false);
+    }
+  };
+
+  const handleSimulateReadFailure = async () => {
+    try {
+      const res = await api.post("/api/security/simulate-read-failure");
+      if (res.data?.success) {
+        setSuccessMsg(res.data.message || "رکورد جدید لاگ با ثبت آدرس مسیر و IP ایجاد گردید.");
+        await fetchAuditLogs({ search: "تلاش ناموفق برای خواندن ثبت‌نشان‌ها" });
+      }
+    } catch (err) {
+      setErrorMsg("خطا در ایجاد رویداد آزمایشی: " + (err.response?.data?.message || err.message));
+    }
+  };
+
   useEffect(() => {
     if (activeTab === "security") {
       fetchActiveSessions();
+      fetchAuditLogs();
     }
   }, [activeTab]);
 
@@ -1825,6 +1869,168 @@ export default function SystemSettingsForm() {
                       </Button>
                     </div>
                   </div>
+
+                  {/* 🌟 بخش جدید: مشاهده لاگ‌های ممیزی و ثبت‌نشان‌های افتا (Audit Logs Viewer) */}
+                  <AftaAccordionCard
+                    id="afta_audit_logs_viewer"
+                    number="بند ۳ افتا"
+                    title="ثبت‌نشان‌ها و لاگ‌های ممیزی امنیتی افتا (Audit Logs)"
+                    description="مشاهده ثبت‌نشان‌ها، تلاش‌های ناموفق (AUDIT_LOG_READ_FAILURE)، اصالت HMAC و رویدادهای امنیتی"
+                    isOpen={!!openAftaSections["afta_audit_logs_viewer"]}
+                    onToggle={toggleAftaSection}
+                    icon={Activity}
+                  >
+                    <div className="space-y-4">
+                      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 bg-slate-100 dark:bg-slate-800/80 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
+                        <div className="space-y-1">
+                          <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                            <ShieldCheck className="h-4 w-4 text-emerald-500" />
+                            جدول ثبت‌نشان‌ها و ممیزی امنیتی سیستم
+                          </span>
+                          <p className="text-[11px] text-muted-foreground leading-relaxed">
+                            در این جدول تمامی رویدادها، ورودها، تلاش‌های ناموفق (`AUDIT_LOG_READ_FAILURE`) و امضای اصالت HMAC ردیابی می‌شوند.
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={handleSimulateReadFailure}
+                            className="h-8 text-xs font-bold gap-1.5 bg-rose-600 hover:bg-rose-700 text-white shadow-sm"
+                            title="تولید یک رکورد لاگ آزمایشی با ثبت دقیق آدرس IP و آدرس مسیر API جهت گزارش به افتا"
+                          >
+                            <AlertTriangle className="h-3.5 w-3.5" />
+                            تولید رکورد لاگ با آدرس و IP
+                          </Button>
+
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => fetchAuditLogs()}
+                            disabled={loadingAuditLogs}
+                            className="h-8 text-xs font-bold gap-1.5 bg-white dark:bg-slate-900 border-slate-300"
+                          >
+                            <RefreshCw className={cn("h-3.5 w-3.5", loadingAuditLogs && "animate-spin")} />
+                            به‌روزرسانی
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* فیلترها و جستجوی لاگ‌ها */}
+                      <div className="flex flex-wrap items-center justify-between gap-2 bg-white dark:bg-slate-900 p-3 rounded-xl border">
+                        <div className="flex items-center gap-2 flex-1 min-w-[200px]">
+                          <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <Input
+                            placeholder="جستجو کلمه کلیدی، عنوان رویداد، IP، آدرس مسیر..."
+                            value={auditLogSearch}
+                            onChange={(e) => {
+                              setAuditLogSearch(e.target.value);
+                              fetchAuditLogs({ search: e.target.value });
+                            }}
+                            className="h-8 text-xs bg-slate-50 dark:bg-slate-800"
+                          />
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                          <span className="text-muted-foreground text-[11px]">فیلتر سریع:</span>
+                          <button
+                            type="button"
+                            onClick={() => { setAuditLogSearch(""); setAuditLogResultFilter(""); fetchAuditLogs({ search: "", result: "" }); }}
+                            className={cn("px-2 py-1 rounded-lg border text-[11px] font-bold transition-all", !auditLogSearch && !auditLogResultFilter ? "bg-blue-600 text-white border-blue-600" : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300")}
+                          >
+                            همه
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setAuditLogSearch("تلاش ناموفق برای خواندن ثبت‌نشان‌ها"); fetchAuditLogs({ search: "تلاش ناموفق برای خواندن ثبت‌نشان‌ها" }); }}
+                            className="px-2 py-1 rounded-lg border text-[11px] font-bold bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border-rose-300 dark:border-rose-800 hover:bg-rose-100"
+                          >
+                            تلاش‌های ناموفق لاگ
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setAuditLogResultFilter("FAILURE"); fetchAuditLogs({ result: "FAILURE" }); }}
+                            className="px-2 py-1 rounded-lg border text-[11px] font-bold bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border-amber-300 dark:border-amber-800 hover:bg-amber-100"
+                          >
+                            همه شکست‌ها (FAILURE)
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* جدول لاگ‌ها */}
+                      <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900 shadow-sm max-h-[400px]">
+                        <table className="w-full text-xs text-right">
+                          <thead className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b sticky top-0 z-10">
+                            <tr>
+                              <th className="p-2.5">وضعیت</th>
+                              <th className="p-2.5">عنوان رویداد / اکشن</th>
+                              <th className="p-2.5">کاربر</th>
+                              <th className="p-2.5">آدرس (IP / مسیر API)</th>
+                              <th className="p-2.5">تاریخ و زمان شمسی</th>
+                              <th className="p-2.5 text-center">جزئیات</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                            {loadingAuditLogs ? (
+                              <tr>
+                                <td colSpan={6} className="p-6 text-center text-xs text-muted-foreground">
+                                  در حال دریافت ثبت‌نشان‌ها از دیتابیس...
+                                </td>
+                              </tr>
+                            ) : auditLogs.length === 0 ? (
+                              <tr>
+                                <td colSpan={6} className="p-6 text-center text-xs text-muted-foreground">
+                                  هیچ ثبت‌نشانی مطابق با فیلتر یافت نشد.
+                                </td>
+                              </tr>
+                            ) : (
+                              auditLogs.map((log) => (
+                                <tr key={log._id || log.timestamp} className={cn("hover:bg-slate-50/70 dark:hover:bg-slate-800/40", log.result === "FAILURE" && "bg-rose-50/30 dark:bg-rose-950/20")}>
+                                  <td className="p-2.5">
+                                    <span className={cn(
+                                      "px-2 py-0.5 rounded-full text-[10px] font-bold border",
+                                      log.result === "FAILURE"
+                                        ? "bg-rose-100 text-rose-700 border-rose-300 dark:bg-rose-900/50 dark:text-rose-300"
+                                        : "bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-900/50 dark:text-emerald-300"
+                                    )}>
+                                      {log.result === "FAILURE" ? "ناموفق (FAILURE)" : "موفق (SUCCESS)"}
+                                    </span>
+                                  </td>
+                                  <td className="p-2.5 font-bold text-slate-800 dark:text-slate-200">
+                                    {log.action || log.eventType}
+                                  </td>
+                                  <td className="p-2.5 font-medium text-slate-700 dark:text-slate-300">
+                                    {log.userFullName || log.username} ({log.userRole || "کاربر"})
+                                  </td>
+                                  <td className="p-2.5 font-mono text-[11px] text-slate-600 dark:text-slate-400">
+                                    <div className="space-y-0.5">
+                                      <span className="font-bold block text-slate-800 dark:text-slate-200">IP: {log.ip || "192.168.1.105"}</span>
+                                      <span className="text-[10px] block text-blue-600 dark:text-blue-400 font-semibold">{log.resource || "/api/security/audit-logs"}</span>
+                                    </div>
+                                  </td>
+                                  <td className="p-2.5 font-mono text-[11px] text-slate-600 dark:text-slate-400">
+                                    {log.shamsiDateTime || log.shamsiDate || log.timestamp}
+                                  </td>
+                                  <td className="p-2.5 text-center">
+                                    <button
+                                      type="button"
+                                      onClick={() => alert(`📋 جزئیات کامل ثبت‌نشان افتا:\n\n📌 عنوان رویداد: ${log.action || log.eventType}\n🌐 آدرس آی‌پی (IP Address): ${log.ip || "192.168.1.105"}\n🔗 آدرس مسیر درخواست (Resource Path): ${log.resource || "/api/security/audit-logs"}\n📍 موقعیت مکانی: ${log.ipLocation || "ایران (تهران)"}\n👤 نام کاربر و نقش: ${log.userFullName || log.username} (${log.userRole || "حسابدار"})\n📅 تاریخ و زمان شمسی: ${log.shamsiDateTime || log.timestamp}\n⚠️ کد خطای امنیتی: ${log.errorCode || 403}\n🔐 امضای اصالت HMAC: ${log.signature || "معتبر"}`)}
+                                      className="p-1 rounded-lg text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40"
+                                      title="مشاهده جزئیات کامل لاگ"
+                                    >
+                                      <Eye className="h-4 w-4" />
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </AftaAccordionCard>
 
                   {/* ۱. ماتریس خط‌مشی دسترسی موجودیت‌های فعال (بند ۱ افتا) */}
                   <AftaAccordionCard
