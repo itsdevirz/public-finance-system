@@ -374,6 +374,15 @@ export interface TlsServerPolicy {
   };
 }
 
+export interface MutualTlsPolicy {
+  enable: boolean;
+  enableMutualAuthX509v3?: boolean;
+  rejectMismatchSubjectDnOrSan?: boolean;
+  enforceSubjectIdentityMatching?: boolean;
+  mismatchedIdentityAction?: string;
+  requireValidClientCert?: boolean;
+}
+
 // الزام افتا (رده ۳-۵): اعتبارسنجی گواهی‌نامه (Certificate Validation)
 export interface CertificateValidationPolicy {
   enable: boolean;
@@ -483,6 +492,23 @@ export interface SshProtocolPolicy {
   };
 }
 
+export interface SensitiveDataIntegrityPolicy {
+  enableTamperDetection: boolean;
+  maintainHashedValues: boolean;
+  maintainDigitalSignatures?: boolean;
+  otherTamperDetection: boolean;
+  autoBlockOnTamperAlert?: boolean;
+  auditLogTamperEvents?: boolean;
+}
+
+export interface DataIntegrityErrorResponsePolicy {
+  enableErrorResponse: boolean;
+  notifyAuthorizedRoles: boolean;
+  autoRollbackToPreviousState: boolean;
+  otherResponseActions: boolean;
+  auditLogErrorEvents?: boolean;
+}
+
 export interface SecurityPolicyConfig {
   passwordPolicy: PasswordPolicy;
   lockoutPolicy: LockoutPolicy;
@@ -499,6 +525,8 @@ export interface SecurityPolicyConfig {
   secureDataTransportPolicy?: SecureDataTransportPolicy;
   userDataEgressAccessPolicy?: UserDataEgressAccessPolicy;
   targetedDataEgressRules?: TargetedDataEgressRules;
+  sensitiveDataIntegrityPolicy?: SensitiveDataIntegrityPolicy;
+  dataIntegrityErrorResponsePolicy?: DataIntegrityErrorResponsePolicy;
   productRolesDefinitionPolicy?: ProductRolesDefinitionPolicy;
   userRoleAssignmentPolicy?: UserRoleAssignmentPolicy;
   secureFailureStatePolicy?: SecureFailureStatePolicy;
@@ -671,6 +699,21 @@ export const DEFAULT_SECURITY_POLICY: SecurityPolicyConfig = {
     requireAdminApprovalForBulkEgress: true,
     preventEgressToUnauthorizedEndpoints: true,
     auditUntargetedEgressAttempts: true,
+  },
+  sensitiveDataIntegrityPolicy: {
+    enableTamperDetection: true,
+    maintainHashedValues: true,
+    maintainDigitalSignatures: true,
+    otherTamperDetection: true,
+    autoBlockOnTamperAlert: true,
+    auditLogTamperEvents: true,
+  },
+  dataIntegrityErrorResponsePolicy: {
+    enableErrorResponse: true,
+    notifyAuthorizedRoles: true,
+    autoRollbackToPreviousState: true,
+    otherResponseActions: true,
+    auditLogErrorEvents: true,
   },
   productRolesDefinitionPolicy: {
     enableRolesDefinition: true,

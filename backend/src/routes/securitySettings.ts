@@ -68,6 +68,8 @@ router.put("/policy", requireRole(["admin"]), async (c) => {
       secureDataTransportPolicy: body.secureDataTransportPolicy || existingVal.secureDataTransportPolicy || DEFAULT_SECURITY_POLICY.secureDataTransportPolicy,
       userDataEgressAccessPolicy: body.userDataEgressAccessPolicy || existingVal.userDataEgressAccessPolicy || DEFAULT_SECURITY_POLICY.userDataEgressAccessPolicy,
       targetedDataEgressRules: body.targetedDataEgressRules || existingVal.targetedDataEgressRules || DEFAULT_SECURITY_POLICY.targetedDataEgressRules,
+      sensitiveDataIntegrityPolicy: body.sensitiveDataIntegrityPolicy || existingVal.sensitiveDataIntegrityPolicy || DEFAULT_SECURITY_POLICY.sensitiveDataIntegrityPolicy,
+      dataIntegrityErrorResponsePolicy: body.dataIntegrityErrorResponsePolicy || existingVal.dataIntegrityErrorResponsePolicy || DEFAULT_SECURITY_POLICY.dataIntegrityErrorResponsePolicy,
       productRolesDefinitionPolicy: body.productRolesDefinitionPolicy || existingVal.productRolesDefinitionPolicy || DEFAULT_SECURITY_POLICY.productRolesDefinitionPolicy,
       userRoleAssignmentPolicy: body.userRoleAssignmentPolicy || existingVal.userRoleAssignmentPolicy || DEFAULT_SECURITY_POLICY.userRoleAssignmentPolicy,
       secureFailureStatePolicy: body.secureFailureStatePolicy || existingVal.secureFailureStatePolicy || DEFAULT_SECURITY_POLICY.secureFailureStatePolicy,
