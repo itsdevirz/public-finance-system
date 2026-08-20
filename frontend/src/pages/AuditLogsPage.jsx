@@ -20,13 +20,14 @@ import { useAuth } from "@/context/AuthContext";
 const LOG_TABLE_TYPES = [
   { id: "OPERATIONAL", label: "جدول لاگ‌های عملیاتی و امنیتی سیستم (شامل گذرواژه‌ها)" },
   { id: "AUTH_LOGS", label: "جدول لاگ‌های احراز هویت (ورود و خروج)" },
-  { id: "ATTACHMENTS", label: "فایل ها / ضمیمه ها (رویدادهای دانلود، بارگذاری و خروج داده - بند ۸ افتا)" }
+  { id: "ATTACHMENTS", label: "فایل ها / ضمیمه ها (رویدادهای دانلود، بارگذاری و خروج داده)" }
 ];
 
 // دسته‌بندی‌های سریع لاگ‌های عملیاتی
 const LOG_CATEGORIES = [
   { id: "ALL", label: "همه لاگ‌های عملیاتی" },
-  { id: "DOWNLOADS", label: "دانلود فایل (خروج داده - بند ۸ افتا)" },
+  { id: "BEHAVIOR_CHANGE", label: "تغییرات رفتار توابع محصول" },
+  { id: "DOWNLOADS", label: "دانلود فایل (خروج داده)" },
   { id: "ATTACHMENTS", label: "فایل ها / ضمیمه ها" },
   { id: "PASSWORD", label: "تلاش‌ها و تغییرات گذرواژه" },
   { id: "AUTH", label: "ورود و امنیت" },
@@ -553,6 +554,14 @@ export default function AuditLogsPage() {
 
       // فیلتر تب‌های سریع در حالت لاگ‌های عملیاتی
       if (logTableType === "OPERATIONAL") {
+        // فیلتر لاگ‌های تکراری اندپوینت‌های ثبت‌نشان سیستمی برای دانلود فایل
+        if (
+          item.raw?.resource?.includes("/security/audit-file-download") ||
+          (item.raw?.resource?.includes("/security/validate-egress") && item.raw?.result === "SUCCESS")
+        ) {
+          return false;
+        }
+        if (selectedCategory === "BEHAVIOR_CHANGE" && item.tableName !== "کلید های پیکر بندی سیستم" && item.raw?.eventType !== "FUNCTION_BEHAVIOR_CHANGE" && item.raw?.eventType !== "تمامی تغییرات در رفتارهای توابع کارکردی محصول" && !item.description?.includes("بازه زمانی مجاز")) return false;
         if (selectedCategory === "DOWNLOADS" && item.opType !== "دانلود فایل" && !item.isDownloadLog) return false;
         if (selectedCategory === "ATTACHMENTS" && item.tableName !== "ضمیمه" && item.opType !== "دانلود فایل" && !item.raw?.action?.includes("AttachmentName")) return false;
         if (selectedCategory === "PASSWORD" && !item.isPasswordVerify && !item.description?.includes("رمز عبور") && !item.description?.includes("گذرواژه")) return false;
@@ -1323,7 +1332,7 @@ export default function AuditLogsPage() {
                 <div className="p-3.5 rounded-xl bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 space-y-2.5 shadow-xs">
                   <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300 font-bold text-xs">
                     <FileSpreadsheet className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                    <span>خروج داده از محصول و دانلود فایل (بند ۸ جدول ۲-۴ حفاظت از داده‌های کاربردی افتا):</span>
+                    <span>خروج داده از محصول و دانلود فایل:</span>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-[11px] pt-1">
                     <div className="bg-white/80 dark:bg-slate-900/80 p-2 rounded-lg border border-blue-100 dark:border-blue-900/50">

@@ -509,10 +509,39 @@ export interface DataIntegrityErrorResponsePolicy {
   auditLogErrorEvents?: boolean;
 }
 
+export interface FunctionBehaviorManagementPolicy {
+  enableLoginTimeWindow: boolean;
+  allowedLoginStartTime: string; // Key 10066 (e.g., "07:00")
+  allowedLoginEndTime: string;   // Key 10067 (e.g., "23:30")
+  specifyBehaviorConfigs?: {
+    restrictAdminIpRange: boolean;
+    allowedAdminIpRange: string;
+    strictSessionLock: boolean;
+    autoArchiveLogsDays: number;
+  };
+  disabledFunctions?: {
+    disableDirectDatabaseExport: boolean;
+    disableRemotePasswordReset: boolean;
+    disableGuestLogin: boolean;
+    disableBulkFileDownloads: boolean;
+  };
+  enabledFunctions?: {
+    enableMfaForAdmins: boolean;
+    enableAuditLogIntegritySigning: boolean;
+    enableEgressValidationCheck: boolean;
+    enableRealTimeSecurityAlerts: boolean;
+  };
+  otherBehaviorSettings?: {
+    customSecurityNotice: string;
+    customManagementNotes: string;
+  };
+}
+
 export interface SecurityPolicyConfig {
   passwordPolicy: PasswordPolicy;
   lockoutPolicy: LockoutPolicy;
   sessionPolicy: SessionPolicy;
+  functionBehaviorPolicy?: FunctionBehaviorManagementPolicy;
   entityAccessPolicies?: EntityAccessPolicy[];
   activeUserSecurityChangePolicy?: ActiveUserSecurityChangePolicy;
   inactiveEntityAccessPolicies?: InactiveEntityAccessPolicies;
@@ -616,6 +645,33 @@ export const DEFAULT_SECURITY_POLICY: SecurityPolicyConfig = {
     tokenExpiresInHours: 8,
     maxConcurrentSessions: 3,
     idleTimeoutMinutes: 30,
+  },
+  functionBehaviorPolicy: {
+    enableLoginTimeWindow: true,
+    allowedLoginStartTime: "07:00",
+    allowedLoginEndTime: "23:30",
+    specifyBehaviorConfigs: {
+      restrictAdminIpRange: true,
+      allowedAdminIpRange: "192.168.35.0/24",
+      strictSessionLock: true,
+      autoArchiveLogsDays: 90
+    },
+    disabledFunctions: {
+      disableDirectDatabaseExport: false,
+      disableRemotePasswordReset: false,
+      disableGuestLogin: true,
+      disableBulkFileDownloads: false
+    },
+    enabledFunctions: {
+      enableMfaForAdmins: true,
+      enableAuditLogIntegritySigning: true,
+      enableEgressValidationCheck: true,
+      enableRealTimeSecurityAlerts: true
+    },
+    otherBehaviorSettings: {
+      customSecurityNotice: "ورود کاربران غیرمجاز ممنوع می‌باشد.",
+      customManagementNotes: "مدیریت رفتارهای توابع کارکردی محصول مطابق بند ۱ جدول ۲-۵ افتا"
+    }
   },
   entityAccessPolicies: DEFAULT_ENTITY_ACCESS_POLICIES,
   activeUserSecurityChangePolicy: {

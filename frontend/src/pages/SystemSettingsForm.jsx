@@ -3092,6 +3092,120 @@ export default function SystemSettingsForm() {
                     </div>
                   </AftaAccordionCard>
 
+                  {/* 🌟 تمامی تغییرات در رفتارهای توابع کارکردی محصول (مدیریت امنیت) */}
+                  <AftaAccordionCard
+                    id="afta_function_behavior_management"
+                    number="مدیریت امنیت"
+                    title="مدیریت امنیت و تمامی تغییرات در رفتارهای توابع کارکردی محصول"
+                    description="پشتیبانی از ۴ فعالیت مدیریتی توابع: تعیین/تغییر رفتار (کلید‌های ۱۰۰۶۶ و ۱۰۰۶۷)، غیرفعال نمودن، فعال نمودن و سایر موارد"
+                    isOpen={!!openAftaSections["afta_function_behavior_management"]}
+                    onToggle={toggleAftaSection}
+                    icon={Sliders}
+                  >
+                    <div className="space-y-4">
+                      {/* فعالیت ۱: تعیین و تغییر رفتار (بازه زمانی مجاز برای ورود کلید ۱۰۰۶۶ و ۱۰۰۶۷) */}
+                      <div className="p-3.5 rounded-xl border bg-white dark:bg-slate-900 space-y-3 shadow-2xs">
+                        <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2 border-r-4 pr-2 border-blue-600">
+                          <Clock className="h-4 w-4 text-blue-600" />
+                          ۱. تعیین و تغییر رفتار: بازه زمانی مجاز برای ورود به سیستم (کلید‌های ۱۰۰۶۶ و ۱۰۰۶۷)
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground block mb-1">ابتدای بازه زمانی مجاز برای ورود (کلید ۱۰۰۶۶):</Label>
+                            <Input
+                              type="text"
+                              value={settings.functionBehaviorPolicy?.allowedLoginStartTime || "07:00"}
+                              onChange={e => {
+                                set("functionBehaviorPolicy", {
+                                  ...settings.functionBehaviorPolicy,
+                                  allowedLoginStartTime: e.target.value
+                                });
+                              }}
+                              placeholder="07:00"
+                              className="h-8 text-xs font-mono text-center dir-ltr"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground block mb-1">انتهای بازه زمانی مجاز برای ورود (کلید ۱۰۰۶۷):</Label>
+                            <Input
+                              type="text"
+                              value={settings.functionBehaviorPolicy?.allowedLoginEndTime || "23:30"}
+                              onChange={e => {
+                                set("functionBehaviorPolicy", {
+                                  ...settings.functionBehaviorPolicy,
+                                  allowedLoginEndTime: e.target.value
+                                });
+                              }}
+                              placeholder="23:30"
+                              className="h-8 text-xs font-mono text-center dir-ltr"
+                            />
+                          </div>
+                          <div className="flex items-end">
+                            <label className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300 font-medium cursor-pointer p-2 rounded-lg border w-full bg-slate-50 dark:bg-slate-800/60">
+                              <input
+                                type="checkbox"
+                                checked={settings.functionBehaviorPolicy?.enableLoginTimeWindow ?? true}
+                                onChange={e => {
+                                  set("functionBehaviorPolicy", {
+                                    ...settings.functionBehaviorPolicy,
+                                    enableLoginTimeWindow: e.target.checked
+                                  });
+                                }}
+                                className="h-4 w-4 rounded border-slate-300 text-blue-600"
+                              />
+                              <span>اعمال محدودیت بازه زمانی ورود</span>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* فعالیت‌های ۲ و ۳: غیرفعال نمودن / فعال نمودن توابع و کارکردها */}
+                      <div className="p-3.5 rounded-xl border bg-white dark:bg-slate-900 space-y-3 shadow-2xs">
+                        <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2 border-r-4 pr-2 border-emerald-600">
+                          <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                          ۲ و ۳. فعالیت‌های مدیریتی غیرفعال نمودن و فعال نمودن توابع مربوط به مدیریت محصول
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                          <label className="flex items-center gap-2.5 text-xs text-slate-700 dark:text-slate-300 font-medium cursor-pointer p-2.5 rounded-lg border bg-slate-50 dark:bg-slate-800/60">
+                            <input
+                              type="checkbox"
+                              checked={settings.functionBehaviorPolicy?.disabledFunctions?.disableDirectDatabaseExport ?? false}
+                              onChange={e => {
+                                set("functionBehaviorPolicy", {
+                                  ...settings.functionBehaviorPolicy,
+                                  disabledFunctions: {
+                                    ...settings.functionBehaviorPolicy?.disabledFunctions,
+                                    disableDirectDatabaseExport: e.target.checked
+                                  }
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-rose-600"
+                            />
+                            <span>غیرفعال نمودن خروجی مستقیم پایگاه داده (غیرفعال نمودن کارکرد)</span>
+                          </label>
+
+                          <label className="flex items-center gap-2.5 text-xs text-slate-700 dark:text-slate-300 font-medium cursor-pointer p-2.5 rounded-lg border bg-slate-50 dark:bg-slate-800/60">
+                            <input
+                              type="checkbox"
+                              checked={settings.functionBehaviorPolicy?.enabledFunctions?.enableMfaForAdmins ?? true}
+                              onChange={e => {
+                                set("functionBehaviorPolicy", {
+                                  ...settings.functionBehaviorPolicy,
+                                  enabledFunctions: {
+                                    ...settings.functionBehaviorPolicy?.enabledFunctions,
+                                    enableMfaForAdmins: e.target.checked
+                                  }
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-emerald-600"
+                            />
+                            <span>فعال نمودن احراز هویت دو عاملی مدیران سیستم (فعال نمودن کارکرد)</span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </AftaAccordionCard>
+
                   {/* ۱۲. خط‌مشی کنترل دسترسی هنگام خروج داده (بند ۸ افتا) */}
                   <AftaAccordionCard
                     id="afta_data_egress_access"

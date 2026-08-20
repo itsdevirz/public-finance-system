@@ -194,7 +194,11 @@ app.use("*", async (c, next) => {
   }
 
   // حذف تکرارهای غیرضروری: عدم ثبت لاگ برای درخواست‌های پیش‌فرض OPTIONS، عدم دوبار ثبت کردن لاگ خود اندپوینت‌های دریافت لاگ، و فیلتر درخواست‌های فرعی موازی جهت جلوگیری از ثبت لاگ‌های چندگانه
-  const isAuditFetchRoute = path.includes("/security/audit-logs") || path.includes("/users/audit-logs");
+  const isAuditFetchRoute =
+    path.includes("/security/audit-logs") ||
+    path.includes("/users/audit-logs") ||
+    path.includes("/security/audit-file-download") ||
+    path.includes("/security/validate-egress");
   const isBackgroundSubFetch = method === "GET" && (
     path.includes("/inventory/") ||
     path.includes("/system_settings") ||

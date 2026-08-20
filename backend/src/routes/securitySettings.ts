@@ -56,6 +56,7 @@ router.put("/policy", requireRole(["admin"]), async (c) => {
         maxConcurrentSessions: Math.max(1, Number(body.sessionPolicy?.maxConcurrentSessions) || 3),
         idleTimeoutMinutes: Math.max(1, Number(body.sessionPolicy?.idleTimeoutMinutes) || 30),
       },
+      functionBehaviorPolicy: body.functionBehaviorPolicy || existingVal.functionBehaviorPolicy || DEFAULT_SECURITY_POLICY.functionBehaviorPolicy,
       entityAccessPolicies: body.entityAccessPolicies || existingVal.entityAccessPolicies || DEFAULT_SECURITY_POLICY.entityAccessPolicies,
       activeUserSecurityChangePolicy: body.activeUserSecurityChangePolicy || existingVal.activeUserSecurityChangePolicy || DEFAULT_SECURITY_POLICY.activeUserSecurityChangePolicy,
       inactiveEntityAccessPolicies: body.inactiveEntityAccessPolicies || existingVal.inactiveEntityAccessPolicies || DEFAULT_SECURITY_POLICY.inactiveEntityAccessPolicies,
@@ -168,6 +169,54 @@ router.put("/policy", requireRole(["admin"]), async (c) => {
           isPasswordVerifyAttemptLog: true,
           oldVal: oldCharPattern,
           newVal: newCharPattern
+        }
+      });
+    }
+
+    // ۱. ثبت تغییر ابتدای بازه زمانی مجاز برای ورود به سیستم (کلید 10066 - بند ۱ جدول ۲-۵ افتا)
+    const oldStartTime = existingVal.functionBehaviorPolicy?.allowedLoginStartTime || "06:00";
+    const newStartTime = newPolicy.functionBehaviorPolicy?.allowedLoginStartTime || "07:00";
+    if (oldStartTime !== newStartTime) {
+      await logAuditEvent({
+        userId: payload.sub,
+        username: currentAdminUsername,
+        userRole: currentAdminRole === "admin" ? "مدیر" : currentAdminRole,
+        action: `ابتدای بازه زمانی مجاز برای ورود به سیستم از ${oldStartTime} به ${newStartTime} تغییر یافت`,
+        eventType: AFTA_LOG_EVENT_TYPES.FUNCTION_BEHAVIOR_CHANGE,
+        resource: "کلید های پیکر بندی سیستم",
+        result: "SUCCESS",
+        ip: clientIp,
+        userAgent: c.req.header("user-agent"),
+        details: {
+          key: "10066",
+          tableName: "کلید های پیکر بندی سیستم",
+          operation: "ویرایش",
+          oldVal: oldStartTime,
+          newVal: newStartTime
+        }
+      });
+    }
+
+    // ۲. ثبت تغییر انتهای بازه زمانی مجاز برای ورود به سیستم (کلید 10067 - بند ۱ جدول ۲-۵ افتا)
+    const oldEndTime = existingVal.functionBehaviorPolicy?.allowedLoginEndTime || "23:30:59";
+    const newEndTime = newPolicy.functionBehaviorPolicy?.allowedLoginEndTime || "23:30";
+    if (oldEndTime !== newEndTime) {
+      await logAuditEvent({
+        userId: payload.sub,
+        username: currentAdminUsername,
+        userRole: currentAdminRole === "admin" ? "مدیر" : currentAdminRole,
+        action: `انتهای بازه زمانی مجاز برای ورود به سیستم از ${oldEndTime} به ${newEndTime} تغییر یافت`,
+        eventType: AFTA_LOG_EVENT_TYPES.FUNCTION_BEHAVIOR_CHANGE,
+        resource: "کلید های پیکر بندی سیستم",
+        result: "SUCCESS",
+        ip: clientIp,
+        userAgent: c.req.header("user-agent"),
+        details: {
+          key: "10067",
+          tableName: "کلید های پیکر بندی سیستم",
+          operation: "ویرایش",
+          oldVal: oldEndTime,
+          newVal: newEndTime
         }
       });
     }
@@ -485,21 +534,8 @@ router.post("/validate-egress", async (c) => {
       return c.json({ success: false, allowed: false, message: targetedCheck.reason }, 403);
     }
 
-    // Log successful egress check
-    await logAuditEvent({
-      userId: payload?.sub,
-      username: payload?.username,
-      userRole,
-      action: AFTA_LOG_EVENT_TYPES.DATA_EXPORT_ATTEMPT,
-      eventType: AFTA_LOG_EVENT_TYPES.DATA_EXPORT_ATTEMPT,
-      resource: c.req.path,
-      method: "POST",
-      result: "SUCCESS",
-      ip: c.req.header("x-forwarded-for") || "127.0.0.1",
-      userAgent: c.req.header("user-agent"),
-      details: { exportType, recordCount, destination: destination || "مجاز" }
-    });
-
+    // Note: Success log is recorded by the file download event endpoint (/api/security/audit-file-download)
+    // to ensure exactly ONE comprehensive audit log entry is saved per file download action.
     return c.json({ success: true, allowed: true, message: "خروج داده طبق خط‌مشی مجاز می‌باشد." });
   } catch (error: any) {
     return c.json({ success: false, allowed: false, message: error.message }, 500);
@@ -721,7 +757,7 @@ router.post("/simulate-read-failure", async (c) => {
   });
 });
 
-// POST /api/security/audit-file-download - Log file export & download event (AFTA Item 8 - بند ۸ افتا)
+// POST /api/security/audit-file-download - Log file export & download event
 router.post("/audit-file-download", async (c) => {
   const payload = (c.get as any)("jwtPayload");
   const body = await c.req.json().catch(() => ({}));
@@ -764,7 +800,7 @@ router.post("/audit-file-download", async (c) => {
 
   return c.json({
     success: true,
-    message: "لاگ دانلود فایل و خروج داده مطابق بند ۸ افتا با موفقیت ثبت گردید."
+    message: "لاگ دانلود فایل و خروج داده با موفقیت ثبت گردید."
   });
 });
 
