@@ -15,7 +15,7 @@ import {
   Search, Eye
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import api from "@/api";
+import api, { logFileDownloadAudit } from "@/api";
 import { validateEgressPermission } from "@/lib/egressValidator";
 
 const INITIAL_SETTINGS = {
@@ -1171,13 +1171,23 @@ export default function SystemSettingsForm() {
       const blob = new Blob([jsonString], { type: "application/json" });
       const url = URL.createObjectURL(blob);
 
+      const fileName = `PublicFinance_Full_Backup_${settings.activeFiscalYear}_${new Date().toISOString().slice(0, 10)}.json`;
       const a = document.createElement("a");
       a.href = url;
-      a.download = `PublicFinance_Full_Backup_${settings.activeFiscalYear}_${new Date().toISOString().slice(0, 10)}.json`;
+      a.download = fileName;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+
+      await logFileDownloadAudit({
+        fileName,
+        section: "تنظیمات سیستم و پشتیبان‌گیری",
+        dataType: "بایگانی و داده کاربری کامل سیستم",
+        fileSize: `${(jsonString.length / 1024).toFixed(1)} KB`,
+        fileFormat: "JSON",
+        otherDetails: "دانلود خروجی پشتیبان کامل سیستم"
+      });
 
       setSuccessMsg("فایل پشتیبان کامل سیستم (JSON) با موفقیت دانلود شد.");
     } catch (err) {
@@ -2081,7 +2091,7 @@ export default function SystemSettingsForm() {
 
                       {/* جدول لاگ‌ها */}
                       <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900 shadow-sm max-h-[400px]">
-                        <table className="w-full text-xs text-right">
+                        <table className="w-full text-xs text-right min-w-[850px]">
                           <thead className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b sticky top-0 z-10">
                             <tr>
                               <th className="p-2.5">وضعیت</th>
@@ -2089,7 +2099,7 @@ export default function SystemSettingsForm() {
                               <th className="p-2.5">کاربر</th>
                               <th className="p-2.5">آدرس (IP / مسیر API)</th>
                               <th className="p-2.5">تاریخ و زمان شمسی</th>
-                              <th className="p-2.5 text-center">جزئیات</th>
+                              <th className="p-2.5 text-center min-w-[90px] w-[90px] whitespace-nowrap bg-slate-100 dark:bg-slate-800">جزئیات</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -2107,7 +2117,7 @@ export default function SystemSettingsForm() {
                               </tr>
                             ) : (
                               auditLogs.map((log) => (
-                                <tr key={log._id || log.timestamp} className={cn("hover:bg-slate-50/70 dark:hover:bg-slate-800/40", log.result === "FAILURE" && "bg-rose-50/30 dark:bg-rose-950/20")}>
+                                <tr key={log._id || log.timestamp} className={cn("group hover:bg-slate-50/70 dark:hover:bg-slate-800/40", log.result === "FAILURE" && "bg-rose-50/30 dark:bg-rose-950/20")}>
                                   <td className="p-2.5">
                                     <span className={cn(
                                       "px-2 py-0.5 rounded-full text-[10px] font-bold border",
@@ -2133,14 +2143,15 @@ export default function SystemSettingsForm() {
                                   <td className="p-2.5 font-mono text-[11px] text-slate-600 dark:text-slate-400">
                                     {log.shamsiDateTime || log.shamsiDate || log.timestamp}
                                   </td>
-                                  <td className="p-2.5 text-center">
+                                  <td className="p-2.5 text-center min-w-[90px] w-[90px] whitespace-nowrap bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800/50">
                                     <button
                                       type="button"
                                       onClick={() => alert(`📋 جزئیات کامل ثبت‌نشان افتا:\n\n📌 عنوان رویداد: ${log.action || log.eventType}\n🌐 آدرس آی‌پی (IP Address): ${log.ip || "192.168.1.105"}\n🔗 آدرس مسیر درخواست (Resource Path): ${log.resource || "/api/security/audit-logs"}\n📍 موقعیت مکانی: ${log.ipLocation || "ایران (تهران)"}\n👤 نام کاربر و نقش: ${log.userFullName || log.username} (${log.userRole || "حسابدار"})\n📅 تاریخ و زمان شمسی: ${log.shamsiDateTime || log.timestamp}\n⚠️ کد خطای امنیتی: ${log.errorCode || 403}\n🔐 امضای اصالت HMAC: ${log.signature || "معتبر"}`)}
-                                      className="p-1 rounded-lg text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40"
+                                      className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 font-semibold text-[11px] border border-blue-200 dark:border-blue-800/50 transition-colors"
                                       title="مشاهده جزئیات کامل لاگ"
                                     >
                                       <Eye className="h-4 w-4" />
+                                      <span>نمایش</span>
                                     </button>
                                   </td>
                                 </tr>

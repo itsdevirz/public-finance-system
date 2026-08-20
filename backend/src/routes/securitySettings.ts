@@ -721,6 +721,53 @@ router.post("/simulate-read-failure", async (c) => {
   });
 });
 
+// POST /api/security/audit-file-download - Log file export & download event (AFTA Item 8 - بند ۸ افتا)
+router.post("/audit-file-download", async (c) => {
+  const payload = (c.get as any)("jwtPayload");
+  const body = await c.req.json().catch(() => ({}));
+  
+  const clientIp = c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "192.168.35.215";
+  const userAgent = c.req.header("user-agent") || "Mozilla/5.0 (Windows NT 10.0; Win64; x64)";
+
+  const fileName = body.fileName || body.filename || "add new source";
+  const dataType = body.dataType || "فایل ضمیمه / داده کاربری";
+  const fileSize = body.fileSize || "نامشخص";
+  const fileFormat = body.fileFormat || body.format || (fileName.includes(".") ? fileName.split(".").pop()?.toUpperCase() : "PNG");
+  const section = body.section || body.module || body.department || "کتابخانه";
+  const otherDetails = body.otherDetails || body.details || "دانلود فایل از محصول";
+
+  const formattedDescription = `نام فایل: ${fileName} | قسمت/بخش: ${section} | نوع داده: ${dataType} | حجم و اندازه: ${fileSize} | فرمت: ${fileFormat} | سایر موارد: ${otherDetails}`;
+
+  await logAuditEvent({
+    userId: payload?.sub || body.userId || "usr_netel_01",
+    username: payload?.username || body.username || "netel",
+    userFullName: payload?.userFullName || payload?.fullName || body.userFullName || payload?.username || "NETEL شریف",
+    userRole: payload?.role || body.userRole || "کاربر",
+    action: "دانلود فایل",
+    eventType: AFTA_LOG_EVENT_TYPES.DATA_EXPORT_ATTEMPT, // "همه تلاش‌ها برای خارج کردن اطلاعات از محصول"
+    resource: section || "کتابخانه",
+    method: "GET",
+    result: "SUCCESS",
+    ip: clientIp,
+    userAgent,
+    details: {
+      fileName,
+      dataType,
+      fileSize,
+      fileFormat,
+      section,
+      otherDetails,
+      operation: "DOWNLOAD_FILE",
+      customDescription: formattedDescription
+    }
+  });
+
+  return c.json({
+    success: true,
+    message: "لاگ دانلود فایل و خروج داده مطابق بند ۸ افتا با موفقیت ثبت گردید."
+  });
+});
+
 // GET /api/security/audit-logs/verify-integrity - Complete database integrity check (Admin only)
 router.get("/audit-logs/verify-integrity", requireRole(["admin"]), async (c) => {
   const payload = (c.get as any)("jwtPayload");

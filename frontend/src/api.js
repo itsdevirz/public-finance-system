@@ -59,4 +59,28 @@ api.interceptors.response.use(
   }
 );
 
+// ثبت خودکار لاگ دانلود فایل و خروج داده مطابق بند ۸ جدول ۲-۴ افتا
+export async function logFileDownloadAudit({
+  fileName = "add new source",
+  section = "کتابخانه",
+  dataType = "فایل ضمیمه / داده کاربری",
+  fileSize = "نامشخص",
+  fileFormat,
+  otherDetails = "دانلود فایل از محصول"
+}) {
+  try {
+    const ext = fileFormat || (fileName && fileName.includes(".") ? fileName.split(".").pop().toUpperCase() : "PNG");
+    await api.post("/api/security/audit-file-download", {
+      fileName,
+      section,
+      dataType,
+      fileSize,
+      fileFormat: ext,
+      otherDetails
+    });
+  } catch (err) {
+    console.error("خطا در ثبت لاگ دانلود فایل افتا:", err);
+  }
+}
+
 export default api;

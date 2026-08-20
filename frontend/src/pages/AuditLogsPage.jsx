@@ -11,7 +11,7 @@ import {
   Laptop, UserCheck, ChevronLeft, ChevronRight,
   Database, AlertOctagon, Terminal, Activity, FileText, Info, Layers
 } from "lucide-react";
-import api from "@/api";
+import api, { logFileDownloadAudit } from "@/api";
 import { cn } from "@/lib/utils";
 import { printTable } from "@/lib/printUtils";
 import { useAuth } from "@/context/AuthContext";
@@ -20,12 +20,13 @@ import { useAuth } from "@/context/AuthContext";
 const LOG_TABLE_TYPES = [
   { id: "OPERATIONAL", label: "جدول لاگ‌های عملیاتی و امنیتی سیستم (شامل گذرواژه‌ها)" },
   { id: "AUTH_LOGS", label: "جدول لاگ‌های احراز هویت (ورود و خروج)" },
-  { id: "ATTACHMENTS", label: "فایل ها / ضمیمه ها (رویدادهای بارگذاری و حذف فایل)" }
+  { id: "ATTACHMENTS", label: "فایل ها / ضمیمه ها (رویدادهای دانلود، بارگذاری و خروج داده - بند ۸ افتا)" }
 ];
 
 // دسته‌بندی‌های سریع لاگ‌های عملیاتی
 const LOG_CATEGORIES = [
   { id: "ALL", label: "همه لاگ‌های عملیاتی" },
+  { id: "DOWNLOADS", label: "دانلود فایل (خروج داده - بند ۸ افتا)" },
   { id: "ATTACHMENTS", label: "فایل ها / ضمیمه ها" },
   { id: "PASSWORD", label: "تلاش‌ها و تغییرات گذرواژه" },
   { id: "AUTH", label: "ورود و امنیت" },
@@ -42,6 +43,31 @@ function formatHumanReadableDescription(log) {
   const resourceLower = (log.resource || "").toLowerCase();
   const methodUpper = (log.method || "").toUpperCase();
   const details = log.details || {};
+
+  // فرمت لاگ دانلود فایل و خروج داده مطابق بند ۸ افتا (تطابق کامل با تصویر ۱)
+  if (
+    log.eventType === "DATA_EXPORT_ATTEMPT" ||
+    log.eventType === "همه تلاش‌ها برای خارج کردن اطلاعات از محصول" ||
+    log.action === "دانلود فایل" ||
+    rawAction.includes("دانلود فایل") ||
+    details?.fileName
+  ) {
+    const fileName = details?.fileName || "add new source";
+    const section = details?.section || log.resource || "کتابخانه";
+    const dataType = details?.dataType || "فایل ضمیمه / داده کاربری";
+    const fileSize = details?.fileSize;
+    const fileFormat = details?.fileFormat;
+    const otherDetails = details?.otherDetails;
+
+    let parts = [`نام فایل: ${fileName}`];
+    if (section) parts.push(`قسمت/بخش: ${section}`);
+    if (dataType) parts.push(`نوع داده: ${dataType}`);
+    if (fileSize && fileSize !== "نامشخص") parts.push(`حجم و اندازه: ${fileSize}`);
+    if (fileFormat) parts.push(`فرمت: ${fileFormat}`);
+    if (otherDetails && otherDetails !== "دانلود فایل از محصول") parts.push(`سایر موارد: ${otherDetails}`);
+
+    return parts.join(" | ");
+  }
 
   if (rawAction.includes("auth/me") || resourceLower.includes("auth/me")) {
     const username = log.username || details.username || "کاربر سیستم";
@@ -330,14 +356,23 @@ export default function AuditLogsPage() {
       const isIntegrityOk = log.isIntegrityValid !== false && log.result !== "SECURITY_BREACH" && !actionStr.includes("Value cannot be null");
       const recordStatus = isIntegrityOk ? "معتبر" : "نامعتبر";
 
-      // 2. نوع عملیات (مشاهده / خطا / افزودن / عملیات غیرمجاز / ایجاد / ویرایش / حذف / ورود)
+      // 2. نوع عملیات (مشاهده / خطا / افزودن / دانلود فایل / عملیات غیرمجاز / ایجاد / ویرایش / حذف / ورود)
       let opType = "مشاهده";
 
-      const isAttachmentLog = log.resource === "ضمیمه" || actionStr.includes("AttachmentName");
+      const isDownloadLog =
+        log.eventType === "DATA_EXPORT_ATTEMPT" ||
+        log.eventType === "همه تلاش‌ها برای خارج کردن اطلاعات از محصول" ||
+        log.action === "دانلود فایل" ||
+        actionUpper.includes("DOWNLOAD") ||
+        actionUpper.includes("دانلود");
+
+      const isAttachmentLog = log.resource === "ضمیمه" || actionStr.includes("AttachmentName") || isDownloadLog;
       const isDeleteOp = actionUpper.includes("DELETE") || actionUpper.includes("حذف") || methodUpper === "DELETE" || log.details?.operation === "DELETE";
 
       if (actionStr.startsWith("Message :") || actionUpper.includes("MESSAGE :") || log.eventType === "USER_DATA_VALIDATION_FAILURE") {
         opType = "خطا";
+      } else if (isDownloadLog) {
+        opType = "دانلود فایل";
       } else if (isAttachmentLog) {
         opType = isDeleteOp ? "حذف" : "افزودن";
       } else if (
@@ -361,7 +396,7 @@ export default function AuditLogsPage() {
         opType = "خروج";
       }
 
-      // 3. نام جدول (موجودیت یا ماژول مرتبط)
+      // 3. نام جدول (موجودیت یا ماژول/بخش مرتبط)
       let tableName = "لاگ های سیستمی";
       const resourceLower = (log.resource || "").toLowerCase();
 
@@ -372,7 +407,9 @@ export default function AuditLogsPage() {
         actionStr.includes("فعال شدن خودکار کاربر") ||
         actionStr.includes("احراز هویت دو مرحله ای");
 
-      if (isAuthPolicyChange) {
+      if (isDownloadLog || log.details?.fileName) {
+        tableName = log.details?.section || log.resource || "کتابخانه";
+      } else if (isAuthPolicyChange) {
         tableName = "کلید های پیکر بندی سیستم";
         opType = "ویرایش";
       } else if (isAttachmentLog) {
@@ -404,7 +441,6 @@ export default function AuditLogsPage() {
       } else if (log.details?.id || log.details?.recordId || log.details?.voucherId || log.details?.userId || log.details?.documentId || log.details?.contractId || log.details?.key) {
         keyValue = String(log.details.id || log.details.recordId || log.details.voucherId || log.details.userId || log.details.documentId || log.details.contractId || log.details.key);
       } else {
-        // برای کلیه لاگ‌های عمومی، تنظیمات، موارد رویدادنگاری و مشاهده سیستم، مقدار کلید طبق استانداردهای افتا خالی می‌افتد
         keyValue = "";
       }
 
@@ -499,7 +535,8 @@ export default function AuditLogsPage() {
         requestType,
         requestResult,
         isAuthOutcome,
-        isPasswordVerify
+        isPasswordVerify,
+        isDownloadLog
       };
     });
   }, [logs, page, pageSize]);
@@ -511,12 +548,13 @@ export default function AuditLogsPage() {
       if (logTableType === "AUTH_LOGS") {
         if (!item.isAuthOutcome && item.opType !== "ورود" && item.opType !== "خروج") return false;
       } else if (logTableType === "ATTACHMENTS") {
-        if (item.tableName !== "ضمیمه" && !item.raw?.action?.includes("AttachmentName") && item.raw?.resource !== "ضمیمه") return false;
+        if (item.tableName !== "ضمیمه" && item.opType !== "دانلود فایل" && !item.raw?.action?.includes("AttachmentName") && item.raw?.resource !== "ضمیمه" && item.raw?.eventType !== "DATA_EXPORT_ATTEMPT") return false;
       }
 
       // فیلتر تب‌های سریع در حالت لاگ‌های عملیاتی
       if (logTableType === "OPERATIONAL") {
-        if (selectedCategory === "ATTACHMENTS" && item.tableName !== "ضمیمه" && !item.raw?.action?.includes("AttachmentName")) return false;
+        if (selectedCategory === "DOWNLOADS" && item.opType !== "دانلود فایل" && !item.isDownloadLog) return false;
+        if (selectedCategory === "ATTACHMENTS" && item.tableName !== "ضمیمه" && item.opType !== "دانلود فایل" && !item.raw?.action?.includes("AttachmentName")) return false;
         if (selectedCategory === "PASSWORD" && !item.isPasswordVerify && !item.description?.includes("رمز عبور") && !item.description?.includes("گذرواژه")) return false;
         if (selectedCategory === "READ" && item.opType !== "مشاهده") return false;
         if (selectedCategory === "UNAUTHORIZED" && item.opType !== "عملیات غیرمجاز") return false;
@@ -594,8 +632,9 @@ export default function AuditLogsPage() {
   };
 
   // خروجی CSV/اکسل
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
     if (!filteredProcessedLogs.length) return;
+    const fileName = `Operational_Audit_Logs_${new Date().toISOString().slice(0, 10)}.csv`;
     const headers = ["وضعیت رکورد", "نوع عملیات", "نام جدول", "مقدار کلید", "کاربر", "نوع کاربر", "تاریخ وقوع", "زمان وقوع", "آدرس ماشین", "شرح عملیات"];
     const rows = filteredProcessedLogs.map(l => [
       `"${l.recordStatus}"`,
@@ -614,10 +653,21 @@ export default function AuditLogsPage() {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `Operational_Audit_Logs_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute("download", fileName);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+
+    // ثبت لاگ افتا خروج داده (بند ۸ افتا)
+    await logFileDownloadAudit({
+      fileName,
+      section: "ثبت نشان‌ها و لاگ‌های ممیزی",
+      dataType: "گزارش ممیزی سیستم",
+      fileSize: `${(csvContent.length / 1024).toFixed(1)} KB`,
+      fileFormat: "CSV",
+      otherDetails: "خروجی اکسل لاگ‌های عملیاتی سیستم"
+    });
+    fetchAuditLogs({ page: 1 });
   };
 
   // آمار خلاصه سریع
@@ -894,6 +944,7 @@ export default function AuditLogsPage() {
               >
                 <option value="">نوع عملیات: همه</option>
                 <option value="مشاهده">مشاهده</option>
+                <option value="دانلود فایل">دانلود فایل (خروج داده)</option>
                 <option value="عملیات غیرمجاز">عملیات غیرمجاز</option>
                 <option value="ایجاد">ایجاد</option>
                 <option value="ویرایش">ویرایش</option>
@@ -933,15 +984,15 @@ export default function AuditLogsPage() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-right text-xs border-collapse font-sans">
+          <table className="w-full text-right text-[11px] border-collapse font-sans">
             <thead>
               {/* هدر ستون‌های جدول با آیکون‌های مرتب‌سازی exact matching */}
-              <tr className="bg-slate-100 dark:bg-slate-800/90 text-slate-800 dark:text-slate-200 border-b border-slate-300 dark:border-slate-700 text-[12px] font-bold select-none">
+              <tr className="bg-slate-100 dark:bg-slate-800/90 text-slate-800 dark:text-slate-200 border-b border-slate-300 dark:border-slate-700 text-[11px] font-bold select-none">
                 <th
                   onClick={() => handleSort("status")}
-                  className="py-2.5 px-3 border-l border-slate-300 dark:border-slate-700 cursor-pointer hover:bg-slate-200/70 dark:hover:bg-slate-700 transition-colors text-center whitespace-nowrap"
+                  className="py-2 px-1.5 border-l border-slate-300 dark:border-slate-700 cursor-pointer hover:bg-slate-200/70 dark:hover:bg-slate-700 transition-colors text-center whitespace-nowrap"
                 >
-                  <div className="flex items-center justify-center gap-1.5">
+                  <div className="flex items-center justify-center gap-1">
                     <span>وضعیت رکورد</span>
                     <ArrowUpDown className="h-3 w-3 text-slate-500" />
                   </div>
@@ -951,9 +1002,9 @@ export default function AuditLogsPage() {
                   <>
                     <th
                       onClick={() => handleSort("opType")}
-                      className="py-2.5 px-3 border-l border-slate-300 dark:border-slate-700 cursor-pointer hover:bg-slate-200/70 dark:hover:bg-slate-700 transition-colors text-center whitespace-nowrap"
+                      className="py-2 px-1.5 border-l border-slate-300 dark:border-slate-700 cursor-pointer hover:bg-slate-200/70 dark:hover:bg-slate-700 transition-colors text-center whitespace-nowrap"
                     >
-                      <div className="flex items-center justify-center gap-1.5">
+                      <div className="flex items-center justify-center gap-1">
                         <span>نوع عملیات</span>
                         <ArrowUpDown className="h-3 w-3 text-slate-500" />
                       </div>
@@ -961,9 +1012,9 @@ export default function AuditLogsPage() {
 
                     <th
                       onClick={() => handleSort("tableName")}
-                      className="py-2.5 px-3 border-l border-slate-300 dark:border-slate-700 cursor-pointer hover:bg-slate-200/70 dark:hover:bg-slate-700 transition-colors text-center whitespace-nowrap"
+                      className="py-2 px-1.5 border-l border-slate-300 dark:border-slate-700 cursor-pointer hover:bg-slate-200/70 dark:hover:bg-slate-700 transition-colors text-center whitespace-nowrap"
                     >
-                      <div className="flex items-center justify-center gap-1.5">
+                      <div className="flex items-center justify-center gap-1">
                         <span>نام جدول</span>
                         <ArrowUpDown className="h-3 w-3 text-slate-500" />
                       </div>
@@ -971,9 +1022,9 @@ export default function AuditLogsPage() {
 
                     <th
                       onClick={() => handleSort("keyValue")}
-                      className="py-2.5 px-3 border-l border-slate-300 dark:border-slate-700 cursor-pointer hover:bg-slate-200/70 dark:hover:bg-slate-700 transition-colors text-center whitespace-nowrap"
+                      className="py-2 px-1.5 border-l border-slate-300 dark:border-slate-700 cursor-pointer hover:bg-slate-200/70 dark:hover:bg-slate-700 transition-colors text-center whitespace-nowrap"
                     >
-                      <div className="flex items-center justify-center gap-1.5">
+                      <div className="flex items-center justify-center gap-1">
                         <span>مقدار کلید</span>
                         <ArrowUpDown className="h-3 w-3 text-slate-500" />
                       </div>
@@ -983,9 +1034,9 @@ export default function AuditLogsPage() {
 
                 <th
                   onClick={() => handleSort("username")}
-                  className="py-2.5 px-3 border-l border-slate-300 dark:border-slate-700 cursor-pointer hover:bg-slate-200/70 dark:hover:bg-slate-700 transition-colors text-center whitespace-nowrap"
+                  className="py-2 px-1.5 border-l border-slate-300 dark:border-slate-700 cursor-pointer hover:bg-slate-200/70 dark:hover:bg-slate-700 transition-colors text-center whitespace-nowrap"
                 >
-                  <div className="flex items-center justify-center gap-1.5">
+                  <div className="flex items-center justify-center gap-1">
                     <span>کاربر</span>
                     <ArrowUpDown className="h-3 w-3 text-slate-500" />
                   </div>
@@ -993,9 +1044,9 @@ export default function AuditLogsPage() {
 
                 <th
                   onClick={() => handleSort("userRole")}
-                  className="py-2.5 px-3 border-l border-slate-300 dark:border-slate-700 cursor-pointer hover:bg-slate-200/70 dark:hover:bg-slate-700 transition-colors text-center whitespace-nowrap"
+                  className="py-2 px-1.5 border-l border-slate-300 dark:border-slate-700 cursor-pointer hover:bg-slate-200/70 dark:hover:bg-slate-700 transition-colors text-center whitespace-nowrap"
                 >
-                  <div className="flex items-center justify-center gap-1.5">
+                  <div className="flex items-center justify-center gap-1">
                     <span>نوع کاربر</span>
                     <ArrowUpDown className="h-3 w-3 text-slate-500" />
                   </div>
@@ -1003,9 +1054,9 @@ export default function AuditLogsPage() {
 
                 <th
                   onClick={() => handleSort("occurrenceDate")}
-                  className="py-2.5 px-3 border-l border-slate-300 dark:border-slate-700 cursor-pointer hover:bg-slate-200/70 dark:hover:bg-slate-700 transition-colors text-center whitespace-nowrap"
+                  className="py-2 px-1.5 border-l border-slate-300 dark:border-slate-700 cursor-pointer hover:bg-slate-200/70 dark:hover:bg-slate-700 transition-colors text-center whitespace-nowrap"
                 >
-                  <div className="flex items-center justify-center gap-1.5">
+                  <div className="flex items-center justify-center gap-1">
                     <span>تاریخ وقوع</span>
                     <ArrowUpDown className="h-3 w-3 text-slate-500" />
                   </div>
@@ -1013,9 +1064,9 @@ export default function AuditLogsPage() {
 
                 <th
                   onClick={() => handleSort("occurrenceTime")}
-                  className="py-2.5 px-3 border-l border-slate-300 dark:border-slate-700 cursor-pointer hover:bg-slate-200/70 dark:hover:bg-slate-700 transition-colors text-center whitespace-nowrap"
+                  className="py-2 px-1.5 border-l border-slate-300 dark:border-slate-700 cursor-pointer hover:bg-slate-200/70 dark:hover:bg-slate-700 transition-colors text-center whitespace-nowrap"
                 >
-                  <div className="flex items-center justify-center gap-1.5">
+                  <div className="flex items-center justify-center gap-1">
                     <span>زمان وقوع</span>
                     <ArrowUpDown className="h-3 w-3 text-slate-500" />
                   </div>
@@ -1023,9 +1074,9 @@ export default function AuditLogsPage() {
 
                 <th
                   onClick={() => handleSort("machineAddress")}
-                  className="py-2.5 px-3 border-l border-slate-300 dark:border-slate-700 cursor-pointer hover:bg-slate-200/70 dark:hover:bg-slate-700 transition-colors text-center whitespace-nowrap"
+                  className="py-2 px-1.5 border-l border-slate-300 dark:border-slate-700 cursor-pointer hover:bg-slate-200/70 dark:hover:bg-slate-700 transition-colors text-center whitespace-nowrap"
                 >
-                  <div className="flex items-center justify-center gap-1.5">
+                  <div className="flex items-center justify-center gap-1">
                     <span>آدرس ماشین</span>
                     <ArrowUpDown className="h-3 w-3 text-slate-500" />
                   </div>
@@ -1033,9 +1084,9 @@ export default function AuditLogsPage() {
 
                 <th
                   onClick={() => handleSort("description")}
-                  className="py-2.5 px-3 border-l border-slate-300 dark:border-slate-700 cursor-pointer hover:bg-slate-200/70 dark:hover:bg-slate-700 transition-colors whitespace-nowrap min-w-[220px]"
+                  className="py-2 px-2 border-l border-slate-300 dark:border-slate-700 cursor-pointer hover:bg-slate-200/70 dark:hover:bg-slate-700 transition-colors text-right whitespace-nowrap"
                 >
-                  <div className="flex items-center justify-start gap-1.5">
+                  <div className="flex items-center justify-start gap-1">
                     <span>شرح عملیات</span>
                     <ArrowUpDown className="h-3 w-3 text-slate-500" />
                   </div>
@@ -1045,9 +1096,9 @@ export default function AuditLogsPage() {
                   <>
                     <th
                       onClick={() => handleSort("requestType")}
-                      className="py-2.5 px-3 border-l border-slate-300 dark:border-slate-700 cursor-pointer hover:bg-slate-200/70 dark:hover:bg-slate-700 transition-colors text-center whitespace-nowrap"
+                      className="py-2 px-1.5 border-l border-slate-300 dark:border-slate-700 cursor-pointer hover:bg-slate-200/70 dark:hover:bg-slate-700 transition-colors text-center whitespace-nowrap"
                     >
-                      <div className="flex items-center justify-center gap-1.5">
+                      <div className="flex items-center justify-center gap-1">
                         <span>نوع درخواست</span>
                         <ArrowUpDown className="h-3 w-3 text-slate-500" />
                       </div>
@@ -1055,9 +1106,9 @@ export default function AuditLogsPage() {
 
                     <th
                       onClick={() => handleSort("requestResult")}
-                      className="py-2.5 px-3 border-l border-slate-300 dark:border-slate-700 cursor-pointer hover:bg-slate-200/70 dark:hover:bg-slate-700 transition-colors text-center whitespace-nowrap"
+                      className="py-2 px-1.5 border-l border-slate-300 dark:border-slate-700 cursor-pointer hover:bg-slate-200/70 dark:hover:bg-slate-700 transition-colors text-center whitespace-nowrap"
                     >
-                      <div className="flex items-center justify-center gap-1.5">
+                      <div className="flex items-center justify-center gap-1">
                         <span>نتیجه درخواست</span>
                         <ArrowUpDown className="h-3 w-3 text-slate-500" />
                       </div>
@@ -1065,7 +1116,7 @@ export default function AuditLogsPage() {
                   </>
                 )}
 
-                <th className="py-2.5 px-3 text-center w-20 whitespace-nowrap">
+                <th className="py-2 px-1 text-center whitespace-nowrap border-l border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800">
                   جزئیات
                 </th>
               </tr>
@@ -1094,11 +1145,11 @@ export default function AuditLogsPage() {
                 filteredProcessedLogs.map((item) => (
                   <tr
                     key={item.raw._id || item.raw.id || item.idx}
-                    className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors duration-150 text-[12px] text-slate-800 dark:text-slate-200"
+                    className="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors duration-150 text-[11px] text-slate-800 dark:text-slate-200"
                   >
                     {/* وضعیت رکورد */}
-                    <td className="py-2.5 px-3 border-l border-slate-200 dark:border-slate-800 text-center whitespace-nowrap font-medium">
-                      <span className={cn("inline-block px-2 py-0.5 rounded text-[11px] font-bold", item.isIntegrityOk ? "text-emerald-700 dark:text-emerald-400" : "text-amber-600 font-black")}>
+                    <td className="py-2 px-1.5 border-l border-slate-200 dark:border-slate-800 text-center whitespace-nowrap font-medium">
+                      <span className={cn("inline-block px-1.5 py-0.5 rounded text-[10.5px] font-bold", item.isIntegrityOk ? "text-emerald-700 dark:text-emerald-400" : "text-amber-600 font-black")}>
                         {item.recordStatus}
                       </span>
                     </td>
@@ -1106,75 +1157,77 @@ export default function AuditLogsPage() {
                     {logTableType !== "AUTH_LOGS" && (
                       <>
                         {/* نوع عملیات */}
-                        <td className="py-2.5 px-3 border-l border-slate-200 dark:border-slate-800 text-center whitespace-nowrap font-medium">
+                        <td className="py-2 px-1.5 border-l border-slate-200 dark:border-slate-800 text-center whitespace-nowrap font-medium">
                           {item.opType}
                         </td>
 
                         {/* نام جدول */}
-                        <td className="py-2.5 px-3 border-l border-slate-200 dark:border-slate-800 text-center whitespace-nowrap font-medium">
+                        <td className="py-2 px-1.5 border-l border-slate-200 dark:border-slate-800 text-center whitespace-nowrap font-medium">
                           {item.tableName}
                         </td>
 
                         {/* مقدار کلید */}
-                        <td className="py-2.5 px-3 border-l border-slate-200 dark:border-slate-800 text-center whitespace-nowrap font-mono text-[11.5px] text-slate-600 dark:text-slate-400">
+                        <td className="py-2 px-1.5 border-l border-slate-200 dark:border-slate-800 text-center whitespace-nowrap font-mono text-[11px] text-slate-600 dark:text-slate-400">
                           {item.keyValue}
                         </td>
                       </>
                     )}
 
                     {/* کاربر */}
-                    <td className="py-2.5 px-3 border-l border-slate-200 dark:border-slate-800 text-center whitespace-nowrap font-semibold">
+                    <td className="py-2 px-1.5 border-l border-slate-200 dark:border-slate-800 text-center whitespace-nowrap font-semibold">
                       {item.username}
                     </td>
 
                     {/* نوع کاربر */}
-                    <td className="py-2.5 px-3 border-l border-slate-200 dark:border-slate-800 text-center whitespace-nowrap text-slate-600 dark:text-slate-400">
+                    <td className="py-2 px-1.5 border-l border-slate-200 dark:border-slate-800 text-center whitespace-nowrap text-slate-600 dark:text-slate-400">
                       {item.userRole}
                     </td>
 
                     {/* تاریخ وقوع */}
-                    <td className="py-2.5 px-3 border-l border-slate-200 dark:border-slate-800 text-center whitespace-nowrap font-mono text-[11.5px]">
+                    <td className="py-2 px-1.5 border-l border-slate-200 dark:border-slate-800 text-center whitespace-nowrap font-mono text-[11px]">
                       {item.occurrenceDate}
                     </td>
 
                     {/* زمان وقوع */}
-                    <td className="py-2.5 px-3 border-l border-slate-200 dark:border-slate-800 text-center whitespace-nowrap font-mono text-[11.5px]">
+                    <td className="py-2 px-1.5 border-l border-slate-200 dark:border-slate-800 text-center whitespace-nowrap font-mono text-[11px]">
                       {item.occurrenceTime}
                     </td>
 
                     {/* آدرس ماشین */}
-                    <td className="py-2.5 px-3 border-l border-slate-200 dark:border-slate-800 text-center whitespace-nowrap font-mono text-[11.5px] dir-ltr text-slate-700 dark:text-slate-300">
+                    <td className="py-2 px-1.5 border-l border-slate-200 dark:border-slate-800 text-center whitespace-nowrap font-mono text-[11px] dir-ltr text-slate-700 dark:text-slate-300">
                       {item.machineAddress}
                     </td>
 
                     {/* شرح عملیات */}
-                    <td className="py-2.5 px-3 border-l border-slate-200 dark:border-slate-800 text-right font-medium text-slate-700 dark:text-slate-300">
+                    <td className="py-2 px-2 border-l border-slate-200 dark:border-slate-800 text-right font-medium text-slate-700 dark:text-slate-300 whitespace-normal break-all leading-normal">
                       {item.description}
                     </td>
 
                     {logTableType === "AUTH_LOGS" && (
                       <>
                         {/* نوع درخواست */}
-                        <td className="py-2.5 px-3 border-l border-slate-200 dark:border-slate-800 text-center whitespace-nowrap font-medium text-slate-700 dark:text-slate-300">
+                        <td className="py-2 px-1.5 border-l border-slate-200 dark:border-slate-800 text-center whitespace-nowrap font-medium text-slate-700 dark:text-slate-300">
                           {item.requestType}
                         </td>
 
                         {/* نتیجه درخواست */}
-                        <td className="py-2.5 px-3 border-l border-slate-200 dark:border-slate-800 text-center whitespace-nowrap font-bold text-rose-600 dark:text-rose-400">
+                        <td className="py-2 px-1.5 border-l border-slate-200 dark:border-slate-800 text-center whitespace-nowrap font-bold text-rose-600 dark:text-rose-400">
                           {item.requestResult}
                         </td>
                       </>
                     )}
 
                     {/* دکمه مشاهده جزئیات */}
-                    <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                    <td className="py-2 px-1 text-center whitespace-nowrap border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800/50">
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => setSelectedLogModal(item.raw)}
-                        className="h-7 px-2 text-xs font-bold text-primary hover:bg-primary/10 rounded"
+                        className="h-6 px-1.5 text-[10.5px] font-bold text-primary hover:bg-primary/15 rounded inline-flex items-center justify-center gap-1 border border-primary/20 hover:border-primary/40 transition-all"
+                        title="مشاهده جزئیات کامل لاگ"
                       >
-                        <Eye className="h-3.5 w-3.5" />
+                        <Eye className="h-3.5 w-3.5 text-primary shrink-0" />
+                        <span className="font-bold">نمایش</span>
                       </Button>
                     </td>
                   </tr>
@@ -1264,6 +1317,50 @@ export default function AuditLogsPage() {
                   </span>
                 </div>
               </div>
+
+              {/* 🌟 مشخصات خروج داده و دانلود فایل (بند ۸ افتا) */}
+              {(selectedLogModal.eventType === "DATA_EXPORT_ATTEMPT" || selectedLogModal.action === "دانلود فایل" || selectedLogModal.details?.fileName) && (
+                <div className="p-3.5 rounded-xl bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 space-y-2.5 shadow-xs">
+                  <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300 font-bold text-xs">
+                    <FileSpreadsheet className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    <span>خروج داده از محصول و دانلود فایل (بند ۸ جدول ۲-۴ حفاظت از داده‌های کاربردی افتا):</span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-[11px] pt-1">
+                    <div className="bg-white/80 dark:bg-slate-900/80 p-2 rounded-lg border border-blue-100 dark:border-blue-900/50">
+                      <span className="text-muted-foreground block text-[10px] font-medium">نام فایل:</span>
+                      <span className="font-bold text-foreground text-xs dir-ltr block text-right font-mono">{selectedLogModal.details?.fileName || "add new source"}</span>
+                    </div>
+                    <div className="bg-white/80 dark:bg-slate-900/80 p-2 rounded-lg border border-blue-100 dark:border-blue-900/50">
+                      <span className="text-muted-foreground block text-[10px] font-medium">قسمت / بخش:</span>
+                      <span className="font-bold text-foreground text-xs">{selectedLogModal.details?.section || selectedLogModal.resource || "کتابخانه"}</span>
+                    </div>
+                    <div className="bg-white/80 dark:bg-slate-900/80 p-2 rounded-lg border border-blue-100 dark:border-blue-900/50">
+                      <span className="text-muted-foreground block text-[10px] font-medium">نوع داده:</span>
+                      <span className="font-bold text-foreground text-xs">{selectedLogModal.details?.dataType || "فایل ضمیمه / داده کاربری"}</span>
+                    </div>
+                    <div className="bg-white/80 dark:bg-slate-900/80 p-2 rounded-lg border border-blue-100 dark:border-blue-900/50">
+                      <span className="text-muted-foreground block text-[10px] font-medium">حجم و اندازه:</span>
+                      <span className="font-bold text-foreground text-xs dir-ltr text-right block font-mono">{selectedLogModal.details?.fileSize || "نامشخص"}</span>
+                    </div>
+                    <div className="bg-white/80 dark:bg-slate-900/80 p-2 rounded-lg border border-blue-100 dark:border-blue-900/50">
+                      <span className="text-muted-foreground block text-[10px] font-medium">فرمت فایل:</span>
+                      <span className="font-bold text-foreground text-xs uppercase font-mono">{selectedLogModal.details?.fileFormat || "PNG"}</span>
+                    </div>
+                    <div className="bg-white/80 dark:bg-slate-900/80 p-2 rounded-lg border border-blue-100 dark:border-blue-900/50">
+                      <span className="text-muted-foreground block text-[10px] font-medium">نام و نام خانوادگی:</span>
+                      <span className="font-bold text-foreground text-xs">{selectedLogModal.userFullName || selectedLogModal.username || "NETEL شریف"}</span>
+                    </div>
+                    <div className="bg-white/80 dark:bg-slate-900/80 p-2 rounded-lg border border-blue-100 dark:border-blue-900/50">
+                      <span className="text-muted-foreground block text-[10px] font-medium">نام کاربری:</span>
+                      <span className="font-bold text-foreground text-xs font-mono">{selectedLogModal.username || "netel"}</span>
+                    </div>
+                    <div className="bg-white/80 dark:bg-slate-900/80 p-2 rounded-lg border border-blue-100 dark:border-blue-900/50">
+                      <span className="text-muted-foreground block text-[10px] font-medium">IP کاربر:</span>
+                      <span className="font-bold text-primary text-xs font-mono dir-ltr text-right block">{selectedLogModal.ip || "192.168.35.215"}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <Label className="text-[11px] font-bold text-muted-foreground block mb-1">امضای اصالت HMAC</Label>
