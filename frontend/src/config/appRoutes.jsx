@@ -23,6 +23,7 @@ const FinancialDetailsForm = lazy(() => import("@/pages/FinancialDetailsForm"));
 const SystemSettingsForm = lazy(() => import("@/pages/SystemSettingsForm"));
 const ReportSignatureForm = lazy(() => import("@/pages/ReportSignatureForm"));
 const Users = lazy(() => import("@/pages/Users"));
+const AuditLogsPage = lazy(() => import("@/pages/AuditLogsPage"));
 const CurrentOperations = lazy(() => import("@/modules/accounting/pages/CurrentOperations"));
 const Guarantees = lazy(() => import("@/modules/treasury/pages/Guarantees"));
 const Deposits = lazy(() => import("@/modules/treasury/pages/Deposits"));
@@ -390,6 +391,7 @@ export const PAGE_COMPONENTS = {
   "/system-management/program-details": SystemManagement,
   "/system-management/user-groups": SystemManagement,
   "/system-management/users": Users,
+  "/system-management/audit-logs": AuditLogsPage,
   "/system-management/permissions": SystemManagement,
   "/system-management/change-password": SystemManagement,
   "/system-management/user-performance": SystemManagement,

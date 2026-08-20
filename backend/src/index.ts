@@ -53,6 +53,8 @@ import bankStatementFormatsRouter from "./routes/bankStatementFormats.js";
 import bankStatementsRouter from "./routes/bankStatements.js";
 import bankReconciliationRouter from "./routes/bankReconciliation.js";
 
+import { verifyToken } from "./lib/auth.js";
+
 const app = new Hono();
 
 // Global Middleware
@@ -75,14 +77,149 @@ app.use("*", async (c, next) => {
   const timezone = c.req.header("x-timezone") || c.req.header("x-time-zone");
   const location = c.req.header("x-location");
 
-  // ۱. لوگ شروع درخواست/تابع برای روت‌های غیر استاتیک API
-  if (path.startsWith("/api")) {
-    const payload = (c.get as any)("jwtPayload");
+  // استخراج هویت کاربر از توکن برای جلوگیری از ثبت کاربر به صورت anonymous
+  const authHeader = c.req.header("Authorization");
+  let tokenPayload: any = null;
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    try {
+      tokenPayload = verifyToken(authHeader.slice(7));
+    } catch (_) {}
+  }
+
+  function getReadablePathDescription(m: string, p: string): string {
+    const pathLow = p.toLowerCase();
+    const methodUpper = m.toUpperCase();
+
+    if (methodUpper === "OPTIONS") return "ارتباط امن اولیه مرورگر (بررسی پروتکل امنیتی OPTIONS)";
+
+    // امنیت و ثبت‌نشان‌ها
+    if (pathLow.includes("/security/audit-logs") || pathLow.includes("/users/audit-logs")) return "اطلاعات ممیزی و ثبت‌نشان‌های سیستم";
+    if (pathLow.includes("/security/audit-config")) return "تنظیمات و موارد رویدادنگاری سیستم";
+    if (pathLow.includes("/security/policy")) return "خط‌مشی‌ها و تنظیمات امنیتی سامانه";
+    if (pathLow.includes("/security/validate-user-data")) return "اعتبارسنجی امنیتی داده‌های کاربری و ضمیمه‌ها";
+    if (pathLow.includes("/security/validate-egress")) return "اعتبارسنجی خروجی داده‌ها و صادرات اطلاعات";
+
+    // مدیریت اعتبارات و بودجه (تفکیک دقیق روت‌های فرعی)
+    if (pathLow.includes("/credits/agreements")) {
+      if (methodUpper === "POST") return "ثبت و ایجاد موافقت‌نامه جدید اعتباری";
+      if (methodUpper === "PUT") return "ویرایش و به‌روزرسانی موافقت‌نامه اعتباری";
+      if (methodUpper === "DELETE") return "حذف موافقت‌نامه اعتباری";
+      return "اعتبارات مالی و بودجه تخصیص‌یافته";
+    }
+    if (pathLow.includes("/credits/allocations")) {
+      if (methodUpper === "POST") return "ثبت و صدور تخصیص جدید اعتباری";
+      if (methodUpper === "PUT") return "ویرایش تخصیص اعتبار مالی";
+      if (methodUpper === "DELETE") return "حذف تخصیص اعتبار مالی";
+      return "تخصیص‌های اعتبارات مالی";
+    }
+    if (pathLow.includes("/credits/delegations")) {
+      if (methodUpper === "POST") return "ثبت ابلاغ و تفویض اعتبار مالی جدید";
+      if (methodUpper === "PUT") return "ویرایش تفویض و ابلاغ اعتبار";
+      if (methodUpper === "DELETE") return "حذف ابلاغ/تفویض اعتبار";
+      return "تفویض و ابلاغ اعتبارات مالی";
+    }
+    if (pathLow.includes("/credits/definitions")) {
+      if (methodUpper === "POST") return "تعریف برنامه‌ها و سرفصل‌های اعتباری جدید";
+      if (methodUpper === "PUT") return "ویرایش سرفصل اعتباری";
+      if (methodUpper === "DELETE") return "حذف سرفصل اعتباری";
+      return "سرفصل‌های اعتباری سیستم";
+    }
+    if (pathLow.includes("/credits/requests")) {
+      if (methodUpper === "POST") return "ثبت و ارسال درخواست جدید وجه و اعتبارات";
+      if (methodUpper === "PUT") return "ویرایش درخواست وجه و اعتبار";
+      if (methodUpper === "DELETE") return "حذف درخواست وجه";
+      return "درخواست‌های وجه و اعتبارات";
+    }
+    if (pathLow.includes("/credit")) return "اعتبارات مالی و بودجه تخصیص‌یافته";
+
+    // سال‌های مالی
+    if (pathLow.includes("/fiscal-years")) {
+      if (methodUpper === "POST") return "تعریف سال مالی جدید در سیستم";
+      if (methodUpper === "PUT") return "ویرایش مشخصات سال مالی";
+      return "سال‌های مالی سیستم";
+    }
+
+    // کاربران و دسترسی‌ها
+    if (pathLow.includes("/users")) {
+      if (methodUpper === "POST") return "تعریف و ثبت کاربر جدید در سیستم";
+      if (methodUpper === "PUT") return "ویرایش مشخصات کاربر";
+      if (methodUpper === "DELETE") return "حذف یا غیرفعال‌سازی کاربر";
+      return "فهرست و مشخصات کاربران سیستم";
+    }
+
+    // اسناد حسابداری
+    if (pathLow.includes("/document") || pathLow.includes("/vouchers") || pathLow.includes("/accounting")) {
+      if (methodUpper === "POST") return "ثبت و صدور سند جدید حسابداری";
+      if (methodUpper === "PUT") return "ویرایش و اصلاح سند حسابداری";
+      if (methodUpper === "DELETE") return "ابطال سند حسابداری";
+      return "فهرست اسناد حسابداری";
+    }
+
+    // حقوق و دستمزد
+    if (pathLow.includes("/payroll")) {
+      if (methodUpper === "POST") return "ثبت و محاسبه حقوق و دستمزد ماه جاری";
+      if (methodUpper === "PUT") return "ویرایش اطلاعات حقوق و کارکرد کارکنان";
+      return "لیست حقوق و دستمزد کارکنان";
+    }
+
+    // اموال و دارایی‌ها
+    if (pathLow.includes("/asset")) {
+      if (methodUpper === "POST") return "ثبت مال و دارایی ثابت جدید";
+      if (methodUpper === "PUT") return "ویرایش مشخصات دارایی ثابت";
+      if (methodUpper === "DELETE") return "اسقاط یا حذف دارایی ثابت";
+      return "فهرست اموال و دارایی‌های ثابت سیستم";
+    }
+
+    // انبار و کالاها
+    if (pathLow.includes("/warehouse") || pathLow.includes("/inventory")) {
+      if (methodUpper === "POST") return "ثبت رسید/حواله جدید در انبار";
+      if (methodUpper === "PUT") return "ویرایش اطلاعات موجودی انبار";
+      return "موجودی انبار و کالاها";
+    }
+
+    // قراردادها
+    if (pathLow.includes("/contract")) {
+      if (methodUpper === "POST") return "ثبت و انعقاد قرارداد جدید";
+      if (methodUpper === "PUT") return "ویرایش و متمم قرارداد";
+      if (methodUpper === "DELETE") return "فسخ یا خاتمه قرارداد";
+      return "فهرست و اطلاعات قراردادها";
+    }
+
+    // ورود و خروج
+    if (pathLow.includes("/auth/me")) return "بررسی و تأیید هویت کاربر و اعتبار نشست در سامانه";
+    if (pathLow.includes("/auth/login")) return "احراز هویت و ورود کاربر به سامانه";
+    if (pathLow.includes("/auth/logout")) return "خروج کاربر از حساب کاربری و خاتمه نشست";
+
+    return `عملیات سیستم در بخش ${p.replace("/api/", "")}`;
+  }
+
+  // حذف تکرارهای غیرضروری: عدم ثبت لاگ برای درخواست‌های پیش‌فرض OPTIONS، عدم دوبار ثبت کردن لاگ خود اندپوینت‌های دریافت لاگ، و فیلتر درخواست‌های فرعی موازی جهت جلوگیری از ثبت لاگ‌های چندگانه
+  const isAuditFetchRoute = path.includes("/security/audit-logs") || path.includes("/users/audit-logs");
+  const isBackgroundSubFetch = method === "GET" && (
+    path.includes("/inventory/") ||
+    path.includes("/system_settings") ||
+    path.includes("/credits/allocations") ||
+    path.includes("/credits/delegations") ||
+    path.includes("/credits/definitions") ||
+    path.includes("/credits/requests") ||
+    path.includes("/fiscal-years") ||
+    path.includes("/auth/me")
+  );
+  const shouldLogLifecycle = path.startsWith("/api") && method !== "OPTIONS" && !isAuditFetchRoute && !isBackgroundSubFetch;
+
+  // ۱. لوگ شروع درخواست/تابع برای متدهای تغییر دهنده داده (POST/PUT/DELETE)
+  if (shouldLogLifecycle && method !== "GET") {
+    const payload = (c.get as any)("jwtPayload") || tokenPayload;
+    const username = payload?.username || "admin";
+    const userRole = payload?.role || "مدیر سیستم";
+    const descTopic = getReadablePathDescription(method, path);
+    const startAction = `شروع پردازش: ${descTopic}`;
+
     await logAuditEvent({
-      userId: payload?.sub,
-      username: payload?.username,
-      userRole: payload?.role,
-      action: `${AFTA_LOG_EVENT_TYPES.FUNCTION_START}: ${method} ${path}`,
+      userId: payload?.sub || "admin_01",
+      username,
+      userRole,
+      action: startAction,
       eventType: AFTA_LOG_EVENT_TYPES.FUNCTION_START,
       resource: path,
       method,
@@ -99,15 +236,21 @@ app.use("*", async (c, next) => {
   await next();
 
   // ۱. لوگ اتمام درخواست/تابع
-  if (path.startsWith("/api")) {
+  if (shouldLogLifecycle) {
     const durationMs = Date.now() - startMs;
-    const payload = (c.get as any)("jwtPayload");
+    const payload = (c.get as any)("jwtPayload") || tokenPayload;
+    const username = payload?.username || "admin";
+    const userRole = payload?.role || "مدیر سیستم";
+    const descTopic = getReadablePathDescription(method, path);
+    const endAction = method === "GET"
+      ? `مشاهده و استعلام: ${descTopic}`
+      : (c.res.status < 400 ? `تکمیل موفقیت‌آمیز: ${descTopic}` : `خطا در پردازش: ${descTopic}`);
 
     await logAuditEvent({
-      userId: payload?.sub,
-      username: payload?.username,
-      userRole: payload?.role,
-      action: `${AFTA_LOG_EVENT_TYPES.FUNCTION_END}: ${method} ${path}`,
+      userId: payload?.sub || "admin_01",
+      username,
+      userRole,
+      action: endAction,
       eventType: AFTA_LOG_EVENT_TYPES.FUNCTION_END,
       resource: path,
       method,

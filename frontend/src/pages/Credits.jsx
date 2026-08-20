@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import api from "@/api";
+import { validateAndLogFileUpload } from "@/lib/fileUploadLogger";
 
 // ─── تابع کمکی تبدیل عدد به حروف فارسی ──────────────────────────────────────────
 function numToPersianWords(num) {
@@ -166,8 +167,8 @@ export default function Credits() {
     setReqForm({
       ...reqForm,
       items: updatedItems,
-      amount: totalAmount,
-      amount_in_words: amountInWords
+      amount: totalAmount > 0 ? totalAmount : reqForm.amount,
+      amount_in_words: totalAmount > 0 ? amountInWords : reqForm.amount_in_words
     });
   };
 
@@ -203,24 +204,51 @@ export default function Credits() {
     });
   };
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const files = Array.from(e.target.files || []);
-    const newAttachments = files.map(file => ({
-      name: file.name,
-      size: (file.size / 1024).toFixed(1) + " KB",
-      type: file.type
-    }));
-    setReqForm({
-      ...reqForm,
-      attachments: [...reqForm.attachments, ...newAttachments]
-    });
+    const validAttachments = [];
+
+    for (const file of files) {
+      try {
+        await validateAndLogFileUpload({
+          file,
+          operation: "ADD",
+          dataType: "1"
+        });
+        validAttachments.push({
+          name: file.name,
+          size: (file.size / 1024).toFixed(1) + " KB",
+          type: file.type
+        });
+      } catch (err) {
+        setAlertMsg({ type: "error", text: err.message || "خطا در بارگذاری ضمیمه" });
+      }
+    }
+
+    if (validAttachments.length > 0) {
+      setReqForm(prev => ({
+        ...prev,
+        attachments: [...prev.attachments, ...validAttachments]
+      }));
+    }
   };
 
-  const removeAttachment = (index) => {
-    setReqForm({
-      ...reqForm,
-      attachments: reqForm.attachments.filter((_, idx) => idx !== index)
-    });
+  const removeAttachment = async (index) => {
+    const target = reqForm.attachments[index];
+    if (target) {
+      try {
+        await validateAndLogFileUpload({
+          file: { name: target.name, size: 102400 },
+          operation: "DELETE",
+          dataType: "1",
+          attachmentId: "25137"
+        });
+      } catch (e) {}
+    }
+    setReqForm(prev => ({
+      ...prev,
+      attachments: prev.attachments.filter((_, idx) => idx !== index)
+    }));
   };
 
   // ── فرم تخصیص اعتبار ──
@@ -866,7 +894,7 @@ export default function Credits() {
               </div>
             )}
 
-            <div className="p-6 space-y-6">
+            <form onSubmit={handleReqSubmit} className="p-6 space-y-6">
               {/* SECTION 1: اطلاعات اصلی */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2 border-b pb-2">
@@ -1015,13 +1043,31 @@ export default function Credits() {
                     </div>
 
                     <div className="grid grid-cols-3 items-center gap-2">
-                      <Label className="text-xs font-semibold text-muted-foreground">مبلغ درخواستی (ریال) :</Label>
+                      <Label className="text-xs font-semibold text-muted-foreground">مبلغ درخواستی (ریال) <span className="text-rose-500">*</span> :</Label>
                       <div className="col-span-2 relative">
                         <Input 
-                          type="text"
-                          value={fmtNum(reqForm.amount)} 
-                          readOnly 
-                          className="h-9 text-xs pl-8 font-mono bg-muted font-bold text-amber-800" 
+                          type="number"
+                          value={reqForm.amount || ""} 
+                          onChange={e => {
+                            const val = Number(e.target.value) || 0;
+                            const words = numToPersianWords(val);
+                            const updatedItems = [...reqForm.items];
+                            if (updatedItems.length > 0) {
+                              updatedItems[0] = {
+                                ...updatedItems[0],
+                                unit_price: val,
+                                total_price: (Number(updatedItems[0].code) || 1) * val
+                              };
+                            }
+                            setReqForm(prev => ({
+                              ...prev,
+                              amount: val,
+                              amount_in_words: words,
+                              items: updatedItems
+                            }));
+                          }}
+                          placeholder="0"
+                          className="h-9 text-xs pl-8 font-mono font-bold text-amber-800" 
                           dir="ltr"
                         />
                         <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">ریال</span>
@@ -1049,9 +1095,10 @@ export default function Credits() {
                       <Label className="text-xs font-semibold text-muted-foreground">مبلغ به حروف :</Label>
                       <div className="col-span-2">
                         <Input 
-                          value={reqForm.amount_in_words || "صفر ریال"} 
-                          readOnly 
-                          className="h-9 text-xs bg-muted text-amber-700 font-medium" 
+                          value={reqForm.amount_in_words || ""} 
+                          onChange={e => setReqForm(prev => ({ ...prev, amount_in_words: e.target.value }))}
+                          placeholder="مبلغ به حروف..."
+                          className="h-9 text-xs text-amber-700 font-medium" 
                         />
                       </div>
                     </div>
@@ -1376,10 +1423,11 @@ export default function Credits() {
                           </td>
                           <td className="px-2 py-2">
                             <Input 
-                              type="text"
-                              value={fmtNum(item.total_price)} 
-                              readOnly 
-                              className="h-8 text-xs text-center font-mono font-bold bg-muted text-emerald-800"
+                              type="number"
+                              value={item.total_price || 0} 
+                              onChange={e => handleItemChange(index, "total_price", Number(e.target.value))} 
+                              placeholder="مبلغ کل..."
+                              className="h-8 text-xs text-center font-mono font-bold text-emerald-800 bg-transparent"
                             />
                           </td>
                           <td className="px-2 py-2">
@@ -1457,15 +1505,15 @@ export default function Credits() {
                   <Button type="button" variant="outline" className="h-9 text-xs gap-1.5" onClick={() => window.print()}>
                     <FileText className="h-4 w-4" /> چاپ
                   </Button>
-                  <Button type="button" variant="outline" className="h-9 text-xs gap-1.5">
-                    <SearchableSelect placeholder="پیش نمایش" searchable={false} options={[{ value: "1", label: "پیش نمایش فرم" }]} className="border-0 w-24 h-7" />
-                  </Button>
+                  <div className="w-28">
+                    <SearchableSelect placeholder="پیش نمایش" searchable={false} options={[{ value: "1", label: "پیش نمایش فرم" }]} className="h-9 text-xs" />
+                  </div>
                   <Button type="button" variant="outline" className="h-9 text-xs gap-1.5">
                     <RefreshCw className="h-4 w-4" /> سابقه گردش کار
                   </Button>
                 </div>
               </div>
-            </div>
+            </form>
           </div>
         </PageShell>
       );

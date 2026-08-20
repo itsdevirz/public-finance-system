@@ -111,17 +111,23 @@ router.post("/login", async (c) => {
   // ۱۳. بررسی درخواست روی موجودیت غیرفعال یا مسدود
   if (user) {
     if (user.status === "غیرفعال" || user.status === "مسدود") {
+      const actionDesc = "کاربر مورد نظر غیرفعال می باشد،لطفا در زمان دیگری مجددا تلاش کنید و یا جهت فعال سازی با مدیر سیستم تماس بگیرید.";
       await logAuditEvent({
         userId: user._id,
         username: user.username,
-        action: AFTA_LOG_EVENT_TYPES.INACTIVE_ENTITY_OPERATION,
+        userRole: user.role || "کارمند",
+        action: actionDesc,
         eventType: AFTA_LOG_EVENT_TYPES.AUTH_FINAL_OUTCOME,
         resource: "auth/login",
         result: "FAILURE",
         ip,
         userAgent,
         errorCode: 403,
-        details: { status: user.status }
+        details: {
+          status: user.status,
+          requestType: "ورود به سامانه",
+          requestResult: "ناموفق"
+        }
       });
       return c.json({ message: "حساب کاربری شما غیرفعال شده است. لطفاً جهت فعال‌سازی مجدد با مدیر سیستم تماس بگیرید." }, 403);
     }
@@ -164,17 +170,28 @@ router.post("/login", async (c) => {
       );
 
       // ۱۰ & ۹ & ۱۱. ثبت شکست بررسی گذرواژه، نتیجه نهایی و شکست انتساب
+      const actionDesc = isLimitReached
+        ? "کاربر مورد نظر به علت تلاش غیر مجاز جهت ورود به سامانه غیر فعال شد."
+        : `تلاش ناموفق جهت ورود به سامانه با نام کاربری '${cleanUsername}'`;
+
       await logAuditEvent({
         userId: user._id,
         username: user.username,
-        action: AFTA_LOG_EVENT_TYPES.PASSWORD_VERIFY_FAILURE,
+        userRole: user.role || "کارمند",
+        action: actionDesc,
         eventType: AFTA_LOG_EVENT_TYPES.AUTH_FINAL_OUTCOME,
         resource: "auth/login",
         result: "FAILURE",
         ip,
         userAgent,
         errorCode: isLimitReached ? 403 : 401,
-        details: { failedAttempts: newAttempts, maxAttempts, deactivated: isLimitReached }
+        details: {
+          failedAttempts: newAttempts,
+          maxAttempts,
+          deactivated: isLimitReached,
+          requestType: "ورود به سامانه",
+          requestResult: "ناموفق"
+        }
       });
 
       if (isLimitReached) {
@@ -188,16 +205,22 @@ router.post("/login", async (c) => {
         message: `نام کاربری یا رمز عبور اشتباه است. (تعداد تلاش‌های مجاز باقی‌مانده: ${remainingAttempts})`
       }, 401);
     } else {
+      const actionDesc = `تلاش ناموفق جهت ورود به سامانه با نام کاربری '${cleanUsername}'`;
       await logAuditEvent({
         username: cleanUsername,
-        action: AFTA_LOG_EVENT_TYPES.PASSWORD_VERIFY_FAILURE,
+        userRole: "کارمند",
+        action: actionDesc,
         eventType: AFTA_LOG_EVENT_TYPES.AUTH_FINAL_OUTCOME,
         resource: "auth/login",
         result: "FAILURE",
         ip,
         userAgent,
         errorCode: 401,
-        details: { reason: "User not found" }
+        details: {
+          reason: "User not found",
+          requestType: "ورود به سامانه",
+          requestResult: "ناموفق"
+        }
       });
       return c.json({ message: "نام کاربری یا رمز عبور اشتباه است." }, 401);
     }
@@ -364,13 +387,18 @@ router.post("/login", async (c) => {
   await logAuditEvent({
     userId: user._id,
     username: user.username,
-    action: AFTA_LOG_EVENT_TYPES.PASSWORD_VERIFY_SUCCESS,
+    userRole: user.role || "کارمند",
+    action: `ورود موفقیت‌آمیز کاربر '${user.username}' به سامانه`,
     eventType: AFTA_LOG_EVENT_TYPES.AUTH_FINAL_OUTCOME,
     resource: "auth/login",
     result: "SUCCESS",
     ip,
     userAgent,
-    details: { role: user.role }
+    details: {
+      role: user.role || "کارمند",
+      requestType: "ورود به سامانه",
+      requestResult: "موفق"
+    }
   });
 
   const { password: _, ...safeUser } = user;
@@ -397,11 +425,17 @@ router.post("/logout", async (c) => {
       await logAuditEvent({
         userId: payload.sub,
         username: payload.username,
-        action: "خروج از سیستم (ابطال نشست)",
-        eventType: AFTA_LOG_EVENT_TYPES.SECURITY_ATTR_BINDING_FAILURE,
+        userRole: payload.role || "کارمند",
+        action: `خروج کاربر '${payload.username}' از حساب کاربری و خاتمه نشست`,
+        eventType: AFTA_LOG_EVENT_TYPES.AUTH_FINAL_OUTCOME,
         resource: "auth/logout",
         result: "SUCCESS",
-        ip: c.req.header("x-forwarded-for") || "127.0.0.1"
+        ip: c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "127.0.0.1",
+        userAgent: c.req.header("user-agent") || "",
+        details: {
+          requestType: "خروج از سامانه",
+          requestResult: "موفق"
+        }
       });
     }
   }
@@ -531,14 +565,20 @@ router.post("/revoke-my-session", async (c) => {
   await logAuditEvent({
     userId: payload.sub,
     username: payload.username,
-    userRole: payload.role,
-    action: AFTA_LOG_EVENT_TYPES.SESSION_TERMINATED_BY_USER,
-    eventType: AFTA_LOG_EVENT_TYPES.SESSION_TERMINATED_BY_USER,
+    userRole: payload.role || "کارمند",
+    action: `ابطال و خاتمه دستی نشست فعال کاربر '${session.username || payload.username}' توسط سیستم`,
+    eventType: AFTA_LOG_EVENT_TYPES.AUTH_FINAL_OUTCOME,
     resource: "active_sessions",
     result: "SUCCESS",
-    ip: c.req.header("x-forwarded-for") || "127.0.0.1",
-    userAgent: c.req.header("user-agent"),
-    details: { terminatedSessionId: session._id, targetToken: session.token, isCurrentSession: session.token === currentToken }
+    ip: c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "127.0.0.1",
+    userAgent: c.req.header("user-agent") || "",
+    details: {
+      terminatedSessionId: session._id,
+      targetToken: session.token,
+      isCurrentSession: session.token === currentToken,
+      requestType: "ابطال نشست",
+      requestResult: "موفق"
+    }
   });
 
   return c.json({

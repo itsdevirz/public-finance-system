@@ -4,6 +4,7 @@ import { ObjectId } from "mongodb";
 import { hashPassword } from "../lib/auth.js";
 import { validatePassword } from "../lib/securityPolicy.js";
 import { logAuditEvent, AFTA_LOG_EVENT_TYPES, verifyLogIntegrity, signExistingLogs } from "../lib/auditLogger.js";
+import { pruneExpiredSessions } from "../lib/sessionHelper.js";
 
 const router = new Hono();
 
@@ -44,8 +45,13 @@ router.post("/", async (c) => {
     }
 
     // Password Policy Check
-    const rawPass = body.password || "AdminPass123!";
-    const passCheck = validatePassword(rawPass);
+    if (!body.password || (typeof body.password === "string" && !body.password.trim())) {
+      return c.json({ success: false, message: "تعیین رمز عبور برای کاربر جدید الزامی است." }, 400);
+    }
+    const rawPass = body.password.trim();
+    const secPolicyConfig = await db.collection("system_settings").findOne({ key: "security_policy" });
+    const secPolicy = secPolicyConfig?.value || {};
+    const passCheck = validatePassword(rawPass, secPolicy.passwordPolicy);
     if (!passCheck.valid) {
       return c.json({ success: false, message: passCheck.message }, 400);
     }
@@ -146,6 +152,41 @@ router.put("/:id", async (c) => {
       return c.json({ success: false, message: "کاربر مورد نظر یافت نشد" }, 404);
     }
 
+    // الزامات افتا: غیرمجاز بودن هرگونه تغییر در ویژگی‌های امنیتی و مشخصات کاربر دارای نشست فعال
+    const secConfig = await db.collection("system_settings").findOne({ key: "security_policy" });
+    const securityPolicy = secConfig?.value?.activeUserSecurityChangePolicy || {
+      disallowChangeDuringActiveSession: true
+    };
+
+    if (securityPolicy.disallowChangeDuringActiveSession !== false) {
+      const activeSessions = await pruneExpiredSessions(db, userObjectId);
+      if (activeSessions.length > 0) {
+        const errorMsgAction = "Message : کاربر مورد نظر در سامانه لاگین می باشد و امکان تغییر مشخصات آن وجود ندارد.";
+        await logAuditEvent({
+          userId: payload.sub,
+          username: payload.username || "admin",
+          userRole: payload.role || "مدیر سیستم",
+          action: errorMsgAction,
+          eventType: AFTA_LOG_EVENT_TYPES.USER_DATA_VALIDATION_FAILURE,
+          resource: "users",
+          result: "FAILURE",
+          ip: c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "127.0.0.1",
+          userAgent: c.req.header("user-agent"),
+          errorCode: 400,
+          details: {
+            targetUserId: id,
+            targetUsername: existingUser.username,
+            reason: "کاربر مورد نظر در سامانه لاگین می باشد و امکان تغییر مشخصات آن وجود ندارد."
+          }
+        });
+
+        return c.json({
+          success: false,
+          message: "کاربر مورد نظر در سامانه لاگین می باشد و امکان تغییر مشخصات آن وجود ندارد."
+        }, 400);
+      }
+    }
+
     // Set fields allowed for anyone (self-profile update)
     const updateData: any = {
       firstName: body.firstName?.trim() !== undefined ? body.firstName.trim() : existingUser.firstName,
@@ -189,7 +230,9 @@ router.put("/:id", async (c) => {
 
     // Only update password if explicitly provided as non-empty string during edit
     if (body.password && typeof body.password === "string" && body.password.trim() !== "") {
-      const passCheck = validatePassword(body.password.trim());
+      const secPolicyConfig = await db.collection("system_settings").findOne({ key: "security_policy" });
+      const secPolicy = secPolicyConfig?.value || {};
+      const passCheck = validatePassword(body.password.trim(), secPolicy.passwordPolicy);
       if (!passCheck.valid) {
         return c.json({ success: false, message: passCheck.message }, 400);
       }
@@ -251,29 +294,40 @@ router.put("/:id", async (c) => {
     };
 
     const changes: Record<string, { label: string; before: any; after: any }> = {};
+    const changeSummaryParts: string[] = [];
+
     for (const [key, label] of Object.entries(fieldLabels)) {
       if (key === "password") {
         if (body.password && typeof body.password === "string" && body.password.trim() !== "") {
-          changes[key] = { label, before: "•••••• (رمز قبلی)", after: "•••••• (تغییر یافته)" };
+          changes[key] = { label, before: "••••••", after: "•••••• (جدید)" };
+          changeSummaryParts.push(`${label}: تغییر یافت از "••••••" به "•••••• (جدید)"`);
         }
         continue;
       }
       const beforeVal = (existingUser as any)[key];
       const afterVal = (updateData as any)[key];
       if (afterVal !== undefined && JSON.stringify(beforeVal) !== JSON.stringify(afterVal)) {
+        const bFormatted = beforeVal === true ? "فعال" : beforeVal === false ? "غیرفعال" : (beforeVal ?? "مشخص نشده");
+        const aFormatted = afterVal === true ? "فعال" : afterVal === false ? "غیرفعال" : (afterVal ?? "مشخص نشده");
         changes[key] = {
           label,
-          before: beforeVal === true ? "فعال" : beforeVal === false ? "غیرفعال" : (beforeVal ?? "مشخص نشده"),
-          after: afterVal === true ? "فعال" : afterVal === false ? "غیرفعال" : (afterVal ?? "مشخص نشده")
+          before: bFormatted,
+          after: aFormatted
         };
+        changeSummaryParts.push(`${label}: تغییر یافت از "${bFormatted}" به "${aFormatted}"`);
       }
     }
+
+    const changesText = changeSummaryParts.join("؛ ");
+    const actionText = changeSummaryParts.length > 0
+      ? `ویرایش مشخصات کاربر "${existingUser.username}": ${changesText}`
+      : `ویرایش مشخصات کاربر "${existingUser.username}"`;
 
     // Log audit action with before & after changes and UserAgent
     await logAuditEvent({
       userId: payload.sub,
       username: payload.username,
-      action: `ویرایش مشخصات کاربر "${existingUser.username}"`,
+      action: actionText,
       resource: "users",
       result: "SUCCESS",
       ip: c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "127.0.0.1",
@@ -282,6 +336,7 @@ router.put("/:id", async (c) => {
         targetUserId: id,
         targetUsername: existingUser.username,
         targetFullName: `${existingUser.firstName || ""} ${existingUser.lastName || ""}`.trim() || existingUser.username,
+        changesSummary: changesText,
         changesCount: Object.keys(changes).length,
         changes: changes
       }
@@ -338,12 +393,30 @@ router.delete("/:id", async (c) => {
   }
 });
 
-// GET /api/users/audit-logs - List activity logs (Admin only)
+// GET /api/users/audit-logs - List activity logs (Admin or Authorized users)
 router.get("/audit-logs", async (c) => {
   try {
     const payload = (c.get as any)("jwtPayload") as any;
-    if (payload.role !== "admin") {
-      return c.json({ success: false, message: "دسترسی غیرمجاز. فقط مدیر سیستم مجاز به مشاهده تاریخچه عملکرد است." }, 403);
+    const userRole = payload?.role || "حسابدار";
+    const userPermissions = payload?.permissions || {};
+    const isAuthorized = userRole === "admin" || userRole === "مدیر سیستم" || userPermissions["audit.view"] === true || userPermissions["audit.read"] === true || userPermissions["audit_logs"] === true;
+
+    if (!isAuthorized) {
+      await logAuditEvent({
+        userId: payload?.sub || "unauthorized_user",
+        username: payload?.username || "unauthorized_user",
+        userRole,
+        action: "تلاش غیر مجاز جهت دسترسی به صفحه لاگ های سیستمی",
+        eventType: AFTA_LOG_EVENT_TYPES.AUDIT_LOG_READ_FAILURE,
+        resource: c.req.path,
+        method: c.req.method,
+        result: "FAILURE",
+        ip: c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "127.0.0.1",
+        userAgent: c.req.header("user-agent"),
+        errorCode: 403,
+        details: { reason: "تلاش‌های ناموفق برای خواندن اطلاعات از ثبت‌نشان‌ها (الزام ۲ افتا)", requiredPermission: "audit.view" }
+      });
+      return c.json({ success: false, message: "دسترسی غیرمجاز. فقط مدیر سیستم یا کاربران دارنده مجوز مجاز به مشاهده تاریخچه ثبت نشان‌ها هستند." }, 403);
     }
 
     await signExistingLogs();
@@ -395,6 +468,18 @@ router.get("/audit-logs", async (c) => {
       ...log,
       isIntegrityValid: verifyLogIntegrity(log)
     }));
+
+    await logAuditEvent({
+      userId: payload.sub,
+      username: payload.username,
+      userRole: payload.role || "مدیر",
+      action: "مشاهده اطلاعات ممیزی سیستم",
+      eventType: AFTA_LOG_EVENT_TYPES.AUDIT_LOG_READ_SUCCESS,
+      resource: "/api/users/audit-logs",
+      result: "SUCCESS",
+      ip: c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "127.0.0.1",
+      details: { limit, totalReturned: enrichedLogs.length }
+    });
 
     return c.json({ success: true, data: enrichedLogs });
   } catch (error: any) {

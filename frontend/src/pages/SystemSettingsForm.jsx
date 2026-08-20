@@ -692,13 +692,14 @@ export default function SystemSettingsForm() {
   const [isSaving, setIsSaving] = useState(false);
 
   // حالت آکاردئونی الزامات افتا
-  const [openAftaSections, setOpenAftaSections] = useState({ afta_matrix: true, afta_audit_logs_viewer: true });
+  const [openAftaSections, setOpenAftaSections] = useState({ afta_password_policy: true, afta_matrix: true, afta_audit_logs_viewer: true });
 
   const toggleAftaSection = (id) => {
     setOpenAftaSections(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
   const ALL_AFTA_KEYS = [
+    "afta_password_policy",
     "afta_audit_logs_viewer",
     "afta_matrix",
     "afta_security_change_rules",
@@ -869,6 +870,13 @@ export default function SystemSettingsForm() {
         const p = res.data.data;
         setSettings(prev => ({
           ...prev,
+          passwordPolicy: p.passwordPolicy || prev.passwordPolicy || {
+            minLength: 8,
+            requireUppercase: true,
+            requireLowercase: true,
+            requireNumbers: true,
+            requireSpecialChars: true
+          },
           sessionTimeoutMinutes: p.sessionPolicy?.idleTimeoutMinutes ?? prev.sessionTimeoutMinutes,
           maxConcurrentSessions: p.sessionPolicy?.maxConcurrentSessions ?? 3,
           disallowSecurityChangeDuringSession: p.activeUserSecurityChangePolicy?.disallowChangeDuringActiveSession ?? true,
@@ -944,11 +952,11 @@ export default function SystemSettingsForm() {
     const ep = opts.entityPolicies || entityPolicies;
     const payload = {
       passwordPolicy: {
-        minLength: 8,
-        requireUppercase: true,
-        requireLowercase: true,
-        requireNumbers: true,
-        requireSpecialChars: true
+        minLength: Number(s.passwordPolicy?.minLength) || 8,
+        requireUppercase: s.passwordPolicy?.requireUppercase ?? true,
+        requireLowercase: s.passwordPolicy?.requireLowercase ?? true,
+        requireNumbers: s.passwordPolicy?.requireNumbers ?? true,
+        requireSpecialChars: s.passwordPolicy?.requireSpecialChars ?? true
       },
       lockoutPolicy: {
         maxFailedAttempts: 5,
@@ -1006,6 +1014,18 @@ export default function SystemSettingsForm() {
 
   function set(field, val) {
     setSettings(s => ({ ...s, [field]: val }));
+    setErrorMsg("");
+    setSuccessMsg("");
+  }
+
+  function setPasswordPolicy(field, val) {
+    setSettings(s => ({
+      ...s,
+      passwordPolicy: {
+        ...(s.passwordPolicy || { minLength: 8, requireUppercase: true, requireLowercase: true, requireNumbers: true, requireSpecialChars: true }),
+        [field]: val
+      }
+    }));
     setErrorMsg("");
     setSuccessMsg("");
   }
@@ -1869,6 +1889,106 @@ export default function SystemSettingsForm() {
                       </Button>
                     </div>
                   </div>
+
+                  {/* 🌟 کارت جدید: خط‌مشی رمز عبور و کاراکترهای مجاز (Password Policy & Required Characters) */}
+                  <AftaAccordionCard
+                    id="afta_password_policy"
+                    number="تنظیمات رمز عبور"
+                    title="خط‌مشی طول رمز عبور و کاراکترهای الزامی (Password Policy)"
+                    description="تعیین حداقل طول رمز عبور، حروف بزرگ/کوچک انگلیسی، ارقام و کاراکترهای خاص هنگام تعریف کاربران جدید"
+                    isOpen={!!openAftaSections["afta_password_policy"]}
+                    onToggle={toggleAftaSection}
+                    icon={KeyRound}
+                  >
+                    <div className="space-y-4">
+                      <div className="bg-blue-50/70 dark:bg-blue-950/30 p-3.5 rounded-xl border border-blue-200 dark:border-blue-900/50 space-y-1 text-xs">
+                        <span className="font-bold text-blue-900 dark:text-blue-200 block">
+                          🔒 الزامات و پیچیدگی رمز عبور کاربران (افتا - رده 7)
+                        </span>
+                        <p className="text-blue-800 dark:text-blue-300 text-[11px] leading-relaxed">
+                          تنظیمات ثبت‌شده در این بخش مستقیماً در هنگام ثبت کاربر جدید و یا تغییر رمز عبور توسط کاربران اعمال می‌شود و در صورت عدم رعایت الزامات، سیستم از ایجاد کاربر جلوگیری خواهد کرد.
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <Label className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                            حداقل طول رمز عبور (تعداد کاراکتر)
+                          </Label>
+                          <Input
+                            type="number"
+                            min={4}
+                            max={32}
+                            value={settings.passwordPolicy?.minLength ?? 8}
+                            onChange={(e) => setPasswordPolicy("minLength", Math.max(4, Math.min(32, Number(e.target.value) || 8)))}
+                            className="h-9 text-xs font-mono w-full max-w-xs"
+                          />
+                          <p className="text-[10.5px] text-muted-foreground">حداقل تعداد کاراکتر مجاز برای رمز عبور (پیش‌فرض: ۸ کاراکتر)</p>
+                        </div>
+                      </div>
+
+                      <Separator />
+
+                      <div className="space-y-3">
+                        <Label className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                          کاراکترهای الزامی جهت تشکیل رمز عبور معتبر:
+                        </Label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <label className="flex items-center gap-2.5 p-3 rounded-xl border bg-white dark:bg-slate-900 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                            <input
+                              type="checkbox"
+                              checked={settings.passwordPolicy?.requireUppercase ?? true}
+                              onChange={(e) => setPasswordPolicy("requireUppercase", e.target.checked)}
+                              className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <div>
+                              <span className="text-xs font-bold block text-slate-800 dark:text-slate-200">شامل حروف بزرگ انگلیسی (A-Z)</span>
+                              <span className="text-[10px] text-muted-foreground">حداقل یک حرف بزرگ انگلیسی در رمز عبور وجود داشته باشد</span>
+                            </div>
+                          </label>
+
+                          <label className="flex items-center gap-2.5 p-3 rounded-xl border bg-white dark:bg-slate-900 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                            <input
+                              type="checkbox"
+                              checked={settings.passwordPolicy?.requireLowercase ?? true}
+                              onChange={(e) => setPasswordPolicy("requireLowercase", e.target.checked)}
+                              className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <div>
+                              <span className="text-xs font-bold block text-slate-800 dark:text-slate-200">شامل حروف کوچک انگلیسی (a-z)</span>
+                              <span className="text-[10px] text-muted-foreground">حداقل یک حرف کوچک انگلیسی در رمز عبور وجود داشته باشد</span>
+                            </div>
+                          </label>
+
+                          <label className="flex items-center gap-2.5 p-3 rounded-xl border bg-white dark:bg-slate-900 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                            <input
+                              type="checkbox"
+                              checked={settings.passwordPolicy?.requireNumbers ?? true}
+                              onChange={(e) => setPasswordPolicy("requireNumbers", e.target.checked)}
+                              className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <div>
+                              <span className="text-xs font-bold block text-slate-800 dark:text-slate-200">شامل ارقام و اعداد (0-9)</span>
+                              <span className="text-[10px] text-muted-foreground">حداقل یک عدد در رمز عبور وجود داشته باشد</span>
+                            </div>
+                          </label>
+
+                          <label className="flex items-center gap-2.5 p-3 rounded-xl border bg-white dark:bg-slate-900 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                            <input
+                              type="checkbox"
+                              checked={settings.passwordPolicy?.requireSpecialChars ?? true}
+                              onChange={(e) => setPasswordPolicy("requireSpecialChars", e.target.checked)}
+                              className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <div>
+                              <span className="text-xs font-bold block text-slate-800 dark:text-slate-200">شامل کاراکترهای خاص و نمادها (!@#$%^&*)</span>
+                              <span className="text-[10px] text-muted-foreground">حداقل یک نماد ویژه مانند !@#$%^&* در رمز وجود داشته باشد</span>
+                            </div>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </AftaAccordionCard>
 
                   {/* 🌟 بخش جدید: مشاهده لاگ‌های ممیزی و ثبت‌نشان‌های افتا (Audit Logs Viewer) */}
                   <AftaAccordionCard

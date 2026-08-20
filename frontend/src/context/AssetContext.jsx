@@ -82,7 +82,7 @@ export function AssetProvider({ children }) {
 
   useEffect(() => {
     refreshAssets();
-    refreshAllConfigs();
+    // refreshAllConfigs is called on demand by inventory modules instead of global mount
   }, [user]);
 
   async function addAsset(asset) {

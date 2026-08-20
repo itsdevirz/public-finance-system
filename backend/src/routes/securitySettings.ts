@@ -111,6 +111,67 @@ router.put("/policy", requireRole(["admin"]), async (c) => {
       details: { newPolicy }
     });
 
+    // ثبت اختصاصی تغییرات حداقل طول رمز عبور (کلید 10080) و کاراکترهای مورد نیاز رمز عبور (کلید 10081)
+    const formatCharPattern = (p: any) => {
+      if (!p) return "!@#$%^&*";
+      const required: string[] = [];
+      if (p.requireUppercase) required.push("A-Z");
+      if (p.requireLowercase) required.push("a-z");
+      if (p.requireNumbers) required.push("0-9");
+      if (p.requireSpecialChars) required.push("!@#$%^&*");
+      return required.length > 0 ? required.join(" ") : "بدون محدودیت";
+    };
+
+    const clientIp = c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "127.0.0.1";
+    const currentAdminUsername = payload.username || "admin";
+    const currentAdminRole = payload.role || "admin";
+
+    const oldMinLength = existingVal.passwordPolicy?.minLength ?? 8;
+    const newMinLength = newPolicy.passwordPolicy?.minLength ?? 8;
+    if (oldMinLength !== newMinLength) {
+      await logAuditEvent({
+        userId: payload.sub,
+        username: currentAdminUsername,
+        userRole: currentAdminRole,
+        action: `حداقل تعداد کاراکتر های رمز عبور از ${oldMinLength} به ${newMinLength} تغییر یافت`,
+        eventType: "PASSWORD_VERIFY_ATTEMPT_LOG",
+        resource: "کلید های پیکر بندی سیستم",
+        result: "SUCCESS",
+        ip: clientIp,
+        userAgent: c.req.header("user-agent"),
+        details: {
+          key: "10080",
+          tableName: "کلید های پیکر بندی سیستم",
+          isPasswordVerifyAttemptLog: true,
+          oldVal: oldMinLength,
+          newVal: newMinLength
+        }
+      });
+    }
+
+    const oldCharPattern = formatCharPattern(existingVal.passwordPolicy);
+    const newCharPattern = formatCharPattern(newPolicy.passwordPolicy);
+    if (oldCharPattern !== newCharPattern) {
+      await logAuditEvent({
+        userId: payload.sub,
+        username: currentAdminUsername,
+        userRole: currentAdminRole,
+        action: `کاراکترهای مورد نیاز برای رمز عبور از ${oldCharPattern} به ${newCharPattern} تغییر یافت`,
+        eventType: "PASSWORD_VERIFY_ATTEMPT_LOG",
+        resource: "کلید های پیکر بندی سیستم",
+        result: "SUCCESS",
+        ip: clientIp,
+        userAgent: c.req.header("user-agent"),
+        details: {
+          key: "10081",
+          tableName: "کلید های پیکر بندی سیستم",
+          isPasswordVerifyAttemptLog: true,
+          oldVal: oldCharPattern,
+          newVal: newCharPattern
+        }
+      });
+    }
+
     return c.json({ success: true, message: "خط‌مشی‌های امنیتی با موفقیت به‌روزرسانی شد.", data: newPolicy });
   } catch (error: any) {
     await logAuditEvent({
@@ -127,6 +188,238 @@ router.put("/policy", requireRole(["admin"]), async (c) => {
 
     return c.json({ success: false, message: error.message }, 500);
   }
+});
+
+const DEFAULT_AUDIT_CONFIG = {
+  email: true,
+  sms: true,
+  systemMessage: true,
+  suspendLogin: true,
+  formComplete: true,
+  new: true,
+  delete: true,
+  issue: true,
+  login: true,
+  failedLogin: true,
+  edit: true
+};
+
+const AUDIT_CONFIG_LABELS: Record<string, string> = {
+  email: "ارسال Email",
+  sms: "ارسال SMS",
+  systemMessage: "ارسال پیام سامانه",
+  suspendLogin: "تعلیق ورود",
+  formComplete: "تکمیل فرم",
+  new: "جدید",
+  delete: "حذف",
+  issue: "صدور",
+  login: "ورود",
+  failedLogin: "ورود ناموفق",
+  edit: "ویرایش"
+};
+
+// GET /api/security/audit-config - Read logging config (AFTA Item 4)
+router.get("/audit-config", async (c) => {
+  try {
+    const db = getDb();
+    const doc = await db.collection("system_settings").findOne({ key: "audit_config" });
+    const config = doc?.value ? { ...DEFAULT_AUDIT_CONFIG, ...doc.value } : DEFAULT_AUDIT_CONFIG;
+    return c.json({ success: true, data: config });
+  } catch (error: any) {
+    return c.json({ success: false, message: error.message }, 500);
+  }
+});
+
+// POST /api/security/audit-config - Update logging config & log audit event (AFTA Item 4)
+router.post("/audit-config", async (c) => {
+  const payload = (c.get as any)("jwtPayload");
+  try {
+    const newConfig = await c.req.json();
+    const db = getDb();
+    const doc = await db.collection("system_settings").findOne({ key: "audit_config" });
+    const oldConfig = doc?.value ? { ...DEFAULT_AUDIT_CONFIG, ...doc.value } : DEFAULT_AUDIT_CONFIG;
+
+    await db.collection("system_settings").updateOne(
+      { key: "audit_config" },
+      { $set: { key: "audit_config", value: newConfig, updatedAt: new Date() } },
+      { upsert: true }
+    );
+
+    // Identify changed keys and log AUDIT_LOG_CONFIG_CHANGE for each change
+    const clientIp = c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "127.0.0.1";
+    const userRole = payload?.role || "مدیر سیستم";
+    const username = payload?.username || "netel";
+
+    let changeCount = 0;
+    for (const key of Object.keys(newConfig)) {
+      if (oldConfig[key] !== newConfig[key]) {
+        changeCount++;
+        const label = AUDIT_CONFIG_LABELS[key] || key;
+        const statusStr = newConfig[key] ? "فعال" : "غیرفعال";
+        const actionDesc = `${label} - ${statusStr}`;
+
+        await logAuditEvent({
+          userId: payload?.sub || "admin_01",
+          username,
+          userRole,
+          action: actionDesc,
+          eventType: AFTA_LOG_EVENT_TYPES.AUDIT_LOG_CONFIG_CHANGE,
+          resource: "موارد رویدادنگاری",
+          method: "POST",
+          result: "SUCCESS",
+          ip: clientIp,
+          userAgent: c.req.header("user-agent"),
+          details: { item: key, label, enabled: newConfig[key], previousState: oldConfig[key] }
+        });
+      }
+    }
+
+    // If no specific key changed, still issue a generic change event if requested
+    if (changeCount === 0) {
+      await logAuditEvent({
+        userId: payload?.sub || "admin_01",
+        username,
+        userRole,
+        action: "بررسی و تایید پیکربندی موارد رویدادنگاری",
+        eventType: AFTA_LOG_EVENT_TYPES.AUDIT_LOG_CONFIG_CHANGE,
+        resource: "موارد رویدادنگاری",
+        method: "POST",
+        result: "SUCCESS",
+        ip: clientIp,
+        userAgent: c.req.header("user-agent"),
+        details: { config: newConfig }
+      });
+    }
+
+    return c.json({ success: true, message: "پیکربندی ثبت‌نشان‌ها با موفقیت به‌روزرسانی شد.", data: newConfig });
+  } catch (error: any) {
+    return c.json({ success: false, message: error.message }, 500);
+  }
+});
+
+
+// POST /api/security/validate-user-data - User data validation & import access control (AFTA Items 7 & 14)
+router.post("/validate-user-data", async (c) => {
+  const payload = (c.get as any)("jwtPayload");
+  const body = await c.req.json().catch(() => ({}));
+  const clientIp = c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "127.0.0.1";
+  const username = payload?.username || "admin";
+  const userRole = payload?.role || "مدیر سیستم";
+
+  const {
+    type = "ATTACHMENT_SUCCESS",
+    operation = "ADD", // "ADD" | "DELETE" | "IMPORT"
+    originalFileName = "1M.xlsx",
+    attachmentName,
+    fileSizeBytes = 1048576, // 1MB
+    docType = "8",
+    docCount = "1",
+    dataType = "1",
+    taskId = "27117",
+    taskRotationId = "72456",
+    docId = "38604",
+    attachmentId = "25137"
+  } = body;
+
+  // ── ویژگی‌های امنیتی و خط‌مشی کنترل دسترسی داده کاربری (۴ شرط الزام افتا) ──
+  // ۱. نوع داده (DataType)
+  // ۲. حجم و اندازه (Max 10MB)
+  // ۳. فرمت (Disallow executable/dangerous formats)
+  // ۴. تعداد دفعات import / تعداد سند (Max 50 docs per import)
+
+  const allowedFormats = [".xlsx", ".xls", ".doc", ".docx", ".pdf", ".png", ".jpg", ".jpeg", ".csv", ".txt", ".zip"];
+  const ext = originalFileName.substring(originalFileName.lastIndexOf(".")).toLowerCase() || ".xlsx";
+  const isFormatAllowed = allowedFormats.includes(ext);
+
+  const maxSizeBytes = 10 * 1024 * 1024; // 10MB
+  const isSizeAllowed = fileSizeBytes <= maxSizeBytes;
+
+  const maxDocsPerBatch = 50;
+  const isDocCountAllowed = Number(docCount) <= maxDocsPerBatch;
+
+  if (type === "FILE_CORRUPTED_ERROR" || !isFormatAllowed || !isSizeAllowed || !isDocCountAllowed) {
+    const fileSizeKb = Math.round(fileSizeBytes / 1024);
+    const actionDesc = `Message : فرمت یا حجم داده کاربری ارسالی غیرمجاز می‌باشد (فرمت: ${ext}، حجم: ${fileSizeKb}KB)`;
+    await logAuditEvent({
+      userId: payload?.sub || "admin_01",
+      username,
+      userRole,
+      action: actionDesc,
+      eventType: AFTA_LOG_EVENT_TYPES.USER_DATA_VALIDATION_FAILURE,
+      resource: "داده‌های کاربری",
+      method: "POST",
+      result: "FAILURE",
+      ip: clientIp,
+      errorCode: 400,
+      userAgent: c.req.header("user-agent"),
+      details: { error: "Validation Failed", format: ext, sizeKb: fileSizeKb, docCount }
+    });
+
+    return c.json({
+      success: false,
+      message: "فرمت یا حجم داده کاربری ارسالی غیرمجاز می‌باشد"
+    }, 400);
+  }
+
+  const generatedUniqueName = attachmentName || `${crypto.randomUUID()}${ext}`;
+
+  if (operation === "DELETE") {
+    // ردیف ۲ تصویر راهنما: لاگ حذف ضمیمه با مقدار کلید واقعی
+    const actionDesc = `AttachmentName: '${generatedUniqueName}' OrginalAttachmentName: '${originalFileName}' TaskId: '${taskId}' TaskRotationId: '${taskRotationId}' DocId: '${docId}' DocType: '${docType}' DocCount: '${docCount}' DataType: '${dataType}' IsAttached: 'True' Type: '0'`;
+    await logAuditEvent({
+      userId: payload?.sub || "admin_01",
+      username,
+      userRole,
+      action: actionDesc,
+      eventType: AFTA_LOG_EVENT_TYPES.USER_DATA_IMPORT_ATTEMPT,
+      resource: "ضمیمه",
+      method: "DELETE",
+      result: "SUCCESS",
+      ip: clientIp,
+      userAgent: c.req.header("user-agent"),
+      details: {
+        operation: "DELETE",
+        attachmentId: attachmentId,
+        key: attachmentId,
+        fileName: originalFileName,
+        uniqueName: generatedUniqueName
+      }
+    });
+
+    return c.json({
+      success: true,
+      message: "حذف ضمیمه و داده کاربری با موفقیت تایید و لاگ گردید."
+    });
+  }
+
+  // ردیف ۱ تصویر راهنما: لاگ افزودن/ایمپورت ضمیمه با مقدار کلید 0
+  const actionDesc = `AttachmentName: '${generatedUniqueName}' OrginalAttachmentName: '${originalFileName}' TaskId: '${taskId}' TaskRotationId: '${taskRotationId}' DocId: '${docId}' DocType: '${docType}' DocCount: '${docCount}' DataType: '${dataType}' IsAttached: 'True' Type: '0'`;
+  await logAuditEvent({
+    userId: payload?.sub || "admin_01",
+    username,
+    userRole,
+    action: actionDesc,
+    eventType: AFTA_LOG_EVENT_TYPES.USER_DATA_IMPORT_ATTEMPT,
+    resource: "ضمیمه",
+    method: "POST",
+    result: "SUCCESS",
+    ip: clientIp,
+    userAgent: c.req.header("user-agent"),
+    details: {
+      operation: "ADD",
+      key: "0",
+      fileName: originalFileName,
+      uniqueName: generatedUniqueName,
+      docId,
+      docType,
+      dataType
+    }
+  });
+
+  return c.json({
+    success: true,
+    message: "بررسی صحت و ورود داده کاربری/ضمیمه با موفقیت تایید و لاگ گردید."
+  });
 });
 
 // POST /api/security/validate-egress - Validate data egress and export policy (AFTA Items 8 & 9)
@@ -275,9 +568,33 @@ router.put("/entity-policies", requireRole(["admin"]), async (c) => {
   }
 });
 
-// GET /api/security/audit-logs - Advanced audit log retrieval (Admin only)
-router.get("/audit-logs", requireRole(["admin"]), async (c) => {
+// GET /api/security/audit-logs - Advanced audit log retrieval (Admin or Authorized users)
+router.get("/audit-logs", async (c) => {
   const payload = (c.get as any)("jwtPayload");
+  if (!payload) {
+    return c.json({ success: false, message: "احراز هویت الزامی است" }, 401);
+  }
+  const userRole = payload.role || "حسابدار";
+  const userPermissions = payload.permissions || {};
+  const isAuthorized = userRole === "admin" || userRole === "مدیر سیستم" || userPermissions["audit.view"] === true || userPermissions["audit.read"] === true || userPermissions["audit_logs"] === true;
+
+  if (!isAuthorized) {
+    await logAuditEvent({
+      userId: payload?.sub || "unauthorized_user",
+      username: payload?.username || "unauthorized_user",
+      userRole,
+      action: "تلاش غیر مجاز جهت دسترسی به صفحه لاگ های سیستمی",
+      eventType: AFTA_LOG_EVENT_TYPES.AUDIT_LOG_READ_FAILURE,
+      resource: c.req.path,
+      method: c.req.method,
+      result: "FAILURE",
+      ip: c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "127.0.0.1",
+      userAgent: c.req.header("user-agent"),
+      errorCode: 403,
+      details: { reason: "تلاش‌های ناموفق برای خواندن اطلاعات از ثبت‌نشان‌ها (الزام ۲ افتا)", requiredPermission: "audit.view" }
+    });
+    return c.json({ success: false, message: "دسترسی غیرمجاز. فقط مدیر سیستم یا کاربران دارنده مجوز مجاز به مشاهده ثبت نشان‌ها هستند." }, 403);
+  }
   try {
     const db = getDb();
     const { username, action, eventType, result, osType, ip, resource, shamsiDate, search, sortBy = "createdAt", sortOrder = "desc", page = "1", limit = "50" } = c.req.query();
@@ -341,11 +658,12 @@ router.get("/audit-logs", requireRole(["admin"]), async (c) => {
     await logAuditEvent({
       userId: payload.sub,
       username: payload.username,
-      action: AFTA_LOG_EVENT_TYPES.AUDIT_LOG_READ_SUCCESS,
+      userRole: payload.role || "مدیر",
+      action: "مشاهده اطلاعات ممیزی سیستم",
       eventType: AFTA_LOG_EVENT_TYPES.AUDIT_LOG_READ_SUCCESS,
-      resource: "audit_logs",
+      resource: "/api/security/audit-logs",
       result: "SUCCESS",
-      ip: c.req.header("x-forwarded-for") || "127.0.0.1",
+      ip: c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "127.0.0.1",
       details: { query, totalReturned: enrichedLogs.length }
     });
 

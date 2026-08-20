@@ -22,7 +22,7 @@ const ROLE_PRESETS = {
     "doc.create": true, "doc.edit": true, "doc.delete": true, "doc.approve": true,
     "acct.view": true, "acct.create": true,
     "rep.trial": true, "rep.ledger": true, "rep.statement": true,
-    "set.users": true, "set.year": true
+    "set.users": true, "set.year": true, "audit.view": true
   },
   "پشتیبانی / کاربر پیشرفته": {
     "doc.create": true, "doc.edit": true, "doc.delete": true, "doc.approve": true,
@@ -308,6 +308,11 @@ export default function Users() {
 
   const handleSave = async (e) => {
     e.preventDefault();
+    if (!selectedUser && (!formState.password || !formState.password.trim())) {
+      setActiveFormTab("security");
+      alert("تعیین رمز عبور برای کاربر جدید الزامی است. لطفاً در تب 'امنیت و ورود' رمز عبور معتبری وارد نمایید.");
+      return;
+    }
     setLoading(true);
     try {
       if (selectedUser) {
@@ -325,9 +330,6 @@ export default function Users() {
       } else {
         // Create Mode
         const payload = { ...formState };
-        if (!payload.password || !payload.password.trim()) {
-          payload.password = "AdminPass123!";
-        }
         const res = await api.post("/api/users", payload);
         if (res.data?.success) {
           setUsers([...users, res.data.data]);
@@ -344,6 +346,15 @@ export default function Users() {
   };
 
   const handleDelete = async (id, username) => {
+    const isSelf =
+      (currentUser?._id && String(currentUser._id) === String(id)) ||
+      (currentUser?.id && String(currentUser.id) === String(id)) ||
+      (currentUser?.username && currentUser.username.toLowerCase() === username?.toLowerCase());
+
+    if (isSelf) {
+      alert("شما نمی‌توانید حساب ادمین فعال خودتان را حذف کنید.");
+      return;
+    }
     if (!confirm(`آیا از حذف کامل کاربر "${username}" اطمینان دارید؟`)) return;
     try {
       const res = await api.delete(`/api/users/${id}`);
@@ -1175,9 +1186,27 @@ export default function Users() {
                                 <button onClick={() => handleEditUser(user)} className="text-muted-foreground hover:text-primary transition-colors" title="ویرایش">
                                   <Edit2 className="h-4 w-4" />
                                 </button>
-                                <button onClick={() => handleDelete(user._id, user.username)} className="text-muted-foreground hover:text-rose-500 transition-colors" title="حذف">
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
+                                {(() => {
+                                  const isSelf =
+                                    (currentUser?._id && String(currentUser._id) === String(user._id)) ||
+                                    (currentUser?.id && String(currentUser.id) === String(user._id)) ||
+                                    (currentUser?.username && currentUser.username.toLowerCase() === user.username?.toLowerCase());
+                                  return (
+                                    <button
+                                      onClick={() => !isSelf && handleDelete(user._id, user.username)}
+                                      disabled={isSelf}
+                                      className={cn(
+                                        "transition-colors",
+                                        isSelf
+                                          ? "text-muted-foreground/30 cursor-not-allowed"
+                                          : "text-muted-foreground hover:text-rose-500"
+                                      )}
+                                      title={isSelf ? "شما نمی‌توانید حساب ادمین فعال خودتان را حذف کنید" : "حذف"}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </button>
+                                  );
+                                })()}
                               </div>
                             ) : (
                               <div className="flex items-center justify-center">
