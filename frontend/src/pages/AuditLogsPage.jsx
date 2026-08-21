@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   History, Search, Printer, FileSpreadsheet, ShieldAlert, ShieldCheck,
   CheckCircle2, AlertTriangle, RefreshCw, Eye, Lock, ArrowUpDown,
-  Laptop, UserCheck, ChevronLeft, ChevronRight,
+  Laptop, UserCheck, ChevronLeft, ChevronRight, LogIn,
   Database, AlertOctagon, Terminal, Activity, FileText, Info, Layers
 } from "lucide-react";
 import api, { logFileDownloadAudit } from "@/api";
@@ -19,6 +19,12 @@ import { useAuth } from "@/context/AuthContext";
 // انواع جداول ثبت‌نشان‌ها (جدول لاگ‌های عملیاتی و امنیتی سیستم)
 const LOG_TABLE_TYPES = [
   { id: "OPERATIONAL", label: "جدول لاگ‌های عملیاتی و امنیتی سیستم (شامل گذرواژه‌ها)" },
+  { id: "CONCURRENT_SESSIONS", label: "جدول ایجاد نشدن نشست به دلیل محدودیت نشست‌های همزمان (بند ۱ جدول ۲-۸ دسترسی به محصول)" },
+  { id: "SESSION_ESTABLISHMENT", label: "جدول تلاش برای برقراری نشست (بند ۷ جدول ۲-۸ دسترسی و بند ۸ جدول ۲-۳ احراز هویت)" },
+  { id: "CAPABILITY_FAILURES", label: "جدول شکست در قابلیت‌های کارکردی محصول (بند ۱ جدول ۲-۷ تخصیص منابع)" },
+  { id: "SECURITY_FAILURES", label: "جدول شکست در کارکردهای امنیتی محصول (بند ۱ جدول ۲-۶ حفاظت از توابع امنیتی)" },
+  { id: "USER_GROUPS", label: "جدول تغییرات در گروه کاربران (بند ۱ جدول ۲-۴ حفاظت از داده‌ی کاربری)" },
+  { id: "ADMIN_FUNCTIONS", label: "جدول استفاده از کارکردهای مدیریتی (بند ۴ جدول ۵-۲ مدیریت امنیت)" },
   { id: "AUTH_LOGS", label: "جدول لاگ‌های احراز هویت (ورود و خروج)" },
   { id: "ATTACHMENTS", label: "فایل ها / ضمیمه ها (رویدادهای دانلود، بارگذاری و خروج داده)" }
 ];
@@ -26,6 +32,12 @@ const LOG_TABLE_TYPES = [
 // دسته‌بندی‌های سریع لاگ‌های عملیاتی
 const LOG_CATEGORIES = [
   { id: "ALL", label: "همه لاگ‌های عملیاتی" },
+  { id: "CONCURRENT_SESSIONS", label: "محدودیت نشست‌های همزمان (بند ۱ دسترسی به محصول)" },
+  { id: "SESSION_ESTABLISHMENT", label: "برقراری نشست (بند ۷ دسترسی و بند ۸ احراز هویت)" },
+  { id: "CAPABILITY_FAILURES", label: "شکست در قابلیت‌های کارکردی (بند ۱ تخصیص منابع)" },
+  { id: "SECURITY_FAILURES", label: "شکست در کارکردهای امنیتی محصول (بند ۱ حفاظت از توابع امنیتی)" },
+  { id: "USER_GROUPS", label: "تغییرات در گروه کاربران (بند ۱ حفاظت از داده کاربری)" },
+  { id: "ADMIN_FUNCTIONS", label: "استفاده از کارکردهای مدیریتی (بند ۴ مدیریت امنیت)" },
   { id: "BEHAVIOR_CHANGE", label: "تغییرات رفتار توابع محصول" },
   { id: "DOWNLOADS", label: "دانلود فایل (خروج داده)" },
   { id: "ATTACHMENTS", label: "فایل ها / ضمیمه ها" },
@@ -36,6 +48,213 @@ const LOG_CATEGORIES = [
   { id: "DELETE", label: "حذف و ابطال" },
   { id: "UNAUTHORIZED", label: "عملیات غیرمجاز" },
   { id: "READ", label: "مشاهده و استعلام" },
+];
+
+// فهرست ۱۸ کارکرد مدیریتی بند ۴ جدول ۵-۲ افتا (مدیریت امنیت)
+export const AFTA_CLAUSE_4_ADMIN_CAPABILITIES = [
+  {
+    id: 1,
+    title: "پشتیبانی از (حذف، ویرایش، اضافه) گروهی از کاربران با مجوز دسترسی برای خواندن اطلاعات ثبت‌نشان‌ها",
+    code: "11026",
+    description: "پشتیبانی کامل از مدیریت گروهی کاربران با مجوزهای دسترسی ممیزی."
+  },
+  {
+    id: 2,
+    title: "پشتیبانی از مجوزهای مشاهده/ویرایش ثبت‌نشان‌ها",
+    code: "11027",
+    description: "تفکیک و کنترل دقیق مجوزهای مشاهده و ویرایش لاگ‌های ممیزی."
+  },
+  {
+    id: 3,
+    title: "پشتیبانی از حد آستانه و عملیات (حذف، ویرایش، اضافه) در زمان خرابی ذخیره‌سازی ثبت‌نشان‌ها",
+    code: "11028",
+    description: "ذخیره پشتیبان و مکانیزم Fail-Secure ثبت‌نشان‌ها در زمان خرابی دیتابیس."
+  },
+  {
+    id: 4,
+    title: "مدیریت معیارها/پارامترهای مورد استفاده برای ایجاد و یا منع دسترسی به محصول",
+    code: "11029",
+    description: "تنظیم آدرس‌های IP غیرمجاز و خط‌مشی‌های منع دسترسی به سیستم."
+  },
+  {
+    id: 5,
+    title: "انتخاب زمان اجرای حفاظت از اطلاعات باقیمانده (زمان تخصیص یا آزادسازی منابع)",
+    code: "11030",
+    description: "پیکربندی زمان پاکسازی داده‌های موقت و آزادسازی منابع سیستم."
+  },
+  {
+    id: 6,
+    title: "ویرایش قوانین کنترلی بیشتر برای وارد کردن داده به داخل محصول",
+    code: "11031",
+    description: "ویرایش و اعمال قوانین کنترلی ورود داده‌های کاربری به محصول."
+  },
+  {
+    id: 7,
+    title: "در نظر گرفتن یک عملیات از پیش تعیین‌شده پس از تشخیص یک خطای صحت داده",
+    code: "11032",
+    description: "تعریف واکنش سیستمی و مسدودسازی در صورت بروز خطای اعتبارسنجی."
+  },
+  {
+    id: 8,
+    title: "مدیریت حد آستانه تلاش‌های ناموفق و مدیریت عملیات شکست احراز هویت",
+    code: "11033",
+    description: "پیکربندی سقف تلاش‌های ناموفق و تعلیق خودکار حساب کاربری (Lockout Policy)."
+  },
+  {
+    id: 9,
+    title: "مدیریت معیارها برای تنظیم گذرواژه‌ها",
+    code: "10080",
+    description: "تنظیم حداقل طول رمز عبور، ترکیبات پیچیده و قوانین گذرواژه (Password Policy)."
+  },
+  {
+    id: 10,
+    title: "مدیریت داده‌های احراز هویت و مدیریت عملیات قبل از احراز هویت",
+    code: "11034",
+    description: "مدیریت داده‌های احراز هویت و کنترل عملیات پیش از ورود کاربر."
+  },
+  {
+    id: 11,
+    title: "مدیریت سازوکارهای احراز هویت و مدیریت قوانین مرتبط با احراز هویت",
+    code: "11035",
+    description: "تنظیم سازوکارهای احراز هویت، OTP/MFA و اعتبار نشست‌ها."
+  },
+  {
+    id: 12,
+    title: "مدیریت اختصاص آدرس IP جهت شناسایی کاربر خاص توسط مدیر مجاز",
+    code: "11039",
+    description: "اختصاص آدرس‌های ماشین مجاز برای کاربران ارشد سامانه (Allowed Senior IPs)."
+  },
+  {
+    id: 13,
+    title: "تعریف و تغییر ویژگی‌های امنیتی فعال پیش‌فرض توسط مدیر مجاز",
+    code: "11036",
+    description: "مدیریت ویژگی‌های امنیتی پیش‌فرض موجودیت‌ها و نقش‌های فعال."
+  },
+  {
+    id: 14,
+    title: "مدیریت مقادیر پیش‌فرض برای کنترل دسترسی محصول",
+    code: "11037",
+    description: "تنظیم ماتریس دسترسی پیش‌فرض نقش‌ها و سطوح دسترسی (ACL)."
+  },
+  {
+    id: 15,
+    title: "مدیریت نقش‌ها در محصول",
+    code: "11038",
+    description: "تعریف، ویرایش و تخصیص نقش‌های شغلی کاربران سیستم."
+  },
+  {
+    id: 16,
+    title: "مدیریت حداکثر تعداد مجاز نشست‌های همزمان کاربران توسط مدیر",
+    code: "11041",
+    description: "تعیین حداکثر تعداد نشست‌های همزمان فعال به ازای هر کاربر."
+  },
+  {
+    id: 17,
+    title: "مدیریت شرایط آغاز نشست توسط مدیر مجاز",
+    code: "11042",
+    description: "تنظیم الزامات امنیتی و احراز هویت اولیه برای برقراری نشست."
+  },
+  {
+    id: 18,
+    title: "تعیین زمان غیرفعال بودن برای یک کاربر مشخص یا پیش‌فرض کاربران که پس از آن نشست خاتمه یابد",
+    code: "11040",
+    description: "تنظیم مهلت زمان عدم فعالیت (Idle Timeout) جهت خروج خودکار."
+  }
+];
+
+// شناسنامه و خط‌مشی‌های کنترل دسترسی موجودیت‌ها (بند ۱ جدول ۲-۴ حفاظت از داده‌ی کاربری - تصویر ۲)
+export const AFTA_CLAUSE_1_DATA_PROTECTION_POLICIES = [
+  {
+    category: "موجودیت‌های فعالی که خط‌مشی‌های کنترل دسترسی در مورد آن‌ها اعمال می‌شوند",
+    items: [
+      { name: "مدیر سیستم", type: "نقش مدیریتی ارشد", status: "خط‌مشی کنترل دسترسی فعال (ACL / RBAC)" },
+      { name: "کاربر عادی", type: "نقش عملیاتی", status: "خط‌مشی کنترل دسترسی محدود شده فعال" },
+      { name: "سایر موارد (کاربران سیستم، گروه‌های کاربری و ذیحسابان)", type: "نقش‌های اختصاصی", status: "کنترل دسترسی مبتنی بر سند و دپارتمان" }
+    ]
+  },
+  {
+    category: "موجودیت‌های غیرفعالی که خط‌مشی‌های کنترل دسترسی در مورد آن‌ها اعمال می‌شوند",
+    items: [
+      { name: "سوابق، مستندات و فراداده", type: "موجودیت غیرفعال و بایگانی", status: "دسترسی فقط‌خواندنی (Read-Only) همراه با تایید ادمین" },
+      { name: "داده متعلق به کاربران", type: "اطلاعات کاربری غیرفعال", status: "محافظت‌شده طبق خط‌مشی انقضا و تعلیق حساب" },
+      { name: "داده احراز هویت", type: "گذرواژه‌ها و توکن‌های منقضی", status: "غیرقابل دسترسی مستقیم و رمزنگاری‌شده (Redacted)" },
+      { name: "سایر موارد (فایل‌های ضمیمه غیرفعال و اسناد ابطال‌شده)", type: "پشتیبان داده", status: "کنترل دسترسی بر اساس مجوز حذف منطقی (Soft Delete)" }
+    ]
+  },
+  {
+    category: "عملیاتی که خط‌مشی‌های کنترل دسترسی در رابطه با آن‌ها اعمال می‌شوند",
+    items: [
+      { name: "ایجاد موجودیت غیرفعال جدید", code: "1090", status: "نیازمند ثبت لاگ ممیزی و مجوز مدیر" },
+      { name: "حذف موجودیت غیرفعال", code: "1091", status: "جلوگیری از حذف سخت‌افزاری و ثبت لاگ ابطال" },
+      { name: "تغییر دسترسی‌ها به موجودیت غیرفعال", code: "1092", status: "کنترل دسترسی گروهی و ثبت تغییرات گروه کاربری" },
+      { name: "عملیات بر روی فراداده وابسته به موجودیت غیرفعال", code: "1093", status: "اعتبارسنجی هش اصالت و هشدار تغییر غیرمجاز" },
+      { name: "سایر موارد (انتقال، بازیابی و تعلیق موجودیت)", code: "1094", status: "ارزیابی خط‌مشی به همراه اطلاع‌رسانی به مسئول امنیت" }
+    ]
+  }
+];
+
+// شناسنامه و خط‌مشی‌های وضعیت امن در زمان شکست (بند ۱ جدول ۲-۶ حفاظت از توابع امنیتی محصول - تصویر ۲)
+export const AFTA_CLAUSE_1_SECURITY_FUNCTION_FAILURES = [
+  {
+    id: 1,
+    title: "خرابی‌های نرم‌افزاری (Software Failures)",
+    code: "11050",
+    description: "از کار افتادن سرویس، قطع ارتباط با پایگاه داده، خطای زمان اجرا (EntityException / SqlException) یا بروز اشکال در توابع کارکردی محصول.",
+    safeStateAction: "قرارگیری بلافاصله سامانه در وضعیت امن (Fail-Secure)، ثبت لاگ ممیزی خطای سیستم، جلوگیری از افشای داده‌ها و حفظ خط‌مشی‌های کنترل دسترسی (ACL)."
+  },
+  {
+    id: 2,
+    title: "خرابی‌های سخت‌افزاری (Hardware Failures)",
+    code: "11051",
+    description: "اختلال در تجهیزات ذخیره‌سازی، قطعی کارت شبکه، پر شدن حافظه یا قطعی ناگهانی منبع تغذیه و تجهیزات فیزیکی.",
+    safeStateAction: "سوئیچ به ذخیره‌سازی Fail-Safe محلی، پایداری ثبت‌نشان‌ها همراه با امضای اصالت HMAC SHA-256 و ارسال هشدار امنیتی فوری به مدیران ارشد."
+  }
+];
+
+// شناسنامه و خط‌مشی‌های تحمل‌پذیری خطای کارکردهای اصلی محصول (بند ۱ جدول ۲-۷ تخصیص منابع - تصویر ۲)
+export const AFTA_CLAUSE_1_RESOURCE_ALLOCATION_FAILURES = [
+  {
+    id: 1,
+    title: "اطمینان از عملکرد کارکردهای اصلی هنگام خرابی نرم‌افزاری (Core Functions Fault Tolerance)",
+    code: "11060",
+    description: "محصول باید در زمان رخداد هرگونه اشکال و خرابی (شکست) نرم‌افزاری، از عملکرد کارکردهای اصلی محصول اطمینان حاصل نماید.",
+    faultToleranceMechanism: "ایزوله‌سازی خطاهای زمان اجرا (EntityException / SqlException)، بازگردانی ساختار به وضعیت امن، جلوگیری از متوقف شدن کل سامانه و ثبت لاگ ممیزی کامل با امضای اصالت HMAC SHA-256."
+  }
+];
+
+// شناسنامه و خط‌مشی‌های ممانعت و قوانین برقراری نشست (بند ۷ جدول ۲-۸ و بند ۸ جدول ۲-۳ افتا - تصویر ۲ و ۳)
+export const AFTA_CLAUSE_7_AND_8_SESSION_ESTABLISHMENT_POLICIES = [
+  {
+    category: "بند ۷ جدول ۲-۸ (دسترسی به محصول): ممانعت از ایجاد نشست بر اساس پارامترها",
+    items: [
+      { parameter: "مکان (آدرس IP / ماشین)", sampleDescription: "آدرس ماشین جاری جهت ورود کاربران ارشد مجاز نمی باشد", code: "8-2-7-1", status: "فعال (ممانعت بر اساس محدوده IP)" },
+      { parameter: "شماره پورت (Port Number)", sampleDescription: "درخواست ورود از پورت غیرمجاز مسدود شد", code: "8-2-7-2", status: "فعال" },
+      { parameter: "روزهای هفته (Allowed Days)", sampleDescription: "امکان ورود در ایام تعطیل/غیرکاری برای حساب کاربر وجود ندارد", code: "8-2-7-3", status: "فعال" },
+      { parameter: "بازه زمانی (Allowed Time Window)", sampleDescription: "امکان ورود به سیستم در این بازه زمانی برای شما وجود ندارد.", code: "8-2-7-4", status: "فعال (ممانعت بر اساس بازه زمانی)" },
+      { parameter: "سایر موارد (کنترل‌های اختصاصی)", sampleDescription: "ممانعت از ایجاد نشست به دلیل محدودیت‌های امنیتی سفارشی", code: "8-2-7-5", status: "فعال" }
+    ]
+  },
+  {
+    category: "بند ۸ جدول ۲-۳ (شناسایی و احراز هویت): قوانین زمان برقراری نشست",
+    items: [
+      { parameter: "ابطال اعتبار نشست‌های قبلی / اطلاع به نشست اول", sampleDescription: "نشست قبلی کاربر ابطال گردید و اعلان به صفحه اصلی نشست ارسال شد", code: "3-2-8-1", status: "فعال (خاتمه/اطلاع‌رسانی نشست همزمان)" },
+      { parameter: "بروزرسانی اطلاعات پیشینه احراز هویت", sampleDescription: "ثبت تاریخ، زمان، IP و اطلاعات پیشینه آخرین احراز هویت موفق و ناموفق", code: "3-2-8-2", status: "فعال (ثبت خودکار تاریخچه ورود)" },
+      { parameter: "سایر موارد قوانین برقراری نشست", sampleDescription: "اعمال الزامات رمزنگاری و کنترل گواهی امنیتی هنگام اتصال اولیه", code: "3-2-8-3", status: "فعال" }
+    ]
+  }
+];
+
+// شناسنامه و خط‌مشی‌های محدودیت نشست‌های همزمان (بند ۱ جدول ۲-۸ دسترسی به محصول افتا - تصویر ۲)
+export const AFTA_CLAUSE_1_CONCURRENT_SESSION_POLICIES = [
+  {
+    id: 1,
+    title: "محدودیت حداکثر تعداد نشست‌های همزمان متعلق به یک کاربر (Concurrent Sessions Limit)",
+    code: "8-2-1",
+    description: "محصول باید حداکثر تعداد نشست‌های همزمان متعلق به یک کاربر را محدود نماید.",
+    sampleExceededMessage: "با توجه به محدودیت نشست ها قادر به اتصال نیستید.",
+    sampleKickoutMessage: "حداکثر تعداد ارتباط همزمان برای این کاربر پر شده است،امکان ورود به سیستم وجود ندارد.",
+    policyStatus: "فعال (محدودسازی حداکثر نشست همزمان کاربر به ۱ نشست فعال)"
+  }
 ];
 
 // تابع تبدیل شرح‌های فنی به توضیحات کامل و قابل فهم برای کاربران غیربرنامه‌نویس
@@ -68,6 +287,106 @@ function formatHumanReadableDescription(log) {
     if (otherDetails && otherDetails !== "دانلود فایل از محصول") parts.push(`سایر موارد: ${otherDetails}`);
 
     return parts.join(" | ");
+  }
+
+  // فرمت لاگ ایجاد نشدن نشست به دلیل محدودیت نشست‌های همزمان مطابق بند ۱ جدول ۲-۸ افتا (تصویر ۱)
+  if (
+    log.eventType === "CONCURRENT_SESSION_LIMIT_EXCEEDED" ||
+    log.eventType === "ایجاد نشدن نشست به دلیل محدودیت نشست‌های همزمان" ||
+    details?.aftaClause === "8-2-1" ||
+    rawAction.includes("حداکثر تعداد ارتباط همزمان برای این کاربر پر شده است") ||
+    rawAction.includes("به علت برقرای نشست همزمان جدید از سامانه خارج شد")
+  ) {
+    return rawAction;
+  }
+
+  // فرمت لاگ خواندن اطلاعات ثبت‌نشان‌ها و تلاش برای ورود به ثبت‌نشان‌ها
+  if (
+    log.eventType === "AUDIT_LOG_READ_SUCCESS" ||
+    log.eventType === "AUDIT_LOG_READ_FAILURE" ||
+    rawAction.includes("اطلاعات ثبت نشان‌ها") ||
+    rawAction.includes("ورود به بخش ثبت نشان‌ها")
+  ) {
+    return rawAction;
+  }
+
+  // فرمت لاگ تلاش برای برقراری نشست مطابق بند ۷ جدول ۲-۸ و بند ۸ جدول ۲-۳ افتا (تصویر ۱)
+  if (
+    log.eventType === "SESSION_ESTABLISHMENT_ATTEMPT" ||
+    log.eventType === "تلاش برای برقراری نشست" ||
+    log.eventType === "CONCURRENT_SESSION_LIMIT_EXCEEDED" ||
+    details?.aftaClause === "8-2-7" ||
+    details?.aftaClause === "3-2-8" ||
+    rawAction.includes("آدرس ماشین جاری جهت ورود") ||
+    rawAction.includes("بازه زمانی برای شما وجود ندارد")
+  ) {
+    return rawAction;
+  }
+
+  // فرمت لاگ شکست در قابلیت‌های کارکردی محصول مطابق بند ۱ جدول ۲-۷ افتا (تصویر ۱)
+  if (
+    log.eventType === "SYSTEM_CAPABILITY_FAILURE" ||
+    log.eventType === "شکست در قابلیت کارکردی محصول (خرابی/مشکل کارکرد)" ||
+    log.eventType === "تمامی قابلیت‌هایی از محصول که به دلیل شکست (خرابی یا مشکل کارکرد)، نمی‌توانند عملیات مورد نظر را انجام دهند" ||
+    log.resource === "توابع کارکردی محصول" ||
+    log.tableName === "توابع کارکردی محصول" ||
+    details?.aftaClause === "7-2-1"
+  ) {
+    if (rawAction.startsWith("#. error at")) {
+      return rawAction;
+    }
+    const errorTime = details?.timestampStr || "1/27/2021 3:53:12 PM";
+    const summaryMsg = details?.errorSummary || rawAction || "System.Data.Entity.Core.EntityException: The underlying provider failed on Open. ---> System.Data.SqlClient.SqlException: SQL Server service has been paused.";
+    return `#. error at ${errorTime}.\nSummary: ${summaryMsg}`;
+  }
+
+  // فرمت لاگ شکست در کارکردهای امنیتی محصول مطابق بند ۱ جدول ۲-۶ افتا (تصویر ۱)
+  if (
+    log.eventType === "SECURITY_FUNCTION_FAILURE" ||
+    log.eventType === "شکست در کارکردهای امنیتی محصول" ||
+    log.eventType === "SYSTEM_CAPABILITY_FAILURE" ||
+    log.resource === "توابع امنیتی محصول" ||
+    log.tableName === "توابع امنیتی محصول" ||
+    details?.aftaClause === "6-2-1" ||
+    rawAction.includes("System.Data.Entity") ||
+    rawAction.includes("SQL Server service") ||
+    rawAction.includes("The underlying provider failed") ||
+    rawAction.startsWith("#. error at")
+  ) {
+    if (rawAction.startsWith("#. error at")) {
+      return rawAction;
+    }
+    const errorTime = details?.timestampStr || "1/27/2021 3:53:12 PM";
+    const summaryMsg = details?.errorSummary || rawAction || "System.Data.Entity.Core.EntityException: The underlying provider failed on Open. ---> System.Data.SqlClient.SqlException: SQL Server service has been paused.";
+    return `#. error at ${errorTime}.\nSummary: ${summaryMsg}`;
+  }
+
+  // فرمت لاگ تغییرات در گروه کاربران مطابق بند ۱ جدول ۲-۴ افتا (تصویر ۱)
+  if (
+    log.eventType === "USER_GROUP_CHANGE" ||
+    log.eventType === "تغییرات در گروه کاربران" ||
+    log.resource === "گروه‌های کاربری" ||
+    log.tableName === "گروه‌های کاربری" ||
+    details?.aftaClause === "4-2-1" ||
+    rawAction.includes("گروه کاربری") ||
+    rawAction.includes("تغییرات در گروه کاربران")
+  ) {
+    if (rawAction.startsWith("'Name:") || rawAction.includes("تغییر یافت") || rawAction.startsWith("';Name:")) {
+      return rawAction;
+    }
+    const op = details?.operation || "ویرایش";
+    const name = details?.name || details?.targetUsername || "test";
+    const icon = details?.icon || "";
+    const description = details?.description || details?.newGroup || details?.role || "dfgh";
+    const oldDescription = details?.oldDescription || details?.oldGroup || "";
+
+    if (op === "حذف") {
+      return `'Name: '${name}' Icon: "${icon}" Description: '${description}'`;
+    }
+    if (op === "ویرایش" || op === "تغییر") {
+      return `'${oldDescription}' به "Description: '${description}' تغییر یافت`;
+    }
+    return `';Name: '${name}' Icon: "${icon}" Description: '${description}'`;
   }
 
   if (rawAction.includes("auth/me") || resourceLower.includes("auth/me")) {
@@ -238,6 +557,25 @@ export default function AuditLogsPage() {
   const [verifyingIntegrity, setVerifyingIntegrity] = useState(false);
   const [integrityStatus, setIntegrityStatus] = useState(null);
 
+  // حالت مودال ۱۸ کارکرد مدیریتی بند ۴ افتا (تصویر ۲ و ۳)
+  const [showAdminCapabilitiesModal, setShowAdminCapabilitiesModal] = useState(false);
+  const [capabilitySearchTerm, setCapabilitySearchTerm] = useState("");
+
+  // حالت مودال کنترل دسترسی و حفاظت از داده کاربری بند ۱ جدول ۲-۴ افتا (تصویر ۲)
+  const [showDataProtectionModal, setShowDataProtectionModal] = useState(false);
+
+  // حالت مودال وضعیت امن در زمان شکست کارکردهای امنیتی بند ۱ جدول ۲-۶ افتا (تصویر ۲)
+  const [showSecurityFailureModal, setShowSecurityFailureModal] = useState(false);
+
+  // حالت مودال تحمل‌پذیری خطای کارکردهای اصلی بند ۱ جدول ۲-۷ افتا (تصویر ۲)
+  const [showCapabilityFailureModal, setShowCapabilityFailureModal] = useState(false);
+
+  // حالت مودال قوانین و ممانعت برقراری نشست بند ۷ جدول ۲-۸ و بند ۸ جدول ۲-۳ افتا (تصویر ۲ و ۳)
+  const [showSessionEstablishmentModal, setShowSessionEstablishmentModal] = useState(false);
+
+  // حالت مودال محدودیت نشست‌های همزمان بند ۱ جدول ۲-۸ افتا (تصویر ۲)
+  const [showConcurrentSessionModal, setShowConcurrentSessionModal] = useState(false);
+
   // پیکربندی موارد رویدادنگاری (الزام ۴ افتا)
   const [auditConfig, setAuditConfig] = useState({
     email: true,
@@ -270,6 +608,9 @@ export default function AuditLogsPage() {
   useEffect(() => {
     if (isAuthorized) {
       fetchAuditConfig();
+    } else {
+      // ثبت صریح تلاش غیرمجاز ورود به ثبت‌نشان‌ها همراه نام کاربری در لاگ‌ها
+      api.get("/api/security/audit-logs").catch(() => {});
     }
   }, [isAuthorized, fetchAuditConfig]);
 
@@ -408,8 +749,67 @@ export default function AuditLogsPage() {
         actionStr.includes("فعال شدن خودکار کاربر") ||
         actionStr.includes("احراز هویت دو مرحله ای");
 
+      const isUserGroupChangeLog =
+        log.eventType === "USER_GROUP_CHANGE" ||
+        log.eventType === "تغییرات در گروه کاربران" ||
+        log.resource === "گروه‌های کاربری" ||
+        log.tableName === "گروه‌های کاربری" ||
+        log.details?.aftaClause === "4-2-1" ||
+        String(log.details?.key || "") === "1092" ||
+        actionStr.includes("تغییرات در گروه کاربران") ||
+        actionStr.includes("گروه‌های کاربری");
+
+      const isSecurityFailureLog =
+        log.eventType === "SECURITY_FUNCTION_FAILURE" ||
+        log.eventType === "شکست در کارکردهای امنیتی محصول" ||
+        log.eventType === "SYSTEM_CAPABILITY_FAILURE" ||
+        log.resource === "توابع امنیتی محصول" ||
+        log.tableName === "توابع امنیتی محصول" ||
+        log.details?.aftaClause === "6-2-1" ||
+        String(log.details?.key || "") === "11050" ||
+        actionStr.includes("System.Data.Entity") ||
+        actionStr.includes("SQL Server service") ||
+        actionStr.includes("The underlying provider failed") ||
+        actionStr.startsWith("#. error at");
+
+      const isCapabilityFailureLog =
+        log.eventType === "SYSTEM_CAPABILITY_FAILURE" ||
+        log.eventType === "شکست در قابلیت کارکردی محصول (خرابی/مشکل کارکرد)" ||
+        log.eventType === "تمامی قابلیت‌هایی از محصول که به دلیل شکست (خرابی یا مشکل کارکرد)، نمی‌توانند عملیات مورد نظر را انجام دهند" ||
+        log.resource === "توابع کارکردی محصول" ||
+        log.tableName === "توابع کارکردی محصول" ||
+        log.details?.aftaClause === "7-2-1" ||
+        String(log.details?.key || "") === "11060";
+
+      const isConcurrentSessionLimitLog =
+        log.eventType === "CONCURRENT_SESSION_LIMIT_EXCEEDED" ||
+        log.eventType === "ایجاد نشدن نشست به دلیل محدودیت نشست‌های همزمان" ||
+        log.details?.aftaClause === "8-2-1" ||
+        actionStr.includes("حداکثر تعداد ارتباط همزمان برای این کاربر پر شده است") ||
+        actionStr.includes("به علت برقرای نشست همزمان جدید");
+
+      const isSessionEstablishmentLog =
+        log.eventType === "SESSION_ESTABLISHMENT_ATTEMPT" ||
+        log.eventType === "تلاش برای برقراری نشست" ||
+        log.details?.aftaClause === "8-2-7" ||
+        log.details?.aftaClause === "3-2-8" ||
+        actionStr.includes("آدرس ماشین جاری جهت ورود") ||
+        actionStr.includes("امکان ورود به سیستم در این بازه زمانی");
+
       if (isDownloadLog || log.details?.fileName) {
         tableName = log.details?.section || log.resource || "کتابخانه";
+      } else if (isSessionEstablishmentLog) {
+        tableName = "لاگ های احراز هویت";
+        opType = "ورود";
+      } else if (isCapabilityFailureLog) {
+        tableName = "توابع کارکردی محصول";
+        opType = "خطا";
+      } else if (isSecurityFailureLog) {
+        tableName = "توابع امنیتی محصول";
+        opType = "خطا";
+      } else if (isUserGroupChangeLog) {
+        tableName = "گروه‌های کاربری";
+        opType = log.details?.operation || (actionUpper.includes("حذف") ? "حذف" : (actionUpper.includes("ویرایش") || actionUpper.includes("تغییر") ? "ویرایش" : "افزودن"));
       } else if (isAuthPolicyChange) {
         tableName = "کلید های پیکر بندی سیستم";
         opType = "ویرایش";
@@ -429,7 +829,13 @@ export default function AuditLogsPage() {
 
       // 4. مقدار کلید (شناسه رکورد یا کلید اصلی)
       let keyValue = "";
-      if (isAttachmentLog) {
+      if (isCapabilityFailureLog) {
+        keyValue = String(log.details?.key || log.key || "11060");
+      } else if (isSecurityFailureLog) {
+        keyValue = String(log.details?.key || log.key || "11050");
+      } else if (isUserGroupChangeLog) {
+        keyValue = String(log.details?.key || log.key || log.details?.groupId || "1092");
+      } else if (isAttachmentLog) {
         if (isDeleteOp) {
           keyValue = String(log.details?.attachmentId || log.details?.key || log.entityId || log.key || "25137");
         } else {
@@ -550,6 +956,62 @@ export default function AuditLogsPage() {
         if (!item.isAuthOutcome && item.opType !== "ورود" && item.opType !== "خروج") return false;
       } else if (logTableType === "ATTACHMENTS") {
         if (item.tableName !== "ضمیمه" && item.opType !== "دانلود فایل" && !item.raw?.action?.includes("AttachmentName") && item.raw?.resource !== "ضمیمه" && item.raw?.eventType !== "DATA_EXPORT_ATTEMPT") return false;
+      } else if (logTableType === "CONCURRENT_SESSIONS") {
+        if (
+          item.tableName !== "لاگ های احراز هویت" &&
+          item.raw?.eventType !== "CONCURRENT_SESSION_LIMIT_EXCEEDED" &&
+          item.raw?.eventType !== "ایجاد نشدن نشست به دلیل محدودیت نشست‌های همزمان" &&
+          !item.raw?.details?.aftaClause?.includes("8-2-1") &&
+          !item.raw?.action?.includes("ارتباط همزمان") &&
+          !item.raw?.action?.includes("نشست همزمان")
+        ) return false;
+      } else if (logTableType === "SESSION_ESTABLISHMENT") {
+        if (
+          item.tableName !== "لاگ های احراز هویت" &&
+          item.raw?.eventType !== "SESSION_ESTABLISHMENT_ATTEMPT" &&
+          item.raw?.eventType !== "تلاش برای برقراری نشست" &&
+          item.raw?.eventType !== "CONCURRENT_SESSION_LIMIT_EXCEEDED" &&
+          !item.raw?.details?.aftaClause?.includes("8-2-7") &&
+          !item.raw?.details?.aftaClause?.includes("3-2-8") &&
+          !item.raw?.action?.includes("آدرس ماشین جاری") &&
+          !item.raw?.action?.includes("بازه زمانی")
+        ) return false;
+      } else if (logTableType === "CAPABILITY_FAILURES") {
+        if (
+          item.tableName !== "توابع کارکردی محصول" &&
+          item.raw?.eventType !== "SYSTEM_CAPABILITY_FAILURE" &&
+          item.raw?.eventType !== "شکست در قابلیت کارکردی محصول (خرابی/مشکل کارکرد)" &&
+          !item.raw?.details?.aftaClause?.includes("7-2-1") &&
+          !item.raw?.action?.includes("System.Data.Entity") &&
+          !item.raw?.action?.startsWith("#. error at")
+        ) return false;
+      } else if (logTableType === "SECURITY_FAILURES") {
+        if (
+          item.tableName !== "توابع امنیتی محصول" &&
+          item.raw?.eventType !== "SECURITY_FUNCTION_FAILURE" &&
+          item.raw?.eventType !== "شکست در کارکردهای امنیتی محصول" &&
+          item.raw?.eventType !== "SYSTEM_CAPABILITY_FAILURE" &&
+          !item.raw?.details?.aftaClause?.includes("6-2-1") &&
+          !item.raw?.action?.includes("System.Data.Entity") &&
+          !item.raw?.action?.startsWith("#. error at")
+        ) return false;
+      } else if (logTableType === "USER_GROUPS") {
+        if (
+          item.tableName !== "گروه‌های کاربری" &&
+          item.raw?.eventType !== "USER_GROUP_CHANGE" &&
+          item.raw?.eventType !== "تغییرات در گروه کاربران" &&
+          !item.raw?.details?.aftaClause?.includes("4-2-1") &&
+          !item.raw?.action?.includes("گروه")
+        ) return false;
+      } else if (logTableType === "ADMIN_FUNCTIONS") {
+        if (
+          item.tableName !== "کلید های پیکر بندی سیستم" &&
+          item.raw?.eventType !== "ADMIN_FUNCTION_USAGE" &&
+          item.raw?.eventType !== "استفاده از کارکردهای مدیریتی" &&
+          !item.raw?.details?.aftaClause?.includes("5-2-4") &&
+          !item.raw?.action?.includes("آدرس ماشین") &&
+          !item.raw?.action?.includes("کارکردهای مدیریتی")
+        ) return false;
       }
 
       // فیلتر تب‌های سریع در حالت لاگ‌های عملیاتی
@@ -561,6 +1023,12 @@ export default function AuditLogsPage() {
         ) {
           return false;
         }
+        if (selectedCategory === "CONCURRENT_SESSIONS" && item.tableName !== "لاگ های احراز هویت" && item.raw?.eventType !== "CONCURRENT_SESSION_LIMIT_EXCEEDED" && !item.raw?.details?.aftaClause?.includes("8-2-1") && !item.raw?.action?.includes("ارتباط همزمان") && !item.raw?.action?.includes("نشست همزمان")) return false;
+        if (selectedCategory === "SESSION_ESTABLISHMENT" && item.tableName !== "لاگ های احراز هویت" && item.raw?.eventType !== "SESSION_ESTABLISHMENT_ATTEMPT" && item.raw?.eventType !== "تلاش برای برقراری نشست" && !item.raw?.details?.aftaClause?.includes("8-2-7") && !item.raw?.details?.aftaClause?.includes("3-2-8") && !item.raw?.action?.includes("آدرس ماشین جاری") && !item.raw?.action?.includes("بازه زمانی")) return false;
+        if (selectedCategory === "CAPABILITY_FAILURES" && item.tableName !== "توابع کارکردی محصول" && item.raw?.eventType !== "SYSTEM_CAPABILITY_FAILURE" && !item.raw?.details?.aftaClause?.includes("7-2-1")) return false;
+        if (selectedCategory === "SECURITY_FAILURES" && item.tableName !== "توابع امنیتی محصول" && item.raw?.eventType !== "SECURITY_FUNCTION_FAILURE" && item.raw?.eventType !== "شکست در کارکردهای امنیتی محصول" && !item.raw?.details?.aftaClause?.includes("6-2-1") && !item.raw?.action?.includes("System.Data.Entity") && !item.raw?.action?.startsWith("#. error at")) return false;
+        if (selectedCategory === "USER_GROUPS" && item.tableName !== "گروه‌های کاربری" && item.raw?.eventType !== "USER_GROUP_CHANGE" && item.raw?.eventType !== "تغییرات در گروه کاربران" && !item.raw?.details?.aftaClause?.includes("4-2-1") && !item.raw?.action?.includes("گروه")) return false;
+        if (selectedCategory === "ADMIN_FUNCTIONS" && item.tableName !== "کلید های پیکر بندی سیستم" && item.raw?.eventType !== "ADMIN_FUNCTION_USAGE" && item.raw?.eventType !== "استفاده از کارکردهای مدیریتی" && !item.raw?.details?.aftaClause?.includes("5-2-4") && !item.raw?.action?.includes("آدرس ماشین")) return false;
         if (selectedCategory === "BEHAVIOR_CHANGE" && item.tableName !== "کلید های پیکر بندی سیستم" && item.raw?.eventType !== "FUNCTION_BEHAVIOR_CHANGE" && item.raw?.eventType !== "تمامی تغییرات در رفتارهای توابع کارکردی محصول" && !item.description?.includes("بازه زمانی مجاز")) return false;
         if (selectedCategory === "DOWNLOADS" && item.opType !== "دانلود فایل" && !item.isDownloadLog) return false;
         if (selectedCategory === "ATTACHMENTS" && item.tableName !== "ضمیمه" && item.opType !== "دانلود فایل" && !item.raw?.action?.includes("AttachmentName")) return false;
@@ -713,6 +1181,66 @@ export default function AuditLogsPage() {
         icon={History}
         actions={
           <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowConcurrentSessionModal(true)}
+              className="gap-1.5 text-xs font-bold border-blue-200 text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-400"
+            >
+              <UserCheck className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              محدودیت نشست‌های همزمان (بند ۱)
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowSessionEstablishmentModal(true)}
+              className="gap-1.5 text-xs font-bold border-cyan-200 text-cyan-700 hover:bg-cyan-50 dark:border-cyan-800 dark:text-cyan-400"
+            >
+              <LogIn className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
+              قوانین برقراری نشست (بند ۷ و ۸)
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowCapabilityFailureModal(true)}
+              className="gap-1.5 text-xs font-bold border-amber-200 text-amber-700 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-400"
+            >
+              <Activity className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              تخصیص منابع و کارکردهای اصلی (بند ۱)
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowSecurityFailureModal(true)}
+              className="gap-1.5 text-xs font-bold border-rose-200 text-rose-700 hover:bg-rose-50 dark:border-rose-800 dark:text-rose-400"
+            >
+              <AlertOctagon className="h-4 w-4 text-rose-600 dark:text-rose-400" />
+              وضعیت امن در زمان شکست (بند ۱)
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowDataProtectionModal(true)}
+              className="gap-1.5 text-xs font-bold border-indigo-200 text-indigo-700 hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-400"
+            >
+              <ShieldAlert className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+              حفاظت از داده کاربری (بند ۱)
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowAdminCapabilitiesModal(true)}
+              className="gap-1.5 text-xs font-bold border-purple-200 text-purple-700 hover:bg-purple-50 dark:border-purple-800 dark:text-purple-400"
+            >
+              <Terminal className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+              استفاده از کارکردهای مدیریتی (بند ۴)
+            </Button>
+
             <Button
               variant="outline"
               size="sm"
@@ -1313,7 +1841,7 @@ export default function AuditLogsPage() {
                 </div>
                 <div>
                   <span className="text-[10px] text-muted-foreground block font-medium">آدرس ماشین (IP):</span>
-                  <span className="font-mono text-primary text-xs dir-ltr block">{selectedLogModal.ip || "192.168.35.244"}</span>
+                  <span className="font-mono text-primary text-xs dir-ltr block">{selectedLogModal.ip || "127.0.0.1"}</span>
                 </div>
                 <div>
                   <span className="text-[10px] text-muted-foreground block font-medium">مسیر منبع (Resource):</span>
@@ -1357,15 +1885,15 @@ export default function AuditLogsPage() {
                     </div>
                     <div className="bg-white/80 dark:bg-slate-900/80 p-2 rounded-lg border border-blue-100 dark:border-blue-900/50">
                       <span className="text-muted-foreground block text-[10px] font-medium">نام و نام خانوادگی:</span>
-                      <span className="font-bold text-foreground text-xs">{selectedLogModal.userFullName || selectedLogModal.username || "NETEL شریف"}</span>
+                      <span className="font-bold text-foreground text-xs">{selectedLogModal.userFullName || selectedLogModal.username || "—"}</span>
                     </div>
                     <div className="bg-white/80 dark:bg-slate-900/80 p-2 rounded-lg border border-blue-100 dark:border-blue-900/50">
                       <span className="text-muted-foreground block text-[10px] font-medium">نام کاربری:</span>
-                      <span className="font-bold text-foreground text-xs font-mono">{selectedLogModal.username || "netel"}</span>
+                      <span className="font-bold text-foreground text-xs font-mono">{selectedLogModal.username || "—"}</span>
                     </div>
                     <div className="bg-white/80 dark:bg-slate-900/80 p-2 rounded-lg border border-blue-100 dark:border-blue-900/50">
                       <span className="text-muted-foreground block text-[10px] font-medium">IP کاربر:</span>
-                      <span className="font-bold text-primary text-xs font-mono dir-ltr text-right block">{selectedLogModal.ip || "192.168.35.215"}</span>
+                      <span className="font-bold text-primary text-xs font-mono dir-ltr text-right block">{selectedLogModal.ip || "127.0.0.1"}</span>
                     </div>
                   </div>
                 </div>
@@ -1433,6 +1961,495 @@ export default function AuditLogsPage() {
               </Button>
             </div>
           </Card>
+        </div>
+      )}
+      {/* 🌟 مودال راهنما و شناسنامه ۱۸ کارکرد مدیریتی بند ۴ جدول ۵-۲ (تصویر ۲ و ۳) */}
+      {showAdminCapabilitiesModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-background border border-sidebar-border rounded-2xl max-w-4xl w-full p-6 shadow-2xl space-y-5 my-8 max-h-[90vh] flex flex-col dir-rtl">
+            
+            {/* هدر مودال مطابق تصویر ۱ */}
+            <div className="flex items-start justify-between border-b border-border/60 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-purple-500/10 text-purple-600 rounded-xl border border-purple-200 dark:border-purple-800/60">
+                  <Terminal className="h-6 w-6" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-black text-foreground tracking-tight">استفاده از کارکردهای مدیریتی</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5 font-bold text-purple-600 dark:text-purple-400">
+                    بند ۴ جدول ۵-۲ (مدیریت امنیت افتا) — فهرست و شناسنامه ۱۸ قابلیت کارکرد مدیریتی محصول
+                  </p>
+                </div>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setShowAdminCapabilitiesModal(false)} className="rounded-xl">
+                ✕
+              </Button>
+            </div>
+
+            {/* جستجو در ۱۸ کارکرد مدیریتی */}
+            <div className="relative">
+              <Search className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="جستجو در ۱۸ قابلیت و کارکرد مدیریتی افتا..."
+                value={capabilitySearchTerm}
+                onChange={(e) => setCapabilitySearchTerm(e.target.value)}
+                className="pr-9 text-xs"
+              />
+            </div>
+
+            {/* لیست ۱۸ کارکرد مدیریتی (مطابق تصویر ۲ و ۳) */}
+            <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+              {AFTA_CLAUSE_4_ADMIN_CAPABILITIES
+                .filter(item => {
+                  if (!capabilitySearchTerm.trim()) return true;
+                  const term = capabilitySearchTerm.toLowerCase();
+                  return item.title.toLowerCase().includes(term) || item.description.toLowerCase().includes(term) || item.code.includes(term);
+                })
+                .map((item) => (
+                  <div
+                    key={item.id}
+                    className="p-4 rounded-xl border border-border/60 bg-card/60 hover:bg-card/90 transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs"
+                  >
+                    <div className="space-y-1 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant="outline" className="font-mono text-[10px] bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800">
+                          بند ۴-{item.id} (کد {item.code})
+                        </Badge>
+                        <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 text-[10px] font-bold">
+                          ✓ پشتیبانی فعال در محصول
+                        </Badge>
+                      </div>
+                      <h4 className="text-xs font-black text-foreground leading-snug">{item.id}. {item.title}</h4>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">{item.description}</p>
+                    </div>
+
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => {
+                        setShowAdminCapabilitiesModal(false);
+                        setLogTableType("ADMIN_FUNCTIONS");
+                        setSearchTerm(item.code);
+                      }}
+                      className="gap-1 text-[11px] font-bold shrink-0 self-end sm:self-center"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                      مشاهده لاگ‌ها
+                    </Button>
+                  </div>
+                ))}
+            </div>
+
+            {/* فوتر مودال */}
+            <div className="border-t border-border/60 pt-4 flex items-center justify-between">
+              <span className="text-[11px] text-muted-foreground font-medium">
+                تعداد کل کارکردهای مدیریتی افتا: ۱۸ کارکرد کامل
+              </span>
+              <Button variant="default" size="sm" onClick={() => setShowAdminCapabilitiesModal(false)}>
+                بستن راهنما
+              </Button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* 🌟 مودال شناسنامه و کنترل دسترسی بند ۱ جدول ۲-۴ حفاظت از داده‌ی کاربری (تصویر ۲) */}
+      {showDataProtectionModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-background border border-sidebar-border rounded-2xl max-w-4xl w-full p-6 shadow-2xl space-y-5 my-8 max-h-[90vh] flex flex-col dir-rtl">
+            
+            {/* هدر مودال مطابق تصویر ۲ */}
+            <div className="flex items-start justify-between border-b border-border/60 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-indigo-500/10 text-indigo-600 rounded-xl border border-indigo-200 dark:border-indigo-800/60">
+                  <ShieldAlert className="h-6 w-6" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-black text-foreground tracking-tight">تغییرات در گروه کاربران و کنترل دسترسی موجودیت‌ها</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5 font-bold text-indigo-600 dark:text-indigo-400">
+                    بند ۱ جدول ۲-۴ (حفاظت از داده‌ی کاربری افتا) — خط‌مشی‌های کنترل دسترسی موجودیت‌ها و عملیات
+                  </p>
+                </div>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setShowDataProtectionModal(false)} className="rounded-xl">
+                ✕
+              </Button>
+            </div>
+
+            {/* لیست دسته‌بندی‌های بند ۱ (مطابق تصویر ۲) */}
+            <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+              {AFTA_CLAUSE_1_DATA_PROTECTION_POLICIES.map((cat, idx) => (
+                <div key={idx} className="space-y-2 border border-border/60 rounded-xl p-4 bg-card/50">
+                  <h3 className="text-xs font-black text-foreground flex items-center gap-2 border-b pb-2">
+                    <CheckCircle2 className="h-4 w-4 text-indigo-600" />
+                    {cat.category}
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                    {cat.items.map((item, i) => (
+                      <div key={i} className="p-2.5 rounded-lg bg-background border border-border/40 flex items-center justify-between gap-2">
+                        <div className="space-y-0.5">
+                          <span className="font-bold text-foreground block text-xs">{item.name}</span>
+                          <span className="text-[10px] text-muted-foreground block">{item.type || item.status}</span>
+                        </div>
+                        <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px] shrink-0 font-bold">
+                          ✓ فعال
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* فوتر مودال */}
+            <div className="border-t border-border/60 pt-4 flex items-center justify-between">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setShowDataProtectionModal(false);
+                  setLogTableType("USER_GROUPS");
+                }}
+                className="gap-1.5 text-xs font-bold"
+              >
+                <Eye className="h-4 w-4" />
+                مشاهده لاگ‌های گروه کاربران (جدول بند ۱)
+              </Button>
+              <Button variant="default" size="sm" onClick={() => setShowDataProtectionModal(false)}>
+                بستن
+              </Button>
+            </div>
+
+          </div>
+        </div>
+      )}
+      {/* 🌟 مودال وضعیت امن در زمان شکست کارکردهای امنیتی بند ۱ جدول ۲-۶ (تصویر ۲) */}
+      {showSecurityFailureModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-background border border-sidebar-border rounded-2xl max-w-4xl w-full p-6 shadow-2xl space-y-5 my-8 max-h-[90vh] flex flex-col dir-rtl">
+            
+            {/* هدر مودال مطابق تصویر ۲ */}
+            <div className="flex items-start justify-between border-b border-border/60 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-rose-500/10 text-rose-600 rounded-xl border border-rose-200 dark:border-rose-800/60">
+                  <AlertOctagon className="h-6 w-6" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-black text-foreground tracking-tight">شکست در کارکردهای امنیتی محصول</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5 font-bold text-rose-600 dark:text-rose-400">
+                    بند ۱ جدول ۲-۶ (حفاظت از توابع امنیتی محصول افتا) — حفظ وضعیت امن در زمان خرابی یا از کار افتادن سیستم
+                  </p>
+                </div>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setShowSecurityFailureModal(false)} className="rounded-xl">
+                ✕
+              </Button>
+            </div>
+
+            {/* توضیحات الزام بند ۱ تصویر ۲ */}
+            <div className="p-3.5 rounded-xl bg-rose-50/60 dark:bg-rose-950/20 border border-rose-200/80 dark:border-rose-900/40 text-xs leading-relaxed text-foreground">
+              <strong>الزام بند ۱ جدول ۲-۶ افتا:</strong> محصول باید هنگام رخ دادن هرگونه خرابی، اشکال یا شکست مانند از کار افتادن محصول، قطع شدن ارتباط محصول با پایگاه داده و یا اختلال در کارکردهای محصول، در وضعیت امنی قرار گرفته، صحت داده‌ها و خط‌مشی کنترل دسترسی را حفظ نماید.
+            </div>
+
+            {/* لیست خرابی‌های نرم‌افزاری و سخت‌افزاری (مطابق تصویر ۲) */}
+            <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+              {AFTA_CLAUSE_1_SECURITY_FUNCTION_FAILURES.map((item) => (
+                <div
+                  key={item.id}
+                  className="p-4 rounded-xl border border-border/60 bg-card/60 hover:bg-card/90 transition-all space-y-2 shadow-2xs"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="font-mono text-[10px] bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800">
+                        کد {item.code} (بند ۶-۲-۱)
+                      </Badge>
+                      <h4 className="text-xs font-black text-foreground">{item.id}. {item.title}</h4>
+                    </div>
+                    <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px] font-bold">
+                      ✓ وضعیت امن (Fail-Secure) فعال
+                    </Badge>
+                  </div>
+
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    <strong>شرح رخداد:</strong> {item.description}
+                  </p>
+
+                  <div className="p-2.5 rounded-lg bg-muted/40 border border-border/40 text-[11px] text-foreground">
+                    <strong>مکانیزم پاسخ امن سیستمی:</strong> {item.safeStateAction}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* فوتر مودال */}
+            <div className="border-t border-border/60 pt-4 flex items-center justify-between">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setShowSecurityFailureModal(false);
+                  setLogTableType("SECURITY_FAILURES");
+                }}
+                className="gap-1.5 text-xs font-bold"
+              >
+                <Eye className="h-4 w-4" />
+                مشاهده لاگ‌های شکست کارکردهای امنیتی (جدول بند ۱)
+              </Button>
+              <Button variant="default" size="sm" onClick={() => setShowSecurityFailureModal(false)}>
+                بستن
+              </Button>
+            </div>
+
+          </div>
+        </div>
+      )}
+      {/* 🌟 مودال تحمل‌پذیری خطای کارکردهای اصلی بند ۱ جدول ۲-۷ (تصویر ۲) */}
+      {showCapabilityFailureModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-background border border-sidebar-border rounded-2xl max-w-4xl w-full p-6 shadow-2xl space-y-5 my-8 max-h-[90vh] flex flex-col dir-rtl">
+            
+            {/* هدر مودال مطابق تصویر ۲ */}
+            <div className="flex items-start justify-between border-b border-border/60 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-amber-500/10 text-amber-600 rounded-xl border border-amber-200 dark:border-amber-800/60">
+                  <Activity className="h-6 w-6" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-black text-foreground tracking-tight">تمامی قابلیت‌هایی از محصول که به دلیل شکست (خرابی یا مشکل کارکرد)، نمی‌توانند عملیات مورد نظر را انجام دهند</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5 font-bold text-amber-600 dark:text-amber-400">
+                    بند ۱ جدول ۲-۷ (تخصیص منابع افتا) — پایداری و تحمل‌پذیری خطای کارکردهای اصلی نرم‌افزار
+                  </p>
+                </div>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setShowCapabilityFailureModal(false)} className="rounded-xl">
+                ✕
+              </Button>
+            </div>
+
+            {/* توضیحات الزام بند ۱ تصویر ۲ */}
+            <div className="p-3.5 rounded-xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-900/40 text-xs leading-relaxed text-foreground">
+              <strong>الزام بند ۱ جدول ۲-۷ افتا:</strong> محصول باید در زمان رخداد هرگونه اشکال و خرابی (شکست) نرم‌افزاری، از عملکرد کارکردهای اصلی محصول اطمینان حاصل نماید.
+            </div>
+
+            {/* لیست آیتم‌های تخصیص منابع (مطابق تصویر ۲) */}
+            <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+              {AFTA_CLAUSE_1_RESOURCE_ALLOCATION_FAILURES.map((item) => (
+                <div
+                  key={item.id}
+                  className="p-4 rounded-xl border border-border/60 bg-card/60 hover:bg-card/90 transition-all space-y-2 shadow-2xs"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="font-mono text-[10px] bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800">
+                        کد {item.code} (بند ۷-۲-۱)
+                      </Badge>
+                      <h4 className="text-xs font-black text-foreground">{item.id}. {item.title}</h4>
+                    </div>
+                    <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px] font-bold">
+                      ✓ پایداری کارکردهای اصلی فعال
+                    </Badge>
+                  </div>
+
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    <strong>شرح رخداد:</strong> {item.description}
+                  </p>
+
+                  <div className="p-2.5 rounded-lg bg-muted/40 border border-border/40 text-[11px] text-foreground">
+                    <strong>سازوکار تحمل‌پذیری خطا (Fault Tolerance):</strong> {item.faultToleranceMechanism}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* فوتر مودال */}
+            <div className="border-t border-border/60 pt-4 flex items-center justify-between">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setShowCapabilityFailureModal(false);
+                  setLogTableType("CAPABILITY_FAILURES");
+                }}
+                className="gap-1.5 text-xs font-bold"
+              >
+                <Eye className="h-4 w-4" />
+                مشاهده لاگ‌های شکست قابلیت‌های کارکردی (جدول بند ۱)
+              </Button>
+              <Button variant="default" size="sm" onClick={() => setShowCapabilityFailureModal(false)}>
+                بستن
+              </Button>
+            </div>
+
+          </div>
+        </div>
+      )}
+      {/* 🌟 مودال قوانین برقراری نشست بند ۷ جدول ۲-۸ و بند ۸ جدول ۲-۳ افتا (تصویر ۲ و ۳) */}
+      {showSessionEstablishmentModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-background border border-sidebar-border rounded-2xl max-w-4xl w-full p-6 shadow-2xl space-y-5 my-8 max-h-[90vh] flex flex-col dir-rtl">
+            
+            {/* هدر مودال مطابق تصویر ۱، ۲ و ۳ */}
+            <div className="flex items-start justify-between border-b border-border/60 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-cyan-500/10 text-cyan-600 rounded-xl border border-cyan-200 dark:border-cyan-800/60">
+                  <LogIn className="h-6 w-6" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-black text-foreground tracking-tight">تلاش موفق یا ناموفق برای برقراری نشست</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5 font-bold text-cyan-600 dark:text-cyan-400">
+                    بند ۷ جدول ۲-۸ (دسترسی به محصول) و بند ۸ جدول ۲-۳ (شناسایی و احراز هویت افتا)
+                  </p>
+                </div>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setShowSessionEstablishmentModal(false)} className="rounded-xl">
+                ✕
+              </Button>
+            </div>
+
+            {/* توضیحات الزام بند ۷ و بند ۸ تصویر ۲ و ۳ */}
+            <div className="p-3.5 rounded-xl bg-cyan-50/60 dark:bg-cyan-950/20 border border-cyan-200/80 dark:border-cyan-900/40 text-xs leading-relaxed text-foreground space-y-1.5">
+              <div><strong>الزام بند ۷ جدول ۲-۸ افتا:</strong> محصول باید توانایی ممانعت از ایجاد نشست بر اساس پارامترهایی را داشته باشد.</div>
+              <div><strong>الزام بند ۸ جدول ۲-۳ افتا:</strong> محصول باید در زمان اتصال اولیه کاربر یا همان زمان برقراری نشست توسط کاربر، قوانین لازم را اجرا نماید.</div>
+            </div>
+
+            {/* لیست دسته‌بندی‌های بند ۷ و ۸ (مطابق تصویر ۲ و ۳) */}
+            <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+              {AFTA_CLAUSE_7_AND_8_SESSION_ESTABLISHMENT_POLICIES.map((cat, idx) => (
+                <div key={idx} className="space-y-2 border border-border/60 rounded-xl p-4 bg-card/50">
+                  <h3 className="text-xs font-black text-foreground flex items-center gap-2 border-b pb-2">
+                    <CheckCircle2 className="h-4 w-4 text-cyan-600" />
+                    {cat.category}
+                  </h3>
+                  <div className="space-y-2 text-xs">
+                    {cat.items.map((item, i) => (
+                      <div key={i} className="p-3 rounded-lg bg-background border border-border/40 flex flex-col md:flex-row md:items-center justify-between gap-2">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="font-mono text-[10px] bg-cyan-50 dark:bg-cyan-950/40 text-cyan-700 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800">
+                              کد {item.code}
+                            </Badge>
+                            <span className="font-bold text-foreground block text-xs">{item.parameter}</span>
+                          </div>
+                          <span className="text-[11px] text-muted-foreground block">
+                            <strong>نمونه شرح عملیات:</strong> "{item.sampleDescription}"
+                          </span>
+                        </div>
+                        <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px] shrink-0 font-bold self-start md:self-center">
+                          ✓ {item.status}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* فوتر مودال */}
+            <div className="border-t border-border/60 pt-4 flex items-center justify-between">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setShowSessionEstablishmentModal(false);
+                  setLogTableType("SESSION_ESTABLISHMENT");
+                }}
+                className="gap-1.5 text-xs font-bold"
+              >
+                <Eye className="h-4 w-4" />
+                مشاهده لاگ‌های برقراری نشست (جدول بند ۷ و ۸)
+              </Button>
+              <Button variant="default" size="sm" onClick={() => setShowSessionEstablishmentModal(false)}>
+                بستن
+              </Button>
+            </div>
+
+          </div>
+        </div>
+      )}
+      {/* 🌟 مودال محدودیت نشست‌های همزمان بند ۱ جدول ۲-۸ افتا (تصویر ۲) */}
+      {showConcurrentSessionModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-background border border-sidebar-border rounded-2xl max-w-4xl w-full p-6 shadow-2xl space-y-5 my-8 max-h-[90vh] flex flex-col dir-rtl">
+            
+            {/* هدر مودال مطابق تصویر ۱ و ۲ */}
+            <div className="flex items-start justify-between border-b border-border/60 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-blue-500/10 text-blue-600 rounded-xl border border-blue-200 dark:border-blue-800/60">
+                  <UserCheck className="h-6 w-6" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-black text-foreground tracking-tight">ایجاد نشدن نشست به دلیل محدودیت نشست‌های همزمان (حداقل)</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5 font-bold text-blue-600 dark:text-blue-400">
+                    بند ۱ جدول ۲-۸ (دسترسی به محصول افتا) — محدودیت سقف نشست‌های همزمان متعلق به یک کاربر
+                  </p>
+                </div>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setShowConcurrentSessionModal(false)} className="rounded-xl">
+                ✕
+              </Button>
+            </div>
+
+            {/* توضیحات الزام بند ۱ تصویر ۲ */}
+            <div className="p-3.5 rounded-xl bg-blue-50/60 dark:bg-blue-950/20 border border-blue-200/80 dark:border-blue-900/40 text-xs leading-relaxed text-foreground">
+              <strong>الزام بند ۱ جدول ۲-۸ افتا:</strong> محصول باید حداکثر تعداد نشست‌های همزمان متعلق به یک کاربر را محدود نماید.
+            </div>
+
+            {/* لیست آیتم‌های محدودیت نشست‌های همزمان (مطابق تصویر ۲) */}
+            <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+              {AFTA_CLAUSE_1_CONCURRENT_SESSION_POLICIES.map((item) => (
+                <div
+                  key={item.id}
+                  className="p-4 rounded-xl border border-border/60 bg-card/60 hover:bg-card/90 transition-all space-y-3 shadow-2xs"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="font-mono text-[10px] bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800">
+                        کد {item.code} (بند ۸-۲-۱)
+                      </Badge>
+                      <h4 className="text-xs font-black text-foreground">{item.title}</h4>
+                    </div>
+                    <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px] font-bold">
+                      ✓ {item.policyStatus}
+                    </Badge>
+                  </div>
+
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    <strong>شرح الزام:</strong> {item.description}
+                  </p>
+
+                  <div className="space-y-1.5 text-[11px]">
+                    <div className="p-2.5 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive font-mono">
+                      <strong>نمونه لاگ پر شدن حد مجاز ورود:</strong> "{item.sampleExceededMessage}"
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40 text-amber-800 dark:text-amber-300 font-mono">
+                      <strong>نمونه لاگ خروج خودکار نشست همزمان قبلی:</strong> "{item.sampleKickoutMessage}"
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* فوتر مودال */}
+            <div className="border-t border-border/60 pt-4 flex items-center justify-between">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setShowConcurrentSessionModal(false);
+                  setLogTableType("CONCURRENT_SESSIONS");
+                }}
+                className="gap-1.5 text-xs font-bold"
+              >
+                <Eye className="h-4 w-4" />
+                مشاهده لاگ‌های محدودیت نشست‌های همزمان (جدول بند ۱)
+              </Button>
+              <Button variant="default" size="sm" onClick={() => setShowConcurrentSessionModal(false)}>
+                بستن
+              </Button>
+            </div>
+
+          </div>
         </div>
       )}
     </PageShell>

@@ -2136,7 +2136,7 @@ export default function SystemSettingsForm() {
                                   </td>
                                   <td className="p-2.5 font-mono text-[11px] text-slate-600 dark:text-slate-400">
                                     <div className="space-y-0.5">
-                                      <span className="font-bold block text-slate-800 dark:text-slate-200">IP: {log.ip || "192.168.1.105"}</span>
+                                      <span className="font-bold block text-slate-800 dark:text-slate-200">IP: {log.ip || "127.0.0.1"}</span>
                                       <span className="text-[10px] block text-blue-600 dark:text-blue-400 font-semibold">{log.resource || "/api/security/audit-logs"}</span>
                                     </div>
                                   </td>
@@ -2146,7 +2146,7 @@ export default function SystemSettingsForm() {
                                   <td className="p-2.5 text-center min-w-[90px] w-[90px] whitespace-nowrap bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800/50">
                                     <button
                                       type="button"
-                                      onClick={() => alert(`📋 جزئیات کامل ثبت‌نشان افتا:\n\n📌 عنوان رویداد: ${log.action || log.eventType}\n🌐 آدرس آی‌پی (IP Address): ${log.ip || "192.168.1.105"}\n🔗 آدرس مسیر درخواست (Resource Path): ${log.resource || "/api/security/audit-logs"}\n📍 موقعیت مکانی: ${log.ipLocation || "ایران (تهران)"}\n👤 نام کاربر و نقش: ${log.userFullName || log.username} (${log.userRole || "حسابدار"})\n📅 تاریخ و زمان شمسی: ${log.shamsiDateTime || log.timestamp}\n⚠️ کد خطای امنیتی: ${log.errorCode || 403}\n🔐 امضای اصالت HMAC: ${log.signature || "معتبر"}`)}
+                                      onClick={() => alert(`📋 جزئیات کامل ثبت‌نشان افتا:\n\n📌 عنوان رویداد: ${log.action || log.eventType}\n🌐 آدرس آی‌پی (IP Address): ${log.ip || "127.0.0.1"}\n🔗 آدرس مسیر درخواست (Resource Path): ${log.resource || "/api/security/audit-logs"}\n📍 موقعیت مکانی: ${log.ipLocation || "ایران (تهران)"}\n👤 نام کاربر و نقش: ${log.userFullName || log.username} (${log.userRole || "حسابدار"})\n📅 تاریخ و زمان شمسی: ${log.shamsiDateTime || log.timestamp}\n⚠️ کد خطای امنیتی: ${log.errorCode || 403}\n🔐 امضای اصالت HMAC: ${log.signature || "معتبر"}`)}
                                       className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 font-semibold text-[11px] border border-blue-200 dark:border-blue-800/50 transition-colors"
                                       title="مشاهده جزئیات کامل لاگ"
                                     >

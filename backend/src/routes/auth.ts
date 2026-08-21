@@ -246,58 +246,35 @@ router.post("/login", async (c) => {
     newOs: parsedUa.osName
   };
 
-  if (maxSessions === 1 && activeCount > 0) {
-    // Single-session policy: Invalidate/Revoke all previous active sessions upon new session establishment
-    const tokensToRevoke = existingActiveSessions.map((s) => ({
-      token: s.token,
-      revokedAt: new Date().toISOString(),
-      reason: "ابطال نشست قبلی به دلیل برقراری نشست جدید"
-    }));
-    await db.collection("revoked_tokens").insertMany(tokensToRevoke);
-    await db.collection("active_sessions").deleteMany({ userId: user._id });
-  } else if (activeCount >= maxSessions) {
-    if (overflowAction === "evict_oldest") {
-      // FIFO Eviction: Revoke the oldest session(s) to make room for the new session
-      const sorted = [...existingActiveSessions].sort((a, b) => {
-        const timeA = new Date(a.lastActivity || a.createdAt || 0).valueOf();
-        const timeB = new Date(b.lastActivity || b.createdAt || 0).valueOf();
-        return timeA - timeB;
-      });
+  if (activeCount >= maxSessions) {
+    // 🌟 محدودیت نشست‌های همزمان (هر حساب کاربری فقط ۱ نشست فعال در هر لحظه)
+    const actionMessage = "با توجه به محدودیت نشست ها قادر به اتصال نیستید.";
 
-      const numToEvict = activeCount - maxSessions + 1;
-      const sessionsToEvict = sorted.slice(0, numToEvict);
-      
-      const tokensToRevoke = sessionsToEvict.map((s) => ({
-        token: s.token,
-        revokedAt: new Date().toISOString(),
-        reason: "ابطال خودکار قدیمی‌ترین نشست به دلیل رسیدن به سقف نشست‌های همزمان"
-      }));
+    await logAuditEvent({
+      userId: user._id,
+      username: user.username,
+      userRole: user.role === "admin" ? "مدیر" : (user.role || "مدیر مالی"),
+      action: actionMessage,
+      eventType: AFTA_LOG_EVENT_TYPES.CONCURRENT_SESSION_LIMIT_EXCEEDED,
+      resource: "لاگ های احراز هویت",
+      method: "POST",
+      result: "FAILURE",
+      ip,
+      userAgent,
+      errorCode: 403,
+      details: {
+        key: "8-2-1",
+        tableName: "لاگ های احراز هویت",
+        aftaClause: "8-2-1",
+        requestType: "ورود به سامانه",
+        requestResult: "ناموفق",
+        activeCount,
+        maxSessions,
+        message: actionMessage
+      }
+    });
 
-      await db.collection("revoked_tokens").insertMany(tokensToRevoke);
-      const evictIds = sessionsToEvict.map((s) => s._id);
-      await db.collection("active_sessions").deleteMany({ _id: { $in: evictIds } });
-    } else {
-      // Strict Block: Reject new login attempt and return limit error message
-      await logAuditEvent({
-        userId: user._id,
-        username: user.username,
-        action: AFTA_LOG_EVENT_TYPES.CONCURRENT_SESSION_LIMIT_EXCEEDED,
-        eventType: AFTA_LOG_EVENT_TYPES.CONCURRENT_SESSION_LIMIT_EXCEEDED,
-        resource: "auth/login",
-        result: "FAILURE",
-        ip,
-        userAgent,
-        errorCode: 403,
-        details: { activeCount, maxSessions }
-      });
-      return c.json({ message: `تعداد نشست‌های همزمان فعال شما (${activeCount}) بیش از حد مجاز (${maxSessions}) است. لطفاً نشست‌های قبلی را ببندید.` }, 403);
-    }
-  } else if (activeCount > 0) {
-    // Concurrent-session policy: Notify existing active sessions (first session/main page) about new session establishment
-    await db.collection("active_sessions").updateMany(
-      { userId: user._id },
-      { $set: { newSessionNotice } }
-    );
+    return c.json({ message: actionMessage }, 403);
   }
 
   // استخراج آخرین تلاش موفق، آخرین تلاش ناموفق و تعداد تلاش‌های ناموفق بر اساس خط‌مشی‌های تنظیم‌شده در سیستم

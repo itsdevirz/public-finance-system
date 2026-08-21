@@ -209,10 +209,12 @@ app.use("*", async (c, next) => {
     path.includes("/fiscal-years") ||
     path.includes("/auth/me")
   );
-  const shouldLogLifecycle = path.startsWith("/api") && method !== "OPTIONS" && !isAuditFetchRoute && !isBackgroundSubFetch;
+  // ثبت لاگ چرخه‌حیات تنها برای درخواست‌های تغییر دهنده داده و اقدامات واقعی کاربران (POST/PUT/DELETE/PATCH)
+  // درخواست‌های خواندن عمومی (GET) به طور خودکار لاگ نمی‌شوند تا از ثبت لاگ‌های پس‌زمینه هنگام ورود کاربران جلوگیری شود.
+  const shouldLogLifecycle = path.startsWith("/api") && method !== "OPTIONS" && method !== "GET" && !isAuditFetchRoute;
 
   // ۱. لوگ شروع درخواست/تابع برای متدهای تغییر دهنده داده (POST/PUT/DELETE)
-  if (shouldLogLifecycle && method !== "GET") {
+  if (shouldLogLifecycle) {
     const payload = (c.get as any)("jwtPayload") || tokenPayload;
     const username = payload?.username || "admin";
     const userRole = payload?.role || "مدیر سیستم";
@@ -239,16 +241,14 @@ app.use("*", async (c, next) => {
 
   await next();
 
-  // ۱. لوگ اتمام درخواست/تابع
+  // ۱. لوگ اتمام درخواست/تابع برای عملیات واقعی کاربر
   if (shouldLogLifecycle) {
     const durationMs = Date.now() - startMs;
     const payload = (c.get as any)("jwtPayload") || tokenPayload;
     const username = payload?.username || "admin";
     const userRole = payload?.role || "مدیر سیستم";
     const descTopic = getReadablePathDescription(method, path);
-    const endAction = method === "GET"
-      ? `مشاهده و استعلام: ${descTopic}`
-      : (c.res.status < 400 ? `تکمیل موفقیت‌آمیز: ${descTopic}` : `خطا در پردازش: ${descTopic}`);
+    const endAction = c.res.status < 400 ? `تکمیل موفقیت‌آمیز: ${descTopic}` : `خطا در پردازش: ${descTopic}`;
 
     await logAuditEvent({
       userId: payload?.sub || "admin_01",

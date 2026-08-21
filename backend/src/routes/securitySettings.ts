@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { ObjectId } from "mongodb";
 import { getDb } from "../db/index.js";
 import { DEFAULT_SECURITY_POLICY } from "../lib/securityPolicy.js";
-import { logAuditEvent, AFTA_LOG_EVENT_TYPES, verifyLogIntegrity, signExistingLogs, runAuditLogRetentionAndRotation } from "../lib/auditLogger.js";
+import { logAuditEvent, AFTA_LOG_EVENT_TYPES, verifyLogIntegrity, signExistingLogs, runAuditLogRetentionAndRotation, extractClientIp } from "../lib/auditLogger.js";
 import { requireRole } from "../middleware/rbacMiddleware.js";
 import { sendAdminThresholdNotification } from "../lib/notifier.js";
 import { pruneExpiredSessions } from "../lib/sessionHelper.js";
@@ -53,7 +53,7 @@ router.put("/policy", requireRole(["admin"]), async (c) => {
       },
       sessionPolicy: {
         tokenExpiresInHours: Math.max(1, Number(body.sessionPolicy?.tokenExpiresInHours) || 8),
-        maxConcurrentSessions: Math.max(1, Number(body.sessionPolicy?.maxConcurrentSessions) || 3),
+        maxConcurrentSessions: Math.max(1, Number(body.sessionPolicy?.maxConcurrentSessions) || 1),
         idleTimeoutMinutes: Math.max(1, Number(body.sessionPolicy?.idleTimeoutMinutes) || 30),
       },
       functionBehaviorPolicy: body.functionBehaviorPolicy || existingVal.functionBehaviorPolicy || DEFAULT_SECURITY_POLICY.functionBehaviorPolicy,
@@ -217,6 +217,56 @@ router.put("/policy", requireRole(["admin"]), async (c) => {
           operation: "ویرایش",
           oldVal: oldEndTime,
           newVal: newEndTime
+        }
+      });
+    }
+
+    // ۳. ثبت تغییر آدرس ماشین‌های غیرمجاز سامانه (کلید 11029 - بند ۴ جدول ۵-۲ افتا)
+    const oldUnauthorizedIps = existingVal.functionBehaviorPolicy?.unauthorizedMachineIps || "";
+    const newUnauthorizedIps = newPolicy.functionBehaviorPolicy?.unauthorizedMachineIps || "";
+    if (oldUnauthorizedIps !== newUnauthorizedIps) {
+      await logAuditEvent({
+        userId: payload.sub,
+        username: currentAdminUsername,
+        userRole: currentAdminRole === "admin" ? "مدیر" : currentAdminRole,
+        action: `آدرس ماشین های غیرمجاز سامانه از ${oldUnauthorizedIps || "خالی"} به ${newUnauthorizedIps || "خالی"} تغییر یافت`,
+        eventType: AFTA_LOG_EVENT_TYPES.ADMIN_FUNCTION_USAGE,
+        resource: "کلید های پیکر بندی سیستم",
+        result: "SUCCESS",
+        ip: clientIp,
+        userAgent: c.req.header("user-agent"),
+        details: {
+          key: "11029",
+          tableName: "کلید های پیکر بندی سیستم",
+          operation: "ویرایش",
+          aftaClause: "5-2-4",
+          oldVal: oldUnauthorizedIps,
+          newVal: newUnauthorizedIps
+        }
+      });
+    }
+
+    // ۴. ثبت تغییر آدرس ماشین‌های مجاز برای کاربران ارشد سامانه (کلید 11030 / 11039 - بند ۴ جدول ۵-۲ افتا)
+    const oldAllowedAdminIps = existingVal.functionBehaviorPolicy?.allowedAdminIpRange || "";
+    const newAllowedAdminIps = newPolicy.functionBehaviorPolicy?.allowedAdminIpRange || "";
+    if (oldAllowedAdminIps !== newAllowedAdminIps) {
+      await logAuditEvent({
+        userId: payload.sub,
+        username: currentAdminUsername,
+        userRole: currentAdminRole === "admin" ? "مدیر" : currentAdminRole,
+        action: `آدرس ماشین های مجاز برای کاربران ارشد سامانه از ${oldAllowedAdminIps || "خالی"} به ${newAllowedAdminIps || "خالی"} تغییر یافت`,
+        eventType: AFTA_LOG_EVENT_TYPES.ADMIN_FUNCTION_USAGE,
+        resource: "کلید های پیکر بندی سیستم",
+        result: "SUCCESS",
+        ip: clientIp,
+        userAgent: c.req.header("user-agent"),
+        details: {
+          key: "11030",
+          tableName: "کلید های پیکر بندی سیستم",
+          operation: "ویرایش",
+          aftaClause: "5-2-4",
+          oldVal: oldAllowedAdminIps,
+          newVal: newAllowedAdminIps
         }
       });
     }
@@ -614,20 +664,29 @@ router.get("/audit-logs", async (c) => {
   const userPermissions = payload.permissions || {};
   const isAuthorized = userRole === "admin" || userRole === "مدیر سیستم" || userPermissions["audit.view"] === true || userPermissions["audit.read"] === true || userPermissions["audit_logs"] === true;
 
+  const reqUsername = payload?.username || "کاربر غیرمجاز";
   if (!isAuthorized) {
+    const actionDesc = `تلاش ناموفق و غیرمجاز جهت ورود به بخش ثبت نشان‌ها با نام کاربری '${reqUsername}'`;
     await logAuditEvent({
       userId: payload?.sub || "unauthorized_user",
-      username: payload?.username || "unauthorized_user",
+      username: reqUsername,
       userRole,
-      action: "تلاش غیر مجاز جهت دسترسی به صفحه لاگ های سیستمی",
+      action: actionDesc,
       eventType: AFTA_LOG_EVENT_TYPES.AUDIT_LOG_READ_FAILURE,
       resource: c.req.path,
       method: c.req.method,
       result: "FAILURE",
-      ip: c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "127.0.0.1",
+      ip: extractClientIp(c),
       userAgent: c.req.header("user-agent"),
       errorCode: 403,
-      details: { reason: "تلاش‌های ناموفق برای خواندن اطلاعات از ثبت‌نشان‌ها (الزام ۲ افتا)", requiredPermission: "audit.view" }
+      details: {
+        key: "8-2-2",
+        tableName: "لاگ های احراز هویت",
+        aftaClause: "8-2-2",
+        requestType: "مشاهده و استعلام",
+        requestResult: "ناموفق",
+        reason: "تلاش‌های ناموفق برای خواندن اطلاعات از ثبت‌نشان‌ها (الزام ۲ افتا)"
+      }
     });
     return c.json({ success: false, message: "دسترسی غیرمجاز. فقط مدیر سیستم یا کاربران دارنده مجوز مجاز به مشاهده ثبت نشان‌ها هستند." }, 403);
   }
@@ -690,17 +749,33 @@ router.get("/audit-logs", async (c) => {
       isIntegrityValid: verifyLogIntegrity(log)
     }));
 
-    // ۳. خواندن اطلاعات از ثبت‌نشان‌ها (موفق)
+    // ۳. خواندن اطلاعات از ثبت‌نشان‌ها (موفق با ثبت صریح نام کاربری)
+    const successActionDesc = `ورود و فراخوانی اطلاعات ثبت نشان‌ها توسط کاربر '${reqUsername}'`;
     await logAuditEvent({
       userId: payload.sub,
-      username: payload.username,
+      username: reqUsername,
       userRole: payload.role || "مدیر",
-      action: "مشاهده اطلاعات ممیزی سیستم",
+      action: successActionDesc,
       eventType: AFTA_LOG_EVENT_TYPES.AUDIT_LOG_READ_SUCCESS,
       resource: "/api/security/audit-logs",
       result: "SUCCESS",
-      ip: c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "127.0.0.1",
-      details: { query, totalReturned: enrichedLogs.length }
+      ip: extractClientIp(c),
+      userAgent: c.req.header("user-agent"),
+      details: {
+        key: "8-2-3",
+        tableName: "لاگ های احراز هویت",
+        aftaClause: "8-2-3",
+        requestType: "مشاهده و استعلام",
+        requestResult: "موفق",
+        query,
+        totalReturned: enrichedLogs.length
+      }
+    });
+
+    return c.json({
+      success: true,
+      data: enrichedLogs,
+      pagination: { total, page: pageNum, limit: limitNum, totalPages: Math.ceil(total / limitNum) }
     });
 
     return c.json({
@@ -729,7 +804,7 @@ router.get("/audit-logs", async (c) => {
 // POST /api/security/simulate-read-failure - Simulate a failed audit log read attempt for AFTA compliance
 router.post("/simulate-read-failure", async (c) => {
   const payload = (c.get as any)("jwtPayload");
-  const clientIp = c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "192.168.1.105";
+  const clientIp = extractClientIp(c);
   const userAgent = c.req.header("user-agent") || "Mozilla/5.0 (Windows NT 10.0; Win64; x64)";
   
   await logAuditEvent({
@@ -757,12 +832,173 @@ router.post("/simulate-read-failure", async (c) => {
   });
 });
 
+// POST /api/security/report-security-failure - Log security function failure (AFTA Clause 1 Table 6-2)
+router.post("/report-security-failure", async (c) => {
+  const payload = (c.get as any)("jwtPayload");
+  const body = await c.req.json().catch(() => ({}));
+  const clientIp = body.clientIp || extractClientIp(c);
+  const userAgent = c.req.header("user-agent") || "Mozilla/5.0 (Windows NT 10.0; Win64; x64)";
+  
+  const timestampStr = body.timestampStr || new Date().toLocaleString("en-US", { hour12: true });
+  const errorSummary = body.errorSummary || "System.Data.Entity.Core.EntityException: The underlying provider failed on Open. ---> System.Data.SqlClient.SqlException: SQL Server service has been paused.";
+  const formattedAction = `#. error at ${timestampStr}.\nSummary: ${errorSummary}`;
+
+  await logAuditEvent({
+    userId: payload?.sub || "sys_admin",
+    username: payload?.username || "admin",
+    userRole: payload?.role === "admin" ? "مدیر" : (payload?.role || "مدیر"),
+    action: formattedAction,
+    eventType: AFTA_LOG_EVENT_TYPES.SECURITY_FUNCTION_FAILURE,
+    resource: "توابع امنیتی محصول",
+    method: "ERROR",
+    result: "FAILURE",
+    ip: clientIp,
+    userAgent,
+    errorCode: 500,
+    details: {
+      key: "11050",
+      tableName: "توابع امنیتی محصول",
+      aftaClause: "6-2-1",
+      timestampStr,
+      errorSummary,
+      operation: "خطا"
+    }
+  });
+
+  return c.json({
+    success: true,
+    message: "رویداد شکست در کارکردهای امنیتی محصول با الگوی استاندارد افتا به ثبت‌نشان‌ها اضافه شد."
+  });
+});
+
+// POST /api/security/report-capability-failure - Log system capability failure (AFTA Clause 1 Table 7-2)
+router.post("/report-capability-failure", async (c) => {
+  const payload = (c.get as any)("jwtPayload");
+  const body = await c.req.json().catch(() => ({}));
+  const clientIp = body.clientIp || extractClientIp(c);
+  const userAgent = c.req.header("user-agent") || "Mozilla/5.0 (Windows NT 10.0; Win64; x64)";
+  
+  const timestampStr = body.timestampStr || new Date().toLocaleString("en-US", { hour12: true });
+  const errorSummary = body.errorSummary || "System.Data.Entity.Core.EntityException: The underlying provider failed on Open. ---> System.Data.SqlClient.SqlException: SQL Server service has been paused.";
+  const formattedAction = `#. error at ${timestampStr}.\nSummary: ${errorSummary}`;
+
+  await logAuditEvent({
+    userId: payload?.sub || "sys_admin",
+    username: payload?.username || "admin",
+    userRole: payload?.role === "admin" ? "مدیر" : (payload?.role || "مدیر"),
+    action: formattedAction,
+    eventType: AFTA_LOG_EVENT_TYPES.SYSTEM_CAPABILITY_FAILURE,
+    resource: "توابع کارکردی محصول",
+    method: "ERROR",
+    result: "FAILURE",
+    ip: clientIp,
+    userAgent,
+    errorCode: 500,
+    details: {
+      key: "11060",
+      tableName: "توابع کارکردی محصول",
+      aftaClause: "7-2-1",
+      timestampStr,
+      errorSummary,
+      operation: "خطا"
+    }
+  });
+
+  return c.json({
+    success: true,
+    message: "رویداد شکست در قابلیت‌های کارکردی محصول با الگوی استاندارد افتا به ثبت‌نشان‌ها اضافه شد."
+  });
+});
+
+// POST /api/security/report-session-establishment-failure - Log session establishment attempt/prevention (AFTA Clause 7 Table 8-2 & Clause 8 Table 3-2)
+router.post("/report-session-establishment-failure", async (c) => {
+  const payload = (c.get as any)("jwtPayload");
+  const body = await c.req.json().catch(() => ({}));
+  const clientIp = body.clientIp || extractClientIp(c);
+  const userAgent = c.req.header("user-agent") || "Mozilla/5.0 (Windows NT 10.0; Win64; x64)";
+  
+  const restrictionType = body.restrictionType || "IP"; // "IP" | "TIME"
+  const formattedAction = restrictionType === "TIME" 
+    ? "امکان ورود به سیستم در این بازه زمانی برای شما وجود ندارد."
+    : "آدرس ماشین جاری جهت ورود کاربران ارشد مجاز نمی باشد";
+
+  await logAuditEvent({
+    userId: payload?.sub || "usr_senior_01",
+    username: payload?.username || "کاربر ارشد",
+    userRole: payload?.role === "admin" ? "مدیر" : (payload?.role || "مدیر"),
+    action: formattedAction,
+    eventType: AFTA_LOG_EVENT_TYPES.SESSION_ESTABLISHMENT_ATTEMPT,
+    resource: "لاگ های احراز هویت",
+    method: "POST",
+    result: "FAILURE",
+    ip: clientIp,
+    userAgent,
+    errorCode: 403,
+    details: {
+      key: "8-2-7",
+      tableName: "لاگ های احراز هویت",
+      aftaClause: restrictionType === "TIME" ? "8-2-7-4" : "8-2-7-1",
+      requestType: "ورود به سامانه",
+      requestResult: "ناموفق",
+      restrictionType
+    }
+  });
+
+  return c.json({
+    success: true,
+    message: "رویداد تلاش برقراری نشست (ممانعت بر اساس آدرس ماشین / بازه زمانی) با الگوی استاندارد افتا ثبت شد."
+  });
+});
+
+// POST /api/security/report-concurrent-session-limit - Log concurrent session limit (AFTA Clause 1 Table 8-2)
+router.post("/report-concurrent-session-limit", async (c) => {
+  const payload = (c.get as any)("jwtPayload");
+  const body = await c.req.json().catch(() => ({}));
+  const clientIp = body.clientIp || extractClientIp(c);
+  const userAgent = c.req.header("user-agent") || "Mozilla/5.0 (Windows NT 10.0; Win64; x64)";
+  
+  const type = body.type || "LIMIT_EXCEEDED"; // "LIMIT_EXCEEDED" | "SESSION_KICKOUT"
+  const username = body.username || payload?.username || "کاربر ارشد";
+  const userRole = payload?.role === "admin" ? "مدیر" : (payload?.role || "مدیر");
+
+  const formattedAction = type === "SESSION_KICKOUT"
+    ? `کاربر '${username}:${clientIp}' به علت برقرای نشست همزمان جدید از سامانه خارج شد`
+    : "حداکثر تعداد ارتباط همزمان برای این کاربر پر شده است،امکان ورود به سیستم وجود ندارد.";
+
+  await logAuditEvent({
+    userId: payload?.sub || "usr_senior_01",
+    username,
+    userRole,
+    action: formattedAction,
+    eventType: AFTA_LOG_EVENT_TYPES.CONCURRENT_SESSION_LIMIT_EXCEEDED,
+    resource: "لاگ های احراز هویت",
+    method: type === "SESSION_KICKOUT" ? "DELETE" : "POST",
+    result: type === "SESSION_KICKOUT" ? "SUCCESS" : "FAILURE",
+    ip: clientIp,
+    userAgent,
+    errorCode: type === "SESSION_KICKOUT" ? 200 : 403,
+    details: {
+      key: "8-2-1",
+      tableName: "لاگ های احراز هویت",
+      aftaClause: "8-2-1",
+      requestType: type === "SESSION_KICKOUT" ? "خروج از سامانه" : "ورود به سامانه",
+      requestResult: type === "SESSION_KICKOUT" ? "موفق" : "ناموفق",
+      limitType: type
+    }
+  });
+
+  return c.json({
+    success: true,
+    message: "رویداد محدودیت نشست‌های همزمان (پر شدن سقف/خروج خودکار) با الگوی استاندارد افتا ثبت شد."
+  });
+});
+
 // POST /api/security/audit-file-download - Log file export & download event
 router.post("/audit-file-download", async (c) => {
   const payload = (c.get as any)("jwtPayload");
   const body = await c.req.json().catch(() => ({}));
   
-  const clientIp = c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "192.168.35.215";
+  const clientIp = body.clientIp || body.ip || extractClientIp(c);
   const userAgent = c.req.header("user-agent") || "Mozilla/5.0 (Windows NT 10.0; Win64; x64)";
 
   const fileName = body.fileName || body.filename || "add new source";

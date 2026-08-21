@@ -643,7 +643,7 @@ export const DEFAULT_SECURITY_POLICY: SecurityPolicyConfig = {
   },
   sessionPolicy: {
     tokenExpiresInHours: 8,
-    maxConcurrentSessions: 3,
+    maxConcurrentSessions: 1,
     idleTimeoutMinutes: 30,
   },
   functionBehaviorPolicy: {

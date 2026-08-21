@@ -3,7 +3,7 @@ import { getDb } from "../db/index.js";
 import { ObjectId } from "mongodb";
 import { hashPassword } from "../lib/auth.js";
 import { validatePassword } from "../lib/securityPolicy.js";
-import { logAuditEvent, AFTA_LOG_EVENT_TYPES, verifyLogIntegrity, signExistingLogs } from "../lib/auditLogger.js";
+import { logAuditEvent, AFTA_LOG_EVENT_TYPES, verifyLogIntegrity, signExistingLogs, extractClientIp } from "../lib/auditLogger.js";
 import { pruneExpiredSessions } from "../lib/sessionHelper.js";
 
 const router = new Hono();
@@ -110,18 +110,27 @@ router.post("/", async (c) => {
 
     const result = await db.collection("users").insertOne(doc);
     
-    // Log audit action with USER_GROUP_CHANGE eventType
+    // Log audit action with USER_GROUP_CHANGE eventType (AFTA Clause 1 Table 4-2)
     await logAuditEvent({
       userId: payload.sub,
       username: payload.username,
-      userRole: payload.role,
-      action: "ایجاد کاربر و تعیین گروه کاربری",
+      userRole: payload.role === "admin" ? "مدیر" : payload.role,
+      action: `';Name: '${doc.username}' Icon: "" Description`,
       eventType: AFTA_LOG_EVENT_TYPES.USER_GROUP_CHANGE,
-      resource: "users",
+      resource: "گروه‌های کاربری",
       result: "SUCCESS",
-      ip: c.req.header("x-forwarded-for") || "127.0.0.1",
+      ip: extractClientIp(c),
       userAgent: c.req.header("user-agent"),
-      details: { targetUserId: result.insertedId.toHexString(), targetUsername: doc.username, userGroup: doc.userGroup, role: doc.role }
+      details: {
+        key: "0",
+        tableName: "گروه‌های کاربری",
+        operation: "افزودن",
+        aftaClause: "4-2-1",
+        name: doc.username,
+        description: doc.userGroup || doc.role || "",
+        icon: "",
+        targetUserId: result.insertedId.toHexString()
+      }
     });
 
     const { password, ...safeData } = doc;
@@ -330,7 +339,7 @@ router.put("/:id", async (c) => {
       action: actionText,
       resource: "users",
       result: "SUCCESS",
-      ip: c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "127.0.0.1",
+      ip: extractClientIp(c),
       userAgent: c.req.header("user-agent") || c.req.header("User-Agent"),
       details: {
         targetUserId: id,
@@ -341,6 +350,31 @@ router.put("/:id", async (c) => {
         changes: changes
       }
     });
+
+    if (changes.userGroup || changes.role) {
+      const oldGroupVal = existingUser.userGroup || existingUser.role || "dfgh";
+      const newGroupVal = body.userGroup || body.role || "dfgh";
+      await logAuditEvent({
+        userId: payload.sub,
+        username: payload.username,
+        userRole: payload.role === "admin" ? "مدیر" : payload.role,
+        action: `'${oldGroupVal}' به "Description: '${newGroupVal}' تغییر یافت`,
+        eventType: AFTA_LOG_EVENT_TYPES.USER_GROUP_CHANGE,
+        resource: "گروه‌های کاربری",
+        result: "SUCCESS",
+        ip: extractClientIp(c),
+        userAgent: c.req.header("user-agent"),
+        details: {
+          key: "1092",
+          tableName: "گروه‌های کاربری",
+          operation: "ویرایش",
+          aftaClause: "4-2-1",
+          oldDescription: oldGroupVal,
+          description: newGroupVal,
+          targetUserId: id
+        }
+      });
+    }
 
     const updated = await db.collection("users").findOne({ _id: userObjectId }, { projection: { password: 0 } });
     return c.json({ success: true, data: updated });
@@ -376,15 +410,27 @@ router.delete("/:id", async (c) => {
       return c.json({ success: false, message: "کاربر مورد نظر یافت نشد" }, 404);
     }
 
-    // Log audit action
+    // Log audit action with USER_GROUP_CHANGE (AFTA Clause 1 Table 4-2)
     await logAuditEvent({
       userId: payload.sub,
       username: payload.username,
-      action: "حذف کاربر",
-      resource: "users",
+      userRole: payload.role === "admin" ? "مدیر" : payload.role,
+      action: `'Name: '${existingUser.username}' Icon: "" Description: '${existingUser.userGroup || existingUser.role || "dfgh"}'`,
+      eventType: AFTA_LOG_EVENT_TYPES.USER_GROUP_CHANGE,
+      resource: "گروه‌های کاربری",
       result: "SUCCESS",
-      ip: c.req.header("x-forwarded-for") || "127.0.0.1",
-      details: { deletedUserId: id, deletedUsername: existingUser.username }
+      ip: extractClientIp(c),
+      userAgent: c.req.header("user-agent"),
+      details: {
+        key: "1092",
+        tableName: "گروه‌های کاربری",
+        operation: "حذف",
+        aftaClause: "4-2-1",
+        name: existingUser.username,
+        description: existingUser.userGroup || existingUser.role || "dfgh",
+        icon: "",
+        targetUserId: id
+      }
     });
 
     return c.json({ success: true, message: "کاربر با موفقیت از سیستم حذف شد" });
@@ -401,17 +447,19 @@ router.get("/audit-logs", async (c) => {
     const userPermissions = payload?.permissions || {};
     const isAuthorized = userRole === "admin" || userRole === "مدیر سیستم" || userPermissions["audit.view"] === true || userPermissions["audit.read"] === true || userPermissions["audit_logs"] === true;
 
+    const reqUsername = payload?.username || "کاربر غیرمجاز";
     if (!isAuthorized) {
+      const actionDesc = `تلاش ناموفق و غیرمجاز جهت ورود به بخش ثبت نشان‌ها با نام کاربری '${reqUsername}'`;
       await logAuditEvent({
         userId: payload?.sub || "unauthorized_user",
-        username: payload?.username || "unauthorized_user",
+        username: reqUsername,
         userRole,
-        action: "تلاش غیر مجاز جهت دسترسی به صفحه لاگ های سیستمی",
+        action: actionDesc,
         eventType: AFTA_LOG_EVENT_TYPES.AUDIT_LOG_READ_FAILURE,
         resource: c.req.path,
         method: c.req.method,
         result: "FAILURE",
-        ip: c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "127.0.0.1",
+        ip: extractClientIp(c),
         userAgent: c.req.header("user-agent"),
         errorCode: 403,
         details: { reason: "تلاش‌های ناموفق برای خواندن اطلاعات از ثبت‌نشان‌ها (الزام ۲ افتا)", requiredPermission: "audit.view" }
@@ -469,15 +517,16 @@ router.get("/audit-logs", async (c) => {
       isIntegrityValid: verifyLogIntegrity(log)
     }));
 
+    const successActionDesc = `ورود و فراخوانی اطلاعات ثبت نشان‌ها توسط کاربر '${reqUsername}'`;
     await logAuditEvent({
       userId: payload.sub,
-      username: payload.username,
+      username: reqUsername,
       userRole: payload.role || "مدیر",
-      action: "مشاهده اطلاعات ممیزی سیستم",
+      action: successActionDesc,
       eventType: AFTA_LOG_EVENT_TYPES.AUDIT_LOG_READ_SUCCESS,
       resource: "/api/users/audit-logs",
       result: "SUCCESS",
-      ip: c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "127.0.0.1",
+      ip: extractClientIp(c),
       details: { limit, totalReturned: enrichedLogs.length }
     });
 

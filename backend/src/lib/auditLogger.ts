@@ -225,6 +225,40 @@ function writeFallbackFileLog(logEntry: Record<string, any>): void {
   }
 }
 
+/**
+ * استخراج و شناسایی دقیق آدرس آی‌پی (IP) واقعی دستگاه درخواست‌دهنده
+ */
+export function extractClientIp(c: any): string {
+  if (!c || !c.req) return "127.0.0.1";
+
+  const forwarded = c.req.header("x-forwarded-for");
+  if (forwarded) {
+    const firstIp = forwarded.split(",")[0]?.trim();
+    if (firstIp && firstIp !== "undefined" && firstIp !== "null") {
+      return firstIp.replace(/^::ffff:/, "");
+    }
+  }
+
+  const realIp = c.req.header("x-real-ip");
+  if (realIp && realIp !== "undefined" && realIp !== "null") {
+    return realIp.replace(/^::ffff:/, "");
+  }
+
+  const cfIp = c.req.header("cf-connecting-ip");
+  if (cfIp && cfIp !== "undefined" && cfIp !== "null") {
+    return cfIp.replace(/^::ffff:/, "");
+  }
+
+  const reqRaw = c.req?.raw as any;
+  const socketIp = c.env?.incoming?.socket?.remoteAddress || c.env?.raw?.socket?.remoteAddress || reqRaw?.socket?.remoteAddress;
+  if (socketIp) {
+    if (socketIp === "::1" || socketIp === "::ffff:127.0.0.1") return "127.0.0.1";
+    return socketIp.replace(/^::ffff:/, "");
+  }
+
+  return "127.0.0.1";
+}
+
 export async function logAuditEvent(params: AuditLogParams): Promise<void> {
   const now = new Date();
   const correlationId = params.correlationId || crypto.randomUUID();
