@@ -916,6 +916,392 @@ router.post("/sanama-performance-check", async (c) => {
   }
 });
 
+// ─── Budget Amendments (اصلاحیه بودجه) ──────────────────────────────────────────
+router.get("/budget/amendments", async (c) => {
+  const data = await getDb().collection("budget_amendments").find().sort({ createdAt: -1 }).toArray();
+  return c.json({ data: data.map((d) => serialize(d as Record<string, unknown>)), message: "لیست اصلاحیه‌های بودجه" });
+});
+
+router.post("/budget/amendments", async (c) => {
+  const body = await c.req.json();
+  const amendment_number = `AMD-${body.fiscal_year || 1403}-${Date.now()}`;
+  const doc = {
+    ...body,
+    amendment_number,
+    status: body.status ?? "approved",
+    agreement_id: body.agreement_id ? new ObjectId(body.agreement_id) : undefined,
+    createdAt: new Date().toISOString()
+  };
+  const result = await getDb().collection("budget_amendments").insertOne(doc);
+  const inserted = await getDb().collection("budget_amendments").findOne({ _id: result.insertedId });
+  return c.json({ message: "اصلاحیه بودجه با موفقیت ثبت شد", data: serialize(inserted as Record<string, unknown>) }, 201);
+});
+
+router.put("/budget/amendments/:id", async (c) => {
+  const id = c.req.param("id");
+  let oid: ObjectId;
+  try { oid = new ObjectId(id); } catch { return c.json({ message: "شناسه نامعتبر است" }, 400); }
+  const body = await c.req.json();
+  const { _id, ...updateData } = body;
+  const result = await getDb().collection("budget_amendments").findOneAndUpdate(
+    { _id: oid },
+    { $set: { ...updateData, updatedAt: new Date().toISOString() } },
+    { returnDocument: "after" }
+  );
+  if (!result) return c.json({ message: "اصلاحیه یافت نشد" }, 404);
+  return c.json({ message: "اصلاحیه با موفقیت بروزرسانی شد", data: serialize(result as Record<string, unknown>) });
+});
+
+router.delete("/budget/amendments/:id", async (c) => {
+  const id = c.req.param("id");
+  let oid: ObjectId;
+  try { oid = new ObjectId(id); } catch { return c.json({ message: "شناسه نامعتبر است" }, 400); }
+  const result = await getDb().collection("budget_amendments").deleteOne({ _id: oid });
+  if (result.deletedCount === 0) return c.json({ message: "اصلاحیه یافت نشد" }, 404);
+  return c.json({ message: "اصلاحیه با موفقیت حذف شد" });
+});
+
+// ─── Credit Funding / Commitment (تأمین اعتبار) ─────────────────────────────
+router.get("/funding/requests", async (c) => {
+  const data = await getDb().collection("credit_funding_requests").find().sort({ createdAt: -1 }).toArray();
+  return c.json({ data: data.map((d) => serialize(d as Record<string, unknown>)), message: "لیست درخواست‌های تأمین اعتبار" });
+});
+
+router.post("/funding/requests", async (c) => {
+  const body = await c.req.json();
+  const request_number = `FND-REQ-${body.fiscal_year || 1403}-${Date.now()}`;
+  const confirmation_code = `CNF-${Math.floor(100000 + Math.random() * 900000)}`;
+  const doc = {
+    ...body,
+    request_number,
+    confirmation_code,
+    status: body.status ?? "approved",
+    agreement_id: body.agreement_id ? new ObjectId(body.agreement_id) : undefined,
+    allocation_id: body.allocation_id ? new ObjectId(body.allocation_id) : undefined,
+    createdAt: new Date().toISOString()
+  };
+  const result = await getDb().collection("credit_funding_requests").insertOne(doc);
+  const inserted = await getDb().collection("credit_funding_requests").findOne({ _id: result.insertedId });
+  return c.json({ message: "درخواست تأمین اعتبار ثبت و گواهی صادر شد", data: serialize(inserted as Record<string, unknown>) }, 201);
+});
+
+router.put("/funding/requests/:id", async (c) => {
+  const id = c.req.param("id");
+  let oid: ObjectId;
+  try { oid = new ObjectId(id); } catch { return c.json({ message: "شناسه نامعتبر است" }, 400); }
+  const body = await c.req.json();
+  const { _id, ...updateData } = body;
+  const result = await getDb().collection("credit_funding_requests").findOneAndUpdate(
+    { _id: oid },
+    { $set: { ...updateData, updatedAt: new Date().toISOString() } },
+    { returnDocument: "after" }
+  );
+  if (!result) return c.json({ message: "درخواست یافت نشد" }, 404);
+  return c.json({ message: "درخواست تأمین اعتبار بروزرسانی شد", data: serialize(result as Record<string, unknown>) });
+});
+
+router.delete("/funding/requests/:id", async (c) => {
+  const id = c.req.param("id");
+  let oid: ObjectId;
+  try { oid = new ObjectId(id); } catch { return c.json({ message: "شناسه نامعتبر است" }, 400); }
+  const result = await getDb().collection("credit_funding_requests").deleteOne({ _id: oid });
+  if (result.deletedCount === 0) return c.json({ message: "درخواست یافت نشد" }, 404);
+  return c.json({ message: "درخواست تأمین اعتبار حذف شد" });
+});
+
+// ─── Obligations (تعهدات مالی) ────────────────────────────────────────────────
+router.get("/obligations", async (c) => {
+  const data = await getDb().collection("credit_obligations").find().sort({ createdAt: -1 }).toArray();
+  return c.json({ data: data.map((d) => serialize(d as Record<string, unknown>)), message: "لیست تعهدات مالی" });
+});
+
+router.post("/obligations", async (c) => {
+  const body = await c.req.json();
+  const obligation_number = `OBL-${body.fiscal_year || 1403}-${Date.now()}`;
+  const doc = {
+    ...body,
+    obligation_number,
+    released_amount: 0,
+    status: body.status ?? "active",
+    funding_confirmation_id: body.funding_confirmation_id ? new ObjectId(body.funding_confirmation_id) : undefined,
+    contract_id: body.contract_id ? new ObjectId(body.contract_id) : undefined,
+    createdAt: new Date().toISOString()
+  };
+  const result = await getDb().collection("credit_obligations").insertOne(doc);
+  const inserted = await getDb().collection("credit_obligations").findOne({ _id: result.insertedId });
+  return c.json({ message: "تعهد مالی با موفقیت ایجاد شد", data: serialize(inserted as Record<string, unknown>) }, 201);
+});
+
+router.put("/obligations/:id", async (c) => {
+  const id = c.req.param("id");
+  let oid: ObjectId;
+  try { oid = new ObjectId(id); } catch { return c.json({ message: "شناسه نامعتبر است" }, 400); }
+  const body = await c.req.json();
+  const { _id, ...updateData } = body;
+  const result = await getDb().collection("credit_obligations").findOneAndUpdate(
+    { _id: oid },
+    { $set: { ...updateData, status: "modified", updatedAt: new Date().toISOString() } },
+    { returnDocument: "after" }
+  );
+  if (!result) return c.json({ message: "تعهد یافت نشد" }, 404);
+  return c.json({ message: "تعهد با موفقیت اصلاح شد", data: serialize(result as Record<string, unknown>) });
+});
+
+router.post("/obligations/:id/release", async (c) => {
+  const id = c.req.param("id");
+  let oid: ObjectId;
+  try { oid = new ObjectId(id); } catch { return c.json({ message: "شناسه نامعتبر است" }, 400); }
+  const body = await c.req.json();
+  const releaseAmount = Number(body.release_amount) || 0;
+
+  const ob = await getDb().collection("credit_obligations").findOne({ _id: oid });
+  if (!ob) return c.json({ message: "تعهد یافت نشد" }, 404);
+
+  const currentReleased = Number(ob.released_amount) || 0;
+  const newReleased = currentReleased + releaseAmount;
+  const totalAmount = Number(ob.amount) || 0;
+  const isFullyReleased = newReleased >= totalAmount;
+
+  const result = await getDb().collection("credit_obligations").findOneAndUpdate(
+    { _id: oid },
+    {
+      $set: {
+        released_amount: newReleased,
+        status: isFullyReleased ? "released" : "active",
+        release_date: new Date().toISOString().split("T")[0],
+        updatedAt: new Date().toISOString()
+      }
+    },
+    { returnDocument: "after" }
+  );
+  return c.json({ message: "آزادسازی تعهد با موفقیت انجام شد", data: serialize(result as Record<string, unknown>) });
+});
+
+router.delete("/obligations/:id", async (c) => {
+  const id = c.req.param("id");
+  let oid: ObjectId;
+  try { oid = new ObjectId(id); } catch { return c.json({ message: "شناسه نامعتبر است" }, 400); }
+  const result = await getDb().collection("credit_obligations").deleteOne({ _id: oid });
+  if (result.deletedCount === 0) return c.json({ message: "تعهد یافت نشد" }, 404);
+  return c.json({ message: "تعهد با موفقیت حذف شد" });
+});
+
+// ─── Realization / Accrual (تحقق / تسجیل) ───────────────────────────────────
+router.get("/realizations", async (c) => {
+  const data = await getDb().collection("credit_realizations").find().sort({ createdAt: -1 }).toArray();
+  return c.json({ data: data.map((d) => serialize(d as Record<string, unknown>)), message: "لیست موارد تحقق/تسجیل شده" });
+});
+
+router.post("/realizations", async (c) => {
+  const body = await c.req.json();
+  const realization_number = `RLZ-${body.fiscal_year || 1403}-${Date.now()}`;
+  const doc = {
+    ...body,
+    realization_number,
+    status: body.status ?? "verified",
+    obligation_id: body.obligation_id ? new ObjectId(body.obligation_id) : undefined,
+    createdAt: new Date().toISOString()
+  };
+  const result = await getDb().collection("credit_realizations").insertOne(doc);
+  const inserted = await getDb().collection("credit_realizations").findOne({ _id: result.insertedId });
+  return c.json({ message: "تسجیل/تحقق با موفقیت ثبت شد", data: serialize(inserted as Record<string, unknown>) }, 201);
+});
+
+router.put("/realizations/:id", async (c) => {
+  const id = c.req.param("id");
+  let oid: ObjectId;
+  try { oid = new ObjectId(id); } catch { return c.json({ message: "شناسه نامعتبر است" }, 400); }
+  const body = await c.req.json();
+  const { _id, ...updateData } = body;
+  const result = await getDb().collection("credit_realizations").findOneAndUpdate(
+    { _id: oid },
+    { $set: { ...updateData, updatedAt: new Date().toISOString() } },
+    { returnDocument: "after" }
+  );
+  if (!result) return c.json({ message: "مورد تسجیل یافت نشد" }, 404);
+  return c.json({ message: "تسجیل با موفقیت ویرایش شد", data: serialize(result as Record<string, unknown>) });
+});
+
+router.delete("/realizations/:id", async (c) => {
+  const id = c.req.param("id");
+  let oid: ObjectId;
+  try { oid = new ObjectId(id); } catch { return c.json({ message: "شناسه نامعتبر است" }, 400); }
+  const result = await getDb().collection("credit_realizations").deleteOne({ _id: oid });
+  if (result.deletedCount === 0) return c.json({ message: "مورد تسجیل یافت نشد" }, 404);
+  return c.json({ message: "تسجیل با موفقیت حذف شد" });
+});
+
+// ─── Payment Remittances & Returns (حواله و برگشت پرداخت) ───────────────────
+router.get("/payments/remittances", async (c) => {
+  const data = await getDb().collection("credit_remittances").find().sort({ createdAt: -1 }).toArray();
+  return c.json({ data: data.map((d) => serialize(d as Record<string, unknown>)), message: "لیست حواله‌ها و پرداخت‌ها" });
+});
+
+router.post("/payments/remittances", async (c) => {
+  const body = await c.req.json();
+  const remittance_number = `REM-${body.fiscal_year || 1403}-${Date.now()}`;
+  const doc = {
+    ...body,
+    remittance_number,
+    status: body.status ?? "paid",
+    realization_id: body.realization_id ? new ObjectId(body.realization_id) : undefined,
+    createdAt: new Date().toISOString()
+  };
+  const result = await getDb().collection("credit_remittances").insertOne(doc);
+  const inserted = await getDb().collection("credit_remittances").findOne({ _id: result.insertedId });
+  return c.json({ message: "حواله/پرداخت با موفقیت صادر شد", data: serialize(inserted as Record<string, unknown>) }, 201);
+});
+
+router.get("/payments/returns", async (c) => {
+  const data = await getDb().collection("credit_returns").find().sort({ createdAt: -1 }).toArray();
+  return c.json({ data: data.map((d) => serialize(d as Record<string, unknown>)), message: "لیست برگشت پرداخت‌ها" });
+});
+
+router.post("/payments/returns", async (c) => {
+  const body = await c.req.json();
+  const return_number = `RET-${body.fiscal_year || 1403}-${Date.now()}`;
+  const doc = {
+    ...body,
+    return_number,
+    status: "processed",
+    remittance_id: body.remittance_id ? new ObjectId(body.remittance_id) : undefined,
+    createdAt: new Date().toISOString()
+  };
+  const result = await getDb().collection("credit_returns").insertOne(doc);
+  if (body.remittance_id) {
+    try {
+      await getDb().collection("credit_remittances").updateOne(
+        { _id: new ObjectId(body.remittance_id) },
+        { $set: { status: "returned" } }
+      );
+    } catch {}
+  }
+  const inserted = await getDb().collection("credit_returns").findOne({ _id: result.insertedId });
+  return c.json({ message: "برگشت پرداخت ثبت شد", data: serialize(inserted as Record<string, unknown>) }, 201);
+});
+
+// ─── Dashboard Stats (داشبورد جامع اعتبارات) ─────────────────────────────────
+router.get("/dashboard-stats", async (c) => {
+  try {
+    const db = getDb();
+    const fiscalYear = Number(c.req.query("fiscalYear")) || 1403;
+
+    const [
+      agreements,
+      amendments,
+      allocations,
+      fundingRequests,
+      obligations,
+      realizations,
+      remittances,
+      returns
+    ] = await Promise.all([
+      db.collection("agreements").find({ fiscal_year: fiscalYear }).toArray(),
+      db.collection("budget_amendments").find({ fiscal_year: fiscalYear }).toArray(),
+      db.collection("credit_allocations").find({ fiscal_year: fiscalYear }).toArray(),
+      db.collection("credit_funding_requests").find({ fiscal_year: fiscalYear }).toArray(),
+      db.collection("credit_obligations").find({ fiscal_year: fiscalYear }).toArray(),
+      db.collection("credit_realizations").find({ fiscal_year: fiscalYear }).toArray(),
+      db.collection("credit_remittances").find({ fiscal_year: fiscalYear }).toArray(),
+      db.collection("credit_returns").find({ fiscal_year: fiscalYear }).toArray(),
+    ]);
+
+    const totalApproved = agreements.reduce((sum, item) => sum + (Number(item.total_amount) || 0), 0);
+    const totalAmendments = amendments.reduce((sum, item) => {
+      const amt = Number(item.amount) || 0;
+      return item.amendment_type === "increase" ? sum + amt : item.amendment_type === "decrease" ? sum - amt : sum;
+    }, 0);
+    const netBudget = totalApproved + totalAmendments;
+
+    const totalAllocated = allocations.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const totalFundingRequested = fundingRequests.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const totalObligations = obligations.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const totalReleasedObligations = obligations.reduce((sum, item) => sum + (Number(item.released_amount) || 0), 0);
+    const netObligations = Math.max(0, totalObligations - totalReleasedObligations);
+
+    const totalVerifiedRealized = realizations.reduce((sum, item) => sum + (Number(item.verified_amount) || 0), 0);
+    const totalRemitted = remittances.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const totalReturned = returns.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const netPayments = Math.max(0, totalRemitted - totalReturned);
+
+    const unallocatedBudget = Math.max(0, netBudget - totalAllocated);
+    const availableAllocation = Math.max(0, totalAllocated - totalFundingRequested);
+
+    // ۱. اعتبارات نزدیک به اتمام (مصرف/تخصیص بالای ۷۰٪)
+    const nearExhaustionList = agreements.map((agr) => {
+      const agrId = String(agr._id);
+      const agrAlloc = allocations
+        .filter((al) => String(al.agreement_id) === agrId)
+        .reduce((sum, al) => sum + (Number(al.amount) || 0), 0);
+      const totalBudget = Number(agr.total_amount) || 0;
+      const usagePercent = totalBudget > 0 ? Math.round((agrAlloc / totalBudget) * 100) : 0;
+      return {
+        _id: agrId,
+        title: agr.title || agr.agreement_number,
+        program_code: agr.program_code,
+        totalBudget,
+        allocatedAmount: agrAlloc,
+        remainingAmount: Math.max(0, totalBudget - agrAlloc),
+        usagePercent
+      };
+    }).filter((item) => item.usagePercent >= 70 || item.remainingAmount === 0);
+
+    // ۲. تعهدات باز
+    const openObligationsList = obligations
+      .filter((o) => o.status === "active" || (Number(o.amount) || 0) > (Number(o.released_amount) || 0))
+      .map((o) => serialize(o as Record<string, unknown>));
+
+    // ۳. درخواست‌های در انتظار تایید
+    const pendingRequestsList = fundingRequests
+      .filter((r) => r.status === "pending")
+      .map((r) => serialize(r as Record<string, unknown>));
+
+    // ۴. پرداخت‌های در انتظار
+    const pendingPaymentsList = remittances
+      .filter((rem) => rem.status === "pending" || rem.status === "draft")
+      .map((rem) => serialize(rem as Record<string, unknown>));
+
+    return c.json({
+      success: true,
+      fiscalYear,
+      stats: {
+        totalApproved,
+        totalAmendments,
+        netBudget,
+        totalAllocated,
+        unallocatedBudget,
+        totalFundingRequested,
+        availableAllocation,
+        totalObligations,
+        totalReleasedObligations,
+        netObligations,
+        totalVerifiedRealized,
+        totalRemitted,
+        totalReturned,
+        netPayments
+      },
+      counts: {
+        agreementsCount: agreements.length,
+        amendmentsCount: amendments.length,
+        allocationsCount: allocations.length,
+        fundingCount: fundingRequests.length,
+        obligationsCount: obligations.length,
+        realizationsCount: realizations.length,
+        remittancesCount: remittances.length,
+        returnsCount: returns.length
+      },
+      lists: {
+        nearExhaustionList,
+        openObligationsList,
+        pendingRequestsList,
+        pendingPaymentsList
+      }
+    });
+  } catch (error: any) {
+    return c.json({ success: false, message: error.message }, 500);
+  }
+});
+
 router.get("/", (_c) => _c.json({ message: "اعتبارات" }));
 
 export default router;

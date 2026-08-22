@@ -11,6 +11,13 @@ const BasicInfo = lazy(() => import("@/pages/BasicInfo"));
 const DocumentSetup = lazy(() => import("@/modules/accounting/pages/DocumentSetup"));
 const Review = lazy(() => import("@/modules/accounting/pages/Review"));
 const Credits = lazy(() => import("@/pages/Credits"));
+const CreditsDashboardModule = lazy(() => import("@/modules/credits/CreditsDashboardModule"));
+const BudgetModule = lazy(() => import("@/modules/credits/BudgetModule"));
+const AllocationModule = lazy(() => import("@/modules/credits/AllocationModule"));
+const FundingModule = lazy(() => import("@/modules/credits/FundingModule"));
+const ObligationModule = lazy(() => import("@/modules/credits/ObligationModule"));
+const RealizationModule = lazy(() => import("@/modules/credits/RealizationModule"));
+const PaymentWorkflowModule = lazy(() => import("@/modules/credits/PaymentWorkflowModule"));
 const CheckIssuance = lazy(() => import("@/modules/treasury/pages/CheckIssuance"));
 const BankForm = lazy(() => import("@/modules/treasury/pages/BankForm"));
 const CreditForm = lazy(() => import("@/pages/CreditForm"));
@@ -226,7 +233,30 @@ export const PAGE_COMPONENTS = {
   "/document-setup/copy-doc":   CopyDocument,
   "/document-setup/docs-list":  DocumentsList,
   "/review": Review,
-  "/credits": Credits,
+  "/credits": CreditsDashboardModule,
+  "/credits/budget": BudgetModule,
+  "/credits/budget/approved": BudgetModule,
+  "/credits/budget/amendments": BudgetModule,
+  "/credits/budget/review": BudgetModule,
+  "/credits/allocations": AllocationModule,
+  "/credits/allocations/new": AllocationModule,
+  "/credits/allocations/edit": AllocationModule,
+  "/credits/allocations/review": AllocationModule,
+  "/credits/commitments-funding": FundingModule,
+  "/credits/commitments-funding/request": FundingModule,
+  "/credits/commitments-funding/confirm": FundingModule,
+  "/credits/commitments-funding/review": FundingModule,
+  "/credits/obligations": ObligationModule,
+  "/credits/obligations/create": ObligationModule,
+  "/credits/obligations/edit": ObligationModule,
+  "/credits/obligations/release": ObligationModule,
+  "/credits/obligations/review": ObligationModule,
+  "/credits/verification-realization": RealizationModule,
+  "/credits/payments": PaymentWorkflowModule,
+  "/credits/payments/request": PaymentWorkflowModule,
+  "/credits/payments/remittance": PaymentWorkflowModule,
+  "/credits/payments/payment": PaymentWorkflowModule,
+  "/credits/payments/return": PaymentWorkflowModule,
   "/credits/agreements": Credits,
   "/credits/requests": Credits,
   "/credits/allocation-no-doc": Credits,

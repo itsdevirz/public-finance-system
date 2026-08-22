@@ -176,10 +176,58 @@ export const TOP_NAV = [
     label: "مدیریت اعتبارات",
     num: 7,
     subItems: [
-      { to: "/credits", label: "داشبورد اعتبارات" },
-      { to: "/credits/agreements", label: "ثبت موافقت‌نامه" },
-      { to: "/credits/allocation-no-doc", label: "تخصیص اعتبار" },
-      { to: "/credits/requests", label: "درخواست وجه" },
+      { to: "/credits", label: "🏠 داشبورد اعتبارات" },
+      {
+        to: "/credits/budget",
+        label: "بودجه",
+        children: [
+          { to: "/credits/budget/approved", label: "بودجه مصوب" },
+          { to: "/credits/budget/amendments", label: "اصلاحیه بودجه" },
+          { to: "/credits/budget/review", label: "مرور بودجه" },
+        ],
+      },
+      {
+        to: "/credits/allocations",
+        label: "تخصیص",
+        children: [
+          { to: "/credits/allocations/new", label: "تخصیص اعتبار" },
+          { to: "/credits/allocations/edit", label: "اصلاح تخصیص" },
+          { to: "/credits/allocations/review", label: "مرور تخصیص" },
+        ],
+      },
+      {
+        to: "/credits/commitments-funding",
+        label: "تأمین اعتبار",
+        children: [
+          { to: "/credits/commitments-funding/request", label: "درخواست تأمین اعتبار" },
+          { to: "/credits/commitments-funding/confirm", label: "تأمین اعتبار" },
+          { to: "/credits/commitments-funding/review", label: "مرور تأمین اعتبار" },
+        ],
+      },
+      {
+        to: "/credits/obligations",
+        label: "تعهدات",
+        children: [
+          { to: "/credits/obligations/create", label: "ایجاد تعهد" },
+          { to: "/credits/obligations/edit", label: "اصلاح تعهد" },
+          { to: "/credits/obligations/release", label: "آزادسازی تعهد" },
+          { to: "/credits/obligations/review", label: "مرور تعهدات" },
+        ],
+      },
+      { to: "/credits/verification-realization", label: "تحقق / تسجیل" },
+      {
+        to: "/credits/payments",
+        label: "پرداخت",
+        children: [
+          { to: "/credits/payments/request", label: "درخواست پرداخت" },
+          { to: "/credits/payments/remittance", label: "حواله" },
+          { to: "/credits/payments/payment", label: "پرداخت" },
+          { to: "/credits/payments/return", label: "برگشت پرداخت" },
+        ],
+      },
+      { to: "/credits/agreements", label: "ثبت موافقت‌نامه (سابق)" },
+      { to: "/credits/allocation-no-doc", label: "تخصیص اعتبار (سابق)" },
+      { to: "/credits/requests", label: "درخواست وجه (سابق)" },
       { to: "/credits/notification/request", label: "ابلاغ و انتقال اعتبار" },
     ]
   },

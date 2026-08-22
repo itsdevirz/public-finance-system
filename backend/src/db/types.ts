@@ -144,6 +144,100 @@ export interface CreditDelegation {
   journal_document_id?: ObjectId;
 }
 
+export interface BudgetAmendment {
+  _id?: ObjectId;
+  amendment_number: string;
+  agreement_id: ObjectId;
+  fiscal_year: number;
+  amendment_type: "increase" | "decrease" | "reallocation";
+  amount: number;
+  source_program_code?: string;
+  target_program_code?: string;
+  amendment_date?: string;
+  status: "draft" | "approved" | "rejected";
+  description?: string;
+}
+
+export interface CreditFundingRequest {
+  _id?: ObjectId;
+  request_number: string;
+  fiscal_year: number;
+  agreement_id?: ObjectId;
+  allocation_id?: ObjectId;
+  amount: number;
+  requesting_unit: string;
+  purpose: string;
+  request_date?: string;
+  status: "pending" | "approved" | "rejected";
+  confirmation_code?: string;
+  description?: string;
+}
+
+export interface CreditFundingConfirmation {
+  _id?: ObjectId;
+  confirmation_number: string;
+  funding_request_id: ObjectId;
+  fiscal_year: number;
+  amount: number;
+  issue_date: string;
+  valid_until?: string;
+  status: "active" | "utilized" | "cancelled";
+  description?: string;
+}
+
+export interface CreditObligation {
+  _id?: ObjectId;
+  obligation_number: string;
+  fiscal_year: number;
+  funding_confirmation_id?: ObjectId;
+  contract_id?: ObjectId;
+  beneficiary_name: string;
+  amount: number;
+  released_amount?: number;
+  obligation_date?: string;
+  status: "active" | "modified" | "released" | "closed";
+  description?: string;
+}
+
+export interface CreditRealization {
+  _id?: ObjectId;
+  realization_number: string;
+  obligation_id: ObjectId;
+  fiscal_year: number;
+  claimed_amount: number;
+  verified_amount: number;
+  bill_number?: string;
+  verification_date?: string;
+  status: "pending" | "verified" | "rejected";
+  verifier?: string;
+  description?: string;
+}
+
+export interface CreditPaymentRemittance {
+  _id?: ObjectId;
+  remittance_number: string;
+  realization_id?: ObjectId;
+  fiscal_year: number;
+  amount: number;
+  iban?: string;
+  recipient_name: string;
+  recipient_bank?: string;
+  issue_date?: string;
+  status: "issued" | "paid" | "returned";
+  description?: string;
+}
+
+export interface CreditPaymentReturn {
+  _id?: ObjectId;
+  return_number: string;
+  remittance_id: ObjectId;
+  fiscal_year: number;
+  amount: number;
+  return_date?: string;
+  reason?: string;
+  status: "processed" | "pending";
+}
+
 // ─── Reviews ──────────────────────────────────────────────────────────────────
 
 export interface Review {
