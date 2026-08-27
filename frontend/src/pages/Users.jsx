@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { PageShell, PageHeader } from "@/components/layout/PageShell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,12 @@ import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import { useAuth } from "@/context/AuthContext";
 
 const ROLE_PRESETS = {
+  "admin": {
+    "doc.create": true, "doc.edit": true, "doc.delete": true, "doc.approve": true,
+    "acct.view": true, "acct.create": true,
+    "rep.trial": true, "rep.ledger": true, "rep.statement": true,
+    "set.users": true, "set.year": true, "audit.view": true
+  },
   "مدیر سیستم": {
     "doc.create": true, "doc.edit": true, "doc.delete": true, "doc.approve": true,
     "acct.view": true, "acct.create": true,
@@ -62,6 +68,15 @@ const ROLE_PRESETS = {
   }
 };
 
+const parseAmount = (val) => {
+  if (val === undefined || val === null || val === "") return 0;
+  const str = String(val)
+    .replace(/[۰-۹]/g, (d) => "۰۱۲۳۴۵۶۷۸۹".indexOf(d))
+    .replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d))
+    .replace(/[^\d]/g, "");
+  return Number(str) || 0;
+};
+
 const INITIAL_USER = {
   username: "",
   password: "",
@@ -73,26 +88,28 @@ const INITIAL_USER = {
   email: "",
   department: "حسابداری مالی",
   position: "کارشناس حسابداری",
-  userGroup: "حسابداران ارشد",
+  userGroup: "حسابداری",
   directManager: "",
-  branch: "شعبه مرکزی تهران",
+  branch: "شعبه مرکزی",
   costCenter: "اداری",
   fiscalYear: "1405",
   status: "فعال", // فعال, غیرفعال, قفل شده
   twoFactor: false,
+  authMethod: "PASSWORD",
   ipRestriction: "",
-  allowOutside: true,
+  allowOutside: false,
   maxFailedAttempts: 5,
   lockoutDuration: 15,
+  maxConcurrentSessions: 1,
   role: "حسابدار",
   permissions: { ...ROLE_PRESETS["حسابدار"] },
-  financialLimitMin: 100000000,
-  financialLimitMax: 5000000000,
+  financialLimitMin: 0,
+  financialLimitMax: 1000000000,
   allowedCostCenters: ["واحد فروش", "واحد تولید"],
   workflowLevel: "ثبت کننده", // ثبت کننده, بررسی کننده, تایید کننده, تایید نهایی
   preferences: {
     fiscalYear: "1405",
-    company: "سازمان مرکزی مالی",
+    company: "سازمان مرکزی",
     language: "fa",
     theme: "light",
     startPage: "/dashboard",
@@ -102,7 +119,7 @@ const INITIAL_USER = {
 };
 
 export default function Users() {
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, updateUser } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -135,6 +152,8 @@ export default function Users() {
     settings: true
   });
 
+  const isAdminUser = currentUser?.role === "admin" || currentUser?.role === "مدیر سیستم" || currentUser?.username?.toLowerCase() === "admin";
+
   const availableTabs = useMemo(() => {
     const tabs = [
       { key: "general", label: "اطلاعات عمومی", icon: UsersIcon },
@@ -144,12 +163,12 @@ export default function Users() {
       { key: "workflow", label: "گردش کار و عملیات", icon: UserCheck },
       { key: "preferences", label: "تنظیمات محیط و پرسنل", icon: Settings2 }
     ];
-    if (currentUser?.role !== "admin") {
+    if (!isAdminUser) {
       // Non-admins can only see general info and environment preferences
       return tabs.filter(t => t.key === "general" || t.key === "preferences");
     }
     return tabs;
-  }, [currentUser]);
+  }, [isAdminUser]);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -258,11 +277,11 @@ export default function Users() {
 
   useEffect(() => {
     fetchUsers();
-    if (currentUser?.role === "admin") {
+    if (isAdminUser) {
       fetchLogs();
       fetchStorageStatus();
     }
-  }, [fetchUsers, fetchLogs, fetchStorageStatus, currentUser]);
+  }, [fetchUsers, fetchLogs, fetchStorageStatus, isAdminUser]);
 
   const filteredUsers = useMemo(() => {
     return users.filter(user => {
@@ -281,21 +300,68 @@ export default function Users() {
     });
   }, [users, search, filterRole, filterStatus]);
 
+  const formCardRef = useRef(null);
+
+  const scrollToForm = useCallback(() => {
+    // 1. Scroll the layout's main container which has overflow-y-auto
+    const mainElem = document.querySelector("main");
+    if (mainElem) {
+      mainElem.scrollTo({ top: 0, behavior: "smooth" });
+    }
+    // 2. Fallback window scroll
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    // 3. Scroll form card element into view directly
+    if (formCardRef.current) {
+      formCardRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (showFormCard) {
+      const timer = setTimeout(() => {
+        scrollToForm();
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [showFormCard, selectedUser, scrollToForm]);
+
+  const handleCloseForm = () => {
+    setShowFormCard(false);
+    setSelectedUser(null);
+    setFormState(INITIAL_USER);
+  };
+
   const handleEditUser = (user) => {
     setSelectedUser(user);
     setChangePasswordChecked(false);
+    const isAdminUser = user?.role === "admin" || user?.role === "مدیر سیستم" || user?.username?.toLowerCase() === "admin";
     setFormState({
       ...INITIAL_USER,
-      ...user,
-      password: "" // Keep password blank for edit security
+      ...(user || {}),
+      password: "", // Keep password blank for edit security
+      permissions: isAdminUser
+        ? { ...ROLE_PRESETS["مدیر سیستم"] }
+        : {
+            ...(INITIAL_USER.permissions || {}),
+            ...(user?.permissions || {})
+          },
+      allowedCostCenters: Array.isArray(user?.allowedCostCenters)
+        ? user.allowedCostCenters
+        : (INITIAL_USER.allowedCostCenters || []),
+      financialLimitMin: typeof user?.financialLimitMin === "number" ? user.financialLimitMin : (Number(user?.financialLimitMin) || 0),
+      financialLimitMax: typeof user?.financialLimitMax === "number" ? user.financialLimitMax : (Number(user?.financialLimitMax) || 0),
+      preferences: {
+        ...(INITIAL_USER.preferences || {}),
+        ...(user?.preferences || {})
+      }
     });
     setActiveFormTab("general");
     setShowFormCard(true);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    scrollToForm();
   };
 
   const handleCreateNew = () => {
-    if (currentUser?.role !== "admin") {
+    if (!isAdminUser) {
       alert("فقط مدیر سیستم (Admin) مجاز به تعریف کاربر جدید است.");
       return;
     }
@@ -304,6 +370,7 @@ export default function Users() {
     setFormState(INITIAL_USER);
     setActiveFormTab("general");
     setShowFormCard(true);
+    scrollToForm();
   };
 
   const handleSave = async (e) => {
@@ -321,25 +388,38 @@ export default function Users() {
         if (!changePasswordChecked || !payload.password || (typeof payload.password === "string" && !payload.password.trim())) {
           delete payload.password;
         }
-        const res = await api.put(`/api/users/${selectedUser._id}`, payload);
+        const targetId = selectedUser._id || selectedUser.id;
+        const res = await api.put(`/api/users/${targetId}`, payload);
         if (res.data?.success) {
-          setUsers(users.map(u => u._id === selectedUser._id ? res.data.data : u));
+          const updatedUser = res.data.data;
+          setUsers(prevUsers => prevUsers.map(u => String(u._id || u.id) === String(targetId) ? updatedUser : u));
+
+          const isSelf =
+            (currentUser?._id && String(currentUser._id) === String(targetId)) ||
+            (currentUser?.id && String(currentUser.id) === String(targetId)) ||
+            (currentUser?.username && currentUser.username.toLowerCase() === updatedUser.username?.toLowerCase());
+
+          if (isSelf && updateUser) {
+            updateUser(updatedUser);
+          }
+
           alert("تغییرات کاربر با موفقیت ذخیره شد.");
-          setShowFormCard(false);
+          handleCloseForm();
         }
       } else {
         // Create Mode
         const payload = { ...formState };
         const res = await api.post("/api/users", payload);
         if (res.data?.success) {
-          setUsers([...users, res.data.data]);
+          setUsers(prevUsers => [...prevUsers, res.data.data]);
           alert("کاربر جدید با موفقیت ایجاد گردید.");
-          setShowFormCard(false);
+          handleCloseForm();
         }
       }
       fetchLogs();
+      fetchUsers();
     } catch (err) {
-      alert(err.response?.data?.message || "خطا در برقراری ارتباط با پایگاه داده.");
+      alert(err.response?.data?.message || err.message || "خطا در ثبت اطلاعات کاربر.");
     } finally {
       setLoading(false);
     }
@@ -368,9 +448,23 @@ export default function Users() {
     }
   };
 
-  // Preset role toggles
+  // Preset role toggles with admin protection
   const handleRoleChange = (role) => {
-    const permissions = ROLE_PRESETS[role] ? { ...ROLE_PRESETS[role] } : {};
+    const isTargetAdmin = (selectedUser && (selectedUser.role === "admin" || selectedUser.role === "مدیر سیستم" || selectedUser.username?.toLowerCase() === "admin")) || formState.role === "admin" || formState.role === "مدیر سیستم";
+    const isSelfEdit = selectedUser && (
+      (currentUser?._id && String(currentUser._id) === String(selectedUser._id || selectedUser.id)) ||
+      (currentUser?.username && currentUser.username.toLowerCase() === selectedUser.username?.toLowerCase())
+    );
+
+    if (isSelfEdit && isTargetAdmin && role !== "admin" && role !== "مدیر سیستم") {
+      alert("شما نمی‌توانید نقش حساب مدیر سیستم (Admin) خودتان را تغییر دهید.");
+      return;
+    }
+
+    const permissions = (role === "admin" || role === "مدیر سیستم")
+      ? { ...ROLE_PRESETS["مدیر سیستم"] }
+      : (ROLE_PRESETS[role] ? { ...ROLE_PRESETS[role] } : {});
+
     setFormState({
       ...formState,
       role,
@@ -379,11 +473,17 @@ export default function Users() {
   };
 
   const togglePermission = (key) => {
+    const isTargetAdmin = (selectedUser && (selectedUser.role === "admin" || selectedUser.role === "مدیر سیستم" || selectedUser.username?.toLowerCase() === "admin")) || formState.role === "admin" || formState.role === "مدیر سیستم";
+    if (isTargetAdmin) {
+      alert("کاربر مدیر سیستم (Admin) به صورت پیش‌فرض دارای تمامی دسترسی‌های کامل سیستم بوده و امکان کاهش مجوزهای آن وجود ندارد.");
+      return;
+    }
+
     setFormState({
       ...formState,
       permissions: {
-        ...formState.permissions,
-        [key]: !formState.permissions[key]
+        ...(formState.permissions || {}),
+        [key]: !formState.permissions?.[key]
       }
     });
   };
@@ -406,7 +506,7 @@ export default function Users() {
 
       {/* Advanced Tabbed User Registry Form Panel */}
       {showFormCard && (
-        <Card className="mb-6 shadow-lg border border-primary/20 animate-in fade-in slide-in-from-top-4 duration-500">
+        <Card ref={formCardRef} id="user-form-card" className="mb-6 shadow-lg border border-primary/20 animate-in fade-in slide-in-from-top-4 duration-500">
           <CardHeader className="bg-primary/5 pb-3">
             <div className="flex items-center justify-between">
               <div>
@@ -416,7 +516,7 @@ export default function Users() {
                 </CardTitle>
                 <CardDescription>مدیریت دسترسی‌های مالی، احراز هویت، و گردش کار سازمانی</CardDescription>
               </div>
-              <button onClick={() => setShowFormCard(false)} className="text-muted-foreground hover:text-foreground">
+              <button onClick={handleCloseForm} className="text-muted-foreground hover:text-foreground">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -682,6 +782,21 @@ export default function Users() {
                         className="h-8.5 text-xs w-28"
                       />
                     </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-bold text-primary flex items-center gap-1">
+                        <span>تعداد نشست‌های مجاز (سقف همزمان)</span>
+                        {!isAdminUser && <span className="text-[10px] text-muted-foreground font-normal">(فقط ادمین)</span>}
+                      </Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        max="20"
+                        disabled={!isAdminUser}
+                        value={formState.maxConcurrentSessions ?? 1}
+                        onChange={(e) => setFormState({ ...formState, maxConcurrentSessions: Math.max(1, Number(e.target.value) || 1) })}
+                        className="h-8.5 text-xs w-28 font-bold text-center border-primary/40 disabled:bg-muted disabled:cursor-not-allowed"
+                      />
+                    </div>
                   </div>
 
                   <div className="p-4 rounded-xl bg-muted/30 border space-y-3 mt-4">
@@ -735,10 +850,14 @@ export default function Users() {
                     <Label className="text-xs font-bold text-foreground">انتخاب نقش دسترسی فعال کاربر</Label>
                     <select
                       value={formState.role}
+                      disabled={selectedUser && (
+                        (currentUser?._id && String(currentUser._id) === String(selectedUser._id || selectedUser.id)) ||
+                        (currentUser?.username && currentUser.username.toLowerCase() === selectedUser.username?.toLowerCase())
+                      ) && (formState.role === "admin" || formState.role === "مدیر سیستم" || selectedUser.username?.toLowerCase() === "admin")}
                       onChange={(e) => handleRoleChange(e.target.value)}
-                      className="w-full h-8.5 text-xs rounded-lg border px-3 font-semibold"
+                      className="w-full h-8.5 text-xs rounded-lg border px-3 font-semibold disabled:bg-muted disabled:cursor-not-allowed"
                     >
-                      <option value="مدیر سیستم">۱. مدیر سیستم (System Admin)</option>
+                      <option value="admin">۱. مدیر سیستم (System Admin)</option>
                       <option value="پشتیبانی / کاربر پیشرفته">۲. پشتیبانی / کاربر پیشرفته (Advanced Support User)</option>
                       <option value="مدیر مالی">۳. مدیر مالی (دسترسی ارشد)</option>
                       <option value="حسابدار">۴. حسابدار</option>
@@ -746,15 +865,31 @@ export default function Users() {
                       <option value="خزانه‌دار">۶. خزانه‌دار</option>
                       <option value="سایر موارد">۷. سایر موارد (Custom Role)</option>
                     </select>
+                    {selectedUser && (
+                      (currentUser?._id && String(currentUser._id) === String(selectedUser._id || selectedUser.id)) ||
+                      (currentUser?.username && currentUser.username.toLowerCase() === selectedUser.username?.toLowerCase())
+                    ) && (formState.role === "admin" || formState.role === "مدیر سیستم" || selectedUser.username?.toLowerCase() === "admin") && (
+                      <span className="text-[11px] font-bold text-amber-700 dark:text-amber-300 block mt-1">
+                        🛡️ امکان تغییر یا تنزیل نقش حساب مدیر سیستم فعال وجود ندارد.
+                      </span>
+                    )}
                   </div>
 
                   <Separator />
 
                   <div className="space-y-2">
-                    <Label className="text-xs font-bold text-foreground flex items-center gap-1">
-                      <CheckSquare className="h-4 w-4 text-primary" />
-                      درختواره تفصیلی مجوزهای ماژولار (RBAC Permissions Tree)
-                    </Label>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-bold text-foreground flex items-center gap-1">
+                        <CheckSquare className="h-4 w-4 text-primary" />
+                        درختواره تفصیلی مجوزهای ماژولار (RBAC Permissions Tree)
+                      </Label>
+                    </div>
+
+                    {(formState.role === "admin" || formState.role === "مدیر سیستم" || (selectedUser && selectedUser.username?.toLowerCase() === "admin")) && (
+                      <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex items-center gap-2 text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                        <span>⚡ کاربر مدیر سیستم (Admin) به صورت پیش‌فرض دارای تمامی دسترسی‌های کامل و غیرقابل کاهش به تمام بخش‌های سامانه است.</span>
+                      </div>
+                    )}
 
                     <div className="p-4 rounded-xl border bg-muted/10 space-y-4">
                       {/* Module 1: Accounting */}
@@ -774,17 +909,21 @@ export default function Users() {
                               { key: "doc.edit", label: "ویرایش اسناد" },
                               { key: "doc.delete", label: "حذف سند حسابداری" },
                               { key: "doc.approve", label: "تایید و نهایی سازی سند" }
-                            ].map(item => (
-                              <label key={item.key} className="flex items-center gap-2 cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={!!formState.permissions?.[item.key]}
-                                  onChange={() => togglePermission(item.key)}
-                                  className="rounded border-border text-primary h-4 w-4"
-                                />
-                                <span className="font-semibold text-foreground/80">{item.label}</span>
-                              </label>
-                            ))}
+                            ].map(item => {
+                              const isTargetAdmin = formState.role === "admin" || formState.role === "مدیر سیستم" || (selectedUser && (selectedUser.role === "admin" || selectedUser.role === "مدیر سیستم" || selectedUser.username?.toLowerCase() === "admin"));
+                              return (
+                                <label key={item.key} className={cn("flex items-center gap-2", isTargetAdmin ? "cursor-not-allowed opacity-80" : "cursor-pointer")}>
+                                  <input
+                                    type="checkbox"
+                                    checked={isTargetAdmin ? true : !!formState.permissions?.[item.key]}
+                                    disabled={isTargetAdmin}
+                                    onChange={() => togglePermission(item.key)}
+                                    className="rounded border-border text-primary h-4 w-4 disabled:opacity-80 disabled:cursor-not-allowed"
+                                  />
+                                  <span className="font-semibold text-foreground/80">{item.label}</span>
+                                </label>
+                              );
+                            })}
                           </div>
                         )}
                       </div>
@@ -804,17 +943,21 @@ export default function Users() {
                             {[
                               { key: "acct.view", label: "مشاهده ساختار کدینگ" },
                               { key: "acct.create", label: "تعریف حساب کل/معین جدید" }
-                            ].map(item => (
-                              <label key={item.key} className="flex items-center gap-2 cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={!!formState.permissions?.[item.key]}
-                                  onChange={() => togglePermission(item.key)}
-                                  className="rounded border-border text-primary h-4 w-4"
-                                />
-                                <span className="font-semibold text-foreground/80">{item.label}</span>
-                              </label>
-                            ))}
+                            ].map(item => {
+                              const isTargetAdmin = formState.role === "admin" || formState.role === "مدیر سیستم" || (selectedUser && (selectedUser.role === "admin" || selectedUser.role === "مدیر سیستم" || selectedUser.username?.toLowerCase() === "admin"));
+                              return (
+                                <label key={item.key} className={cn("flex items-center gap-2", isTargetAdmin ? "cursor-not-allowed opacity-80" : "cursor-pointer")}>
+                                  <input
+                                    type="checkbox"
+                                    checked={isTargetAdmin ? true : !!formState.permissions?.[item.key]}
+                                    disabled={isTargetAdmin}
+                                    onChange={() => togglePermission(item.key)}
+                                    className="rounded border-border text-primary h-4 w-4 disabled:opacity-80 disabled:cursor-not-allowed"
+                                  />
+                                  <span className="font-semibold text-foreground/80">{item.label}</span>
+                                </label>
+                              );
+                            })}
                           </div>
                         )}
                       </div>
@@ -835,17 +978,21 @@ export default function Users() {
                               { key: "rep.trial", label: "تهیه تراز آزمایشی" },
                               { key: "rep.ledger", label: "چاپ دفتر کل و معین" },
                               { key: "rep.statement", label: "صورت‌های عملکرد مالی" }
-                            ].map(item => (
-                              <label key={item.key} className="flex items-center gap-2 cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={!!formState.permissions?.[item.key]}
-                                  onChange={() => togglePermission(item.key)}
-                                  className="rounded border-border text-primary h-4 w-4"
-                                />
-                                <span className="font-semibold text-foreground/80">{item.label}</span>
-                              </label>
-                            ))}
+                            ].map(item => {
+                              const isTargetAdmin = formState.role === "admin" || formState.role === "مدیر سیستم" || (selectedUser && (selectedUser.role === "admin" || selectedUser.role === "مدیر سیستم" || selectedUser.username?.toLowerCase() === "admin"));
+                              return (
+                                <label key={item.key} className={cn("flex items-center gap-2", isTargetAdmin ? "cursor-not-allowed opacity-80" : "cursor-pointer")}>
+                                  <input
+                                    type="checkbox"
+                                    checked={isTargetAdmin ? true : !!formState.permissions?.[item.key]}
+                                    disabled={isTargetAdmin}
+                                    onChange={() => togglePermission(item.key)}
+                                    className="rounded border-border text-primary h-4 w-4 disabled:opacity-80 disabled:cursor-not-allowed"
+                                  />
+                                  <span className="font-semibold text-foreground/80">{item.label}</span>
+                                </label>
+                              );
+                            })}
                           </div>
                         )}
                       </div>
@@ -865,17 +1012,21 @@ export default function Users() {
                             {[
                               { key: "set.users", label: "مدیریت کاربران و دسترسی‌ها" },
                               { key: "set.year", label: "بستن حساب و سال مالی" }
-                            ].map(item => (
-                              <label key={item.key} className="flex items-center gap-2 cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={!!formState.permissions?.[item.key]}
-                                  onChange={() => togglePermission(item.key)}
-                                  className="rounded border-border text-primary h-4 w-4"
-                                />
-                                <span className="font-semibold text-foreground/80">{item.label}</span>
-                              </label>
-                            ))}
+                            ].map(item => {
+                              const isTargetAdmin = formState.role === "admin" || formState.role === "مدیر سیستم" || (selectedUser && (selectedUser.role === "admin" || selectedUser.role === "مدیر سیستم" || selectedUser.username?.toLowerCase() === "admin"));
+                              return (
+                                <label key={item.key} className={cn("flex items-center gap-2", isTargetAdmin ? "cursor-not-allowed opacity-80" : "cursor-pointer")}>
+                                  <input
+                                    type="checkbox"
+                                    checked={isTargetAdmin ? true : !!formState.permissions?.[item.key]}
+                                    disabled={isTargetAdmin}
+                                    onChange={() => togglePermission(item.key)}
+                                    className="rounded border-border text-primary h-4 w-4 disabled:opacity-80 disabled:cursor-not-allowed"
+                                  />
+                                  <span className="font-semibold text-foreground/80">{item.label}</span>
+                                </label>
+                              );
+                            })}
                           </div>
                         )}
                       </div>
@@ -893,9 +1044,9 @@ export default function Users() {
                       <Label className="text-xs font-semibold">حداقل مبلغ مجاز سند (ریال)</Label>
                       <Input
                         type="text"
-                        value={formState.financialLimitMin.toLocaleString("fa-IR")}
-                        onChange={(e) => setFormState({ ...formState, financialLimitMin: Number(e.target.value.replace(/\D/g, "")) })}
-                        className="h-8.5 text-xs font-mono"
+                        value={(formState.financialLimitMin ?? 0).toLocaleString("fa-IR")}
+                        onChange={(e) => setFormState({ ...formState, financialLimitMin: parseAmount(e.target.value) })}
+                        className="h-8.5 text-xs font-mono font-bold"
                         dir="ltr"
                       />
                     </div>
@@ -903,9 +1054,9 @@ export default function Users() {
                       <Label className="text-xs font-semibold">حداکثر مبلغ مجاز سند (ریال)</Label>
                       <Input
                         type="text"
-                        value={formState.financialLimitMax.toLocaleString("fa-IR")}
-                        onChange={(e) => setFormState({ ...formState, financialLimitMax: Number(e.target.value.replace(/\D/g, "")) })}
-                        className="h-8.5 text-xs font-mono"
+                        value={(formState.financialLimitMax ?? 0).toLocaleString("fa-IR")}
+                        onChange={(e) => setFormState({ ...formState, financialLimitMax: parseAmount(e.target.value) })}
+                        className="h-8.5 text-xs font-mono font-bold"
                         dir="ltr"
                       />
                     </div>
@@ -917,7 +1068,7 @@ export default function Users() {
                       <label key={cc} className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"
-                          checked={formState.allowedCostCenters.includes(cc)}
+                          checked={(formState.allowedCostCenters || []).includes(cc)}
                           onChange={() => toggleCostCenterLimit(cc)}
                           className="rounded border-border text-primary h-4 w-4"
                         />
@@ -974,10 +1125,10 @@ export default function Users() {
                     <div className="space-y-1">
                       <Label className="text-xs font-semibold">سال مالی فعال</Label>
                       <Input
-                        value={formState.preferences.fiscalYear}
+                        value={(formState.preferences || {}).fiscalYear || "1405"}
                         onChange={(e) => setFormState({
                           ...formState,
-                          preferences: { ...formState.preferences, fiscalYear: e.target.value }
+                          preferences: { ...(formState.preferences || {}), fiscalYear: e.target.value }
                         })}
                         className="h-8.5 text-xs font-mono"
                       />
@@ -985,10 +1136,10 @@ export default function Users() {
                     <div className="space-y-1">
                       <Label className="text-xs font-semibold">شرکت پیش‌فرض</Label>
                       <Input
-                        value={formState.preferences.company}
+                        value={(formState.preferences || {}).company || "سازمان مرکزی مالی"}
                         onChange={(e) => setFormState({
                           ...formState,
-                          preferences: { ...formState.preferences, company: e.target.value }
+                          preferences: { ...(formState.preferences || {}), company: e.target.value }
                         })}
                         className="h-8.5 text-xs font-semibold"
                       />
@@ -996,10 +1147,10 @@ export default function Users() {
                     <div className="space-y-1">
                       <Label className="text-xs font-semibold">تم محیط برنامه</Label>
                       <select
-                        value={formState.preferences.theme}
+                        value={(formState.preferences || {}).theme || "light"}
                         onChange={(e) => setFormState({
                           ...formState,
-                          preferences: { ...formState.preferences, theme: e.target.value }
+                          preferences: { ...(formState.preferences || {}), theme: e.target.value }
                         })}
                         className="w-full h-8.5 text-xs rounded-lg border px-3 font-semibold"
                       >
@@ -1010,10 +1161,10 @@ export default function Users() {
                     <div className="space-y-1">
                       <Label className="text-xs font-semibold font-mono">فرمت تاریخ</Label>
                       <select
-                        value={formState.preferences.dateFormat}
+                        value={(formState.preferences || {}).dateFormat || "shamsi"}
                         onChange={(e) => setFormState({
                           ...formState,
-                          preferences: { ...formState.preferences, dateFormat: e.target.value }
+                          preferences: { ...(formState.preferences || {}), dateFormat: e.target.value }
                         })}
                         className="w-full h-8.5 text-xs rounded-lg border px-3 font-semibold"
                       >
@@ -1033,7 +1184,7 @@ export default function Users() {
                     <div className="w-56 space-y-1">
                       <Label className="text-[10px] font-bold text-muted-foreground block">کد پرسنلی متصل</Label>
                       <Input
-                        value={formState.employeeId}
+                        value={formState.employeeId || ""}
                         onChange={(e) => setFormState({ ...formState, employeeId: e.target.value })}
                         className="h-8.5 text-xs font-mono w-full"
                         placeholder="کد پرسنلی (مثلاً 10254)"
@@ -1049,7 +1200,7 @@ export default function Users() {
                   type="button"
                   variant="outline"
                   className="font-bold text-xs h-9 px-5 border-border"
-                  onClick={() => setShowFormCard(false)}
+                  onClick={handleCloseForm}
                 >
                   انصراف و بستن فرم
                 </Button>
@@ -1162,30 +1313,53 @@ export default function Users() {
                         </td>
                       </tr>
                     ) : (
-                      filteredUsers.map((user, idx) => (
-                        <tr key={user._id} className="h-11 hover:bg-muted/10">
-                          <td className="px-4 text-center font-mono font-semibold text-muted-foreground">{idx + 1}</td>
-                          <td className="px-4 font-mono font-bold text-foreground">{user.username}</td>
-                          <td className="px-4 font-bold text-foreground">{user.firstName || user.lastName ? `${user.firstName || ""} ${user.lastName || ""}` : "ادمین سیستم"}</td>
-                          <td className="px-4 font-semibold text-foreground/80">{user.position || "—"}</td>
-                          <td className="px-4 font-semibold text-foreground/80">{user.branch} / {user.department || "—"}</td>
-                          <td className="px-4 text-center">
-                            <Badge className={cn("font-medium",
-                              user.status === "فعال" ? "bg-emerald-50 text-emerald-800 border-emerald-200" :
-                                user.status === "غیرفعال" ? "bg-orange-50 text-orange-800 border-orange-200" :
-                                  "bg-rose-50 text-rose-800 border-rose-200"
-                            )}>
-                              {user.status || "فعال"}
-                            </Badge>
-                          </td>
-                          <td className="px-4 font-bold text-primary">{user.role}</td>
-                          <td className="px-4 font-mono text-[10px] text-muted-foreground">{user.lastLogin ? new Date(user.lastLogin).toLocaleString("fa-IR") : "—"}</td>
-                          <td className="px-4 text-center">
-                            {currentUser?.role === "admin" ? (
-                              <div className="flex items-center justify-center gap-2">
-                                <button onClick={() => handleEditUser(user)} className="text-muted-foreground hover:text-primary transition-colors" title="ویرایش">
-                                  <Edit2 className="h-4 w-4" />
-                                </button>
+                      filteredUsers.map((user, idx) => {
+                        const isBeingEdited = showFormCard && selectedUser && String(selectedUser._id || selectedUser.id) === String(user._id || user.id);
+                        return (
+                          <tr
+                            key={user._id || user.id || idx}
+                            className={cn(
+                              "h-11 transition-colors",
+                              isBeingEdited
+                                ? "bg-primary/10 border-l-4 border-l-primary font-semibold"
+                                : "hover:bg-muted/10"
+                            )}
+                          >
+                            <td className="px-4 text-center font-mono font-semibold text-muted-foreground">{idx + 1}</td>
+                            <td className="px-4 font-mono font-bold text-foreground">{user.username}</td>
+                            <td className="px-4 font-bold text-foreground">{user.firstName || user.lastName ? `${user.firstName || ""} ${user.lastName || ""}` : "ادمین سیستم"}</td>
+                            <td className="px-4 font-semibold text-foreground/80">{user.position || "—"}</td>
+                            <td className="px-4 font-semibold text-foreground/80">{user.branch} / {user.department || "—"}</td>
+                            <td className="px-4 text-center">
+                              <Badge className={cn("font-medium",
+                                user.status === "فعال" ? "bg-emerald-50 text-emerald-800 border-emerald-200" :
+                                  user.status === "غیرفعال" ? "bg-orange-50 text-orange-800 border-orange-200" :
+                                    "bg-rose-50 text-rose-800 border-rose-200"
+                              )}>
+                                {user.status || "فعال"}
+                              </Badge>
+                            </td>
+                            <td className="px-4 font-bold text-primary">
+                               <div>{user.role}</div>
+                               <div className="text-[10px] font-normal text-muted-foreground mt-0.5">
+                                 سقف نشست: <span className="font-bold text-foreground">{user.maxConcurrentSessions ?? 1}</span>
+                               </div>
+                             </td>
+                            <td className="px-4 font-mono text-[10px] text-muted-foreground">{user.lastLogin ? new Date(user.lastLogin).toLocaleString("fa-IR") : "—"}</td>
+                            <td className="px-4 text-center">
+                              {currentUser?.role === "admin" ? (
+                                <div className="flex items-center justify-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleEditUser(user)}
+                                    className={cn(
+                                      "transition-colors p-1.5 rounded-lg hover:bg-primary/10 cursor-pointer",
+                                      isBeingEdited ? "text-primary font-bold bg-primary/15" : "text-muted-foreground hover:text-primary"
+                                    )}
+                                    title="ویرایش کاربر"
+                                  >
+                                    <Edit2 className="h-4 w-4" />
+                                  </button>
                                 {(() => {
                                   const isSelf =
                                     (currentUser?._id && String(currentUser._id) === String(user._id)) ||
@@ -1217,7 +1391,8 @@ export default function Users() {
                             )}
                           </td>
                         </tr>
-                      ))
+                      );
+                    })
                     )}
                   </tbody>
                 </table>

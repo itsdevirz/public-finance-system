@@ -4,6 +4,7 @@ import { ObjectId } from "mongodb";
 import { hashPassword } from "../lib/auth.js";
 import { validatePassword } from "../lib/securityPolicy.js";
 import { logAuditEvent, AFTA_LOG_EVENT_TYPES, verifyLogIntegrity, signExistingLogs, extractClientIp } from "../lib/auditLogger.js";
+import { getShamsiDetails } from "../lib/shamsi.js";
 import { pruneExpiredSessions } from "../lib/sessionHelper.js";
 
 const router = new Hono();
@@ -12,7 +13,7 @@ const router = new Hono();
 router.get("/", async (c) => {
   try {
     const payload = (c.get as any)("jwtPayload") as any;
-    const isAdmin = payload.role === "admin";
+    const isAdmin = payload.role === "admin" || payload.role === "مدیر سیستم" || payload.username?.toLowerCase() === "admin";
     const db = getDb();
 
     if (!isAdmin) {
@@ -87,6 +88,7 @@ router.post("/", async (c) => {
       allowOutside: !!body.allowOutside,
       maxFailedAttempts: Math.max(1, Math.floor(Number(body.maxFailedAttempts) || 5)),
       lockoutDuration: Number(body.lockoutDuration) || 15,
+      maxConcurrentSessions: Math.max(1, Math.floor(Number(body.maxConcurrentSessions) || 1)),
       role: body.role || "حسابدار",
       permissions: body.permissions || {},
       financialLimitMin: Number(body.financialLimitMin) || 0,
@@ -111,11 +113,15 @@ router.post("/", async (c) => {
     const result = await db.collection("users").insertOne(doc);
     
     // Log audit action with USER_GROUP_CHANGE eventType (AFTA Clause 1 Table 4-2)
+    const shamsiCreate = getShamsiDetails(new Date());
+    const roleNameCreate = doc.role || doc.userGroup || "حسابدار";
+    const createActionText = `کاربر ${doc.username} در تاریخ ${shamsiCreate.shamsiDate} و ساعت ${shamsiCreate.shamsiTime} با نقش ${roleNameCreate} ساخته شد`;
+
     await logAuditEvent({
       userId: payload.sub,
       username: payload.username,
       userRole: payload.role === "admin" ? "مدیر" : payload.role,
-      action: `';Name: '${doc.username}' Icon: "" Description`,
+      action: createActionText,
       eventType: AFTA_LOG_EVENT_TYPES.USER_GROUP_CHANGE,
       resource: "گروه‌های کاربری",
       result: "SUCCESS",
@@ -127,7 +133,8 @@ router.post("/", async (c) => {
         operation: "افزودن",
         aftaClause: "4-2-1",
         name: doc.username,
-        description: doc.userGroup || doc.role || "",
+        description: roleNameCreate,
+        role: roleNameCreate,
         icon: "",
         targetUserId: result.insertedId.toHexString()
       }
@@ -145,7 +152,7 @@ router.put("/:id", async (c) => {
   try {
     const id = c.req.param("id");
     const payload = (c.get as any)("jwtPayload") as any;
-    const isAdmin = payload.role === "admin";
+    const isAdmin = payload.role === "admin" || payload.role === "مدیر سیستم" || payload.username?.toLowerCase() === "admin";
 
     // Non-admin can only edit their own user profile
     if (!isAdmin && payload.sub !== id) {
@@ -161,16 +168,21 @@ router.put("/:id", async (c) => {
       return c.json({ success: false, message: "کاربر مورد نظر یافت نشد" }, 404);
     }
 
-    // الزامات افتا: غیرمجاز بودن هرگونه تغییر در ویژگی‌های امنیتی و مشخصات کاربر دارای نشست فعال
+    // الزامات افتا: غیرمجاز بودن هرگونه تغییر در ویژگی‌های امنیتی و مشخصات کاربر دارای نشست فعال مجزا
     const secConfig = await db.collection("system_settings").findOne({ key: "security_policy" });
     const securityPolicy = secConfig?.value?.activeUserSecurityChangePolicy || {
       disallowChangeDuringActiveSession: true
     };
 
-    if (securityPolicy.disallowChangeDuringActiveSession !== false) {
+    const authHeader = c.req.header("authorization") || "";
+    const currentToken = authHeader.replace(/^Bearer\s+/i, "").trim();
+
+    if (securityPolicy.disallowChangeDuringActiveSession === true && !isAdmin) {
       const activeSessions = await pruneExpiredSessions(db, userObjectId);
-      if (activeSessions.length > 0) {
-        const errorMsgAction = "Message : کاربر مورد نظر در سامانه لاگین می باشد و امکان تغییر مشخصات آن وجود ندارد.";
+      // Filter out the current requesting session token
+      const otherActiveSessions = activeSessions.filter((s: any) => s.token !== currentToken);
+      if (otherActiveSessions.length > 0) {
+        const errorMsgAction = "Message : کاربر مورد نظر دارای نشست فعال دیگری در سامانه می باشد و امکان تغییر مشخصات آن وجود ندارد.";
         await logAuditEvent({
           userId: payload.sub,
           username: payload.username || "admin",
@@ -185,13 +197,13 @@ router.put("/:id", async (c) => {
           details: {
             targetUserId: id,
             targetUsername: existingUser.username,
-            reason: "کاربر مورد نظر در سامانه لاگین می باشد و امکان تغییر مشخصات آن وجود ندارد."
+            reason: "کاربر مورد نظر دارای نشست فعال دیگری در سامانه می باشد و امکان تغییر مشخصات آن وجود ندارد."
           }
         });
 
         return c.json({
           success: false,
-          message: "کاربر مورد نظر در سامانه لاگین می باشد و امکان تغییر مشخصات آن وجود ندارد."
+          message: "کاربر مورد نظر دارای نشست فعال دیگری در سامانه می باشد و امکان تغییر مشخصات آن وجود ندارد."
         }, 400);
       }
     }
@@ -224,8 +236,31 @@ router.put("/:id", async (c) => {
       updateData.allowOutside = body.allowOutside !== undefined ? !!body.allowOutside : existingUser.allowOutside;
       updateData.maxFailedAttempts = body.maxFailedAttempts !== undefined ? Math.max(1, Math.floor(Number(body.maxFailedAttempts) || 5)) : existingUser.maxFailedAttempts;
       updateData.lockoutDuration = body.lockoutDuration !== undefined ? Number(body.lockoutDuration) : existingUser.lockoutDuration;
-      updateData.role = body.role || existingUser.role;
-      updateData.permissions = body.permissions || existingUser.permissions;
+      updateData.maxConcurrentSessions = body.maxConcurrentSessions !== undefined ? Math.max(1, Math.floor(Number(body.maxConcurrentSessions) || 1)) : (existingUser.maxConcurrentSessions || 1);
+
+      // Prevent an admin from demoting their own admin role or the root 'admin' account
+      const isTargetRootAdmin = existingUser.username?.toLowerCase() === "admin";
+      const isSelfEdit = String(payload.sub) === String(id) || (payload.username && payload.username.toLowerCase() === existingUser.username?.toLowerCase());
+
+      if (isTargetRootAdmin || (isSelfEdit && (existingUser.role === "admin" || existingUser.role === "مدیر سیستم"))) {
+        updateData.role = "admin";
+      } else {
+        updateData.role = (body.role === "مدیر سیستم" ? "admin" : body.role) || existingUser.role;
+      }
+
+      // If final target role is admin/مدیر سیستم, force full unrestricted permissions
+      const isFinalRoleAdmin = updateData.role === "admin" || updateData.role === "مدیر سیستم" || existingUser.username?.toLowerCase() === "admin";
+      if (isFinalRoleAdmin) {
+        updateData.permissions = {
+          "doc.create": true, "doc.edit": true, "doc.delete": true, "doc.approve": true,
+          "acct.view": true, "acct.create": true,
+          "rep.trial": true, "rep.ledger": true, "rep.statement": true,
+          "set.users": true, "set.year": true, "audit.view": true
+        };
+      } else {
+        updateData.permissions = body.permissions || existingUser.permissions;
+      }
+
       updateData.financialLimitMin = body.financialLimitMin !== undefined ? Number(body.financialLimitMin) : existingUser.financialLimitMin;
       updateData.financialLimitMax = body.financialLimitMax !== undefined ? Number(body.financialLimitMax) : existingUser.financialLimitMax;
       updateData.allowedCostCenters = body.allowedCostCenters || existingUser.allowedCostCenters;
@@ -253,7 +288,7 @@ router.put("/:id", async (c) => {
       { $set: updateData }
     );
 
-    // Immediate enforcement: Revoke active sessions upon security attribute changes
+    // Immediate enforcement: Revoke active sessions upon security attribute changes, EXCLUDING current requesting token
     const isSecurityAttrChanged =
       (updateData.status && updateData.status !== existingUser.status) ||
       (updateData.role && updateData.role !== existingUser.role) ||
@@ -262,14 +297,18 @@ router.put("/:id", async (c) => {
 
     if (isSecurityAttrChanged) {
       const activeSessions = await db.collection("active_sessions").find({ userId: userObjectId }).toArray();
-      if (activeSessions.length > 0) {
-        const tokensToRevoke = activeSessions.map((s) => ({
+      const currentToken = (c.req.header("authorization") || "").replace(/^Bearer\s+/i, "").trim();
+
+      const sessionsToRevoke = activeSessions.filter((s: any) => s.token !== currentToken);
+      if (sessionsToRevoke.length > 0) {
+        const tokensToRevoke = sessionsToRevoke.map((s: any) => ({
           token: s.token,
           revokedAt: new Date().toISOString(),
-          reason: "ابطال فوری نشست به دلیل تغییر ویژگی‌های امنیتی کاربر"
+          reason: "ابطال فوری نشست‌های دیگر به دلیل تغییر ویژگی‌های امنیتی کاربر"
         }));
         await db.collection("revoked_tokens").insertMany(tokensToRevoke);
-        await db.collection("active_sessions").deleteMany({ userId: userObjectId });
+        const idsToRevoke = sessionsToRevoke.map((s: any) => s._id);
+        await db.collection("active_sessions").deleteMany({ _id: { $in: idsToRevoke } });
       }
     }
 
@@ -352,13 +391,16 @@ router.put("/:id", async (c) => {
     });
 
     if (changes.userGroup || changes.role) {
-      const oldGroupVal = existingUser.userGroup || existingUser.role || "dfgh";
-      const newGroupVal = body.userGroup || body.role || "dfgh";
+      const oldGroupVal = existingUser.userGroup || existingUser.role || "حسابدار";
+      const newGroupVal = body.userGroup || body.role || "حسابدار";
+      const shamsiEdit = getShamsiDetails(new Date());
+      const editActionText = `ویرایش نقش کاربر ${existingUser.username} از '${oldGroupVal}' به '${newGroupVal}' در تاریخ ${shamsiEdit.shamsiDate} و ساعت ${shamsiEdit.shamsiTime}`;
+
       await logAuditEvent({
         userId: payload.sub,
         username: payload.username,
         userRole: payload.role === "admin" ? "مدیر" : payload.role,
-        action: `'${oldGroupVal}' به "Description: '${newGroupVal}' تغییر یافت`,
+        action: editActionText,
         eventType: AFTA_LOG_EVENT_TYPES.USER_GROUP_CHANGE,
         resource: "گروه‌های کاربری",
         result: "SUCCESS",
@@ -369,8 +411,10 @@ router.put("/:id", async (c) => {
           tableName: "گروه‌های کاربری",
           operation: "ویرایش",
           aftaClause: "4-2-1",
+          name: existingUser.username,
           oldDescription: oldGroupVal,
           description: newGroupVal,
+          role: newGroupVal,
           targetUserId: id
         }
       });
@@ -411,11 +455,15 @@ router.delete("/:id", async (c) => {
     }
 
     // Log audit action with USER_GROUP_CHANGE (AFTA Clause 1 Table 4-2)
+    const shamsiDelete = getShamsiDetails(new Date());
+    const roleNameDelete = existingUser.role || existingUser.userGroup || "حسابدار";
+    const deleteActionText = `کاربر ${existingUser.username} با نقش ${roleNameDelete} در تاریخ ${shamsiDelete.shamsiDate} و ساعت ${shamsiDelete.shamsiTime} از سیستم حذف شد`;
+
     await logAuditEvent({
       userId: payload.sub,
       username: payload.username,
       userRole: payload.role === "admin" ? "مدیر" : payload.role,
-      action: `'Name: '${existingUser.username}' Icon: "" Description: '${existingUser.userGroup || existingUser.role || "dfgh"}'`,
+      action: deleteActionText,
       eventType: AFTA_LOG_EVENT_TYPES.USER_GROUP_CHANGE,
       resource: "گروه‌های کاربری",
       result: "SUCCESS",
@@ -427,7 +475,8 @@ router.delete("/:id", async (c) => {
         operation: "حذف",
         aftaClause: "4-2-1",
         name: existingUser.username,
-        description: existingUser.userGroup || existingUser.role || "dfgh",
+        description: roleNameDelete,
+        role: roleNameDelete,
         icon: "",
         targetUserId: id
       }

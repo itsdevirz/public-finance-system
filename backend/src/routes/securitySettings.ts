@@ -1097,7 +1097,7 @@ router.get("/active-sessions", async (c) => {
   try {
     const payload = (c.get as any)("jwtPayload");
     const db = getDb();
-    const isAdmin = payload?.role === "admin";
+    const isAdmin = payload?.role === "admin" || payload?.role === "مدیر سیستم" || payload?.username?.toLowerCase() === "admin";
     const userIdFilter = isAdmin ? undefined : payload?.sub;
 
     const sessions = await pruneExpiredSessions(db, userIdFilter);
@@ -1113,7 +1113,7 @@ router.post("/revoke-session", async (c) => {
     const payload = (c.get as any)("jwtPayload");
     const { token, sessionId } = await c.req.json();
     const db = getDb();
-    const isAdmin = payload?.role === "admin";
+    const isAdmin = payload?.role === "admin" || payload?.role === "مدیر سیستم" || payload?.username?.toLowerCase() === "admin";
 
     let queryFilter: any = {};
     if (token) {

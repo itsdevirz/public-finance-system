@@ -6,8 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import {
   RefreshCw, Landmark, ShieldCheck, TrendingUp, Wallet,
   ArrowLeftRight, Activity, Plus, FileText, CheckCircle2, Lock,
-  Building2, Layers, AlertTriangle, Clock, Hourglass, ArrowUpRight
+  Building2, Layers, AlertTriangle, Clock, Hourglass, ArrowUpRight,
+  Zap, BarChart3, Eye, FileSpreadsheet, CreditCard
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import api from "@/api";
 
 function fmtNum(n) {
@@ -20,6 +22,7 @@ export default function CreditsDashboardModule() {
   const [fiscalYear, setFiscalYear] = useState("1405");
   const [organization, setOrganization] = useState("وزارت امور اقتصادی و دارایی / دستگاه مرکزی");
   const [unit, setUnit] = useState("اداره کل امور مالی و ذیحسابی");
+  const [accountantTab, setAccountantTab] = useState("operational");
 
   const [loading, setLoading] = useState(false);
   const [statsData, setStatsData] = useState(null);
@@ -155,6 +158,284 @@ export default function CreditsDashboardModule() {
           </div>
         </div>
       </div>
+
+      {/* هاب ساختاری پیشنهاد حسابدار: تفکیک صفحات عملیاتی و کنترلی */}
+      <Card className="border border-primary/25 bg-gradient-to-br from-primary/5 via-card to-muted/30 shadow-sm overflow-hidden">
+        <CardHeader className="pb-3 border-b border-border/50 bg-card/60 backdrop-blur-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="h-10 w-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center font-black shadow-md shrink-0">
+                <BarChart3 className="h-5 w-5" />
+              </div>
+              <div>
+                <CardTitle className="text-base font-black tracking-tight text-foreground flex items-center gap-2">
+                  تفکیک صفحات حسابداری (پیشنهاد تخصصی)
+                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 text-[10px] font-extrabold px-2 py-0.5">
+                    توصیه حسابداران
+                  </Badge>
+                </CardTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  تفکیک هوشمند صفحات به دو حوزه «عملیات و ثبت اسناد» و «پایش، نظارت و کنترل مانده‌ها»
+                </p>
+              </div>
+            </div>
+
+            {/* سوئیچر تب */}
+            <div className="flex bg-muted/80 p-1 rounded-xl border border-border/60 shrink-0 self-start sm:self-auto">
+              <button
+                type="button"
+                onClick={() => setAccountantTab("operational")}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer",
+                  accountantTab === "operational"
+                    ? "bg-amber-500 text-white shadow-sm font-black"
+                    : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                )}
+              >
+                <Zap className="h-3.5 w-3.5" />
+                صفحات عملیاتی (۵ مورد)
+              </button>
+              <button
+                type="button"
+                onClick={() => setAccountantTab("control")}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer",
+                  accountantTab === "control"
+                    ? "bg-blue-600 text-white shadow-sm font-black"
+                    : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                )}
+              >
+                <BarChart3 className="h-3.5 w-3.5" />
+                صفحات کنترلی (۶ مورد)
+              </button>
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent className="p-4 pt-4">
+          {accountantTab === "operational" ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                  <Zap className="h-4 w-4 text-amber-500 animate-pulse" />
+                  صفحات عملیاتی (برای انجام کار و ثبت رویدادهای مالی)
+                </span>
+                <span className="text-[11px] text-muted-foreground font-semibold">ورود اطلاعات و صدور اسناد</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                {/* 1. ثبت بودجه */}
+                <div
+                  onClick={() => navigate("/credits/budget/approved")}
+                  className="group cursor-pointer p-3.5 rounded-xl border border-amber-200 dark:border-amber-950/60 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-400 transition-all shadow-xs flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="h-6 w-6 rounded-md bg-amber-500/20 text-amber-700 dark:text-amber-300 flex items-center justify-center font-mono font-bold text-xs">۱</span>
+                      <FileText className="h-4 w-4 text-amber-600 group-hover:scale-110 transition-transform" />
+                    </div>
+                    <h4 className="text-xs font-bold text-foreground">ثبت بودجه</h4>
+                    <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">ثبت ردیف‌های مصوب، برنامه‌ها و اصلاحات بودجه</p>
+                  </div>
+                  <div className="mt-3 pt-2 border-t border-amber-500/10 flex items-center text-[10px] font-bold text-amber-600 group-hover:translate-x-[-2px] transition-transform">
+                    ورود به ثبت بودجه ⬅️
+                  </div>
+                </div>
+
+                {/* 2. تخصیص */}
+                <div
+                  onClick={() => navigate("/credits/allocations/new")}
+                  className="group cursor-pointer p-3.5 rounded-xl border border-amber-200 dark:border-amber-950/60 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-400 transition-all shadow-xs flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="h-6 w-6 rounded-md bg-amber-500/20 text-amber-700 dark:text-amber-300 flex items-center justify-center font-mono font-bold text-xs">۲</span>
+                      <TrendingUp className="h-4 w-4 text-amber-600 group-hover:scale-110 transition-transform" />
+                    </div>
+                    <h4 className="text-xs font-bold text-foreground">تخصیص</h4>
+                    <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">ثبت تخصیص‌های اعتباری ابلاغی به واحدها</p>
+                  </div>
+                  <div className="mt-3 pt-2 border-t border-amber-500/10 flex items-center text-[10px] font-bold text-amber-600 group-hover:translate-x-[-2px] transition-transform">
+                    ورود به تخصیص ⬅️
+                  </div>
+                </div>
+
+                {/* 3. تأمین */}
+                <div
+                  onClick={() => navigate("/credits/commitments-funding/request")}
+                  className="group cursor-pointer p-3.5 rounded-xl border border-amber-200 dark:border-amber-950/60 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-400 transition-all shadow-xs flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="h-6 w-6 rounded-md bg-amber-500/20 text-amber-700 dark:text-amber-300 flex items-center justify-center font-mono font-bold text-xs">۳</span>
+                      <ShieldCheck className="h-4 w-4 text-amber-600 group-hover:scale-110 transition-transform" />
+                    </div>
+                    <h4 className="text-xs font-bold text-foreground">تأمین اعتبار</h4>
+                    <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">صدور گواهی و رزرو اعتبار پیش از تعهد</p>
+                  </div>
+                  <div className="mt-3 pt-2 border-t border-amber-500/10 flex items-center text-[10px] font-bold text-amber-600 group-hover:translate-x-[-2px] transition-transform">
+                    ورود به تأمین ⬅️
+                  </div>
+                </div>
+
+                {/* 4. تعهد */}
+                <div
+                  onClick={() => navigate("/credits/obligations/create")}
+                  className="group cursor-pointer p-3.5 rounded-xl border border-amber-200 dark:border-amber-950/60 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-400 transition-all shadow-xs flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="h-6 w-6 rounded-md bg-amber-500/20 text-amber-700 dark:text-amber-300 flex items-center justify-center font-mono font-bold text-xs">۴</span>
+                      <Lock className="h-4 w-4 text-amber-600 group-hover:scale-110 transition-transform" />
+                    </div>
+                    <h4 className="text-xs font-bold text-foreground">تعهد</h4>
+                    <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">ایجاد تعهد قطعی حقوقی برای قراردادها</p>
+                  </div>
+                  <div className="mt-3 pt-2 border-t border-amber-500/10 flex items-center text-[10px] font-bold text-amber-600 group-hover:translate-x-[-2px] transition-transform">
+                    ورود به ثبت تعهد ⬅️
+                  </div>
+                </div>
+
+                {/* 5. پرداخت */}
+                <div
+                  onClick={() => navigate("/credits/payments/remittance")}
+                  className="group cursor-pointer p-3.5 rounded-xl border border-amber-200 dark:border-amber-950/60 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-400 transition-all shadow-xs flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="h-6 w-6 rounded-md bg-amber-500/20 text-amber-700 dark:text-amber-300 flex items-center justify-center font-mono font-bold text-xs">۵</span>
+                      <Wallet className="h-4 w-4 text-amber-600 group-hover:scale-110 transition-transform" />
+                    </div>
+                    <h4 className="text-xs font-bold text-foreground">پرداخت</h4>
+                    <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">صدور حواله پرداختی و تسویه تعهدات</p>
+                  </div>
+                  <div className="mt-3 pt-2 border-t border-amber-500/10 flex items-center text-[10px] font-bold text-amber-600 group-hover:translate-x-[-2px] transition-transform">
+                    ورود به صدور حواله ⬅️
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold text-blue-700 dark:text-blue-400 flex items-center gap-1.5">
+                  <BarChart3 className="h-4 w-4 text-blue-600" />
+                  صفحات کنترلی (برای پایش، نظارت و فهم اتفاقات مالی)
+                </span>
+                <span className="text-[11px] text-muted-foreground font-semibold">مشاهده گزارش‌ها، مانده‌ها و زنجیره اعتبار</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+                {/* 1. مرور اعتبار */}
+                <div
+                  onClick={() => navigate("/credits/budget/review")}
+                  className="group cursor-pointer p-3.5 rounded-xl border border-blue-200 dark:border-blue-950/60 bg-blue-500/5 hover:bg-blue-500/10 hover:border-blue-400 transition-all shadow-xs flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="h-6 w-6 rounded-md bg-blue-500/20 text-blue-700 dark:text-blue-300 flex items-center justify-center font-mono font-bold text-xs">۱</span>
+                      <Eye className="h-4 w-4 text-blue-600 group-hover:scale-110 transition-transform" />
+                    </div>
+                    <h4 className="text-xs font-bold text-foreground">مرور اعتبار</h4>
+                    <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">زنجیره کامل اعتبار از مصوب تا پرداخت</p>
+                  </div>
+                  <div className="mt-3 pt-2 border-t border-blue-500/10 flex items-center text-[10px] font-bold text-blue-600 group-hover:translate-x-[-2px] transition-transform">
+                    مشاهده زنجیره ⬅️
+                  </div>
+                </div>
+
+                {/* 2. گردش اعتبار */}
+                <div
+                  onClick={() => navigate("/credits/ledger")}
+                  className="group cursor-pointer p-3.5 rounded-xl border border-blue-200 dark:border-blue-950/60 bg-blue-500/5 hover:bg-blue-500/10 hover:border-blue-400 transition-all shadow-xs flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="h-6 w-6 rounded-md bg-blue-500/20 text-blue-700 dark:text-blue-300 flex items-center justify-center font-mono font-bold text-xs">۲</span>
+                      <ArrowLeftRight className="h-4 w-4 text-blue-600 group-hover:scale-110 transition-transform" />
+                    </div>
+                    <h4 className="text-xs font-bold text-foreground">گردش اعتبار</h4>
+                    <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">دفتر تراکنش‌های بدهکار/بستانکار بودجه‌ای</p>
+                  </div>
+                  <div className="mt-3 pt-2 border-t border-blue-500/10 flex items-center text-[10px] font-bold text-blue-600 group-hover:translate-x-[-2px] transition-transform">
+                    مشاهده گردش ⬅️
+                  </div>
+                </div>
+
+                {/* 3. کارت اعتبار */}
+                <div
+                  onClick={() => navigate("/credits/card")}
+                  className="group cursor-pointer p-3.5 rounded-xl border border-blue-200 dark:border-blue-950/60 bg-blue-500/5 hover:bg-blue-500/10 hover:border-blue-400 transition-all shadow-xs flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="h-6 w-6 rounded-md bg-blue-500/20 text-blue-700 dark:text-blue-300 flex items-center justify-center font-mono font-bold text-xs">۳</span>
+                      <CreditCard className="h-4 w-4 text-blue-600 group-hover:scale-110 transition-transform" />
+                    </div>
+                    <h4 className="text-xs font-bold text-foreground">کارت اعتبار</h4>
+                    <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">شناسنامه جامع و خلاصه مانده هر ردیف</p>
+                  </div>
+                  <div className="mt-3 pt-2 border-t border-blue-500/10 flex items-center text-[10px] font-bold text-blue-600 group-hover:translate-x-[-2px] transition-transform">
+                    مشاهده شناسنامه ⬅️
+                  </div>
+                </div>
+
+                {/* 4. وضعیت تعهدات */}
+                <div
+                  onClick={() => navigate("/credits/obligations/review")}
+                  className="group cursor-pointer p-3.5 rounded-xl border border-blue-200 dark:border-blue-950/60 bg-blue-500/5 hover:bg-blue-500/10 hover:border-blue-400 transition-all shadow-xs flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="h-6 w-6 rounded-md bg-blue-500/20 text-blue-700 dark:text-blue-300 flex items-center justify-center font-mono font-bold text-xs">۴</span>
+                      <CheckCircle2 className="h-4 w-4 text-blue-600 group-hover:scale-110 transition-transform" />
+                    </div>
+                    <h4 className="text-xs font-bold text-foreground">وضعیت تعهدات</h4>
+                    <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">پایش تعهدات قطعی، تسویه‌شده و معوق</p>
+                  </div>
+                  <div className="mt-3 pt-2 border-t border-blue-500/10 flex items-center text-[10px] font-bold text-blue-600 group-hover:translate-x-[-2px] transition-transform">
+                    پایش تعهدات ⬅️
+                  </div>
+                </div>
+
+                {/* 5. وضعیت پرداخت */}
+                <div
+                  onClick={() => navigate("/credits/payments/review")}
+                  className="group cursor-pointer p-3.5 rounded-xl border border-blue-200 dark:border-blue-950/60 bg-blue-500/5 hover:bg-blue-500/10 hover:border-blue-400 transition-all shadow-xs flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="h-6 w-6 rounded-md bg-blue-500/20 text-blue-700 dark:text-blue-300 flex items-center justify-center font-mono font-bold text-xs">۵</span>
+                      <Wallet className="h-4 w-4 text-blue-600 group-hover:scale-110 transition-transform" />
+                    </div>
+                    <h4 className="text-xs font-bold text-foreground">وضعیت پرداخت</h4>
+                    <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">پیگیری وضعیت حواله‌ها و پرداختی‌ها</p>
+                  </div>
+                  <div className="mt-3 pt-2 border-t border-blue-500/10 flex items-center text-[10px] font-bold text-blue-600 group-hover:translate-x-[-2px] transition-transform">
+                    پیگیری پرداختی‌ها ⬅️
+                  </div>
+                </div>
+
+                {/* 6. گزارش‌ها */}
+                <div
+                  onClick={() => navigate("/reports/budget")}
+                  className="group cursor-pointer p-3.5 rounded-xl border border-blue-200 dark:border-blue-950/60 bg-blue-500/5 hover:bg-blue-500/10 hover:border-blue-400 transition-all shadow-xs flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="h-6 w-6 rounded-md bg-blue-500/20 text-blue-700 dark:text-blue-300 flex items-center justify-center font-mono font-bold text-xs">۶</span>
+                      <FileSpreadsheet className="h-4 w-4 text-blue-600 group-hover:scale-110 transition-transform" />
+                    </div>
+                    <h4 className="text-xs font-bold text-foreground">گزارش‌ها</h4>
+                    <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">گزارشات بودجه‌ای، انحرافات و سناما</p>
+                  </div>
+                  <div className="mt-3 pt-2 border-t border-blue-500/10 flex items-center text-[10px] font-bold text-blue-600 group-hover:translate-x-[-2px] transition-transform">
+                    مشاهده گزارشات ⬅️
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* ۶ کارت شاخص اصلی شفاف و پرکاربرد */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">

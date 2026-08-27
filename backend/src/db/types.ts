@@ -103,6 +103,9 @@ export interface Agreement {
   program_code?: string;
   activity_code?: string;
   chapter_code?: string;
+  article_code?: string;
+  moein_code?: string;
+  moein_title?: string;
   status: "draft" | "confirmed" | "allocated" | "delegated";
   description?: string;
 }

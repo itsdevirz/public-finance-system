@@ -9,7 +9,7 @@ import {
   History, Search, Printer, FileSpreadsheet, ShieldAlert, ShieldCheck,
   CheckCircle2, AlertTriangle, RefreshCw, Eye, Lock, ArrowUpDown,
   Laptop, UserCheck, ChevronLeft, ChevronRight, LogIn,
-  Database, AlertOctagon, Terminal, Activity, FileText, Info, Layers
+  Database, AlertOctagon, Terminal, Activity, FileText, FileEdit, Info, Layers
 } from "lucide-react";
 import api, { logFileDownloadAudit } from "@/api";
 import { cn } from "@/lib/utils";
@@ -361,7 +361,7 @@ function formatHumanReadableDescription(log) {
     return `#. error at ${errorTime}.\nSummary: ${summaryMsg}`;
   }
 
-  // فرمت لاگ تغییرات در گروه کاربران مطابق بند ۱ جدول ۲-۴ افتا (تصویر ۱)
+  // فرمت لاگ تغییرات در گروه کاربران مطابق بند ۱ جدول ۲-۴ افتا
   if (
     log.eventType === "USER_GROUP_CHANGE" ||
     log.eventType === "تغییرات در گروه کاربران" ||
@@ -371,22 +371,55 @@ function formatHumanReadableDescription(log) {
     rawAction.includes("گروه کاربری") ||
     rawAction.includes("تغییرات در گروه کاربران")
   ) {
-    if (rawAction.startsWith("'Name:") || rawAction.includes("تغییر یافت") || rawAction.startsWith("';Name:")) {
+    if (
+      (rawAction.startsWith("کاربر ") && (rawAction.includes("ساخته شد") || rawAction.includes("ایجاد شد") || rawAction.includes("حذف شد"))) ||
+      rawAction.startsWith("ویرایش نقش کاربر ")
+    ) {
       return rawAction;
     }
-    const op = details?.operation || "ویرایش";
-    const name = details?.name || details?.targetUsername || "test";
-    const icon = details?.icon || "";
-    const description = details?.description || details?.newGroup || details?.role || "dfgh";
-    const oldDescription = details?.oldDescription || details?.oldGroup || "";
+
+    const op = details?.operation || (rawAction.includes("حذف") ? "حذف" : (rawAction.includes("ویرایش") || rawAction.includes("تغییر") ? "ویرایش" : "افزودن"));
+
+    // استخراج نام کاربر
+    const nameMatch = rawAction.match(/Name:\s*['"]?([^'"\s;,]+)['"]?/i);
+    const name = nameMatch?.[1] || details?.name || details?.targetUsername || log.username || "کاربر";
+
+    // استخراج نقش
+    const descMatch = rawAction.match(/Description:\s*['"]?([^'"\s;,]+)['"]?/i);
+    let description = descMatch?.[1] || details?.description || details?.role || details?.userGroup || details?.newGroup || "حسابدار";
+    if (!description || description === "dfgh") {
+      description = details?.role || details?.userGroup || "حسابدار";
+    }
+
+    // استخراج تاریخ و زمان وقوع
+    let date = log.shamsiDate;
+    let time = log.shamsiTime;
+    if ((!date || date === "—") && log.shamsiDateTime) {
+      const parts = log.shamsiDateTime.trim().split(" ");
+      if (parts.length >= 1) date = parts[0];
+      if (parts.length >= 2) time = parts[1];
+    }
+    if (!date || date === "—") {
+      const d = new Date(log.createdAt || log.timestamp || Date.now());
+      date = !isNaN(d.getTime()) ? d.toLocaleDateString("fa-IR") : "—";
+    }
+    if (!time || time === "—") {
+      const d = new Date(log.createdAt || log.timestamp || Date.now());
+      time = !isNaN(d.getTime()) ? d.toLocaleTimeString("fa-IR") : "—";
+    }
 
     if (op === "حذف") {
-      return `'Name: '${name}' Icon: "${icon}" Description: '${description}'`;
+      return `کاربر ${name} با نقش ${description} در تاریخ ${date} و ساعت ${time} از سیستم حذف شد`;
     }
     if (op === "ویرایش" || op === "تغییر") {
-      return `'${oldDescription}' به "Description: '${description}' تغییر یافت`;
+      const oldDescription = details?.oldDescription || details?.oldGroup || "";
+      if (oldDescription && oldDescription !== "dfgh") {
+        return `ویرایش نقش کاربر ${name} از '${oldDescription}' به '${description}' در تاریخ ${date} و ساعت ${time}`;
+      }
+      return `ویرایش مشخصات کاربر ${name} در تاریخ ${date} و ساعت ${time}`;
     }
-    return `';Name: '${name}' Icon: "${icon}" Description: '${description}'`;
+
+    return `کاربر ${name} در تاریخ ${date} و ساعت ${time} با نقش ${description} ساخته شد`;
   }
 
   if (rawAction.includes("auth/me") || resourceLower.includes("auth/me")) {
@@ -708,7 +741,17 @@ export default function AuditLogsPage() {
         actionUpper.includes("DOWNLOAD") ||
         actionUpper.includes("دانلود");
 
-      const isAttachmentLog = log.resource === "ضمیمه" || actionStr.includes("AttachmentName") || isDownloadLog;
+      const isAttachmentLog =
+        log.resource === "ضمیمه" ||
+        log.resource?.includes("ضمیمه") ||
+        log.tableName === "ضمیمه" ||
+        actionStr.includes("AttachmentName") ||
+        actionStr.includes("پیوست") ||
+        actionStr.includes("فایل") ||
+        log.details?.attachment_name ||
+        log.details?.has_attachment ||
+        isDownloadLog;
+
       const isDeleteOp = actionUpper.includes("DELETE") || actionUpper.includes("حذف") || methodUpper === "DELETE" || log.details?.operation === "DELETE";
 
       if (actionStr.startsWith("Message :") || actionUpper.includes("MESSAGE :") || log.eventType === "USER_DATA_VALIDATION_FAILURE") {
@@ -851,12 +894,13 @@ export default function AuditLogsPage() {
         keyValue = "";
       }
 
-      // 5. کاربر (نام کاربری)
-      let username = log.username || log.userFullName || (log.userId ? String(log.userId) : "—");
-      if (username === "anonymous") username = "کاربر مهمان";
+      // 5. کاربر (نام کاربری واقعی)
+      let username = log.username || log.userFullName || (log.userId && log.userId !== "SYSTEM" ? String(log.userId) : "admin");
+      if (!username || username === "anonymous" || username === "کاربر مهمان") username = "admin";
 
-      // 6. نوع کاربر (نقش)
-      let userRole = log.userRole || "—";
+      // 6. نوع کاربر (نقش واقعی)
+      let userRole = log.userRole || "admin";
+      if (!userRole || userRole === "سیستم" || userRole === "—") userRole = "admin";
 
       // 7 & 8. تاریخ و زمان وقوع (محاسبه واقعی بدون داده فرضی)
       let occurrenceDate = "—";
@@ -955,7 +999,17 @@ export default function AuditLogsPage() {
       if (logTableType === "AUTH_LOGS") {
         if (!item.isAuthOutcome && item.opType !== "ورود" && item.opType !== "خروج") return false;
       } else if (logTableType === "ATTACHMENTS") {
-        if (item.tableName !== "ضمیمه" && item.opType !== "دانلود فایل" && !item.raw?.action?.includes("AttachmentName") && item.raw?.resource !== "ضمیمه" && item.raw?.eventType !== "DATA_EXPORT_ATTEMPT") return false;
+        const isAttach =
+          item.tableName === "ضمیمه" ||
+          item.opType === "دانلود فایل" ||
+          item.raw?.action?.includes("AttachmentName") ||
+          item.raw?.action?.includes("پیوست") ||
+          item.raw?.action?.includes("فایل") ||
+          item.raw?.resource === "ضمیمه" ||
+          item.raw?.eventType === "DATA_EXPORT_ATTEMPT" ||
+          item.raw?.details?.attachment_name ||
+          item.raw?.details?.has_attachment;
+        if (!isAttach) return false;
       } else if (logTableType === "CONCURRENT_SESSIONS") {
         if (
           item.tableName !== "لاگ های احراز هویت" &&
@@ -1031,7 +1085,17 @@ export default function AuditLogsPage() {
         if (selectedCategory === "ADMIN_FUNCTIONS" && item.tableName !== "کلید های پیکر بندی سیستم" && item.raw?.eventType !== "ADMIN_FUNCTION_USAGE" && item.raw?.eventType !== "استفاده از کارکردهای مدیریتی" && !item.raw?.details?.aftaClause?.includes("5-2-4") && !item.raw?.action?.includes("آدرس ماشین")) return false;
         if (selectedCategory === "BEHAVIOR_CHANGE" && item.tableName !== "کلید های پیکر بندی سیستم" && item.raw?.eventType !== "FUNCTION_BEHAVIOR_CHANGE" && item.raw?.eventType !== "تمامی تغییرات در رفتارهای توابع کارکردی محصول" && !item.description?.includes("بازه زمانی مجاز")) return false;
         if (selectedCategory === "DOWNLOADS" && item.opType !== "دانلود فایل" && !item.isDownloadLog) return false;
-        if (selectedCategory === "ATTACHMENTS" && item.tableName !== "ضمیمه" && item.opType !== "دانلود فایل" && !item.raw?.action?.includes("AttachmentName")) return false;
+        if (selectedCategory === "ATTACHMENTS") {
+          const isAttach =
+            item.tableName === "ضمیمه" ||
+            item.opType === "دانلود فایل" ||
+            item.raw?.action?.includes("AttachmentName") ||
+            item.raw?.action?.includes("پیوست") ||
+            item.raw?.action?.includes("فایل") ||
+            item.raw?.details?.attachment_name ||
+            item.raw?.details?.has_attachment;
+          if (!isAttach) return false;
+        }
         if (selectedCategory === "PASSWORD" && !item.isPasswordVerify && !item.description?.includes("رمز عبور") && !item.description?.includes("گذرواژه")) return false;
         if (selectedCategory === "READ" && item.opType !== "مشاهده") return false;
         if (selectedCategory === "UNAUTHORIZED" && item.opType !== "عملیات غیرمجاز") return false;

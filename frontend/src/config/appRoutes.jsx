@@ -18,6 +18,7 @@ const FundingModule = lazy(() => import("@/modules/credits/FundingModule"));
 const ObligationModule = lazy(() => import("@/modules/credits/ObligationModule"));
 const RealizationModule = lazy(() => import("@/modules/credits/RealizationModule"));
 const PaymentWorkflowModule = lazy(() => import("@/modules/credits/PaymentWorkflowModule"));
+const CreditCardModule = lazy(() => import("@/modules/credits/CreditCardModule"));
 const CheckIssuance = lazy(() => import("@/modules/treasury/pages/CheckIssuance"));
 const BankForm = lazy(() => import("@/modules/treasury/pages/BankForm"));
 const CreditForm = lazy(() => import("@/pages/CreditForm"));
@@ -104,13 +105,13 @@ const BalanceSheet = lazy(() => import("@/modules/accounting/pages/BalanceSheet"
 const AccountReview = lazy(() => import("@/modules/accounting/pages/AccountReview"));
 const AiChat = lazy(() => import("@/pages/AiChat"));
 // ─── گزارشات ──────────────────────────────────────────────────────────────
-const DocumentsReport  = lazy(() => import("@/modules/reports/pages/DocumentsReport"));
-const AccountsReport   = lazy(() => import("@/modules/reports/pages/AccountsReport"));
-const BudgetReport     = lazy(() => import("@/modules/reports/pages/BudgetReport"));
-const PaymentsReport   = lazy(() => import("@/modules/reports/pages/PaymentsReport"));
-const FinancialReport  = lazy(() => import("@/modules/reports/pages/FinancialReport"));
+const DocumentsReport = lazy(() => import("@/modules/reports/pages/DocumentsReport"));
+const AccountsReport = lazy(() => import("@/modules/reports/pages/AccountsReport"));
+const BudgetReport = lazy(() => import("@/modules/reports/pages/BudgetReport"));
+const PaymentsReport = lazy(() => import("@/modules/reports/pages/PaymentsReport"));
+const FinancialReport = lazy(() => import("@/modules/reports/pages/FinancialReport"));
 const ManagementReport = lazy(() => import("@/modules/reports/pages/ManagementReport"));
-const SanamaExport     = lazy(() => import("@/modules/reports/pages/SanamaExport"));
+const SanamaExport = lazy(() => import("@/modules/reports/pages/SanamaExport"));
 
 // Contract Reports
 const ContractDashboardReport = lazy(() => import("@/pages/ContractDashboardReport"));
@@ -136,56 +137,56 @@ export const PAGE_COMPONENTS = {
   // ─── گزارشات ─────────────────────────────────────────────────────────────
   "/reports": DocumentsReport,
   // گزارش‌های اسناد حسابداری
-  "/reports/documents":                DocumentsReport,
-  "/reports/documents/list":           DocumentsReport,
-  "/reports/documents/journal":        DocumentsReport,
+  "/reports/documents": DocumentsReport,
+  "/reports/documents/list": DocumentsReport,
+  "/reports/documents/journal": DocumentsReport,
   "/reports/documents/general-ledger": DocumentsReport,
-  "/reports/documents/moein-ledger":   DocumentsReport,
-  "/reports/documents/turnover":       DocumentsReport,
-  "/reports/documents/status":         DocumentsReport,
+  "/reports/documents/moein-ledger": DocumentsReport,
+  "/reports/documents/turnover": DocumentsReport,
+  "/reports/documents/status": DocumentsReport,
   // گزارش‌های حساب‌ها
-  "/reports/accounts":                 AccountsReport,
-  "/reports/accounts/trial-balance":   AccountsReport,
-  "/reports/accounts/turnover":        AccountsReport,
-  "/reports/accounts/balance":         AccountsReport,
+  "/reports/accounts": AccountsReport,
+  "/reports/accounts/trial-balance": AccountsReport,
+  "/reports/accounts/turnover": AccountsReport,
+  "/reports/accounts/balance": AccountsReport,
   "/reports/accounts/detail-turnover": AccountsReport,
-  "/reports/accounts/no-turnover":     AccountsReport,
+  "/reports/accounts/no-turnover": AccountsReport,
   // گزارش‌های بودجه
-  "/reports/budget":                   BudgetReport,
-  "/reports/budget/performance":       BudgetReport,
-  "/reports/budget/comparison":        BudgetReport,
-  "/reports/budget/remaining":         BudgetReport,
-  "/reports/budget/allocation":        BudgetReport,
+  "/reports/budget": BudgetReport,
+  "/reports/budget/performance": BudgetReport,
+  "/reports/budget/comparison": BudgetReport,
+  "/reports/budget/remaining": BudgetReport,
+  "/reports/budget/allocation": BudgetReport,
   // گزارش‌های دریافت و پرداخت
-  "/reports/payments":                 PaymentsReport,
-  "/reports/payments/receipts":        PaymentsReport,
-  "/reports/payments/payments":        PaymentsReport,
-  "/reports/payments/cash-turnover":   PaymentsReport,
-  "/reports/payments/bank-turnover":   PaymentsReport,
-  "/reports/payments/bank-reconcile":  PaymentsReport,
-  "/reports/payments/checks":          PaymentsReport,
+  "/reports/payments": PaymentsReport,
+  "/reports/payments/receipts": PaymentsReport,
+  "/reports/payments/payments": PaymentsReport,
+  "/reports/payments/cash-turnover": PaymentsReport,
+  "/reports/payments/bank-turnover": PaymentsReport,
+  "/reports/payments/bank-reconcile": PaymentsReport,
+  "/reports/payments/checks": PaymentsReport,
   // گزارش‌های مالی
-  "/reports/financial":                        FinancialReport,
-  "/reports/financial/balance-sheet":          FinancialReport,
-  "/reports/financial/income-statement":       FinancialReport,
-  "/reports/financial/revenue-expense":        FinancialReport,
-  "/reports/financial/cash-flow":              FinancialReport,
+  "/reports/financial": FinancialReport,
+  "/reports/financial/balance-sheet": FinancialReport,
+  "/reports/financial/income-statement": FinancialReport,
+  "/reports/financial/revenue-expense": FinancialReport,
+  "/reports/financial/cash-flow": FinancialReport,
   // گزارش‌های مدیریتی
-  "/reports/management":                       ManagementReport,
-  "/reports/management/dashboard":             ManagementReport,
-  "/reports/management/analytical":            ManagementReport,
-  "/reports/management/period-compare":        ManagementReport,
-  "/reports/management/cost-analysis":         ManagementReport,
-  "/reports/sanama-export":                    SanamaExport,
-  
+  "/reports/management": ManagementReport,
+  "/reports/management/dashboard": ManagementReport,
+  "/reports/management/analytical": ManagementReport,
+  "/reports/management/period-compare": ManagementReport,
+  "/reports/management/cost-analysis": ManagementReport,
+  "/reports/sanama-export": SanamaExport,
+
   // Contract Reports
-  "/reports/contracts/dashboard":              ContractDashboardReport,
-  "/reports/contracts/list":                   ContractListReport,
-  "/reports/contracts/payments":               ContractPaymentsReport,
-  "/reports/contracts/guarantees":             ContractGuaranteesReport,
-  "/reports/contracts/deductions":             ContractDeductionsReport,
-  "/reports/contracts/change-25":              ContractChangesReport,
-  "/reports/contracts/by-party":               ContractPartiesReport,
+  "/reports/contracts/dashboard": ContractDashboardReport,
+  "/reports/contracts/list": ContractListReport,
+  "/reports/contracts/payments": ContractPaymentsReport,
+  "/reports/contracts/guarantees": ContractGuaranteesReport,
+  "/reports/contracts/deductions": ContractDeductionsReport,
+  "/reports/contracts/change-25": ContractChangesReport,
+  "/reports/contracts/by-party": ContractPartiesReport,
 
   "/basic-info": BasicInfo,
   "/basic-info/account-heads": AccountHeads,
@@ -227,13 +228,17 @@ export const PAGE_COMPONENTS = {
   "/basic-info/definitions/check": CheckIssuance,
   "/basic-info/bookkeeping": Bookkeeping,
   "/document-setup": DocumentSetup,
-  "/document-setup/calc-form":  DocumentSetup,
+  "/document-setup/calc-form": DocumentSetup,
   "/document-setup/manual-doc": ManualDocument,
-  "/document-setup/auto-doc":   AutoDocument,
-  "/document-setup/copy-doc":   CopyDocument,
-  "/document-setup/docs-list":  DocumentsList,
+  "/document-setup/auto-doc": AutoDocument,
+  "/document-setup/copy-doc": CopyDocument,
+  "/document-setup/docs-list": DocumentsList,
   "/review": Review,
   "/credits": CreditsDashboardModule,
+  "/credits/card": CreditCardModule,
+  "/credits/ledger": BudgetModule,
+  "/credits/operational": CreditsDashboardModule,
+  "/credits/control": CreditsDashboardModule,
   "/credits/budget": BudgetModule,
   "/credits/budget/approved": BudgetModule,
   "/credits/budget/amendments": BudgetModule,
@@ -384,11 +389,11 @@ export const PAGE_COMPONENTS = {
   "/bookkeeping/bank-reconciliation/account-info-read": BankStatementRead,
   "/bookkeeping/bank-reconciliation/account-reconciliation": AccountReconciliation,
   "/bookkeeping/ledger-reports": Bookkeeping,
-  "/bookkeeping/ledger-reports/account-review":        AccountReview,
-  "/bookkeeping/ledger-reports/account-review-main":   AccountReview,
-  "/bookkeeping/ledger-reports/account-review-group":  AccountReview,
+  "/bookkeeping/ledger-reports/account-review": AccountReview,
+  "/bookkeeping/ledger-reports/account-review-main": AccountReview,
+  "/bookkeeping/ledger-reports/account-review-group": AccountReview,
   "/bookkeeping/ledger-reports/account-review-person": AccountReview,
-  "/bookkeeping/ledger-reports/general-ledger":        Bookkeeping,
+  "/bookkeeping/ledger-reports/general-ledger": Bookkeeping,
   "/bookkeeping/final-documents/finalize-doc": Bookkeeping,
   "/bookkeeping/final-documents/unfinalize-doc": Bookkeeping,
   "/bookkeeping/budget-execution": Bookkeeping,

@@ -196,6 +196,7 @@ export default function Sidebar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [sessionsModalOpen, setSessionsModalOpen] = useState(false);
+  const isAdminUser = user?.role === "admin" || user?.role === "مدیر سیستم" || user?.username?.toLowerCase() === "admin";
 
   return (
     <>
@@ -236,15 +237,17 @@ export default function Sidebar() {
             </div>
           </div>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setSessionsModalOpen(true)}
-            className="h-8 w-full justify-center rounded-lg text-xs font-semibold text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground border border-sidebar-border/60 shadow-sm gap-1.5"
-          >
-            <Laptop className="h-3.5 w-3.5 text-blue-500" />
-            نشست‌های فعال من
-          </Button>
+          {isAdminUser && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSessionsModalOpen(true)}
+              className="h-8 w-full justify-center rounded-lg text-xs font-semibold text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground border border-sidebar-border/60 shadow-sm gap-1.5 cursor-pointer"
+            >
+              <Laptop className="h-3.5 w-3.5 text-blue-500" />
+              نشست‌های فعال
+            </Button>
+          )}
 
           <Button
             variant="ghost"

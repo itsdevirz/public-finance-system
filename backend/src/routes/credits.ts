@@ -2,6 +2,8 @@ import { Hono } from "hono";
 import { ObjectId } from "mongodb";
 import { getDb } from "../db/index.js";
 import type { Agreement, CreditAllocation, CreditReceipt, CreditDelegation } from "../db/types.js";
+import { logAuditEvent, extractClientIp } from "../lib/auditLogger.js";
+import { verifyToken } from "../lib/auth.js";
 
 const router = new Hono();
 
@@ -9,6 +11,39 @@ function serialize(doc: Record<string, unknown>) {
   return JSON.parse(JSON.stringify(doc, (_k, v) =>
     v instanceof ObjectId ? v.toHexString() : v
   ));
+}
+
+function getAuthUser(c: any) {
+  try {
+    const payload = (c.get as any)("jwtPayload");
+    if (payload && payload.username) {
+      return {
+        userId: payload.sub || payload.id || "admin",
+        username: payload.username,
+        userFullName: payload.fullName || payload.username,
+        userRole: payload.role || "admin"
+      };
+    }
+    const header = c.req.header("Authorization");
+    if (header?.startsWith("Bearer ")) {
+      const rawToken = header.slice(7);
+      const decoded = verifyToken(rawToken);
+      if (decoded && decoded.username) {
+        return {
+          userId: decoded.sub || decoded.id || "admin",
+          username: decoded.username,
+          userFullName: decoded.fullName || decoded.username,
+          userRole: decoded.role || "admin"
+        };
+      }
+    }
+  } catch (_) {}
+  return {
+    userId: "admin",
+    username: "admin",
+    userFullName: "admin",
+    userRole: "admin"
+  };
 }
 
 // ─── Agreements ───────────────────────────────────────────────────────────────
@@ -20,11 +55,38 @@ router.get("/agreements", async (c) => {
 
 router.post("/agreements", async (c) => {
   const body = await c.req.json();
-  const agreement_number = `AGR-${body.fiscal_year}-${Date.now()}`;
+  const agreement_number = body.agreement_number || `AGR-${body.fiscal_year || 1405}-${Date.now()}`;
   const result = await getDb().collection<Agreement>("agreements").insertOne({
     ...body, agreement_number, status: body.status ?? "draft",
   });
   const inserted = await getDb().collection<Agreement>("agreements").findOne({ _id: result.insertedId });
+  const authUser = getAuthUser(c);
+
+  // ثبت‌نشان‌های افتا (Audit Logging)
+  try {
+    await logAuditEvent({
+      ...authUser,
+      action: body.attachment_name ? `ثبت بودجه مصوب جدید همراه با پیوست «${body.attachment_name}»` : "ثبت بودجه مصوب جدید",
+      resource: `بودجه مصوب: ${body.title || agreement_number}`,
+      result: "SUCCESS",
+      ip: extractClientIp(c),
+      userAgent: c.req.header("user-agent") || "",
+      eventType: body.attachment_name ? "USER_DATA_VALIDATION_SUCCESS" : "ADMIN_FUNCTION_USAGE",
+      details: {
+        agreement_id: result.insertedId.toHexString(),
+        agreement_number,
+        title: body.title,
+        total_amount: body.total_amount,
+        fiscal_year: body.fiscal_year,
+        status: body.status || "draft",
+        has_attachment: !!body.attachment_name,
+        attachment_name: body.attachment_name || null
+      }
+    });
+  } catch (err) {
+    console.error("Audit log error on agreement insert:", err);
+  }
+
   return c.json({ message: "موافقتنامه ثبت شد", data: serialize(inserted as Record<string, unknown>) }, 201);
 });
 
@@ -34,12 +96,50 @@ router.put("/agreements/:id", async (c) => {
   try { oid = new ObjectId(id); } catch { return c.json({ message: "شناسه نامعتبر است" }, 400); }
   const body = await c.req.json();
   const { _id, ...updateData } = body;
+  const authUser = getAuthUser(c);
+
+  const oldDoc = await getDb().collection<Agreement>("agreements").findOne({ _id: oid });
+
   const result = await getDb().collection<Agreement>("agreements").findOneAndUpdate(
     { _id: oid },
     { $set: { ...updateData } },
     { returnDocument: "after" }
   );
   if (!result) return c.json({ message: "موافقتنامه یافت نشد" }, 404);
+
+  // ثبت‌نشان تغییر پیوست یا ویرایش موافقتنامه
+  try {
+    const attachmentChanged = body.attachment_name && body.attachment_name !== oldDoc?.attachment_name;
+    const statusChanged = body.status && body.status !== oldDoc?.status;
+
+    let auditAction = "ویرایش بودجه مصوب";
+    if (attachmentChanged) {
+      auditAction = `پیوست فایل «${body.attachment_name}» به بودجه مصوب ${oldDoc?.title || ""}`;
+    } else if (statusChanged) {
+      auditAction = `تغییر وضعیت بودجه مصوب به «${body.status}»`;
+    }
+
+    await logAuditEvent({
+      ...authUser,
+      action: auditAction,
+      resource: `بودجه مصوب: ${oldDoc?.title || result.title || id}`,
+      result: "SUCCESS",
+      ip: extractClientIp(c),
+      userAgent: c.req.header("user-agent") || "",
+      eventType: attachmentChanged ? "USER_DATA_VALIDATION_SUCCESS" : "ADMIN_FUNCTION_USAGE",
+      details: {
+        agreement_id: id,
+        title: result.title,
+        old_status: oldDoc?.status,
+        new_status: result.status,
+        has_attachment: !!result.attachment_name,
+        attachment_name: result.attachment_name || null
+      }
+    });
+  } catch (err) {
+    console.error("Audit log error on agreement update:", err);
+  }
+
   return c.json({ message: "موافقتنامه با موفقیت ویرایش شد", data: serialize(result as Record<string, unknown>) });
 });
 
@@ -47,8 +147,26 @@ router.delete("/agreements/:id", async (c) => {
   const id = c.req.param("id");
   let oid: ObjectId;
   try { oid = new ObjectId(id); } catch { return c.json({ message: "شناسه نامعتبر است" }, 400); }
+  const authUser = getAuthUser(c);
+  const oldDoc = await getDb().collection<Agreement>("agreements").findOne({ _id: oid });
   const result = await getDb().collection("agreements").deleteOne({ _id: oid });
   if (result.deletedCount === 0) return c.json({ message: "موافقتنامه یافت نشد" }, 404);
+
+  try {
+    await logAuditEvent({
+      ...authUser,
+      action: "حذف بودجه مصوب",
+      resource: `بودجه مصوب: ${oldDoc?.title || id}`,
+      result: "SUCCESS",
+      ip: extractClientIp(c),
+      userAgent: c.req.header("user-agent") || "",
+      eventType: "ADMIN_FUNCTION_USAGE",
+      details: { agreement_id: id, title: oldDoc?.title }
+    });
+  } catch (err) {
+    console.error("Audit log error on agreement delete:", err);
+  }
+
   return c.json({ message: "موافقتنامه با موفقیت حذف شد" });
 });
 

@@ -8,8 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import {
   Plus, Trash2, Edit, Save, RefreshCw, FileText, CheckCircle2, AlertCircle,
   Search, Filter, ArrowDown, Landmark, TrendingUp, ShieldCheck, Lock, Wallet,
-  FileCheck, Send, RotateCcw, ChevronLeft, Eye, Activity
+  FileCheck, Send, RotateCcw, ChevronLeft, Eye, Activity, Paperclip, Upload
 } from "lucide-react";
+import { BUDGETARY_MOEIN_LIST, deriveBudgetCodesFromMoein, deriveMoeinFromChapterAndArticle } from "@/lib/budgetMoeinMapper";
+import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import api from "@/api";
 
 function fmtNum(n) {
@@ -21,9 +23,9 @@ export default function BudgetModule() {
   const { pathname } = useLocation();
   const activeTab = pathname.includes("amendments")
     ? "amendments"
-    : pathname.includes("review")
-    ? "review"
-    : "approved";
+    : (pathname.includes("review") || pathname.includes("ledger") || pathname.includes("card"))
+      ? "review"
+      : "approved";
 
   const [agreements, setAgreements] = useState([]);
   const [amendments, setAmendments] = useState([]);
@@ -40,17 +42,28 @@ export default function BudgetModule() {
 
   // ردیف بودجه انتخابی و گام فعال در زنجیره مرور اعتبار
   const [selectedAgrId, setSelectedAgrId] = useState("");
-  const [activeStep, setActiveStep] = useState("approved"); // approved | amendments | final | allocations | funding | obligations | realizations | paymentRequests | remittances | payments
+  const [activeStep, setActiveStep] = useState("approved");
 
-  // فرم ثبت/ویرایش بودجه مصوب
+  // فرم ثبت/ویرایش بودجه مصوب (بدون داده پیش‌فرض موک)
   const [editingAgr, setEditingAgr] = useState(null);
   const [agrForm, setAgrForm] = useState({
     title: "",
-    fiscal_year: "1403",
-    total_amount: "",
+    fiscal_year: "",
+    notification_number: "",
+    notification_date: "",
+    notification_authority: "",
+    organization: "",
+    funding_source: "",
+    budget_row: "",
     program_code: "",
     activity_code: "",
+    project_code: "",
     chapter_code: "",
+    article_code: "",
+    cost_center: "",
+    moein_code: "",
+    moein_title: "",
+    total_amount: "",
     description: "",
     status: "confirmed"
   });
@@ -105,42 +118,124 @@ export default function BudgetModule() {
     fetchData();
   }, [pathname]);
 
-  // ثبت یا ویرایش بودجه مصوب
-  const handleAgrSubmit = async (e) => {
-    e.preventDefault();
-    if (!agrForm.title || !agrForm.total_amount) {
-      setAlertMsg({ type: "error", text: "عنوان و مبلغ مصوب الزامی است" });
+  // مدیریت انتخاب فایل پیوست
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setAgrForm((prev) => ({
+        ...prev,
+        attachment_name: file.name,
+        attachment_data: event.target?.result || ""
+      }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // تغییر وضعیت مستقیم از جدول (ذخیره موقت -> ارسال -> تایید -> قطعی)
+  const handleStatusChange = async (agreementId, newStatus) => {
+    try {
+      setLoading(true);
+      await api.put(`/api/credits/agreements/${agreementId}`, { status: newStatus });
+      setAlertMsg({ type: "success", text: "وضعیت بودجه با موفقیت به‌روزرسانی شد" });
+      fetchData();
+    } catch (e) {
+      setAlertMsg({ type: "error", text: "خطا در تغییر وضعیت بودجه" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ثبت یا ویرایش بودجه مصوب با اعمال ۷ کنترل و پشتیبانی از ۴ مرحله چرخه وضعیت
+  const handleAgrSubmit = async (e, overrideStatus = null) => {
+    if (e) e.preventDefault();
+    const finalStatus = overrideStatus || agrForm.status || "draft";
+
+    // کنترل ۱: سال مالی معتبر باشد
+    const fy = Number(agrForm.fiscal_year);
+    if (!fy || fy < 1390 || fy > 1450) {
+      setAlertMsg({ type: "error", text: "کنترل ۱: سال مالی واردشده معتبر نمی‌باشد (باید بین ۱۳۹۰ تا ۱۴۵۰ باشد)" });
       return;
     }
+
+    // کنترل ۲ & ۳: ردیف بودجه و ترکیب برنامه‌/فعالیت/فصل/ماده معتبر باشد
+    if (!agrForm.title || !agrForm.program_code || !agrForm.chapter_code) {
+      setAlertMsg({ type: "error", text: "کنترل ۲ و ۳: عنوان برنامه، کد برنامه، کد فعالیت، فصل و ماده الزامی است" });
+      return;
+    }
+
+    // کنترل ۴: منبع تأمین اعتبار مشخص باشد
+    if (!agrForm.funding_source) {
+      setAlertMsg({ type: "error", text: "کنترل ۴: منبع تأمین اعتبار (عمومی، اختصاصی، تملک و...) باید مشخص باشد" });
+      return;
+    }
+
+    // کنترل ۵: مبلغ منفی نباشد مگر در عملیات اصلاحی مجاز
+    const amt = Number(agrForm.total_amount);
+    if (isNaN(amt) || amt <= 0) {
+      setAlertMsg({ type: "error", text: "کنترل ۵: مبلغ بودجه مصوب باید یک عدد مثبت باشد" });
+      return;
+    }
+
+    // کنترل ۶: برای یک ابلاغ، ثبت تکراری انجام نشود
+    if (agrForm.notification_number) {
+      const isDuplicate = agreements.some(
+        (a) => a.notification_number === agrForm.notification_number && String(a._id) !== String(editingAgr?._id)
+      );
+      if (isDuplicate) {
+        setAlertMsg({ type: "error", text: `کنترل ۶: شماره ابلاغ «${agrForm.notification_number}» قبلاً ثبت شده است (جلوگیری از ثبت تکراری)` });
+        return;
+      }
+    }
+
+    // کنترل ۷: بعد از قطعی شدن، ویرایش مستقیم ممنوع است
+    if (editingAgr && (editingAgr.status === "confirmed" || editingAgr.status === "allocated")) {
+      setAlertMsg({ type: "error", text: "کنترل ۷: این بودجه مصوب «قطعی» شده است. ویرایش مستقیم ممنوع می‌باشد؛ لطفاً از «اصلاحیه بودجه» استفاده کنید." });
+      return;
+    }
+
     setLoading(true);
     try {
       const payload = {
         ...agrForm,
-        fiscal_year: Number(agrForm.fiscal_year),
-        total_amount: Number(agrForm.total_amount)
+        status: finalStatus,
+        fiscal_year: fy,
+        total_amount: amt
       };
 
       if (editingAgr) {
         await api.put(`/api/credits/agreements/${editingAgr._id}`, payload);
-        setAlertMsg({ type: "success", text: "بودجه مصوب با موفقیت ویرایش شد" });
+        setAlertMsg({ type: "success", text: "بودجه مصوب با موفقیت بروزرسانی شد" });
       } else {
         await api.post("/api/credits/agreements", payload);
-        setAlertMsg({ type: "success", text: "بودجه مصوب با موفقیت ثبت شد" });
+        setAlertMsg({ type: "success", text: "بودجه مصوب با موفقیت ثبت گردید" });
       }
       setAgrForm({
         title: "",
-        fiscal_year: "1403",
-        total_amount: "",
+        fiscal_year: "",
+        notification_number: "",
+        notification_date: "",
+        notification_authority: "",
+        organization: "",
+        funding_source: "",
+        budget_row: "",
         program_code: "",
         activity_code: "",
+        project_code: "",
         chapter_code: "",
+        article_code: "",
+        cost_center: "",
+        moein_code: "",
+        moein_title: "",
+        total_amount: "",
         description: "",
         status: "confirmed"
       });
       setEditingAgr(null);
       fetchData();
     } catch (e) {
-      setAlertMsg({ type: "error", text: "خطا در ثبت اطلاعات" });
+      setAlertMsg({ type: "error", text: "خطا در ثبت اطلاعات بودجه مصوب" });
     } finally {
       setLoading(false);
     }
@@ -241,11 +336,10 @@ export default function BudgetModule() {
     <div className="space-y-6 animate-in fade-in duration-300">
       {alertMsg && (
         <div
-          className={`p-3 rounded-xl text-xs font-semibold flex items-center justify-between ${
-            alertMsg.type === "error"
+          className={`p-3 rounded-xl text-xs font-semibold flex items-center justify-between ${alertMsg.type === "error"
               ? "bg-destructive/10 text-destructive border border-destructive/20"
               : "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
-          }`}
+            }`}
         >
           <div className="flex items-center gap-2">
             {alertMsg.type === "error" ? <AlertCircle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
@@ -281,43 +375,185 @@ export default function BudgetModule() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold">سال مالی</Label>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold">سال مالی</Label>
+                  <Input
+                    value={agrForm.fiscal_year}
+                    onChange={(e) => setAgrForm({ ...agrForm, fiscal_year: e.target.value })}
+                    placeholder="مثال: ۱۴۰۵"
+                    className="text-xs"
+                    required
+                  />
+                </div>
+
+                {/* شماره، تاریخ و مرجع ابلاغ */}
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-semibold">شماره ابلاغ</Label>
                     <Input
-                      value={agrForm.fiscal_year}
-                      onChange={(e) => setAgrForm({ ...agrForm, fiscal_year: e.target.value })}
+                      value={agrForm.notification_number}
+                      onChange={(e) => setAgrForm({ ...agrForm, notification_number: e.target.value })}
+                      placeholder="مثال: ابلاغ-۱۰۱"
                       className="text-xs"
-                      required
                     />
                   </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold">کد برنامه</Label>
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-semibold">تاریخ ابلاغ</Label>
+                    <PersianDatePicker
+                      value={agrForm.notification_date}
+                      onChange={(e) => setAgrForm({ ...agrForm, notification_date: e.target.value })}
+                      placeholder="۱۴۰۵/۰۱/۰۱"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-semibold">مرجع ابلاغ</Label>
                     <Input
-                      value={agrForm.program_code}
-                      onChange={(e) => setAgrForm({ ...agrForm, program_code: e.target.value })}
-                      placeholder="11001"
+                      value={agrForm.notification_authority}
+                      onChange={(e) => setAgrForm({ ...agrForm, notification_authority: e.target.value })}
+                      placeholder="مثال: سازمان برنامه و بودجه"
                       className="text-xs"
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold">کد فعالیت / طرح</Label>
+                {/* دستگاه، منبع و ردیف بودجه */}
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-semibold">دستگاه اجرایی</Label>
                     <Input
-                      value={agrForm.activity_code}
-                      onChange={(e) => setAgrForm({ ...agrForm, activity_code: e.target.value })}
-                      placeholder="01"
+                      value={agrForm.organization}
+                      onChange={(e) => setAgrForm({ ...agrForm, organization: e.target.value })}
+                      placeholder="مثال: دستگاه مرکزی / وزارتخانه"
                       className="text-xs"
                     />
                   </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold">کد فصل هزینه</Label>
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-semibold">منبع تأمین</Label>
+                    <Input
+                      value={agrForm.funding_source}
+                      onChange={(e) => setAgrForm({ ...agrForm, funding_source: e.target.value })}
+                      placeholder="مثال: منابع عمومی - ۱۱۰۰۰۰"
+                      className="text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-semibold">ردیف بودجه</Label>
+                    <Input
+                      value={agrForm.budget_row}
+                      onChange={(e) => setAgrForm({ ...agrForm, budget_row: e.target.value })}
+                      placeholder="مثال: ۱۲۳۴"
+                      className="text-xs"
+                    />
+                  </div>
+                </div>
+
+                {/* انتخاب هوشمند کد معین بودجه‌ای مرتبط */}
+                <div className="space-y-1.5 bg-primary/5 p-3 rounded-xl border border-primary/20">
+                  <Label className="text-xs font-bold text-primary flex items-center justify-between">
+                    <span>کد معین بودجه‌ای مرتبط (سناما)</span>
+                    <span className="text-[10px] text-muted-foreground font-normal">مقداردهی هوشمند فصل و ماده</span>
+                  </Label>
+                  <select
+                    value={agrForm.moein_code}
+                    onChange={(e) => {
+                      const code = e.target.value;
+                      if (!code) {
+                        setAgrForm({ ...agrForm, moein_code: "", moein_title: "" });
+                        return;
+                      }
+                      const derived = deriveBudgetCodesFromMoein(code);
+                      setAgrForm({
+                        ...agrForm,
+                        moein_code: derived.moein_code,
+                        moein_title: derived.moein_title,
+                        chapter_code: derived.chapter_code,
+                        article_code: derived.article_code
+                      });
+                    }}
+                    className="w-full bg-background border border-input rounded-lg px-2.5 py-1.5 text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                  >
+                    <option value="">-- انتخاب کد معین بودجه‌ای مرتبط --</option>
+                    {BUDGETARY_MOEIN_LIST.map((m) => (
+                      <option key={m.code} value={m.code}>
+                        {m.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-semibold">کد برنامه</Label>
+                    <Input
+                      value={agrForm.program_code}
+                      onChange={(e) => setAgrForm({ ...agrForm, program_code: e.target.value })}
+                      placeholder="مثال: ۱۰"
+                      className="text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-semibold">کد فعالیت</Label>
+                    <Input
+                      value={agrForm.activity_code}
+                      onChange={(e) => setAgrForm({ ...agrForm, activity_code: e.target.value })}
+                      placeholder="مثال: ۲۰"
+                      className="text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-semibold">طرح / پروژه</Label>
+                    <Input
+                      value={agrForm.project_code}
+                      onChange={(e) => setAgrForm({ ...agrForm, project_code: e.target.value })}
+                      placeholder="مثال: طرح توسعه"
+                      className="text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-semibold">کد فصل هزینه</Label>
                     <Input
                       value={agrForm.chapter_code}
-                      onChange={(e) => setAgrForm({ ...agrForm, chapter_code: e.target.value })}
-                      placeholder="110200"
+                      onChange={(e) => {
+                        const ch = e.target.value;
+                        const derived = deriveMoeinFromChapterAndArticle(ch, agrForm.article_code, agrForm.program_code);
+                        setAgrForm({
+                          ...agrForm,
+                          chapter_code: ch,
+                          moein_code: derived.code,
+                          moein_title: derived.title
+                        });
+                      }}
+                      placeholder="مثال: ۰۲"
+                      className="text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-semibold">کد ماده / بند</Label>
+                    <Input
+                      value={agrForm.article_code}
+                      onChange={(e) => {
+                        const art = e.target.value;
+                        const derived = deriveMoeinFromChapterAndArticle(agrForm.chapter_code, art, agrForm.program_code);
+                        setAgrForm({
+                          ...agrForm,
+                          article_code: art,
+                          moein_code: derived.code,
+                          moein_title: derived.title
+                        });
+                      }}
+                      placeholder="مثال: ۰۵"
+                      className="text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-semibold">مرکز هزینه</Label>
+                    <Input
+                      value={agrForm.cost_center}
+                      onChange={(e) => setAgrForm({ ...agrForm, cost_center: e.target.value })}
+                      placeholder="مثال: اداره کل امور مالی"
                       className="text-xs"
                     />
                   </div>
@@ -329,7 +565,7 @@ export default function BudgetModule() {
                     type="number"
                     value={agrForm.total_amount}
                     onChange={(e) => setAgrForm({ ...agrForm, total_amount: e.target.value })}
-                    placeholder="0"
+                    placeholder="مبلغ را به ریال وارد کنید..."
                     className="text-xs font-mono"
                     required
                   />
@@ -341,41 +577,137 @@ export default function BudgetModule() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">توضیحات</Label>
+                  <Label className="text-xs font-semibold">توضیحات و مستندات قانونی</Label>
                   <Input
                     value={agrForm.description}
                     onChange={(e) => setAgrForm({ ...agrForm, description: e.target.value })}
-                    placeholder="توضیحات و مصوبات مربوطه..."
+                    placeholder="توضیحات، مصوبات هیئت وزیران یا ابلاغیه..."
                     className="text-xs"
                   />
                 </div>
 
-                <div className="flex items-center gap-2 pt-2">
-                  <Button type="submit" size="sm" className="w-full text-xs font-bold gap-2" disabled={loading}>
-                    <Save className="h-4 w-4" />
-                    {editingAgr ? "بروزرسانی" : "ثبت بودجه مصوب"}
-                  </Button>
+                {/* پیوست فایل ابلاغیه / مستندات قانونی */}
+                <div className="space-y-1.5 bg-muted/40 p-3 rounded-xl border border-border/60">
+                  <Label className="text-xs font-bold text-foreground flex items-center justify-between">
+                    <span>پیوست تصویر / اسکن ابلاغیه بودجه</span>
+                    {agrForm.attachment_name && (
+                      <span className="text-[10px] text-emerald-600 font-bold font-mono dir-ltr">{agrForm.attachment_name}</span>
+                    )}
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="file"
+                      id="budget-attachment-input"
+                      className="hidden"
+                      accept="image/*,.pdf,.doc,.docx"
+                      onChange={handleFileSelect}
+                    />
+                    <label
+                      htmlFor="budget-attachment-input"
+                      className="cursor-pointer bg-background border border-input hover:bg-muted/50 rounded-lg px-3 py-1.5 text-xs font-bold text-foreground flex items-center gap-2 shadow-xs transition-colors"
+                    >
+                      <Paperclip className="h-3.5 w-3.5 text-primary" />
+                      {agrForm.attachment_name ? "تغییر فایل پیوست" : "انتخاب فایل (PDF / تصویر ابلاغیه)"}
+                    </label>
+                    {agrForm.attachment_name && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs text-rose-500 hover:text-rose-600"
+                        onClick={() => setAgrForm({ ...agrForm, attachment_name: "", attachment_data: "" })}
+                      >
+                        حذف پیوست
+                      </Button>
+                    )}
+                  </div>
+                </div>
 
-                  {editingAgr && (
+                {/* دکمه‌های گردش کار ۴ مرحله‌ای: ذخیره موقت -> ارسال برای تأیید -> تأیید -> قطعی */}
+                <div className="space-y-2 pt-2 border-t border-border/60">
+                  <div className="text-[11px] font-bold text-muted-foreground">چرخه وضعیت و عملیات ثبت:</div>
+                  <div className="grid grid-cols-2 gap-2">
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
+                      disabled={loading}
+                      className="text-xs font-bold gap-1 border-amber-300 text-amber-700 hover:bg-amber-50"
+                      onClick={(e) => handleAgrSubmit(e, "draft")}
+                    >
+                      <Save className="h-3.5 w-3.5" />
+                      ذخیره موقت
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={loading}
+                      className="text-xs font-bold gap-1 border-blue-300 text-blue-700 hover:bg-blue-50"
+                      onClick={(e) => handleAgrSubmit(e, "pending_approval")}
+                    >
+                      <Send className="h-3.5 w-3.5" />
+                      ارسال برای تأیید
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={loading}
+                      className="text-xs font-bold gap-1 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                      onClick={(e) => handleAgrSubmit(e, "approved")}
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      تأیید
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant="default"
+                      size="sm"
+                      disabled={loading}
+                      className="text-xs font-bold gap-1 bg-purple-600 hover:bg-purple-700 text-white"
+                      onClick={(e) => handleAgrSubmit(e, "confirmed")}
+                    >
+                      <Lock className="h-3.5 w-3.5" />
+                      ثبت قطعی
+                    </Button>
+                  </div>
+
+                  {editingAgr && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="w-full text-xs text-muted-foreground mt-1"
                       onClick={() => {
                         setEditingAgr(null);
                         setAgrForm({
                           title: "",
-                          fiscal_year: "1403",
-                          total_amount: "",
+                          fiscal_year: "",
+                          notification_number: "",
+                          notification_date: "",
+                          notification_authority: "",
+                          organization: "",
+                          funding_source: "",
+                          budget_row: "",
                           program_code: "",
                           activity_code: "",
+                          project_code: "",
                           chapter_code: "",
+                          article_code: "",
+                          cost_center: "",
+                          moein_code: "",
+                          moein_title: "",
+                          total_amount: "",
                           description: "",
                           status: "confirmed"
                         });
                       }}
                     >
-                      انصراف
+                      انصراف از ویرایش
                     </Button>
                   )}
                 </div>
@@ -392,63 +724,147 @@ export default function BudgetModule() {
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full text-right text-xs">
-                  <thead className="bg-muted/50 border-y text-muted-foreground font-semibold">
+                  <thead className="bg-muted/50 border-y text-muted-foreground font-semibold whitespace-nowrap">
                     <tr>
                       <th className="p-3">شماره / عنوان برنامه</th>
-                      <th className="p-3">کدها (برنامه/فصل)</th>
-                      <th className="p-3">سال</th>
+                      <th className="p-3">کدها (برنامه/فصل/معین)</th>
+                      <th className="p-3 text-center">سال</th>
                       <th className="p-3">مبلغ مصوب (ریال)</th>
-                      <th className="p-3 text-center">عملیات</th>
+                      <th className="p-3 text-center">پیوست</th>
+                      <th className="p-3 text-center">وضعیت چرخه</th>
+                      <th className="p-3 text-center min-w-[150px]">عملیات</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
                     {agreements.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="p-6 text-center text-muted-foreground">
+                        <td colSpan={7} className="p-6 text-center text-muted-foreground">
                           هیچ بودجه مصوبی ثبت نشده است.
                         </td>
                       </tr>
                     ) : (
                       agreements.map((item) => (
                         <tr key={item._id} className="hover:bg-muted/30 transition-colors">
-                          <td className="p-3">
+                          <td className="p-3 whitespace-nowrap">
                             <div className="font-bold text-foreground">{item.title}</div>
-                            <span className="text-[10px] text-muted-foreground">{item.agreement_number}</span>
+                            <div className="text-[10px] text-muted-foreground font-mono">شماره ابلاغ: {item.notification_number || item.agreement_number}</div>
                           </td>
-                          <td className="p-3 font-mono text-[11px]">
-                            {item.program_code || "-"} / {item.chapter_code || "-"}
+                          <td className="p-3 font-mono text-[11px] whitespace-nowrap">
+                            {item.program_code || "-"}/{item.chapter_code || "-"}/{item.article_code || "-"}
+                            {item.moein_code && <div className="text-[9px] text-primary">{item.moein_code}</div>}
                           </td>
-                          <td className="p-3">{item.fiscal_year}</td>
-                          <td className="p-3 font-bold text-primary">{fmtNum(item.total_amount)}</td>
-                          <td className="p-3 text-center space-x-1 space-x-reverse">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 w-7 p-0 text-blue-600"
-                              onClick={() => {
-                                setEditingAgr(item);
-                                setAgrForm({
-                                  title: item.title || "",
-                                  fiscal_year: String(item.fiscal_year || 1403),
-                                  total_amount: String(item.total_amount || 0),
-                                  program_code: item.program_code || "",
-                                  activity_code: item.activity_code || "",
-                                  chapter_code: item.chapter_code || "",
-                                  description: item.description || "",
-                                  status: item.status || "confirmed"
-                                });
-                              }}
-                            >
-                              <Edit className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 w-7 p-0 text-rose-600"
-                              onClick={() => deleteAgr(item._id)}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
+                          <td className="p-3 text-center whitespace-nowrap">{item.fiscal_year}</td>
+                          <td className="p-3 font-bold text-primary whitespace-nowrap">{fmtNum(item.total_amount)}</td>
+                          <td className="p-3 text-center whitespace-nowrap">
+                            {item.attachment_name ? (
+                              <a
+                                href={item.attachment_data || "#"}
+                                download={item.attachment_name}
+                                className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-lg border border-blue-200 shadow-2xs transition-colors"
+                                title="دانلود فایل پیوست ابلاغیه"
+                              >
+                                <Paperclip className="h-3 w-3 text-blue-600" />
+                                پیوست
+                              </a>
+                            ) : (
+                              <span className="text-muted-foreground text-[10px]">-</span>
+                            )}
+                          </td>
+                          <td className="p-3 text-center whitespace-nowrap">
+                            {item.status === "draft" && <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300 text-[10px] px-2 py-0.5">ذخیره موقت</Badge>}
+                            {item.status === "pending_approval" && <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300 text-[10px] px-2 py-0.5">در انتظار تأیید</Badge>}
+                            {item.status === "approved" && <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-300 text-[10px] px-2 py-0.5">تأییدشده</Badge>}
+                            {(item.status === "confirmed" || item.status === "allocated" || !item.status) && (
+                              <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-300 text-[10px] px-2 py-0.5">🔒 قطعی</Badge>
+                            )}
+                          </td>
+                          <td className="p-3 text-center whitespace-nowrap">
+                            <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
+                              {/* ۱. دکمه مرحله بعد چرخه وضعیت */}
+                              {item.status === "draft" && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 text-[10px] font-bold text-blue-700 border-blue-300 bg-blue-50 hover:bg-blue-100 px-2 rounded-lg gap-1"
+                                  onClick={() => handleStatusChange(item._id, "pending_approval")}
+                                  title="ارسال برای تأیید"
+                                >
+                                  <Send className="h-3 w-3" />
+                                  ارسال
+                                </Button>
+                              )}
+                              {item.status === "pending_approval" && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 text-[10px] font-bold text-emerald-700 border-emerald-300 bg-emerald-50 hover:bg-emerald-100 px-2 rounded-lg gap-1"
+                                  onClick={() => handleStatusChange(item._id, "approved")}
+                                  title="تأیید بودجه"
+                                >
+                                  <CheckCircle2 className="h-3 w-3" />
+                                  تأیید
+                                </Button>
+                              )}
+                              {item.status === "approved" && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 text-[10px] font-bold text-purple-700 border-purple-300 bg-purple-50 hover:bg-purple-100 px-2 rounded-lg gap-1"
+                                  onClick={() => handleStatusChange(item._id, "confirmed")}
+                                  title="قطعی‌سازی نهایی"
+                                >
+                                  <Lock className="h-3 w-3" />
+                                  قطعی
+                                </Button>
+                              )}
+
+                              {/* ۲. دکمه ویرایش (آیکون مشخص آبی) */}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 w-7 p-0 text-blue-600 border-blue-200 bg-blue-50 hover:bg-blue-100 rounded-lg flex items-center justify-center transition-colors"
+                                title="ویرایش بودجه"
+                                onClick={() => {
+                                  setEditingAgr(item);
+                                  setAgrForm({
+                                    title: item.title || "",
+                                    fiscal_year: String(item.fiscal_year || ""),
+                                    notification_number: item.notification_number || "",
+                                    notification_date: item.notification_date || "",
+                                    notification_authority: item.notification_authority || "",
+                                    organization: item.organization || "",
+                                    funding_source: item.funding_source || "",
+                                    budget_row: item.budget_row || "",
+                                    program_code: item.program_code || "",
+                                    activity_code: item.activity_code || "",
+                                    project_code: item.project_code || "",
+                                    chapter_code: item.chapter_code || "",
+                                    article_code: item.article_code || "",
+                                    cost_center: item.cost_center || "",
+                                    moein_code: item.moein_code || "",
+                                    moein_title: item.moein_title || "",
+                                    total_amount: String(item.total_amount || ""),
+                                    attachment_name: item.attachment_name || "",
+                                    attachment_data: item.attachment_data || "",
+                                    description: item.description || "",
+                                    status: item.status || "draft"
+                                  });
+                                }}
+                              >
+                                <Edit className="h-3.5 w-3.5" />
+                              </Button>
+
+                              {/* ۳. دکمه حذف (آیکون مشخص قرمز/رز) */}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 w-7 p-0 text-rose-600 border-rose-200 bg-rose-50 hover:bg-rose-100 rounded-lg flex items-center justify-center transition-colors"
+                                title="حذف بودجه"
+                                onClick={() => deleteAgr(item._id)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       ))
@@ -570,15 +986,15 @@ export default function BudgetModule() {
                                 item.amendment_type === "increase"
                                   ? "bg-emerald-50 text-emerald-600 border-emerald-200"
                                   : item.amendment_type === "decrease"
-                                  ? "bg-rose-50 text-rose-600 border-rose-200"
-                                  : "bg-blue-50 text-blue-600 border-blue-200"
+                                    ? "bg-rose-50 text-rose-600 border-rose-200"
+                                    : "bg-blue-50 text-blue-600 border-blue-200"
                               }
                             >
                               {item.amendment_type === "increase"
                                 ? "افزایش"
                                 : item.amendment_type === "decrease"
-                                ? "کاهش"
-                                : "جابجایی"}
+                                  ? "کاهش"
+                                  : "جابجایی"}
                             </Badge>
                           </td>
                           <td className="p-3 font-bold">{fmtNum(item.amount)}</td>
@@ -646,11 +1062,10 @@ export default function BudgetModule() {
                 {/* ۱. بودجه مصوب */}
                 <div
                   onClick={() => setActiveStep("approved")}
-                  className={`w-full cursor-pointer transition-all duration-200 rounded-2xl border p-4 shadow-sm ${
-                    activeStep === "approved"
+                  className={`w-full cursor-pointer transition-all duration-200 rounded-2xl border p-4 shadow-sm ${activeStep === "approved"
                       ? "bg-primary/10 border-primary ring-2 ring-primary/40 shadow-md scale-[1.01]"
                       : "bg-card hover:bg-muted/40 border-border"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -674,11 +1089,10 @@ export default function BudgetModule() {
                 {/* ۲. اصلاحیه */}
                 <div
                   onClick={() => setActiveStep("amendments")}
-                  className={`w-full cursor-pointer transition-all duration-200 rounded-2xl border p-4 shadow-sm ${
-                    activeStep === "amendments"
+                  className={`w-full cursor-pointer transition-all duration-200 rounded-2xl border p-4 shadow-sm ${activeStep === "amendments"
                       ? "bg-amber-500/10 border-amber-500 ring-2 ring-amber-500/40 shadow-md scale-[1.01]"
                       : "bg-card hover:bg-muted/40 border-border"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -704,11 +1118,10 @@ export default function BudgetModule() {
                 {/* ۳. اعتبار نهایی */}
                 <div
                   onClick={() => setActiveStep("final")}
-                  className={`w-full cursor-pointer transition-all duration-200 rounded-2xl border p-4 shadow-sm ${
-                    activeStep === "final"
+                  className={`w-full cursor-pointer transition-all duration-200 rounded-2xl border p-4 shadow-sm ${activeStep === "final"
                       ? "bg-indigo-500/10 border-indigo-600 ring-2 ring-indigo-500/40 shadow-md scale-[1.01]"
                       : "bg-card hover:bg-muted/40 border-border"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -732,11 +1145,10 @@ export default function BudgetModule() {
                 {/* ۴. تخصیص */}
                 <div
                   onClick={() => setActiveStep("allocations")}
-                  className={`w-full cursor-pointer transition-all duration-200 rounded-2xl border p-4 shadow-sm ${
-                    activeStep === "allocations"
+                  className={`w-full cursor-pointer transition-all duration-200 rounded-2xl border p-4 shadow-sm ${activeStep === "allocations"
                       ? "bg-blue-500/10 border-blue-500 ring-2 ring-blue-500/40 shadow-md scale-[1.01]"
                       : "bg-card hover:bg-muted/40 border-border"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -760,11 +1172,10 @@ export default function BudgetModule() {
                 {/* ۵. تأمین اعتبار */}
                 <div
                   onClick={() => setActiveStep("funding")}
-                  className={`w-full cursor-pointer transition-all duration-200 rounded-2xl border p-4 shadow-sm ${
-                    activeStep === "funding"
+                  className={`w-full cursor-pointer transition-all duration-200 rounded-2xl border p-4 shadow-sm ${activeStep === "funding"
                       ? "bg-amber-500/10 border-amber-600 ring-2 ring-amber-500/40 shadow-md scale-[1.01]"
                       : "bg-card hover:bg-muted/40 border-border"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -788,11 +1199,10 @@ export default function BudgetModule() {
                 {/* ۶. تعهد */}
                 <div
                   onClick={() => setActiveStep("obligations")}
-                  className={`w-full cursor-pointer transition-all duration-200 rounded-2xl border p-4 shadow-sm ${
-                    activeStep === "obligations"
+                  className={`w-full cursor-pointer transition-all duration-200 rounded-2xl border p-4 shadow-sm ${activeStep === "obligations"
                       ? "bg-purple-500/10 border-purple-500 ring-2 ring-purple-500/40 shadow-md scale-[1.01]"
                       : "bg-card hover:bg-muted/40 border-border"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -816,11 +1226,10 @@ export default function BudgetModule() {
                 {/* ۷. تحقق */}
                 <div
                   onClick={() => setActiveStep("realizations")}
-                  className={`w-full cursor-pointer transition-all duration-200 rounded-2xl border p-4 shadow-sm ${
-                    activeStep === "realizations"
+                  className={`w-full cursor-pointer transition-all duration-200 rounded-2xl border p-4 shadow-sm ${activeStep === "realizations"
                       ? "bg-indigo-500/10 border-indigo-600 ring-2 ring-indigo-500/40 shadow-md scale-[1.01]"
                       : "bg-card hover:bg-muted/40 border-border"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -844,11 +1253,10 @@ export default function BudgetModule() {
                 {/* ۸. درخواست پرداخت */}
                 <div
                   onClick={() => setActiveStep("paymentRequests")}
-                  className={`w-full cursor-pointer transition-all duration-200 rounded-2xl border p-4 shadow-sm ${
-                    activeStep === "paymentRequests"
+                  className={`w-full cursor-pointer transition-all duration-200 rounded-2xl border p-4 shadow-sm ${activeStep === "paymentRequests"
                       ? "bg-sky-500/10 border-sky-500 ring-2 ring-sky-500/40 shadow-md scale-[1.01]"
                       : "bg-card hover:bg-muted/40 border-border"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -872,11 +1280,10 @@ export default function BudgetModule() {
                 {/* ۹. حواله */}
                 <div
                   onClick={() => setActiveStep("remittances")}
-                  className={`w-full cursor-pointer transition-all duration-200 rounded-2xl border p-4 shadow-sm ${
-                    activeStep === "remittances"
+                  className={`w-full cursor-pointer transition-all duration-200 rounded-2xl border p-4 shadow-sm ${activeStep === "remittances"
                       ? "bg-teal-500/10 border-teal-500 ring-2 ring-teal-500/40 shadow-md scale-[1.01]"
                       : "bg-card hover:bg-muted/40 border-border"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -900,11 +1307,10 @@ export default function BudgetModule() {
                 {/* ۱۰. پرداخت */}
                 <div
                   onClick={() => setActiveStep("payments")}
-                  className={`w-full cursor-pointer transition-all duration-200 rounded-2xl border p-4 shadow-sm ${
-                    activeStep === "payments"
+                  className={`w-full cursor-pointer transition-all duration-200 rounded-2xl border p-4 shadow-sm ${activeStep === "payments"
                       ? "bg-emerald-500/10 border-emerald-500 ring-2 ring-emerald-500/40 shadow-md scale-[1.01]"
                       : "bg-card hover:bg-muted/40 border-border"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -931,14 +1337,14 @@ export default function BudgetModule() {
                     <Eye className="h-4 w-4 text-primary" />
                     جزئیات دقیق گام انتخاب‌شده: {
                       activeStep === "approved" ? "بودجه مصوب" :
-                      activeStep === "amendments" ? "اصلاحیه بودجه" :
-                      activeStep === "final" ? "اعتبار نهایی" :
-                      activeStep === "allocations" ? "تخصیص اعتبار" :
-                      activeStep === "funding" ? "تأمین اعتبار" :
-                      activeStep === "obligations" ? "تعهدات مالی" :
-                      activeStep === "realizations" ? "تحقق / تسجیل" :
-                      activeStep === "paymentRequests" ? "درخواست پرداخت" :
-                      activeStep === "remittances" ? "حواله پرداخت" : "پرداخت قطعی"
+                        activeStep === "amendments" ? "اصلاحیه بودجه" :
+                          activeStep === "final" ? "اعتبار نهایی" :
+                            activeStep === "allocations" ? "تخصیص اعتبار" :
+                              activeStep === "funding" ? "تأمین اعتبار" :
+                                activeStep === "obligations" ? "تعهدات مالی" :
+                                  activeStep === "realizations" ? "تحقق / تسجیل" :
+                                    activeStep === "paymentRequests" ? "درخواست پرداخت" :
+                                      activeStep === "remittances" ? "حواله پرداخت" : "پرداخت قطعی"
                     }
                   </CardTitle>
                   <Badge variant="outline" className="text-xs font-mono">
