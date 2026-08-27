@@ -21,33 +21,41 @@ export async function validateAndLogFileUpload({
   const allowedExtensions = [".xlsx", ".xls", ".doc", ".docx", ".pdf", ".png", ".jpg", ".jpeg", ".csv", ".txt", ".zip"];
   const fileName = file?.name || "file.xlsx";
   const fileSize = file?.size || 102400;
-  const ext = fileName.substring(fileName.lastIndexOf(".")).toLowerCase() || ".xlsx";
+  const ext = fileName.includes(".") ? fileName.substring(fileName.lastIndexOf(".")).toLowerCase() : "";
+
+  const allowedStr = allowedExtensions.map(e => e.replace(".", "")).join(", ");
 
   // ۱ & ۳. بررسی پسوند و فرمت فایل
   if (!allowedExtensions.includes(ext)) {
+    const customMessage = `Message : کاربر قصد بارگذاری فایلی با فرمت ${ext || "نامشخص"} را داشته، در صورتی که فرمت‌های مجاز ${allowedStr} می‌باشند.`;
     try {
       await api.post("/api/security/validate-user-data", {
         type: "FILE_CORRUPTED_ERROR",
         operation,
         originalFileName: fileName,
         fileSizeBytes: fileSize,
-        docType: ext.replace(".", "").toUpperCase() || "8",
-        dataType
+        docType: ext.replace(".", "").toUpperCase() || "UNKNOWN",
+        dataType,
+        allowedFormat: allowedStr,
+        customMessage
       });
     } catch (e) {}
-    throw new Error(`فرمت فایل انتخاب شده (${ext}) غیرمجاز می‌باشد. پسوندهای مجاز: xlsx, doc, pdf, png, jpg, csv, txt, zip`);
+    throw new Error(`فرمت فایل انتخاب شده (${ext || "نامشخص"}) غیرمجاز می‌باشد. پسوندهای مجاز: ${allowedStr}`);
   }
 
   // ۲. بررسی حجم فایل (حداکثر ۱۰ مگابایت)
   if (fileSize > 10 * 1024 * 1024) {
+    const customMessage = `Message : کاربر قصد بارگذاری فایلی با حجم ${(fileSize / (1024 * 1024)).toFixed(1)}MB را داشته، در صورتی که حداکثر حجم مجاز ۱۰ مگابایت می‌باشد.`;
     try {
       await api.post("/api/security/validate-user-data", {
         type: "FILE_CORRUPTED_ERROR",
         operation,
         originalFileName: fileName,
         fileSizeBytes: fileSize,
-        docType: ext.replace(".", "").toUpperCase() || "8",
-        dataType
+        docType: ext.replace(".", "").toUpperCase() || "UNKNOWN",
+        dataType,
+        allowedFormat: allowedStr,
+        customMessage
       });
     } catch (e) {}
     throw new Error(`حجم فایل انتخاب شده (${(fileSize / (1024 * 1024)).toFixed(1)}MB) از سقف مجاز ۱۰ مگابایت بیشتر است.`);

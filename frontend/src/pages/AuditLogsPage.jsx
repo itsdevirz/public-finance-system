@@ -264,6 +264,11 @@ function formatHumanReadableDescription(log) {
   const methodUpper = (log.method || "").toUpperCase();
   const details = log.details || {};
 
+  // فرمت پیام‌های خطای اعتبارسنجی داده کاربری / فایل غیرمجاز
+  if (rawAction.startsWith("Message :") || rawAction.includes("کاربر قصد بارگذاری فایلی با فرمت")) {
+    return rawAction.replace(/^Message\s*:\s*/i, "").trim();
+  }
+
   // فرمت لاگ دانلود فایل و خروج داده مطابق بند ۸ افتا (تطابق کامل با تصویر ۱)
   if (
     log.eventType === "DATA_EXPORT_ATTEMPT" ||

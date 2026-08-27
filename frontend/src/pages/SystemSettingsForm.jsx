@@ -1196,16 +1196,45 @@ export default function SystemSettingsForm() {
   }
 
   // ─── ۳. انتخاب فایل پشتیبان (Import File Selection) ───
-  function handleFileChange(e) {
+  async function handleFileChange(e) {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const fileName = file.name || "";
+    const ext = fileName.includes(".") ? fileName.substring(fileName.lastIndexOf(".")).toLowerCase() : "";
+
+    // اعتبارسنجی پسوند فایل انتخاب‌شده - تنها فرمت .json مجاز است
+    if (ext !== ".json") {
+      const customMessage = `Message : کاربر قصد بارگذاری فایلی با فرمت ${ext || "نامشخص"} را داشته، در صورتی که فرمت مجاز json می‌باشد.`;
+      const userErrMsg = `خطا در بارگذاری فایل پشتیبان: فرمت فایل انتخاب شده (${ext || "نامشخص"}) غیرمجاز است. تنها فرمت مجاز json می‌باشد.`;
+
+      setErrorMsg(userErrMsg);
+      setImportFileMeta(null);
+      setImportRawData(null);
+
+      try {
+        await api.post("/api/security/validate-user-data", {
+          type: "FILE_CORRUPTED_ERROR",
+          operation: "IMPORT",
+          originalFileName: fileName,
+          fileSizeBytes: file.size,
+          docType: ext.replace(".", "").toUpperCase() || "UNKNOWN",
+          dataType: "2",
+          allowedFormat: "json",
+          customMessage
+        });
+      } catch (err) {
+        console.error("خطا در ثبت لاگ اعتبارسنجی پسوند فایل پشتیبان:", err);
+      }
+      return;
+    }
+
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       try {
         const parsed = JSON.parse(event.target.result);
         if (!parsed || !parsed.data) {
-          throw new Error("فرمت فایل پشتیبان معتبر نیست یا آسیب دیده است.");
+          throw new Error("فرمت ساختاری فایل پشتیبان معتبر نیست یا آسیب دیده است.");
         }
 
         setImportFileMeta({
@@ -1220,9 +1249,27 @@ export default function SystemSettingsForm() {
         setImportRawData(parsed);
         setErrorMsg("");
       } catch (err) {
-        setErrorMsg("خطا در خواندن فایل پشتیبان: " + err.message);
+        const userErrMsg = "خطا در خواندن فایل پشتیبان: " + err.message;
+        const customMessage = `Message : کاربر قصد بارگذاری فایلی با ساختار غیرمجاز (محتوای JSON آسیب‌دیده/نامعتبر) با نام ${fileName} را داشته، در صورتی که فرمت مجاز json می‌باشد.`;
+
+        setErrorMsg(userErrMsg);
         setImportFileMeta(null);
         setImportRawData(null);
+
+        try {
+          await api.post("/api/security/validate-user-data", {
+            type: "FILE_CORRUPTED_ERROR",
+            operation: "IMPORT",
+            originalFileName: fileName,
+            fileSizeBytes: file.size,
+            docType: "JSON",
+            dataType: "2",
+            allowedFormat: "json",
+            customMessage
+          });
+        } catch (logErr) {
+          console.error("خطا در ثبت لاگ اعتبارسنجی محتوای JSON پشتیبان:", logErr);
+        }
       }
     };
     reader.readAsText(file);

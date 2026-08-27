@@ -417,7 +417,9 @@ router.post("/validate-user-data", async (c) => {
     taskId = "27117",
     taskRotationId = "72456",
     docId = "38604",
-    attachmentId = "25137"
+    attachmentId = "25137",
+    customMessage,
+    allowedFormat = "json"
   } = body;
 
   // ── ویژگی‌های امنیتی و خط‌مشی کنترل دسترسی داده کاربری (۴ شرط الزام افتا) ──
@@ -426,8 +428,8 @@ router.post("/validate-user-data", async (c) => {
   // ۳. فرمت (Disallow executable/dangerous formats)
   // ۴. تعداد دفعات import / تعداد سند (Max 50 docs per import)
 
-  const allowedFormats = [".xlsx", ".xls", ".doc", ".docx", ".pdf", ".png", ".jpg", ".jpeg", ".csv", ".txt", ".zip"];
-  const ext = originalFileName.substring(originalFileName.lastIndexOf(".")).toLowerCase() || ".xlsx";
+  const allowedFormats = [".xlsx", ".xls", ".doc", ".docx", ".pdf", ".png", ".jpg", ".jpeg", ".csv", ".txt", ".zip", ".json"];
+  const ext = originalFileName.includes(".") ? originalFileName.substring(originalFileName.lastIndexOf(".")).toLowerCase() : "";
   const isFormatAllowed = allowedFormats.includes(ext);
 
   const maxSizeBytes = 10 * 1024 * 1024; // 10MB
@@ -438,7 +440,11 @@ router.post("/validate-user-data", async (c) => {
 
   if (type === "FILE_CORRUPTED_ERROR" || !isFormatAllowed || !isSizeAllowed || !isDocCountAllowed) {
     const fileSizeKb = Math.round(fileSizeBytes / 1024);
-    const actionDesc = `Message : فرمت یا حجم داده کاربری ارسالی غیرمجاز می‌باشد (فرمت: ${ext}، حجم: ${fileSizeKb}KB)`;
+    const defaultMsg = `Message : کاربر قصد بارگذاری فایلی با فرمت ${ext || "نامشخص"} را داشته، در صورتی که فرمت مجاز ${allowedFormat} می‌باشد.`;
+    const actionDesc = customMessage
+      ? (customMessage.startsWith("Message :") ? customMessage : `Message : ${customMessage}`)
+      : defaultMsg;
+
     await logAuditEvent({
       userId: payload?.sub || "admin_01",
       username,
@@ -451,12 +457,12 @@ router.post("/validate-user-data", async (c) => {
       ip: clientIp,
       errorCode: 400,
       userAgent: c.req.header("user-agent"),
-      details: { error: "Validation Failed", format: ext, sizeKb: fileSizeKb, docCount }
+      details: { error: "Validation Failed", format: ext, sizeKb: fileSizeKb, docCount, allowedFormat }
     });
 
     return c.json({
       success: false,
-      message: "فرمت یا حجم داده کاربری ارسالی غیرمجاز می‌باشد"
+      message: actionDesc.replace(/^Message\s*:\s*/i, "")
     }, 400);
   }
 
