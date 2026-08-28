@@ -269,6 +269,17 @@ function formatHumanReadableDescription(log) {
     return rawAction.replace(/^Message\s*:\s*/i, "").trim();
   }
 
+  // فرمت لاگ‌های تفکیکی آکاردئون‌ها و تیک‌های فعال‌سازی / غیرفعال‌سازی
+  if (details?.accordion && details?.itemLabel) {
+    if (details.changeType === "ACTIVATED") {
+      return `آکاردئون '${details.accordion}': مشخصه/تیک '${details.itemLabel}' فعال شد.`;
+    }
+    if (details.changeType === "DEACTIVATED") {
+      return `آکاردئون '${details.accordion}': مشخصه/تیک '${details.itemLabel}' غیرفعال شد.`;
+    }
+    return `آکاردئون '${details.accordion}': مشخصه '${details.itemLabel}' از '${details.oldVal}' به '${details.newVal}' تغییر یافت.`;
+  }
+
   // فرمت لاگ دانلود فایل و خروج داده مطابق بند ۸ افتا (تطابق کامل با تصویر ۱)
   if (
     log.eventType === "DATA_EXPORT_ATTEMPT" ||
@@ -460,6 +471,8 @@ function formatHumanReadableDescription(log) {
     rawAction.startsWith("ثبت و") ||
     rawAction.startsWith("ویرایش") ||
     rawAction.startsWith("حذف") ||
+    rawAction.startsWith("آکاردئون") ||
+    rawAction.includes("گزینه") ||
     rawAction.includes("تغییر یافت")) &&
     !rawAction.includes("api/auth/me") &&
     !rawAction.includes("عملیات روی مسیر")

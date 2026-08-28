@@ -9,7 +9,7 @@ export function AuthProvider({ children }) {
 
   // هنگام بارگذاری اپ و پایش مستمر صحت نشست (Heartbeat هر ۳ ثانیه برای خروج لحظه‌ای در صورت ابطال توسط ادمین)
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token") || localStorage.getItem("token");
     if (!token) { setLoading(false); return; }
 
     let isMounted = true;
@@ -21,6 +21,7 @@ export function AuthProvider({ children }) {
         if (isMounted) setUser(res.data.user);
       })
       .catch(() => {
+        sessionStorage.removeItem("token");
         localStorage.removeItem("token");
         if (isMounted) setUser(null);
       })
@@ -29,12 +30,13 @@ export function AuthProvider({ children }) {
       });
 
     const intervalId = setInterval(() => {
-      const currentToken = localStorage.getItem("token");
+      const currentToken = sessionStorage.getItem("token") || localStorage.getItem("token");
       if (!currentToken) return;
 
       api.get("/api/auth/me")
         .catch((err) => {
           if (err.response?.status === 401) {
+            sessionStorage.removeItem("token");
             localStorage.removeItem("token");
             if (isMounted) setUser(null);
             alert("نشست شما توسط مدیر سیستم خاتمه یافت.");
@@ -49,12 +51,24 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
-  async function login(username, password) {
+  async function login(username, password, rememberMe = true) {
     const res = await api.post("/api/auth/login", { username, password });
-    localStorage.setItem("token", res.data.token);
-    if (res.data.sessionNotice) {
-      localStorage.setItem("sessionNotice", JSON.stringify(res.data.sessionNotice));
+    sessionStorage.setItem("token", res.data.token);
+    if (rememberMe) {
+      localStorage.setItem("token", res.data.token);
     } else {
+      localStorage.removeItem("token");
+    }
+
+    if (res.data.sessionNotice) {
+      sessionStorage.setItem("sessionNotice", JSON.stringify(res.data.sessionNotice));
+      if (rememberMe) {
+        localStorage.setItem("sessionNotice", JSON.stringify(res.data.sessionNotice));
+      } else {
+        localStorage.removeItem("sessionNotice");
+      }
+    } else {
+      sessionStorage.removeItem("sessionNotice");
       localStorage.removeItem("sessionNotice");
     }
     setUser(res.data.user);
@@ -67,7 +81,10 @@ export function AuthProvider({ children }) {
     } catch {
       // ادامه خروج حتی در صورت خطای شبکه
     } finally {
+      sessionStorage.removeItem("token");
+      sessionStorage.removeItem("sessionNotice");
       localStorage.removeItem("token");
+      localStorage.removeItem("sessionNotice");
       setUser(null);
     }
   }

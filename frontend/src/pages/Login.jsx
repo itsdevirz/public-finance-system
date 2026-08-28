@@ -93,9 +93,9 @@ export default function Login() {
     try {
       if (isSetupMode) {
         await api.post("/api/auth/register", { username, password, role: "admin" });
-        await login(username, password);
+        await login(username, password, rememberMe);
       } else {
-        await login(username, password);
+        await login(username, password, rememberMe);
       }
     } catch (err) {
       setError(

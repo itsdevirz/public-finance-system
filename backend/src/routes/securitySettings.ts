@@ -6,6 +6,7 @@ import { logAuditEvent, AFTA_LOG_EVENT_TYPES, verifyLogIntegrity, signExistingLo
 import { requireRole } from "../middleware/rbacMiddleware.js";
 import { sendAdminThresholdNotification } from "../lib/notifier.js";
 import { pruneExpiredSessions } from "../lib/sessionHelper.js";
+import { SECURITY_POLICY_LABELS } from "../lib/securityPolicyLabels.js";
 
 const router = new Hono();
 
@@ -98,7 +99,72 @@ router.put("/policy", requireRole(["admin"]), async (c) => {
       { upsert: true }
     );
 
-    // ۴. تمامی تغییرات در پیکربندی و رفتار کارکردی محصول
+    const clientIp = c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "127.0.0.1";
+    const currentAdminUsername = payload.username || "admin";
+    const currentAdminRole = payload.role || "admin";
+
+    // تابع کمکی برای استخراج مقدار کلیدهای عادی و تو در تو (Nested)
+    const getNestedValue = (obj: any, path: string) => {
+      if (!obj) return undefined;
+      const parts = path.split(".");
+      let curr = obj;
+      for (const part of parts) {
+        if (curr === null || curr === undefined) return undefined;
+        curr = curr[part];
+      }
+      return curr;
+    };
+
+    // ثبت لاگ ممیزی با جزییات کامل برای تک‌تک آیتم‌ها و آکاردئون‌های تغییریافته
+    for (const [sectionKey, sectionMeta] of Object.entries(SECURITY_POLICY_LABELS)) {
+      const oldSection = (existingVal as any)[sectionKey] || {};
+      const newSection = (newPolicy as any)[sectionKey] || {};
+
+      for (const [fieldKey, meta] of Object.entries(sectionMeta)) {
+        const rawOldVal = getNestedValue(oldSection, fieldKey);
+        const rawNewVal = getNestedValue(newSection, fieldKey);
+
+        const oldVal = rawOldVal === undefined ? (meta.type === "boolean" ? false : "") : rawOldVal;
+        const newVal = rawNewVal === undefined ? (meta.type === "boolean" ? false : "") : rawNewVal;
+
+        if (oldVal !== newVal) {
+          let actionText = "";
+          let changeType = "UPDATED";
+
+          if (meta.type === "boolean") {
+            const isActivated = newVal === true;
+            changeType = isActivated ? "ACTIVATED" : "DEACTIVATED";
+            const stateStr = isActivated ? "فعال شد" : "غیرفعال شد";
+            actionText = `آکاردئون '${meta.accordion}': گزینه '${meta.label}' ${stateStr}`;
+          } else {
+            actionText = `آکاردئون '${meta.accordion}': گزینه '${meta.label}' از '${oldVal || "خالی"}' به '${newVal || "خالی"}' تغییر یافت`;
+          }
+
+          await logAuditEvent({
+            userId: payload.sub,
+            username: currentAdminUsername,
+            userRole: currentAdminRole === "admin" ? "مدیر سیستم" : currentAdminRole,
+            action: actionText,
+            eventType: AFTA_LOG_EVENT_TYPES.FUNCTION_BEHAVIOR_CHANGE,
+            resource: "کلید های پیکر بندی سیستم",
+            result: "SUCCESS",
+            ip: clientIp,
+            userAgent: c.req.header("user-agent"),
+            details: {
+              accordion: meta.accordion,
+              itemLabel: meta.label,
+              fieldKey: `${sectionKey}.${fieldKey}`,
+              changeType,
+              oldVal: String(oldVal),
+              newVal: String(newVal),
+              tableName: "کلید های پیکر بندی سیستم"
+            }
+          });
+        }
+      }
+    }
+
+    // ۴. تمامی تغییرات کلی در پیکربندی و رفتار کارکردی محصول
     await logAuditEvent({
       userId: payload.sub,
       username: payload.username,
@@ -107,7 +173,7 @@ router.put("/policy", requireRole(["admin"]), async (c) => {
       eventType: AFTA_LOG_EVENT_TYPES.FUNCTION_BEHAVIOR_CHANGE,
       resource: "system_settings",
       result: "SUCCESS",
-      ip: c.req.header("x-forwarded-for") || "127.0.0.1",
+      ip: clientIp,
       userAgent: c.req.header("user-agent"),
       details: { newPolicy }
     });
@@ -122,10 +188,6 @@ router.put("/policy", requireRole(["admin"]), async (c) => {
       if (p.requireSpecialChars) required.push("!@#$%^&*");
       return required.length > 0 ? required.join(" ") : "بدون محدودیت";
     };
-
-    const clientIp = c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "127.0.0.1";
-    const currentAdminUsername = payload.username || "admin";
-    const currentAdminRole = payload.role || "admin";
 
     const oldMinLength = existingVal.passwordPolicy?.minLength ?? 8;
     const newMinLength = newPolicy.passwordPolicy?.minLength ?? 8;

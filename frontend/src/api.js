@@ -13,7 +13,7 @@ const pendingRequests = new Map(); // url → Promise
 
 api.interceptors.request.use((config) => {
   // اضافه کردن توکن
-  const token = localStorage.getItem("token");
+  const token = sessionStorage.getItem("token") || localStorage.getItem("token");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -52,6 +52,7 @@ api.interceptors.response.use(
     const isAuthUrl = url ? url.includes("/auth/") : false;
 
     if (status === 401 && !isAuthUrl) {
+      sessionStorage.removeItem("token");
       localStorage.removeItem("token");
       window.location.href = "/login";
     }

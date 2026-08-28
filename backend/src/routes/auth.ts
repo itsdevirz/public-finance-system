@@ -249,34 +249,75 @@ router.post("/login", async (c) => {
   };
 
   if (activeCount >= userMaxSessions) {
-    // 🌟 محدودیت نشست‌های همزمان پرسنلی
-    const actionMessage = `کاربر '${user.username}' دارای ${activeCount} نشست فعال می‌باشد و امکان ورود جدید وجود ندارد. (سقف مجاز: ${userMaxSessions} نشست)`;
+    if (userMaxSessions === 1 || overflowAction === "evict_oldest") {
+      // مرتب‌سازی نشست‌های موجود از قدیمی‌ترین به جدیدترین
+      const sortedSessions = [...existingActiveSessions].sort((a: any, b: any) => {
+        const timeA = new Date(a.lastActivity || a.createdAt || 0).getTime();
+        const timeB = new Date(b.lastActivity || b.createdAt || 0).getTime();
+        return timeA - timeB;
+      });
 
-    await logAuditEvent({
-      userId: user._id,
-      username: user.username,
-      userRole: user.role === "admin" ? "مدیر" : (user.role || "مدیر مالی"),
-      action: actionMessage,
-      eventType: AFTA_LOG_EVENT_TYPES.CONCURRENT_SESSION_LIMIT_EXCEEDED,
-      resource: "لاگ های احراز هویت",
-      method: "POST",
-      result: "FAILURE",
-      ip,
-      userAgent,
-      errorCode: 403,
-      details: {
-        key: "8-2-1",
-        tableName: "لاگ های احراز هویت",
-        aftaClause: "8-2-1",
-        requestType: "ورود به سامانه",
-        requestResult: "ناموفق",
-        activeCount,
-        maxSessions: userMaxSessions,
-        message: actionMessage
+      const toEvictCount = activeCount - userMaxSessions + 1;
+      const sessionsToEvict = sortedSessions.slice(0, toEvictCount);
+
+      for (const sess of sessionsToEvict) {
+        if (sess.token) {
+          await db.collection("revoked_tokens").updateOne(
+            { token: sess.token },
+            {
+              $set: {
+                token: sess.token,
+                revokedAt: new Date().toISOString(),
+                reason: userMaxSessions === 1 ? "انقضا به دلیل ورود جدید کاربر (قاعده تک‌نشستی)" : "خروج خودکار قدیمی‌ترین نشست به علت تکمیل سقف همزمانی"
+              }
+            },
+            { upsert: true }
+          );
+        }
+        await db.collection("active_sessions").deleteOne({ _id: sess._id });
       }
-    });
 
-    return c.json({ message: actionMessage }, 403);
+      await logAuditEvent({
+        userId: user._id,
+        username: user.username,
+        userRole: user.role === "admin" ? "مدیر" : (user.role || "مدیر مالی"),
+        action: `ابطال خودکار ${sessionsToEvict.length} نشست قدیمی کاربر '${user.username}' جهت برقراری نشست جدید`,
+        eventType: AFTA_LOG_EVENT_TYPES.SECURITY_ATTR_CHANGE,
+        resource: "نشست‌های فعال",
+        result: "SUCCESS",
+        ip,
+        userAgent
+      });
+    } else {
+      // 🌟 محدودیت نشست‌های همزمان پرسنلی
+      const actionMessage = `کاربر '${user.username}' دارای ${activeCount} نشست فعال می‌باشد و امکان ورود جدید وجود ندارد. (سقف مجاز: ${userMaxSessions} نشست)`;
+
+      await logAuditEvent({
+        userId: user._id,
+        username: user.username,
+        userRole: user.role === "admin" ? "مدیر" : (user.role || "مدیر مالی"),
+        action: actionMessage,
+        eventType: AFTA_LOG_EVENT_TYPES.CONCURRENT_SESSION_LIMIT_EXCEEDED,
+        resource: "لاگ های احراز هویت",
+        method: "POST",
+        result: "FAILURE",
+        ip,
+        userAgent,
+        errorCode: 403,
+        details: {
+          key: "8-2-1",
+          tableName: "لاگ های احراز هویت",
+          aftaClause: "8-2-1",
+          requestType: "ورود به سامانه",
+          requestResult: "ناموفق",
+          activeCount,
+          maxSessions: userMaxSessions,
+          message: actionMessage
+        }
+      });
+
+      return c.json({ message: actionMessage }, 403);
+    }
   }
 
   // استخراج آخرین تلاش موفق، آخرین تلاش ناموفق و تعداد تلاش‌های ناموفق بر اساس خط‌مشی‌های تنظیم‌شده در سیستم

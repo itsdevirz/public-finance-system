@@ -8,19 +8,20 @@ export default function LoginSecurityNoticeModal() {
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
-    const raw = localStorage.getItem("sessionNotice");
+    const raw = sessionStorage.getItem("sessionNotice") || localStorage.getItem("sessionNotice");
     if (raw) {
       try {
         const parsed = JSON.parse(raw);
         setSessionNotice(parsed);
         setIsOpen(true);
       } catch (err) {
-        console.error("Failed to parse sessionNotice from localStorage:", err);
+        console.error("Failed to parse sessionNotice from sessionStorage:", err);
       }
     }
   }, []);
 
   const handleDismiss = () => {
+    sessionStorage.removeItem("sessionNotice");
     localStorage.removeItem("sessionNotice");
     setIsOpen(false);
   };

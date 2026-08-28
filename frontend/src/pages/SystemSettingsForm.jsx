@@ -969,6 +969,7 @@ export default function SystemSettingsForm() {
           : (Number(s.maxConcurrentSessions) || 3),
         idleTimeoutMinutes: Number(s.sessionTimeoutMinutes) || 30
       },
+      functionBehaviorPolicy: s.functionBehaviorPolicy,
       entityAccessPolicies: ep,
       activeUserSecurityChangePolicy: {
         disallowChangeDuringActiveSession: !!s.disallowSecurityChangeDuringSession,
