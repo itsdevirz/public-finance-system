@@ -36,12 +36,12 @@ export const SECURITY_POLICY_LABELS: Record<string, Record<string, PolicyFieldMe
     },
     allowedLoginStartTime: {
       accordion: "مدیریت امنیت و تمامی تغییرات در رفتارهای توابع کارکردی محصول",
-      label: "ابتدای بازه زمانی مجاز برای ورود (کلید ۱۰۰۶۶)",
+      label: "ابتدای بازه زمانی مجاز برای ورود",
       type: "string"
     },
     allowedLoginEndTime: {
       accordion: "مدیریت امنیت و تمامی تغییرات در رفتارهای توابع کارکردی محصول",
-      label: "انتهای بازه زمانی مجاز برای ورود (کلید ۱۰۰۶۷)",
+      label: "انتهای بازه زمانی مجاز برای ورود",
       type: "string"
     },
     "disabledFunctions.disableDirectDatabaseExport": {
@@ -54,6 +54,57 @@ export const SECURITY_POLICY_LABELS: Record<string, Record<string, PolicyFieldMe
       label: "فعال نمودن احراز هویت دو عاملی مدیران سیستم (فعال نمودن کارکرد)",
       type: "boolean"
     }
+  },
+
+  securityFunctionsManagementPolicy: {
+    enableFunctionsMgmt: { accordion: "مدیریت کارکردهای امنیتی مربوط به مدیریت محصول", label: "فعال‌سازی مدیریت کارکردهای امنیتی", type: "boolean" },
+    behaviorConfiguration: { accordion: "مدیریت کارکردهای امنیتی مربوط به مدیریت محصول", label: "تعیین و تغییر رفتار (Behavior Configuration)", type: "boolean" },
+    disableFunctions: { accordion: "مدیریت کارکردهای امنیتی مربوط به مدیریت محصول", label: "غیرفعال نمودن توابع و کارکردها", type: "boolean" },
+    enableFunctions: { accordion: "مدیریت کارکردهای امنیتی مربوط به مدیریت محصول", label: "فعال نمودن توابع و کارکردها", type: "boolean" },
+    otherFunctionsMgmt: { accordion: "مدیریت کارکردهای امنیتی مربوط به مدیریت محصول", label: "سایر موارد (ثبت حسابرسی لاگ، تخصیص نقش و وارد/صادر کردن خط‌مشی‌ها)", type: "boolean" }
+  },
+
+  authSecurityAttributesPolicy: {
+    enableAuthSecurityMgmt: { accordion: "محدودسازی عملیات بر روی ویژگی‌های امنیتی شناسایی و احراز هویت (Class 7)", label: "فعال‌سازی محدودسازی ویژگی‌های امنیتی احراز هویت", type: "boolean" },
+    querySecurityAttributes: { accordion: "محدودسازی عملیات بر روی ویژگی‌های امنیتی شناسایی و احراز هویت (Class 7)", label: "پرس‌و‌جو (Query Security Attributes)", type: "boolean" },
+    modifySecurityAttributes: { accordion: "محدودسازی عملیات بر روی ویژگی‌های امنیتی شناسایی و احراز هویت (Class 7)", label: "تغییر (Modify Security Attributes)", type: "boolean" },
+    deleteSecurityAttributes: { accordion: "محدودسازی عملیات بر روی ویژگی‌های امنیتی شناسایی و احراز هویت (Class 7)", label: "حذف (Delete Security Attributes)", type: "boolean" },
+    changeDefaultSecurityAttributes: { accordion: "محدودسازی عملیات بر روی ویژگی‌های امنیتی شناسایی و احراز هویت (Class 7)", label: "تغییر پیش‌فرض (Change Default Values)", type: "boolean" },
+    otherAuthSecurityOps: { accordion: "محدودسازی عملیات بر روی ویژگی‌های امنیتی شناسایی و احراز هویت (Class 7)", label: "سایر موارد (بازنشانی کلمه عبور، الزام ورود دو مرحله‌ای و احراز هویت مجدد)", type: "boolean" }
+  },
+
+  productDataManagementPolicy: {
+    enableProductDataMgmt: { accordion: "محدودسازی کارکردهای عملیاتی بر روی داده‌های محصول", label: "فعال‌سازی محدودسازی کارکردهای داده‌های محصول", type: "boolean" },
+    changeDefaultData: { accordion: "محدودسازی کارکردهای عملیاتی بر روی داده‌های محصول", label: "تغییر پیش‌فرض (Modify Default Data Configuration)", type: "boolean" },
+    deleteData: { accordion: "محدودسازی کارکردهای عملیاتی بر روی داده‌های محصول", label: "حذف نمودن (Delete Product Data)", type: "boolean" },
+    queryData: { accordion: "محدودسازی کارکردهای عملیاتی بر روی داده‌های محصول", label: "پرس‌و‌جو (Query Product Data)", type: "boolean" },
+    initializeData: { accordion: "محدودسازی کارکردهای عملیاتی بر روی داده‌های محصول", label: "مقداردهی اولیه داده‌ها (Initialize Data)", type: "boolean" },
+    createData: { accordion: "محدودسازی کارکردهای عملیاتی بر روی داده‌های محصول", label: "ایجاد داده‌های جدید (Create Data)", type: "boolean" },
+    readData: { accordion: "محدودسازی کارکردهای عملیاتی بر روی داده‌های محصول", label: "مشاهده داده‌های محصول (Read Data)", type: "boolean" },
+    otherDataOps: { accordion: "محدودسازی کارکردهای عملیاتی بر روی داده‌های محصول", label: "سایر کارکردهای عملیاتی داده‌های محصول", type: "boolean" }
+  },
+
+  securityManagementCapabilitiesPolicy: {
+    enableCapabilitiesMgmt: { accordion: "توانایی‌های کارکردهای مدیریت امنیتی محصول", label: "فعال‌سازی مدیریت توانایی‌های مدیریت امنیتی", type: "boolean" },
+    groupUserAuditTokenRead: { accordion: "توانایی‌های کارکردهای مدیریت امنیتی محصول", label: "خواندن شناسه/توکن حسابرسی گروه و کاربر", type: "boolean" },
+    auditTokenReadWritePerms: { accordion: "توانایی‌های کارکردهای مدیریت امنیتی محصول", label: "مجوزهای خواندن و نوشتن توکن حسابرسی", type: "boolean" },
+    auditTokenStorageThresholdOps: { accordion: "توانایی‌های کارکردهای مدیریت امنیتی محصول", label: "عملیات آستانه ذخیره‌سازی توکن حسابرسی", type: "boolean" },
+    accessCriteriaParametersMgmt: { accordion: "توانایی‌های کارکردهای مدیریت امنیتی محصول", label: "مدیریت پارامترها و معیارهای دسترسی", type: "boolean" },
+    residualDataProtectionTimingConfig: { accordion: "توانایی‌های کارکردهای مدیریت امنیتی محصول", label: "تنظیم زمان‌بندی حفاظت از داده‌های پسماند", type: "boolean" },
+    dataInputValidationRulesEdit: { accordion: "توانایی‌های کارکردهای مدیریت امنیتی محصول", label: "ویرایش قواعد اعتبارسنجی ورودی داده‌ها", type: "boolean" },
+    dataIntegrityErrorActionConfig: { accordion: "توانایی‌های کارکردهای مدیریت امنیتی محصول", label: "پیکربندی واکنش به خطای صحت داده‌ها", type: "boolean" },
+    failedAuthThresholdMgmt: { accordion: "توانایی‌های کارکردهای مدیریت امنیتی محصول", label: "مدیریت آستانه تلاش‌های ناموفق ورود", type: "boolean" },
+    passwordComplexityCriteriaMgmt: { accordion: "توانایی‌های کارکردهای مدیریت امنیتی محصول", label: "مدیریت معیارهای پیچیدگی رمز عبور", type: "boolean" },
+    authDataAndPreAuthOpsMgmt: { accordion: "توانایی‌های کارکردهای مدیریت امنیتی محصول", label: "مدیریت داده‌های احراز هویت و پیش‌احراز", type: "boolean" },
+    authMechanismsAndRulesMgmt: { accordion: "توانایی‌های کارکردهای مدیریت امنیتی محصول", label: "مدیریت سازوکارها و قواعد احراز هویت", type: "boolean" },
+    preAuthIpAssignmentProcessMgmt: { accordion: "توانایی‌های کارکردهای مدیریت امنیتی محصول", label: "مدیریت فرایند انتساب IP پیش از احراز هویت", type: "boolean" },
+    defaultActiveEntitySecurityAttrsMgmt: { accordion: "توانایی‌های کارکردهای مدیریت امنیتی محصول", label: "مدیریت مشخصات امنیتی پیش‌فرض موجودیت فعال", type: "boolean" },
+    defaultProductAccessControlValuesMgmt: { accordion: "توانایی‌های کارکردهای مدیریت امنیتی محصول", label: "مدیریت مقادیر پیش‌فرض کنترل دسترسی محصول", type: "boolean" },
+    productRolesMgmt: { accordion: "توانایی‌های کارکردهای مدیریت امنیتی محصول", label: "مدیریت نقش‌های محصول", type: "boolean" },
+    maxConcurrentSessionsPerUserMgmt: { accordion: "توانایی‌های کارکردهای مدیریت امنیتی محصول", label: "مدیریت حداکثر نشست‌های همزمان کاربر", type: "boolean" },
+    sessionStartConditionsMgmt: { accordion: "توانایی‌های کارکردهای مدیریت امنیتی محصول", label: "مدیریت شرایط شروع نشست", type: "boolean" },
+    specificUserInactivityTimeoutConfig: { accordion: "توانایی‌های کارکردهای مدیریت امنیتی محصول", label: "تنظیم زمان خاتمه عدم فعالیت کاربر خاص", type: "boolean" },
+    defaultUsersInactivityTimeoutConfig: { accordion: "توانایی‌های کارکردهای مدیریت امنیتی محصول", label: "تنظیم زمان خاتمه عدم فعالیت کاربران پیش‌فرض", type: "boolean" }
   },
 
   activeUserSecurityChangePolicy: {
@@ -218,7 +269,23 @@ export const SECURITY_POLICY_LABELS: Record<string, Record<string, PolicyFieldMe
   tlsClientPolicy: {
     enable: { accordion: "الزامات امنیتی پروتکل TLS Client (RFC 6125)", label: "فعال‌سازی خط‌مشی پروتکل TLS Client", type: "boolean" },
     enforceTls12Only: { accordion: "الزامات امنیتی پروتکل TLS Client (RFC 6125)", label: "الزام استفاده انحصاری از TLS 1.2 / 1.3", type: "boolean" },
-    rfc6125IdentityValidation: { accordion: "الزامات امنیتی پروتکل TLS Client (RFC 6125)", label: "اعتبارسنجی شناسه سرور مطابق RFC 6125", type: "boolean" }
+    rfc6125IdentityValidation: { accordion: "الزامات امنیتی پروتکل TLS Client (RFC 6125)", label: "اعتبارسنجی شناسه سرور مطابق RFC 6125", type: "boolean" },
+    "cipherSuites.tls_aes_256_gcm_sha384": { accordion: "پیکربندی مجموعه‌های رمز (Cipher Suites) پشتیبانی‌شده در TLS Client", label: "مجموعه رمز TLS_AES_256_GCM_SHA384 (0x1302 - RFC 8446)", type: "boolean" },
+    "cipherSuites.tls_aes_128_gcm_sha256": { accordion: "پیکربندی مجموعه‌های رمز (Cipher Suites) پشتیبانی‌شده در TLS Client", label: "مجموعه رمز TLS_AES_128_GCM_SHA256 (0x1301 - RFC 8446)", type: "boolean" },
+    "cipherSuites.tls_dhe_rsa_with_aes_256_gcm_sha384": { accordion: "پیکربندی مجموعه‌های رمز (Cipher Suites) پشتیبانی‌شده در TLS Client", label: "مجموعه رمز TLS_DHE_RSA_WITH_AES_256_GCM_SHA384 (0x009F - RFC 5288)", type: "boolean" },
+    "cipherSuites.tls_dhe_rsa_with_aes_128_gcm_sha256": { accordion: "پیکربندی مجموعه‌های رمز (Cipher Suites) پشتیبانی‌شده در TLS Client", label: "مجموعه رمز TLS_DHE_RSA_WITH_AES_128_GCM_SHA256 (0x009E - RFC 5288)", type: "boolean" },
+    "cipherSuites.tls_ecdhe_rsa_with_aes_128_gcm_sha256": { accordion: "پیکربندی مجموعه‌های رمز (Cipher Suites) پشتیبانی‌شده در TLS Client", label: "مجموعه رمز TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 (0xC02F - RFC 5289)", type: "boolean" },
+    "cipherSuites.tls_ecdhe_rsa_with_aes_256_gcm_sha384": { accordion: "پیکربندی مجموعه‌های رمز (Cipher Suites) پشتیبانی‌شده در TLS Client", label: "مجموعه رمز TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 (0xC030 - RFC 5289)", type: "boolean" },
+    "cipherSuites.tls_ecdhe_ecdsa_with_aes_256_gcm_sha384": { accordion: "پیکربندی مجموعه‌های رمز (Cipher Suites) پشتیبانی‌شده در TLS Client", label: "مجموعه رمز TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 (0xC02C - RFC 5289)", type: "boolean" },
+    "cipherSuites.tls_ecdhe_ecdsa_with_aes_128_gcm_sha256": { accordion: "پیکربندی مجموعه‌های رمز (Cipher Suites) پشتیبانی‌شده در TLS Client", label: "مجموعه رمز TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 (0xC02B - RFC 5289)", type: "boolean" },
+    "cipherSuites.tls_rsa_with_aes_256_gcm_sha384": { accordion: "پیکربندی مجموعه‌های رمز (Cipher Suites) پشتیبانی‌شده در TLS Client", label: "مجموعه رمز TLS_RSA_WITH_AES_256_GCM_SHA384 (0x009D - RFC 5288)", type: "boolean" },
+    "cipherSuites.tls_rsa_with_aes_128_gcm_sha256": { accordion: "پیکربندی مجموعه‌های رمز (Cipher Suites) پشتیبانی‌شده در TLS Client", label: "مجموعه رمز TLS_RSA_WITH_AES_128_GCM_SHA256 (0x009C - RFC 5288)", type: "boolean" },
+    "cipherSuites.tls_ecdh_ecdsa_with_aes_256_gcm_sha384": { accordion: "پیکربندی مجموعه‌های رمز (Cipher Suites) پشتیبانی‌شده در TLS Client", label: "مجموعه رمز TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384 (0xC02E - RFC 5288)", type: "boolean" },
+    "cipherSuites.tls_ecdh_ecdsa_with_aes_128_gcm_sha256": { accordion: "پیکربندی مجموعه‌های رمز (Cipher Suites) پشتیبانی‌شده در TLS Client", label: "مجموعه رمز TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256 (0xC02D - RFC 5289)", type: "boolean" },
+    "cipherSuites.tls_ecdh_rsa_with_aes_256_gcm_sha384": { accordion: "پیکربندی مجموعه‌های رمز (Cipher Suites) پشتیبانی‌شده در TLS Client", label: "مجموعه رمز TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384 (0xC032 - RFC 5289)", type: "boolean" },
+    "cipherSuites.tls_ecdh_rsa_with_aes_128_gcm_sha256": { accordion: "پیکربندی مجموعه‌های رمز (Cipher Suites) پشتیبانی‌شده در TLS Client", label: "مجموعه رمز TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256 (0xC031 - RFC 5289)", type: "boolean" },
+    "cipherSuites.tls_dh_rsa_with_aes_256_gcm_sha384": { accordion: "پیکربندی مجموعه‌های رمز (Cipher Suites) پشتیبانی‌شده در TLS Client", label: "مجموعه رمز TLS_DH_RSA_WITH_AES_256_GCM_SHA384 (0x00A1 - RFC 5288)", type: "boolean" },
+    "cipherSuites.tls_dh_rsa_with_aes_128_gcm_sha256": { accordion: "پیکربندی مجموعه‌های رمز (Cipher Suites) پشتیبانی‌شده در TLS Client", label: "مجموعه رمز TLS_DH_RSA_WITH_AES_128_GCM_SHA256 (0x00A0 - RFC 5288)", type: "boolean" }
   },
 
   tlsServerPolicy: {
@@ -241,5 +308,46 @@ export const SECURITY_POLICY_LABELS: Record<string, Record<string, PolicyFieldMe
     disallowPacketSizeExceedingMax: { accordion: "الزامات امنیتی پروتکل SSH (RFC 4251-4254)", label: "ممانعت از دریافت بسته‌های SSH بزرگتر از سقف مجاز (35,000 بایت)", type: "boolean" },
     enableRekeyingOnLimit: { accordion: "الزامات امنیتی پروتکل SSH (RFC 4251-4254)", label: "فعال‌سازی تعویض کلید (Rekeying) هنگام رسیدن به حد آستانه", type: "boolean" },
     verifyHostKeyAgainstKnownHosts: { accordion: "الزامات امنیتی پروتکل SSH (RFC 4251-4254)", label: "اعتبارسنجی کلید عمومی سرور SSH در known_hosts", type: "boolean" }
+  },
+
+  inactiveEntityAccessPolicies: {
+    "recordsDocsMetadata.read": { accordion: "تعیین خط‌مشی‌های کنترل دسترسی در مورد موجودیت‌های غیرفعال", label: "دسترسی مشاهده سوابق، اسناد و متاداده موجودیت غیرفعال", type: "boolean" },
+    "recordsDocsMetadata.restore": { accordion: "تعیین خط‌مشی‌های کنترل دسترسی در مورد موجودیت‌های غیرفعال", label: "بازگردانی سوابق، اسناد و متاداده موجودیت غیرفعال", type: "boolean" },
+    "recordsDocsMetadata.delete": { accordion: "تعیین خط‌مشی‌های کنترل دسترسی در مورد موجودیت‌های غیرفعال", label: "حذف سوابق، اسناد و متاداده موجودیت غیرفعال", type: "boolean" },
+    "recordsDocsMetadata.export": { accordion: "تعیین خط‌مشی‌های کنترل دسترسی در مورد موجودیت‌های غیرفعال", label: "استخراج سوابق، اسناد و متاداده موجودیت غیرفعال", type: "boolean" },
+    "userBelongingData.read": { accordion: "تعیین خط‌مشی‌های کنترل دسترسی در مورد موجودیت‌های غیرفعال", label: "دسترسی مشاهده داده‌های متعلق به کاربر در موجودیت غیرفعال", type: "boolean" },
+    "userBelongingData.restore": { accordion: "تعیین خط‌مشی‌های کنترل دسترسی در مورد موجودیت‌های غیرفعال", label: "بازگردانی داده‌های متعلق به کاربر در موجودیت غیرفعال", type: "boolean" },
+    "userBelongingData.delete": { accordion: "تعیین خط‌مشی‌های کنترل دسترسی در مورد موجودیت‌های غیرفعال", label: "حذف داده‌های متعلق به کاربر در موجودیت غیرفعال", type: "boolean" },
+    "userBelongingData.export": { accordion: "تعیین خط‌مشی‌های کنترل دسترسی در مورد موجودیت‌های غیرفعال", label: "استخراج داده‌های متعلق به کاربر در موجودیت غیرفعال", type: "boolean" },
+    "authData.read": { accordion: "تعیین خط‌مشی‌های کنترل دسترسی در مورد موجودیت‌های غیرفعال", label: "دسترسی مشاهده داده‌های احراز هویت در موجودیت غیرفعال", type: "boolean" },
+    "authData.restore": { accordion: "تعیین خط‌مشی‌های کنترل دسترسی در مورد موجودیت‌های غیرفعال", label: "بازگردانی داده‌های احراز هویت در موجودیت غیرفعال", type: "boolean" },
+    "authData.delete": { accordion: "تعیین خط‌مشی‌های کنترل دسترسی در مورد موجودیت‌های غیرفعال", label: "حذف داده‌های احراز هویت در موجودیت غیرفعال", type: "boolean" },
+    "authData.export": { accordion: "تعیین خط‌مشی‌های کنترل دسترسی در مورد موجودیت‌های غیرفعال", label: "استخراج داده‌های احراز هویت در موجودیت غیرفعال", type: "boolean" }
+  },
+
+  inactiveEntityOperationsPolicy: {
+    "createInactiveEntity.requireAdminApproval": { accordion: "تعیین خط‌مشی‌های کنترل دسترسی عملیاتی بر روی موجودیت‌های غیرفعال", label: "الزام تأیید مدیر سیستم جهت ایجاد موجودیت غیرفعال", type: "boolean" },
+    "deleteInactiveEntity.preventHardDelete": { accordion: "تعیین خط‌مشی‌های کنترل دسترسی عملیاتی بر روی موجودیت‌های غیرفعال", label: "ممانعت از حذف فیزیکی (Hard Delete) موجودیت‌های غیرفعال", type: "boolean" },
+    "changeInactiveAccess.notifySecurityOfficer": { accordion: "تعیین خط‌مشی‌های کنترل دسترسی عملیاتی بر روی موجودیت‌های غیرفعال", label: "ارسال هشدار به مسؤول امنیت هنگام تغییر دسترسی به موجودیت غیرفعال", type: "boolean" },
+    "inactiveMetadataOps.checkIntegrity": { accordion: "تعیین خط‌مشی‌های کنترل دسترسی عملیاتی بر روی موجودیت‌های غیرفعال", label: "اعتبارسنجی صحت داده در عملیات متاداده موجودیت‌های غیرفعال", type: "boolean" }
+  },
+
+  inactiveEntityPolicyCriteria: {
+    useUserRolesAndPermissions: { accordion: "ویژگی‌های تعریف خط‌مشی‌های موجودیت‌های غیرفعال", label: "استفاده از نقش‌ها و مجوزهای کاربری جهت تعریف خط‌مشی", type: "boolean" },
+    useSessionInfoAndRequestParams: { accordion: "ویژگی‌های تعریف خط‌مشی‌های موجودیت‌های غیرفعال", label: "استفاده از مشخصات نشست و پارامترهای درخواست", type: "boolean" }
+  },
+
+  sensitiveDataIntegrityPolicy: {
+    maintainHashedValues: { accordion: "تشخیص تغییر غیرمجاز در داده کاربری حساس ذخیره‌شده در محصول", label: "محاسبه و نگهداری مقادیر هش شده داده‌های حساس", type: "boolean" },
+    otherTamperDetection: { accordion: "تشخیص تغییر غیرمجاز در داده کاربری حساس ذخیره‌شده در محصول", label: "استفاده از سایر سازوکارهای کشف دستکاری داده‌ها", type: "boolean" },
+    autoBlockOnTamperAlert: { accordion: "تشخیص تغییر غیرمجاز در داده کاربری حساس ذخیره‌شده در محصول", label: "مسدودسازی خودکار دسترسی هنگام کشف دستکاری در داده‌ها", type: "boolean" },
+    auditLogTamperEvents: { accordion: "تشخیص تغییر غیرمجاز در داده کاربری حساس ذخیره‌شده در محصول", label: "ثبت رویدادهای کشف دستکاری در لاگ ممیزی امنیتی افتا", type: "boolean" }
+  },
+
+  dataIntegrityErrorResponsePolicy: {
+    notifyAuthorizedRoles: { accordion: "اقدامات مقابله‌ای در صورت تشخیص خطای صحت در داده‌ها", label: "ارسال فوری هشدار امنیتی به نقش‌های مجاز", type: "boolean" },
+    autoRollbackToPreviousState: { accordion: "اقدامات مقابله‌ای در صورت تشخیص خطای صحت در داده‌ها", label: "بازگشت خودکار به آخرین وضعیت معتبر (Rollback)", type: "boolean" },
+    otherResponseActions: { accordion: "اقدامات مقابله‌ای در صورت تشخیص خطای صحت در داده‌ها", label: "اجرای سایر اقدامات مقابله‌ای تعریف‌شده", type: "boolean" },
+    auditLogErrorEvents: { accordion: "اقدامات مقابله‌ای در صورت تشخیص خطای صحت در داده‌ها", label: "ثبت کامل جزئیات خطای صحت داده در لاگ ممیزی", type: "boolean" }
   }
 };

@@ -128,7 +128,6 @@ router.post("/", async (c) => {
       ip: extractClientIp(c),
       userAgent: c.req.header("user-agent"),
       details: {
-        key: "0",
         tableName: "گروه‌های کاربری",
         operation: "افزودن",
         aftaClause: "4-2-1",
@@ -407,7 +406,6 @@ router.put("/:id", async (c) => {
         ip: extractClientIp(c),
         userAgent: c.req.header("user-agent"),
         details: {
-          key: "1092",
           tableName: "گروه‌های کاربری",
           operation: "ویرایش",
           aftaClause: "4-2-1",
@@ -470,7 +468,6 @@ router.delete("/:id", async (c) => {
       ip: extractClientIp(c),
       userAgent: c.req.header("user-agent"),
       details: {
-        key: "1092",
         tableName: "گروه‌های کاربری",
         operation: "حذف",
         aftaClause: "4-2-1",

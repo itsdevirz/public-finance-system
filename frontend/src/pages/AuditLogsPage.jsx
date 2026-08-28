@@ -55,91 +55,76 @@ export const AFTA_CLAUSE_4_ADMIN_CAPABILITIES = [
   {
     id: 1,
     title: "پشتیبانی از (حذف، ویرایش، اضافه) گروهی از کاربران با مجوز دسترسی برای خواندن اطلاعات ثبت‌نشان‌ها",
-    code: "11026",
     description: "پشتیبانی کامل از مدیریت گروهی کاربران با مجوزهای دسترسی ممیزی."
   },
   {
     id: 2,
     title: "پشتیبانی از مجوزهای مشاهده/ویرایش ثبت‌نشان‌ها",
-    code: "11027",
     description: "تفکیک و کنترل دقیق مجوزهای مشاهده و ویرایش لاگ‌های ممیزی."
   },
   {
     id: 3,
     title: "پشتیبانی از حد آستانه و عملیات (حذف، ویرایش، اضافه) در زمان خرابی ذخیره‌سازی ثبت‌نشان‌ها",
-    code: "11028",
     description: "ذخیره پشتیبان و مکانیزم Fail-Secure ثبت‌نشان‌ها در زمان خرابی دیتابیس."
   },
   {
     id: 4,
     title: "مدیریت معیارها/پارامترهای مورد استفاده برای ایجاد و یا منع دسترسی به محصول",
-    code: "11029",
     description: "تنظیم آدرس‌های IP غیرمجاز و خط‌مشی‌های منع دسترسی به سیستم."
   },
   {
     id: 5,
     title: "انتخاب زمان اجرای حفاظت از اطلاعات باقیمانده (زمان تخصیص یا آزادسازی منابع)",
-    code: "11030",
     description: "پیکربندی زمان پاکسازی داده‌های موقت و آزادسازی منابع سیستم."
   },
   {
     id: 6,
     title: "ویرایش قوانین کنترلی بیشتر برای وارد کردن داده به داخل محصول",
-    code: "11031",
     description: "ویرایش و اعمال قوانین کنترلی ورود داده‌های کاربری به محصول."
   },
   {
     id: 7,
     title: "در نظر گرفتن یک عملیات از پیش تعیین‌شده پس از تشخیص یک خطای صحت داده",
-    code: "11032",
     description: "تعریف واکنش سیستمی و مسدودسازی در صورت بروز خطای اعتبارسنجی."
   },
   {
     id: 8,
     title: "مدیریت حد آستانه تلاش‌های ناموفق و مدیریت عملیات شکست احراز هویت",
-    code: "11033",
     description: "پیکربندی سقف تلاش‌های ناموفق و تعلیق خودکار حساب کاربری (Lockout Policy)."
   },
   {
     id: 9,
     title: "مدیریت معیارها برای تنظیم گذرواژه‌ها",
-    code: "10080",
     description: "تنظیم حداقل طول رمز عبور، ترکیبات پیچیده و قوانین گذرواژه (Password Policy)."
   },
   {
     id: 10,
     title: "مدیریت داده‌های احراز هویت و مدیریت عملیات قبل از احراز هویت",
-    code: "11034",
     description: "مدیریت داده‌های احراز هویت و کنترل عملیات پیش از ورود کاربر."
   },
   {
     id: 11,
     title: "مدیریت سازوکارهای احراز هویت و مدیریت قوانین مرتبط با احراز هویت",
-    code: "11035",
     description: "تنظیم سازوکارهای احراز هویت، OTP/MFA و اعتبار نشست‌ها."
   },
   {
     id: 12,
     title: "مدیریت اختصاص آدرس IP جهت شناسایی کاربر خاص توسط مدیر مجاز",
-    code: "11039",
     description: "اختصاص آدرس‌های ماشین مجاز برای کاربران ارشد سامانه (Allowed Senior IPs)."
   },
   {
     id: 13,
     title: "تعریف و تغییر ویژگی‌های امنیتی فعال پیش‌فرض توسط مدیر مجاز",
-    code: "11036",
     description: "مدیریت ویژگی‌های امنیتی پیش‌فرض موجودیت‌ها و نقش‌های فعال."
   },
   {
     id: 14,
     title: "مدیریت مقادیر پیش‌فرض برای کنترل دسترسی محصول",
-    code: "11037",
     description: "تنظیم ماتریس دسترسی پیش‌فرض نقش‌ها و سطوح دسترسی (ACL)."
   },
   {
     id: 15,
     title: "مدیریت نقش‌ها در محصول",
-    code: "11038",
     description: "تعریف، ویرایش و تخصیص نقش‌های شغلی کاربران سیستم."
   },
   {
@@ -888,39 +873,15 @@ export default function AuditLogsPage() {
       else if (resourceLower.includes("/asset")) tableName = "اموال و دارایی‌ها";
       else if (resourceLower.includes("/warehouse")) tableName = "انبار و کالاها";
 
-      // 4. مقدار کلید (شناسه رکورد یا کلید اصلی)
-      let keyValue = "";
-      if (isCapabilityFailureLog) {
-        keyValue = String(log.details?.key || log.key || "11060");
-      } else if (isSecurityFailureLog) {
-        keyValue = String(log.details?.key || log.key || "11050");
-      } else if (isUserGroupChangeLog) {
-        keyValue = String(log.details?.key || log.key || log.details?.groupId || "1092");
-      } else if (isAttachmentLog) {
-        if (isDeleteOp) {
-          keyValue = String(log.details?.attachmentId || log.details?.key || log.entityId || log.key || "25137");
-        } else {
-          keyValue = String(log.details?.key ?? "0");
-        }
-      } else if (log.entityId) {
-        keyValue = String(log.entityId);
-      } else if (log.key) {
-        keyValue = String(log.key);
-      } else if (log.details?.id || log.details?.recordId || log.details?.voucherId || log.details?.userId || log.details?.documentId || log.details?.contractId || log.details?.key) {
-        keyValue = String(log.details.id || log.details.recordId || log.details.voucherId || log.details.userId || log.details.documentId || log.details.contractId || log.details.key);
-      } else {
-        keyValue = "";
-      }
-
-      // 5. کاربر (نام کاربری واقعی)
+      // 4. کاربر (نام کاربری واقعی)
       let username = log.username || log.userFullName || (log.userId && log.userId !== "SYSTEM" ? String(log.userId) : "admin");
       if (!username || username === "anonymous" || username === "کاربر مهمان") username = "admin";
 
-      // 6. نوع کاربر (نقش واقعی)
+      // 5. نوع کاربر (نقش واقعی)
       let userRole = log.userRole || "admin";
       if (!userRole || userRole === "سیستم" || userRole === "—") userRole = "admin";
 
-      // 7 & 8. تاریخ و زمان وقوع (محاسبه واقعی بدون داده فرضی)
+      // 6 & 7. تاریخ و زمان وقوع (محاسبه واقعی بدون داده فرضی)
       let occurrenceDate = "—";
       let occurrenceTime = "—";
 
@@ -943,13 +904,13 @@ export default function AuditLogsPage() {
         }
       }
 
-      // 9. آدرس ماشین (آی‌پی واقعی)
+      // 8. آدرس ماشین (آی‌پی واقعی)
       const machineAddress = log.ip || "—";
 
-      // 10. شرح عملیات قابل فهم برای کاربران غیربرنامه‌نویس
+      // 9. شرح عملیات قابل فهم برای کاربران غیربرنامه‌نویس
       const description = formatHumanReadableDescription(log);
 
-      // 11 & 12. اطلاعات اختصاصی نتایج نهایی احراز هویت
+      // 10 & 11. اطلاعات اختصاصی نتایج نهایی احراز هویت
       const isAuthOutcome =
         log.eventType === "AUTH_FINAL_OUTCOME" ||
         log.eventType === "AUTH_MECHANISM_USAGE" ||
@@ -981,8 +942,6 @@ export default function AuditLogsPage() {
       const isPasswordVerify =
         log.eventType === "PASSWORD_VERIFY_ATTEMPT_LOG" ||
         log.details?.isPasswordVerifyAttemptLog === true ||
-        keyValue === "10080" ||
-        keyValue === "10081" ||
         actionStr.includes("حداقل تعداد کاراکتر های رمز عبور") ||
         actionStr.includes("کاراکترهای مورد نیاز برای رمز عبور") ||
         actionStr.includes("گذرواژه");
@@ -994,7 +953,6 @@ export default function AuditLogsPage() {
         isIntegrityOk,
         opType,
         tableName,
-        keyValue,
         username,
         userRole,
         occurrenceDate,
@@ -1178,7 +1136,6 @@ export default function AuditLogsPage() {
       { header: "وضعیت رکورد", key: "recordStatus" },
       { header: "نوع عملیات", key: "opType" },
       { header: "نام جدول", key: "tableName" },
-      { header: "مقدار کلید", key: "keyValue" },
       { header: "کاربر", key: "username" },
       { header: "نوع کاربر", key: "userRole" },
       { header: "تاریخ وقوع", key: "occurrenceDate" },
@@ -1194,12 +1151,11 @@ export default function AuditLogsPage() {
   const handleExportCSV = async () => {
     if (!filteredProcessedLogs.length) return;
     const fileName = `Operational_Audit_Logs_${new Date().toISOString().slice(0, 10)}.csv`;
-    const headers = ["وضعیت رکورد", "نوع عملیات", "نام جدول", "مقدار کلید", "کاربر", "نوع کاربر", "تاریخ وقوع", "زمان وقوع", "آدرس ماشین", "شرح عملیات"];
+    const headers = ["وضعیت رکورد", "نوع عملیات", "نام جدول", "کاربر", "نوع کاربر", "تاریخ وقوع", "زمان وقوع", "آدرس ماشین", "شرح عملیات"];
     const rows = filteredProcessedLogs.map(l => [
       `"${l.recordStatus}"`,
       `"${l.opType}"`,
       `"${l.tableName}"`,
-      `"${l.keyValue}"`,
       `"${l.username}"`,
       `"${l.userRole}"`,
       `"${l.occurrenceDate}"`,
@@ -1638,16 +1594,6 @@ export default function AuditLogsPage() {
                         <ArrowUpDown className="h-3 w-3 text-slate-500" />
                       </div>
                     </th>
-
-                    <th
-                      onClick={() => handleSort("keyValue")}
-                      className="py-2 px-1.5 border-l border-slate-300 dark:border-slate-700 cursor-pointer hover:bg-slate-200/70 dark:hover:bg-slate-700 transition-colors text-center whitespace-nowrap"
-                    >
-                      <div className="flex items-center justify-center gap-1">
-                        <span>مقدار کلید</span>
-                        <ArrowUpDown className="h-3 w-3 text-slate-500" />
-                      </div>
-                    </th>
                   </>
                 )}
 
@@ -1744,7 +1690,7 @@ export default function AuditLogsPage() {
             <tbody className="divide-y divide-slate-200 dark:divide-slate-700/80 bg-white dark:bg-slate-900">
               {loading ? (
                 <tr>
-                  <td colSpan={11} className="py-12 text-center text-muted-foreground">
+                  <td colSpan={10} className="py-12 text-center text-muted-foreground">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <RefreshCw className="h-6 w-6 animate-spin text-primary" />
                       <span className="text-xs font-semibold">در حال دریافت لاگ های عملیاتی...</span>
@@ -1753,7 +1699,7 @@ export default function AuditLogsPage() {
                 </tr>
               ) : filteredProcessedLogs.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="py-12 text-center text-muted-foreground">
+                  <td colSpan={10} className="py-12 text-center text-muted-foreground">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <Info className="h-8 w-8 opacity-40" />
                       <span className="text-xs font-bold text-foreground">هیچ لاگ عملیاتی یافت نشد.</span>
@@ -1783,11 +1729,6 @@ export default function AuditLogsPage() {
                         {/* نام جدول */}
                         <td className="py-2 px-1.5 border-l border-slate-200 dark:border-slate-800 text-center whitespace-nowrap font-medium">
                           {item.tableName}
-                        </td>
-
-                        {/* مقدار کلید */}
-                        <td className="py-2 px-1.5 border-l border-slate-200 dark:border-slate-800 text-center whitespace-nowrap font-mono text-[11px] text-slate-600 dark:text-slate-400">
-                          {item.keyValue}
                         </td>
                       </>
                     )}
@@ -2085,7 +2026,7 @@ export default function AuditLogsPage() {
                 .filter(item => {
                   if (!capabilitySearchTerm.trim()) return true;
                   const term = capabilitySearchTerm.toLowerCase();
-                  return item.title.toLowerCase().includes(term) || item.description.toLowerCase().includes(term) || item.code.includes(term);
+                  return item.title.toLowerCase().includes(term) || item.description.toLowerCase().includes(term);
                 })
                 .map((item) => (
                   <div
@@ -2095,7 +2036,7 @@ export default function AuditLogsPage() {
                     <div className="space-y-1 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <Badge variant="outline" className="font-mono text-[10px] bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800">
-                          بند ۴-{item.id} (کد {item.code})
+                          بند ۴-{item.id}
                         </Badge>
                         <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 text-[10px] font-bold">
                           ✓ پشتیبانی فعال در محصول
@@ -2111,7 +2052,7 @@ export default function AuditLogsPage() {
                       onClick={() => {
                         setShowAdminCapabilitiesModal(false);
                         setLogTableType("ADMIN_FUNCTIONS");
-                        setSearchTerm(item.code);
+                        setSearchTerm(item.title);
                       }}
                       className="gap-1 text-[11px] font-bold shrink-0 self-end sm:self-center"
                     >

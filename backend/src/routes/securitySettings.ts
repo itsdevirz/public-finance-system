@@ -1,7 +1,8 @@
 import { Hono } from "hono";
 import { ObjectId } from "mongodb";
 import { getDb } from "../db/index.js";
-import { DEFAULT_SECURITY_POLICY } from "../lib/securityPolicy.js";
+import { DEFAULT_SECURITY_POLICY, validateTlsClientConnection } from "../lib/securityPolicy.js";
+import { executeRealTlsHandshake } from "../lib/secureTlsClient.js";
 import { logAuditEvent, AFTA_LOG_EVENT_TYPES, verifyLogIntegrity, signExistingLogs, runAuditLogRetentionAndRotation, extractClientIp } from "../lib/auditLogger.js";
 import { requireRole } from "../middleware/rbacMiddleware.js";
 import { sendAdminThresholdNotification } from "../lib/notifier.js";
@@ -58,6 +59,10 @@ router.put("/policy", requireRole(["admin"]), async (c) => {
         idleTimeoutMinutes: Math.max(1, Number(body.sessionPolicy?.idleTimeoutMinutes) || 30),
       },
       functionBehaviorPolicy: body.functionBehaviorPolicy || existingVal.functionBehaviorPolicy || DEFAULT_SECURITY_POLICY.functionBehaviorPolicy,
+      securityFunctionsManagementPolicy: body.securityFunctionsManagementPolicy || existingVal.securityFunctionsManagementPolicy || DEFAULT_SECURITY_POLICY.securityFunctionsManagementPolicy,
+      authSecurityAttributesPolicy: body.authSecurityAttributesPolicy || existingVal.authSecurityAttributesPolicy || DEFAULT_SECURITY_POLICY.authSecurityAttributesPolicy,
+      productDataManagementPolicy: body.productDataManagementPolicy || existingVal.productDataManagementPolicy || DEFAULT_SECURITY_POLICY.productDataManagementPolicy,
+      securityManagementCapabilitiesPolicy: body.securityManagementCapabilitiesPolicy || existingVal.securityManagementCapabilitiesPolicy || DEFAULT_SECURITY_POLICY.securityManagementCapabilitiesPolicy,
       entityAccessPolicies: body.entityAccessPolicies || existingVal.entityAccessPolicies || DEFAULT_SECURITY_POLICY.entityAccessPolicies,
       activeUserSecurityChangePolicy: body.activeUserSecurityChangePolicy || existingVal.activeUserSecurityChangePolicy || DEFAULT_SECURITY_POLICY.activeUserSecurityChangePolicy,
       inactiveEntityAccessPolicies: body.inactiveEntityAccessPolicies || existingVal.inactiveEntityAccessPolicies || DEFAULT_SECURITY_POLICY.inactiveEntityAccessPolicies,
@@ -117,27 +122,35 @@ router.put("/policy", requireRole(["admin"]), async (c) => {
 
     // ثبت لاگ ممیزی با جزییات کامل برای تک‌تک آیتم‌ها و آکاردئون‌های تغییریافته
     for (const [sectionKey, sectionMeta] of Object.entries(SECURITY_POLICY_LABELS)) {
+      const defaultSection = (DEFAULT_SECURITY_POLICY as any)[sectionKey] || {};
       const oldSection = (existingVal as any)[sectionKey] || {};
       const newSection = (newPolicy as any)[sectionKey] || {};
 
       for (const [fieldKey, meta] of Object.entries(sectionMeta)) {
+        const defaultFieldVal = getNestedValue(defaultSection, fieldKey);
         const rawOldVal = getNestedValue(oldSection, fieldKey);
         const rawNewVal = getNestedValue(newSection, fieldKey);
 
-        const oldVal = rawOldVal === undefined ? (meta.type === "boolean" ? false : "") : rawOldVal;
-        const newVal = rawNewVal === undefined ? (meta.type === "boolean" ? false : "") : rawNewVal;
+        const defaultFallback = defaultFieldVal !== undefined 
+          ? defaultFieldVal 
+          : (meta.type === "boolean" ? false : "");
+
+        const oldVal = rawOldVal !== undefined ? rawOldVal : defaultFallback;
+        const newVal = rawNewVal !== undefined ? rawNewVal : defaultFallback;
 
         if (oldVal !== newVal) {
           let actionText = "";
           let changeType = "UPDATED";
 
-          if (meta.type === "boolean") {
+          if (meta.type === "boolean" || typeof newVal === "boolean") {
             const isActivated = newVal === true;
             changeType = isActivated ? "ACTIVATED" : "DEACTIVATED";
-            const stateStr = isActivated ? "فعال شد" : "غیرفعال شد";
-            actionText = `آکاردئون '${meta.accordion}': گزینه '${meta.label}' ${stateStr}`;
+            const stateStr = isActivated ? "(فعال شد)" : "(غیرفعال شد)";
+            actionText = `آکاردئون [${meta.accordion}]: تیک گزینه ${meta.label} ${stateStr}`;
           } else {
-            actionText = `آکاردئون '${meta.accordion}': گزینه '${meta.label}' از '${oldVal || "خالی"}' به '${newVal || "خالی"}' تغییر یافت`;
+            const oldStr = oldVal !== undefined && oldVal !== null && oldVal !== "" ? oldVal : "خالی";
+            const newStr = newVal !== undefined && newVal !== null && newVal !== "" ? newVal : "خالی";
+            actionText = `آکاردئون [${meta.accordion}]: مقدار ${meta.label} از [${oldStr}] به [${newStr}] ثبت شد.`;
           }
 
           await logAuditEvent({
@@ -164,126 +177,68 @@ router.put("/policy", requireRole(["admin"]), async (c) => {
       }
     }
 
-    // ۴. تمامی تغییرات کلی در پیکربندی و رفتار کارکردی محصول
-    await logAuditEvent({
-      userId: payload.sub,
-      username: payload.username,
-      userRole: payload.role,
-      action: AFTA_LOG_EVENT_TYPES.FUNCTION_BEHAVIOR_CHANGE,
-      eventType: AFTA_LOG_EVENT_TYPES.FUNCTION_BEHAVIOR_CHANGE,
-      resource: "system_settings",
-      result: "SUCCESS",
-      ip: clientIp,
-      userAgent: c.req.header("user-agent"),
-      details: { newPolicy }
-    });
+    // ثبت لاگ ممیزی برای ماتریس دسترسی به موجودیت‌ها (آکاردئون ماتریس خط‌مشی کنترل دسترسی)
+    const oldEntityPolicies = existingVal.entityAccessPolicies || [];
+    const newEntityPolicies = newPolicy.entityAccessPolicies || [];
 
-    // ثبت اختصاصی تغییرات حداقل طول رمز عبور (کلید 10080) و کاراکترهای مورد نیاز رمز عبور (کلید 10081)
-    const formatCharPattern = (p: any) => {
-      if (!p) return "!@#$%^&*";
-      const required: string[] = [];
-      if (p.requireUppercase) required.push("A-Z");
-      if (p.requireLowercase) required.push("a-z");
-      if (p.requireNumbers) required.push("0-9");
-      if (p.requireSpecialChars) required.push("!@#$%^&*");
-      return required.length > 0 ? required.join(" ") : "بدون محدودیت";
-    };
+    if (Array.isArray(newEntityPolicies) && Array.isArray(oldEntityPolicies)) {
+      const roleLabels: Record<string, string> = {
+        systemAdmin: "مدیر سیستم",
+        regularUser: "کاربر عادی",
+        otherRoles: "سایر نقش‌ها"
+      };
+      const opLabels: Record<string, string> = {
+        read: "مشاهده",
+        create: "ایجاد",
+        update: "ویرایش",
+        delete: "حذف",
+        approve: "تأیید",
+        export: "خروجی"
+      };
 
-    const oldMinLength = existingVal.passwordPolicy?.minLength ?? 8;
-    const newMinLength = newPolicy.passwordPolicy?.minLength ?? 8;
-    if (oldMinLength !== newMinLength) {
-      await logAuditEvent({
-        userId: payload.sub,
-        username: currentAdminUsername,
-        userRole: currentAdminRole,
-        action: `حداقل تعداد کاراکتر های رمز عبور از ${oldMinLength} به ${newMinLength} تغییر یافت`,
-        eventType: "PASSWORD_VERIFY_ATTEMPT_LOG",
-        resource: "کلید های پیکر بندی سیستم",
-        result: "SUCCESS",
-        ip: clientIp,
-        userAgent: c.req.header("user-agent"),
-        details: {
-          key: "10080",
-          tableName: "کلید های پیکر بندی سیستم",
-          isPasswordVerifyAttemptLog: true,
-          oldVal: oldMinLength,
-          newVal: newMinLength
+      for (const newEp of newEntityPolicies) {
+        const oldEp = oldEntityPolicies.find((item: any) => item.entityId === newEp.entityId);
+        if (!oldEp) continue;
+
+        for (const roleKey of ["systemAdmin", "regularUser", "otherRoles"] as const) {
+          const oldRolePerms = oldEp[roleKey] || {};
+          const newRolePerms = newEp[roleKey] || {};
+
+          for (const opKey of ["read", "create", "update", "delete", "approve", "export"] as const) {
+            const oldVal = !!oldRolePerms[opKey];
+            const newVal = !!newRolePerms[opKey];
+
+            if (oldVal !== newVal) {
+              const stateStr = newVal ? "(فعال شد)" : "(غیرفعال شد)";
+              const actionText = `آکاردئون [ماتریس خط‌مشی کنترل دسترسی به موجودیت‌های فعال و عملیات]: تیک گزینه مجوز ${opLabels[opKey] || opKey} نقش ${roleLabels[roleKey] || roleKey} برای '${newEp.entityName || newEp.entityId}' ${stateStr}`;
+
+              await logAuditEvent({
+                userId: payload.sub,
+                username: currentAdminUsername,
+                userRole: currentAdminRole === "admin" ? "مدیر سیستم" : currentAdminRole,
+                action: actionText,
+                eventType: AFTA_LOG_EVENT_TYPES.FUNCTION_BEHAVIOR_CHANGE,
+                resource: "کلید های پیکر بندی سیستم",
+                result: "SUCCESS",
+                ip: clientIp,
+                userAgent: c.req.header("user-agent"),
+                details: {
+                  accordion: "ماتریس خط‌مشی کنترل دسترسی به موجودیت‌های فعال و عملیات",
+                  itemLabel: `مجوز ${opLabels[opKey] || opKey} - ${roleLabels[roleKey] || roleKey} - ${newEp.entityName || newEp.entityId}`,
+                  fieldKey: `entityAccessPolicies.${newEp.entityId}.${roleKey}.${opKey}`,
+                  changeType: newVal ? "ACTIVATED" : "DEACTIVATED",
+                  oldVal: String(oldVal),
+                  newVal: String(newVal),
+                  tableName: "کلید های پیکر بندی سیستم"
+                }
+              });
+            }
+          }
         }
-      });
+      }
     }
 
-    const oldCharPattern = formatCharPattern(existingVal.passwordPolicy);
-    const newCharPattern = formatCharPattern(newPolicy.passwordPolicy);
-    if (oldCharPattern !== newCharPattern) {
-      await logAuditEvent({
-        userId: payload.sub,
-        username: currentAdminUsername,
-        userRole: currentAdminRole,
-        action: `کاراکترهای مورد نیاز برای رمز عبور از ${oldCharPattern} به ${newCharPattern} تغییر یافت`,
-        eventType: "PASSWORD_VERIFY_ATTEMPT_LOG",
-        resource: "کلید های پیکر بندی سیستم",
-        result: "SUCCESS",
-        ip: clientIp,
-        userAgent: c.req.header("user-agent"),
-        details: {
-          key: "10081",
-          tableName: "کلید های پیکر بندی سیستم",
-          isPasswordVerifyAttemptLog: true,
-          oldVal: oldCharPattern,
-          newVal: newCharPattern
-        }
-      });
-    }
-
-    // ۱. ثبت تغییر ابتدای بازه زمانی مجاز برای ورود به سیستم (کلید 10066 - بند ۱ جدول ۲-۵ افتا)
-    const oldStartTime = existingVal.functionBehaviorPolicy?.allowedLoginStartTime || "06:00";
-    const newStartTime = newPolicy.functionBehaviorPolicy?.allowedLoginStartTime || "07:00";
-    if (oldStartTime !== newStartTime) {
-      await logAuditEvent({
-        userId: payload.sub,
-        username: currentAdminUsername,
-        userRole: currentAdminRole === "admin" ? "مدیر" : currentAdminRole,
-        action: `ابتدای بازه زمانی مجاز برای ورود به سیستم از ${oldStartTime} به ${newStartTime} تغییر یافت`,
-        eventType: AFTA_LOG_EVENT_TYPES.FUNCTION_BEHAVIOR_CHANGE,
-        resource: "کلید های پیکر بندی سیستم",
-        result: "SUCCESS",
-        ip: clientIp,
-        userAgent: c.req.header("user-agent"),
-        details: {
-          key: "10066",
-          tableName: "کلید های پیکر بندی سیستم",
-          operation: "ویرایش",
-          oldVal: oldStartTime,
-          newVal: newStartTime
-        }
-      });
-    }
-
-    // ۲. ثبت تغییر انتهای بازه زمانی مجاز برای ورود به سیستم (کلید 10067 - بند ۱ جدول ۲-۵ افتا)
-    const oldEndTime = existingVal.functionBehaviorPolicy?.allowedLoginEndTime || "23:30:59";
-    const newEndTime = newPolicy.functionBehaviorPolicy?.allowedLoginEndTime || "23:30";
-    if (oldEndTime !== newEndTime) {
-      await logAuditEvent({
-        userId: payload.sub,
-        username: currentAdminUsername,
-        userRole: currentAdminRole === "admin" ? "مدیر" : currentAdminRole,
-        action: `انتهای بازه زمانی مجاز برای ورود به سیستم از ${oldEndTime} به ${newEndTime} تغییر یافت`,
-        eventType: AFTA_LOG_EVENT_TYPES.FUNCTION_BEHAVIOR_CHANGE,
-        resource: "کلید های پیکر بندی سیستم",
-        result: "SUCCESS",
-        ip: clientIp,
-        userAgent: c.req.header("user-agent"),
-        details: {
-          key: "10067",
-          tableName: "کلید های پیکر بندی سیستم",
-          operation: "ویرایش",
-          oldVal: oldEndTime,
-          newVal: newEndTime
-        }
-      });
-    }
-
-    // ۳. ثبت تغییر آدرس ماشین‌های غیرمجاز سامانه (کلید 11029 - بند ۴ جدول ۵-۲ افتا)
+    // ۳. ثبت تغییر آدرس ماشین‌های غیرمجاز سامانه (بند ۴ جدول ۵-۲ افتا)
     const oldUnauthorizedIps = existingVal.functionBehaviorPolicy?.unauthorizedMachineIps || "";
     const newUnauthorizedIps = newPolicy.functionBehaviorPolicy?.unauthorizedMachineIps || "";
     if (oldUnauthorizedIps !== newUnauthorizedIps) {
@@ -298,7 +253,6 @@ router.put("/policy", requireRole(["admin"]), async (c) => {
         ip: clientIp,
         userAgent: c.req.header("user-agent"),
         details: {
-          key: "11029",
           tableName: "کلید های پیکر بندی سیستم",
           operation: "ویرایش",
           aftaClause: "5-2-4",
@@ -308,7 +262,7 @@ router.put("/policy", requireRole(["admin"]), async (c) => {
       });
     }
 
-    // ۴. ثبت تغییر آدرس ماشین‌های مجاز برای کاربران ارشد سامانه (کلید 11030 / 11039 - بند ۴ جدول ۵-۲ افتا)
+    // ۴. ثبت تغییر آدرس ماشین‌های مجاز برای کاربران ارشد سامانه (بند ۴ جدول ۵-۲ افتا)
     const oldAllowedAdminIps = existingVal.functionBehaviorPolicy?.allowedAdminIpRange || "";
     const newAllowedAdminIps = newPolicy.functionBehaviorPolicy?.allowedAdminIpRange || "";
     if (oldAllowedAdminIps !== newAllowedAdminIps) {
@@ -323,7 +277,6 @@ router.put("/policy", requireRole(["admin"]), async (c) => {
         ip: clientIp,
         userAgent: c.req.header("user-agent"),
         details: {
-          key: "11030",
           tableName: "کلید های پیکر بندی سیستم",
           operation: "ویرایش",
           aftaClause: "5-2-4",
@@ -531,7 +484,7 @@ router.post("/validate-user-data", async (c) => {
   const generatedUniqueName = attachmentName || `${crypto.randomUUID()}${ext}`;
 
   if (operation === "DELETE") {
-    // ردیف ۲ تصویر راهنما: لاگ حذف ضمیمه با مقدار کلید واقعی
+    // ردیف ۲ تصویر راهنما: لاگ حذف ضمیمه
     const actionDesc = `AttachmentName: '${generatedUniqueName}' OrginalAttachmentName: '${originalFileName}' TaskId: '${taskId}' TaskRotationId: '${taskRotationId}' DocId: '${docId}' DocType: '${docType}' DocCount: '${docCount}' DataType: '${dataType}' IsAttached: 'True' Type: '0'`;
     await logAuditEvent({
       userId: payload?.sub || "admin_01",
@@ -547,7 +500,6 @@ router.post("/validate-user-data", async (c) => {
       details: {
         operation: "DELETE",
         attachmentId: attachmentId,
-        key: attachmentId,
         fileName: originalFileName,
         uniqueName: generatedUniqueName
       }
@@ -559,7 +511,7 @@ router.post("/validate-user-data", async (c) => {
     });
   }
 
-  // ردیف ۱ تصویر راهنما: لاگ افزودن/ایمپورت ضمیمه با مقدار کلید 0
+  // ردیف ۱ تصویر راهنما: لاگ افزودن/ایمپورت ضمیمه
   const actionDesc = `AttachmentName: '${generatedUniqueName}' OrginalAttachmentName: '${originalFileName}' TaskId: '${taskId}' TaskRotationId: '${taskRotationId}' DocId: '${docId}' DocType: '${docType}' DocCount: '${docCount}' DataType: '${dataType}' IsAttached: 'True' Type: '0'`;
   await logAuditEvent({
     userId: payload?.sub || "admin_01",
@@ -574,7 +526,6 @@ router.post("/validate-user-data", async (c) => {
     userAgent: c.req.header("user-agent"),
     details: {
       operation: "ADD",
-      key: "0",
       fileName: originalFileName,
       uniqueName: generatedUniqueName,
       docId,
@@ -748,7 +699,6 @@ router.get("/audit-logs", async (c) => {
       userAgent: c.req.header("user-agent"),
       errorCode: 403,
       details: {
-        key: "8-2-2",
         tableName: "لاگ های احراز هویت",
         aftaClause: "8-2-2",
         requestType: "مشاهده و استعلام",
@@ -830,7 +780,6 @@ router.get("/audit-logs", async (c) => {
       ip: extractClientIp(c),
       userAgent: c.req.header("user-agent"),
       details: {
-        key: "8-2-3",
         tableName: "لاگ های احراز هویت",
         aftaClause: "8-2-3",
         requestType: "مشاهده و استعلام",
@@ -924,7 +873,6 @@ router.post("/report-security-failure", async (c) => {
     userAgent,
     errorCode: 500,
     details: {
-      key: "11050",
       tableName: "توابع امنیتی محصول",
       aftaClause: "6-2-1",
       timestampStr,
@@ -963,7 +911,6 @@ router.post("/report-capability-failure", async (c) => {
     userAgent,
     errorCode: 500,
     details: {
-      key: "11060",
       tableName: "توابع کارکردی محصول",
       aftaClause: "7-2-1",
       timestampStr,
@@ -1003,7 +950,6 @@ router.post("/report-session-establishment-failure", async (c) => {
     userAgent,
     errorCode: 403,
     details: {
-      key: "8-2-7",
       tableName: "لاگ های احراز هویت",
       aftaClause: restrictionType === "TIME" ? "8-2-7-4" : "8-2-7-1",
       requestType: "ورود به سامانه",
@@ -1046,7 +992,6 @@ router.post("/report-concurrent-session-limit", async (c) => {
     userAgent,
     errorCode: type === "SESSION_KICKOUT" ? 200 : 403,
     details: {
-      key: "8-2-1",
       tableName: "لاگ های احراز هویت",
       aftaClause: "8-2-1",
       requestType: type === "SESSION_KICKOUT" ? "خروج از سامانه" : "ورود به سامانه",
@@ -1321,6 +1266,61 @@ router.post("/prune-logs", requireRole(["admin"]), async (c) => {
       success: true,
       message: `عملیات پاکسازی و چرخش لاگ‌ها با موفقیت اجرا شد. (پاکسازی ${result.prunedByAge} لاگ قدیمی‌تر از ۳ ماه، چرخش ${result.prunedByCapacity} لاگ ظرفیت ۱۰,۰۰۰)`,
       result
+    });
+  } catch (error: any) {
+    return c.json({ success: false, message: error.message }, 500);
+  }
+});
+
+// POST /api/security/simulate-tls-client-connection - تست و اعتبارسنجی واقعی اتصال سوکت TLS Client
+router.post("/simulate-tls-client-connection", requireRole(["admin"]), async (c) => {
+  const payload = (c.get as any)("jwtPayload");
+  try {
+    const body = await c.req.json().catch(() => ({}));
+    const db = getDb();
+    const config = await db.collection("system_settings").findOne({ key: "security_policy" });
+    const policy = config?.value ? { ...DEFAULT_SECURITY_POLICY, ...config.value } : DEFAULT_SECURITY_POLICY;
+
+    const tlsPolicy = policy.tlsClientPolicy || DEFAULT_SECURITY_POLICY.tlsClientPolicy;
+    const targetUrl = body.targetUrl || body.targetHost || "https://google.com";
+
+    // اجرای دست‌تکانی واقعی سوکت TLS شبکه
+    const realResult = await executeRealTlsHandshake(targetUrl, tlsPolicy);
+
+    const clientIp = c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "127.0.0.1";
+    await logAuditEvent({
+      userId: payload?.sub,
+      username: payload?.username || "admin",
+      userRole: "مدیر سیستم",
+      action: `دست‌تکانی واقعی سوکت TLS Client با آدرس '${realResult.host}:${realResult.port}' (${realResult.success ? "انطباق کامل و برقراری اتصال امن" : "عدم انطباق/رد اتصال"})`,
+      eventType: AFTA_LOG_EVENT_TYPES.ADMIN_FUNCTION_USAGE,
+      resource: "پروتکل TLS Client (رده ۳-۲ افتا)",
+      result: realResult.success ? "SUCCESS" : "FAILURE",
+      ip: clientIp,
+      userAgent: c.req.header("user-agent"),
+      details: {
+        targetUrl: realResult.targetUrl,
+        negotiatedProtocol: realResult.negotiatedProtocol,
+        negotiatedCipherSuite: realResult.negotiatedCipherSuite,
+        enabledCipherSuitesCount: realResult.enabledCipherSuitesCount,
+        aftaComplianceStatus: realResult.aftaComplianceStatus,
+        serverCertificate: realResult.serverCertificate,
+        message: realResult.message
+      }
+    });
+
+    return c.json({
+      success: realResult.success,
+      realResult,
+      validationResult: {
+        valid: realResult.success,
+        allowed: realResult.success,
+        enabledCipherSuitesCount: realResult.enabledCipherSuitesCount,
+        protocolVersionStatus: realResult.negotiatedProtocol || "TLSv1.3",
+        aftaCompliance: realResult.aftaComplianceStatus,
+        reason: realResult.message
+      },
+      message: realResult.message
     });
   } catch (error: any) {
     return c.json({ success: false, message: error.message }, 500);

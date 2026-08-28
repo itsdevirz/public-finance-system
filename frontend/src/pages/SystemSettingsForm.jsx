@@ -690,6 +690,29 @@ export default function SystemSettingsForm() {
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [tlsTestTargetUrl, setTlsTestTargetUrl] = useState("https://google.com");
+  const [tlsTestResult, setTlsTestResult] = useState(null);
+  const [isTestingTls, setIsTestingTls] = useState(false);
+
+  const handleTestTlsClientConnection = async (targetUrl = tlsTestTargetUrl) => {
+    try {
+      setIsTestingTls(true);
+      setTlsTestResult(null);
+      const res = await api.post("/api/security/simulate-tls-client-connection", {
+        targetUrl: targetUrl || "https://google.com"
+      });
+      if (res?.data) {
+        setTlsTestResult(res.data);
+      }
+    } catch (err) {
+      setTlsTestResult({
+        success: false,
+        message: "خطا در برقراری دست‌تکانی واقعی سوکت TLS: " + (err.response?.data?.message || err.message)
+      });
+    } finally {
+      setIsTestingTls(false);
+    }
+  };
 
   // حالت آکاردئونی الزامات افتا
   const [openAftaSections, setOpenAftaSections] = useState({ afta_password_policy: true, afta_matrix: true, afta_audit_logs_viewer: true });
@@ -884,6 +907,12 @@ export default function SystemSettingsForm() {
           revokeAllSessionsOnSecurityChange: p.activeUserSecurityChangePolicy?.revokeAllDeviceSessions ?? true,
           auditLogSecurityChanges: p.activeUserSecurityChangePolicy?.auditLogSecurityChanges ?? true,
           notifyUserSecurityAlert: p.activeUserSecurityChangePolicy?.notifyUserSecurityAlert ?? false,
+          lockoutPolicy: p.lockoutPolicy || prev.lockoutPolicy,
+          functionBehaviorPolicy: p.functionBehaviorPolicy || prev.functionBehaviorPolicy,
+          securityFunctionsManagementPolicy: p.securityFunctionsManagementPolicy || prev.securityFunctionsManagementPolicy,
+          authSecurityAttributesPolicy: p.authSecurityAttributesPolicy || prev.authSecurityAttributesPolicy,
+          productDataManagementPolicy: p.productDataManagementPolicy || prev.productDataManagementPolicy,
+          securityManagementCapabilitiesPolicy: p.securityManagementCapabilitiesPolicy || prev.securityManagementCapabilitiesPolicy,
           inactiveEntityPolicies: p.inactiveEntityAccessPolicies || prev.inactiveEntityPolicies,
           inactiveEntityOperationsPolicy: p.inactiveEntityOperationsPolicy || prev.inactiveEntityOperationsPolicy,
           inactiveEntityPolicyCriteria: p.inactiveEntityPolicyCriteria || prev.inactiveEntityPolicyCriteria,
@@ -922,7 +951,7 @@ export default function SystemSettingsForm() {
         }
       }
     } catch (err) {
-      console.error("خطا در دريافت خط‌مشی‌های امنیتی از بک‌اند:", err);
+      console.error("خطا در دریافت خط‌مشی‌های امنیتی از بک‌اند:", err);
     }
   };
 
@@ -970,6 +999,10 @@ export default function SystemSettingsForm() {
         idleTimeoutMinutes: Number(s.sessionTimeoutMinutes) || 30
       },
       functionBehaviorPolicy: s.functionBehaviorPolicy,
+      securityFunctionsManagementPolicy: s.securityFunctionsManagementPolicy,
+      authSecurityAttributesPolicy: s.authSecurityAttributesPolicy,
+      productDataManagementPolicy: s.productDataManagementPolicy,
+      securityManagementCapabilitiesPolicy: s.securityManagementCapabilitiesPolicy,
       entityAccessPolicies: ep,
       activeUserSecurityChangePolicy: {
         disallowChangeDuringActiveSession: !!s.disallowSecurityChangeDuringSession,
@@ -3145,21 +3178,21 @@ export default function SystemSettingsForm() {
                     id="afta_function_behavior_management"
                     number="مدیریت امنیت"
                     title="مدیریت امنیت و تمامی تغییرات در رفتارهای توابع کارکردی محصول"
-                    description="پشتیبانی از ۴ فعالیت مدیریتی توابع: تعیین/تغییر رفتار (کلید‌های ۱۰۰۶۶ و ۱۰۰۶۷)، غیرفعال نمودن، فعال نمودن و سایر موارد"
+                    description="پشتیبانی از ۴ فعالیت مدیریتی توابع: تعیین/تغییر رفتار، غیرفعال نمودن، فعال نمودن و سایر موارد"
                     isOpen={!!openAftaSections["afta_function_behavior_management"]}
                     onToggle={toggleAftaSection}
                     icon={Sliders}
                   >
                     <div className="space-y-4">
-                      {/* فعالیت ۱: تعیین و تغییر رفتار (بازه زمانی مجاز برای ورود کلید ۱۰۰۶۶ و ۱۰۰۶۷) */}
+                      {/* فعالیت ۱: تعیین و تغییر رفتار (بازه زمانی مجاز برای ورود) */}
                       <div className="p-3.5 rounded-xl border bg-white dark:bg-slate-900 space-y-3 shadow-2xs">
                         <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2 border-r-4 pr-2 border-blue-600">
                           <Clock className="h-4 w-4 text-blue-600" />
-                          ۱. تعیین و تغییر رفتار: بازه زمانی مجاز برای ورود به سیستم (کلید‌های ۱۰۰۶۶ و ۱۰۰۶۷)
+                          ۱. تعیین و تغییر رفتار: بازه زمانی مجاز برای ورود به سیستم
                         </h4>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
                           <div>
-                            <Label className="text-[11px] text-muted-foreground block mb-1">ابتدای بازه زمانی مجاز برای ورود (کلید ۱۰۰۶۶):</Label>
+                            <Label className="text-[11px] text-muted-foreground block mb-1">ابتدای بازه زمانی مجاز برای ورود:</Label>
                             <Input
                               type="text"
                               value={settings.functionBehaviorPolicy?.allowedLoginStartTime || "07:00"}
@@ -3174,7 +3207,7 @@ export default function SystemSettingsForm() {
                             />
                           </div>
                           <div>
-                            <Label className="text-[11px] text-muted-foreground block mb-1">انتهای بازه زمانی مجاز برای ورود (کلید ۱۰۰۶۷):</Label>
+                            <Label className="text-[11px] text-muted-foreground block mb-1">انتهای بازه زمانی مجاز برای ورود:</Label>
                             <Input
                               type="text"
                               value={settings.functionBehaviorPolicy?.allowedLoginEndTime || "23:30"}
@@ -5767,10 +5800,118 @@ export default function SystemSettingsForm() {
                     icon={ShieldCheck}
                   >
                     <div className="space-y-4">
-                      <div className="bg-blue-50 dark:bg-blue-950/30 p-3.5 rounded-xl border border-blue-200 dark:border-blue-900/50">
-                        <span className="text-xs font-bold text-blue-900 dark:text-blue-200 block">
-                          محصول باید TLS را با پشتیبانی از مجموعه‌های رمز زیر پیاده‌سازی نماید:
-                        </span>
+                      <div className="bg-blue-50 dark:bg-blue-950/30 p-3.5 rounded-xl border border-blue-200 dark:border-blue-900/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                        <div>
+                          <span className="text-xs font-bold text-blue-900 dark:text-blue-200 block">
+                            پیاده‌سازی پروتکل TLS Client منطبق با استاندارد افتا و RFC 8446/5288/5289/6125
+                          </span>
+                          <span className="text-[11px] text-blue-700 dark:text-blue-300 block mt-0.5">
+                            وضعیت کارکرد: {
+                              Object.values(settings.tlsClientPolicy?.cipherSuites || {}).filter(Boolean).length
+                            } از ۱۶ مجموعه رمز فعال می‌باشد.
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              const allOn = {};
+                              [
+                                "tls_aes_256_gcm_sha384", "tls_aes_128_gcm_sha256", "tls_dhe_rsa_with_aes_256_gcm_sha384", "tls_dhe_rsa_with_aes_128_gcm_sha256",
+                                "tls_ecdhe_rsa_with_aes_128_gcm_sha256", "tls_ecdhe_rsa_with_aes_256_gcm_sha384", "tls_ecdhe_ecdsa_with_aes_256_gcm_sha384", "tls_ecdhe_ecdsa_with_aes_128_gcm_sha256",
+                                "tls_rsa_with_aes_256_gcm_sha384", "tls_rsa_with_aes_128_gcm_sha256", "tls_ecdh_ecdsa_with_aes_256_gcm_sha384", "tls_ecdh_ecdsa_with_aes_128_gcm_sha256",
+                                "tls_ecdh_rsa_with_aes_256_gcm_sha384", "tls_ecdh_rsa_with_aes_128_gcm_sha256", "tls_dh_rsa_with_aes_256_gcm_sha384", "tls_dh_rsa_with_aes_128_gcm_sha256"
+                              ].forEach(k => { allOn[k] = true; });
+                              set("tlsClientPolicy", { ...settings.tlsClientPolicy, cipherSuites: allOn });
+                            }}
+                            className="h-8 text-[11px] font-bold"
+                          >
+                            انتخاب همه
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              const allOff = {};
+                              [
+                                "tls_aes_256_gcm_sha384", "tls_aes_128_gcm_sha256", "tls_dhe_rsa_with_aes_256_gcm_sha384", "tls_dhe_rsa_with_aes_128_gcm_sha256",
+                                "tls_ecdhe_rsa_with_aes_128_gcm_sha256", "tls_ecdhe_rsa_with_aes_256_gcm_sha384", "tls_ecdhe_ecdsa_with_aes_256_gcm_sha384", "tls_ecdhe_ecdsa_with_aes_128_gcm_sha256",
+                                "tls_rsa_with_aes_256_gcm_sha384", "tls_rsa_with_aes_128_gcm_sha256", "tls_ecdh_ecdsa_with_aes_256_gcm_sha384", "tls_ecdh_ecdsa_with_aes_128_gcm_sha256",
+                                "tls_ecdh_rsa_with_aes_256_gcm_sha384", "tls_ecdh_rsa_with_aes_128_gcm_sha256", "tls_dh_rsa_with_aes_256_gcm_sha384", "tls_dh_rsa_with_aes_128_gcm_sha256"
+                              ].forEach(k => { allOff[k] = false; });
+                              set("tlsClientPolicy", { ...settings.tlsClientPolicy, cipherSuites: allOff });
+                            }}
+                            className="h-8 text-[11px] font-bold text-rose-600 hover:text-rose-700"
+                          >
+                            غیرفعال‌سازی همه
+                          </Button>
+                        </div>
+                      </div>
+                      {/* پنل تست دست‌تکانی واقعی سوکت TLS */}
+                      <div className="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3">
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                          <div className="flex-1">
+                            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                              آدرس سرور مقصد جهت تست دست‌تکانی واقعی سوکت TLS (Real Socket Handshake):
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                dir="ltr"
+                                value={tlsTestTargetUrl}
+                                onChange={(e) => setTlsTestTargetUrl(e.target.value)}
+                                placeholder="https://google.com یا https://your-server.ir"
+                                className="flex-1 px-3 py-1.5 text-xs font-mono rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                              <Button
+                                type="button"
+                                size="sm"
+                                disabled={isTestingTls}
+                                onClick={() => handleTestTlsClientConnection(tlsTestTargetUrl)}
+                                className="h-8 text-[11px] font-bold bg-blue-600 hover:bg-blue-700 text-white gap-1 px-4 shrink-0"
+                              >
+                                {isTestingTls ? "در حال اجرای دست‌تکانی شبکه..." : "تست واقعی دست‌تکانی TLS"}
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {tlsTestResult && (
+                          <div className={cn(
+                            "p-4 rounded-xl border text-xs leading-relaxed animate-in fade-in space-y-2",
+                            tlsTestResult.success
+                              ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200"
+                              : "bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800 text-rose-900 dark:text-rose-200"
+                          )}>
+                            <div className="font-extrabold flex items-center justify-between gap-2 border-b pb-2 border-current/20">
+                              <span>نتیجه دست‌تکانی واقعی سوکت شبکه (Real TLS Socket Handshake):</span>
+                              <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-white/60 dark:bg-black/30">
+                                {tlsTestResult.realResult?.aftaComplianceStatus || (tlsTestResult.success ? "TLS HANDSHAKE SUCCESS" : "TLS HANDSHAKE FAILED")}
+                              </span>
+                            </div>
+                            
+                            <p className="font-medium mt-1">{tlsTestResult.message}</p>
+
+                            {tlsTestResult.realResult && (
+                              <div className="mt-3 pt-3 border-t border-current/20 grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] font-mono dir-ltr text-left bg-black/5 dark:bg-black/20 p-2.5 rounded-lg">
+                                <div><strong className="dir-rtl inline-block">میزبان/پورت:</strong> {tlsTestResult.realResult.host}:{tlsTestResult.realResult.port}</div>
+                                <div><strong className="dir-rtl inline-block">نسخه پروتکل توافق‌شده:</strong> {tlsTestResult.realResult.negotiatedProtocol || 'N/A'}</div>
+                                <div><strong className="dir-rtl inline-block">مجموعه رمز توافق‌شده:</strong> {tlsTestResult.realResult.negotiatedCipherSuite || 'N/A'}</div>
+                                <div><strong className="dir-rtl inline-block">تعداد مجموعه رمزهای فعال افتا:</strong> {tlsTestResult.realResult.enabledCipherSuitesCount}</div>
+                                {tlsTestResult.realResult.serverCertificate?.subjectCN && (
+                                  <div className="col-span-full"><strong className="dir-rtl inline-block">نام دامنه گواهی‌نامه سرور (CN):</strong> {tlsTestResult.realResult.serverCertificate.subjectCN}</div>
+                                )}
+                                {tlsTestResult.realResult.serverCertificate?.issuerCN && (
+                                  <div className="col-span-full"><strong className="dir-rtl inline-block">صادرکننده گواهی (CA Issuer):</strong> {tlsTestResult.realResult.serverCertificate.issuerCN}</div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       <div className="space-y-3">
@@ -7303,10 +7444,10 @@ export default function SystemSettingsForm() {
                 </div>
               )}
 
-              {/* نوار ذخیره‌سازی پایین صفحه */}
-              <div className="flex justify-between items-center pt-4 border-t border-slate-200 dark:border-slate-800">
-                <span className="text-[11px] text-muted-foreground flex items-center gap-1.5">
-                  <ShieldCheck className="h-4 w-4 text-emerald-600" />
+              {/* نوار ذخیره‌سازی پایین صفحه (شناور) */}
+              <div className="sticky bottom-4 z-40 mt-6 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md px-5 py-3.5 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xl flex justify-between items-center transition-all">
+                <span className="text-[11px] text-muted-foreground flex items-center gap-1.5 font-medium">
+                  <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
                   آخرین بروزرسانی تنظیمات: {settings.lastUpdated ? new Date(settings.lastUpdated).toLocaleDateString("fa-IR") : "—"}
                 </span>
 
@@ -7314,7 +7455,7 @@ export default function SystemSettingsForm() {
                   <Button
                     type="submit"
                     disabled={isSaving}
-                    className="bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 text-white dark:text-slate-900 font-bold h-9 text-xs gap-1.5 px-6 shadow-md"
+                    className="bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 text-white dark:text-slate-900 font-bold h-9 text-xs gap-1.5 px-6 shadow-md cursor-pointer transition-all hover:scale-[1.02]"
                   >
                     <Save className="h-4 w-4" />
                     {isSaving ? "در حال ذخیره‌سازی..." : "ذخیره تغییرات تنظیمات"}

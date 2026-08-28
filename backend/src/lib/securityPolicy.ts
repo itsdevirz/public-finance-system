@@ -511,8 +511,8 @@ export interface DataIntegrityErrorResponsePolicy {
 
 export interface FunctionBehaviorManagementPolicy {
   enableLoginTimeWindow: boolean;
-  allowedLoginStartTime: string; // Key 10066 (e.g., "07:00")
-  allowedLoginEndTime: string;   // Key 10067 (e.g., "23:30")
+  allowedLoginStartTime: string; // e.g., "07:00"
+  allowedLoginEndTime: string;   // e.g., "23:30"
   specifyBehaviorConfigs?: {
     restrictAdminIpRange: boolean;
     allowedAdminIpRange: string;
@@ -537,11 +537,66 @@ export interface FunctionBehaviorManagementPolicy {
   };
 }
 
+export interface SecurityFunctionsManagementPolicy {
+  enableFunctionsMgmt?: boolean;
+  behaviorConfiguration?: boolean;
+  disableFunctions?: boolean;
+  enableFunctions?: boolean;
+  otherFunctionsMgmt?: boolean;
+}
+
+export interface AuthSecurityAttributesPolicy {
+  enableAuthSecurityMgmt?: boolean;
+  querySecurityAttributes?: boolean;
+  modifySecurityAttributes?: boolean;
+  deleteSecurityAttributes?: boolean;
+  changeDefaultSecurityAttributes?: boolean;
+  otherAuthSecurityOps?: boolean;
+}
+
+export interface ProductDataManagementPolicy {
+  enableProductDataMgmt?: boolean;
+  changeDefaultData?: boolean;
+  deleteData?: boolean;
+  queryData?: boolean;
+  initializeData?: boolean;
+  createData?: boolean;
+  readData?: boolean;
+  otherDataOps?: boolean;
+}
+
+export interface SecurityManagementCapabilitiesPolicy {
+  enableCapabilitiesMgmt?: boolean;
+  groupUserAuditTokenRead?: boolean;
+  auditTokenReadWritePerms?: boolean;
+  auditTokenStorageThresholdOps?: boolean;
+  accessCriteriaParametersMgmt?: boolean;
+  residualDataProtectionTimingConfig?: boolean;
+  dataInputValidationRulesEdit?: boolean;
+  dataIntegrityErrorActionConfig?: boolean;
+  failedAuthThresholdMgmt?: boolean;
+  passwordComplexityCriteriaMgmt?: boolean;
+  authDataAndPreAuthOpsMgmt?: boolean;
+  authMechanismsAndRulesMgmt?: boolean;
+  preAuthIpAssignmentProcessMgmt?: boolean;
+  defaultActiveEntitySecurityAttrsMgmt?: boolean;
+  defaultProductAccessControlValuesMgmt?: boolean;
+  productRolesMgmt?: boolean;
+  maxConcurrentSessionsPerUserMgmt?: boolean;
+  sessionStartConditionsMgmt?: boolean;
+  specificUserInactivityTimeoutConfig?: boolean;
+  defaultUsersInactivityTimeoutConfig?: boolean;
+}
+
 export interface SecurityPolicyConfig {
   passwordPolicy: PasswordPolicy;
   lockoutPolicy: LockoutPolicy;
   sessionPolicy: SessionPolicy;
   functionBehaviorPolicy?: FunctionBehaviorManagementPolicy;
+  securityFunctionsManagementPolicy?: SecurityFunctionsManagementPolicy;
+  authSecurityAttributesPolicy?: AuthSecurityAttributesPolicy;
+  productDataManagementPolicy?: ProductDataManagementPolicy;
+  securityManagementCapabilitiesPolicy?: SecurityManagementCapabilitiesPolicy;
   entityAccessPolicies?: EntityAccessPolicy[];
   activeUserSecurityChangePolicy?: ActiveUserSecurityChangePolicy;
   inactiveEntityAccessPolicies?: InactiveEntityAccessPolicies;
@@ -672,6 +727,53 @@ export const DEFAULT_SECURITY_POLICY: SecurityPolicyConfig = {
       customSecurityNotice: "ورود کاربران غیرمجاز ممنوع می‌باشد.",
       customManagementNotes: "مدیریت رفتارهای توابع کارکردی محصول مطابق بند ۱ جدول ۲-۵ افتا"
     }
+  },
+  securityFunctionsManagementPolicy: {
+    enableFunctionsMgmt: true,
+    behaviorConfiguration: true,
+    disableFunctions: true,
+    enableFunctions: true,
+    otherFunctionsMgmt: true
+  },
+  authSecurityAttributesPolicy: {
+    enableAuthSecurityMgmt: true,
+    querySecurityAttributes: false,
+    modifySecurityAttributes: true,
+    deleteSecurityAttributes: false,
+    changeDefaultSecurityAttributes: true,
+    otherAuthSecurityOps: true
+  },
+  productDataManagementPolicy: {
+    enableProductDataMgmt: true,
+    changeDefaultData: true,
+    deleteData: false,
+    queryData: false,
+    initializeData: true,
+    createData: true,
+    readData: true,
+    otherDataOps: true
+  },
+  securityManagementCapabilitiesPolicy: {
+    enableCapabilitiesMgmt: true,
+    groupUserAuditTokenRead: true,
+    auditTokenReadWritePerms: true,
+    auditTokenStorageThresholdOps: true,
+    accessCriteriaParametersMgmt: true,
+    residualDataProtectionTimingConfig: true,
+    dataInputValidationRulesEdit: true,
+    dataIntegrityErrorActionConfig: true,
+    failedAuthThresholdMgmt: true,
+    passwordComplexityCriteriaMgmt: true,
+    authDataAndPreAuthOpsMgmt: true,
+    authMechanismsAndRulesMgmt: true,
+    preAuthIpAssignmentProcessMgmt: true,
+    defaultActiveEntitySecurityAttrsMgmt: true,
+    defaultProductAccessControlValuesMgmt: true,
+    productRolesMgmt: true,
+    maxConcurrentSessionsPerUserMgmt: true,
+    sessionStartConditionsMgmt: true,
+    specificUserInactivityTimeoutConfig: true,
+    defaultUsersInactivityTimeoutConfig: true
   },
   entityAccessPolicies: DEFAULT_ENTITY_ACCESS_POLICIES,
   activeUserSecurityChangePolicy: {
@@ -1556,4 +1658,84 @@ export function validatePassword(password: string, policy: PasswordPolicy = DEFA
     return { valid: false, message: "رمز عبور باید حداقل شامل یک کاراکتر خاص (!@#$%^&*) باشد." };
   }
   return { valid: true };
+}
+
+export interface TlsClientValidationResult {
+  valid: boolean;
+  allowed: boolean;
+  reason?: string;
+  enabledCipherSuitesCount: number;
+  activeCipherSuitesList: string[];
+  protocolVersionStatus: string;
+  aftaCompliance: string;
+}
+
+export function getEnabledTlsClientCipherSuites(
+  policy: TlsClientPolicy = DEFAULT_SECURITY_POLICY.tlsClientPolicy!
+): string[] {
+  const cipherSuites = policy?.cipherSuites || {};
+  return Object.keys(cipherSuites).filter(k => (cipherSuites as any)[k] === true);
+}
+
+export function validateTlsClientConnection(
+  params: { cipherSuite?: string; tlsVersion?: string; targetHost?: string },
+  policy: TlsClientPolicy = DEFAULT_SECURITY_POLICY.tlsClientPolicy!
+): TlsClientValidationResult {
+  const enabledSuites = getEnabledTlsClientCipherSuites(policy);
+  const enabledCount = enabledSuites.length;
+
+  if (!policy?.enable) {
+    return {
+      valid: false,
+      allowed: false,
+      reason: "پروتکل TLS Client در خط‌مشی‌های امنیت سیستم غیرفعال گردیده است.",
+      enabledCipherSuitesCount: enabledCount,
+      activeCipherSuitesList: enabledSuites,
+      protocolVersionStatus: "DISABLED",
+      aftaCompliance: "غیرانطباق - پروتکل غیرفعال است"
+    };
+  }
+
+  const tlsVer = (params?.tlsVersion || "TLSv1.3").toUpperCase();
+  if (policy.enforceTls12Only) {
+    if (tlsVer.includes("1.0") || tlsVer.includes("1.1") || tlsVer.includes("SSL")) {
+      return {
+        valid: false,
+        allowed: false,
+        reason: `نسخه پروتکل ارتباطی (${tlsVer}) ناامن بوده و طبق خط‌مشی TLS Client انحصاراً نسخه‌های TLS 1.2 و TLS 1.3 مجاز می‌باشند (مطابق الزام ۱ رده ۳-۲ افتا).`,
+        enabledCipherSuitesCount: enabledCount,
+        activeCipherSuitesList: enabledSuites,
+        protocolVersionStatus: "REJECTED_LEGACY_PROTOCOL",
+        aftaCompliance: "عدم انطباق با الزام ۱ افتا"
+      };
+    }
+  }
+
+  if (params?.cipherSuite) {
+    const normCipher = params.cipherSuite.trim().toLowerCase();
+    const isAllowed = Object.entries(policy.cipherSuites || {}).some(
+      ([key, enabled]) => enabled && (key.toLowerCase() === normCipher || key.replace(/_/g, "-").toLowerCase() === normCipher)
+    );
+
+    if (!isAllowed) {
+      return {
+        valid: false,
+        allowed: false,
+        reason: `مجموعه رمز درخواست‌شده (${params.cipherSuite}) در لیست مجموعه‌های رمز مجاز TLS Client سیستم فعال نمی‌باشد.`,
+        enabledCipherSuitesCount: enabledCount,
+        activeCipherSuitesList: enabledSuites,
+        protocolVersionStatus: "REJECTED_CIPHER_SUITE",
+        aftaCompliance: "عدم انطباق با مجموعه‌های رمز مجاز"
+      };
+    }
+  }
+
+  return {
+    valid: true,
+    allowed: true,
+    enabledCipherSuitesCount: enabledCount,
+    activeCipherSuitesList: enabledSuites,
+    protocolVersionStatus: "ENFORCED_TLS_1.2_1.3",
+    aftaCompliance: "انطباق کامل با الزام افتا (رده ۳-۲) و استاندارد RFC 8446/5288/5289/6125"
+  };
 }

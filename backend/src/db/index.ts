@@ -49,10 +49,27 @@ async function ensureIndexes(db: Db): Promise<void> {
       // credit_definitions
       db.collection("credit_definitions").createIndex({ createdAt: -1 }, { background: true }),
 
-      // fiscal_years
-      db.collection("fiscal_years").createIndex({ year: 1 }, { background: true, unique: true }),
+      // audit_logs key cleanup
+      db.collection("audit_logs").updateMany(
+        {
+          $or: [
+            { key: { $exists: true } },
+            { keyValue: { $exists: true } },
+            { "details.key": { $exists: true } },
+            { "details.keyValue": { $exists: true } }
+          ]
+        },
+        {
+          $unset: {
+            key: "",
+            keyValue: "",
+            "details.key": "",
+            "details.keyValue": ""
+          }
+        }
+      ).catch(() => {})
     ]);
-    console.log("✓ MongoDB indexes ensured");
+    console.log("✓ MongoDB indexes & audit log key cleanup ensured");
   } catch (err) {
     // اگر index قبلاً وجود داشت یا مشکلی بود، اجرا ادامه می‌یابد
     console.warn("Index creation warning:", err);
