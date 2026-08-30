@@ -6,8 +6,17 @@ import { validatePassword, DEFAULT_SECURITY_POLICY } from "../lib/securityPolicy
 import { logAuditEvent, AFTA_LOG_EVENT_TYPES } from "../lib/auditLogger.js";
 import { parseUserAgent } from "../lib/uaParser.js";
 import { pruneExpiredSessions } from "../lib/sessionHelper.js";
+import { setSecureAuthCookie, clearSecureAuthCookie, getAuthTokenFromCookieOrHeader } from "../lib/cookieHelper.js";
+import { generateCsrfToken } from "../lib/csrfHelper.js";
 
 const router = new Hono();
+
+// GET /api/auth/csrf-token - دریافت و مقداردهی اولیه توکن Anti-CSRF
+router.get("/csrf-token", (c) => {
+  const csrfToken = generateCsrfToken();
+  c.header("X-CSRF-Token", csrfToken);
+  return c.json({ success: true, csrfToken });
+});
 
 // GET /api/auth/setup-status
 router.get("/setup-status", async (c) => {
@@ -421,6 +430,9 @@ router.post("/login", async (c) => {
     }
   });
 
+  // تنظیم کوکی امن مطابق با الزامات (SameSite, Secure, HttpOnly, Host-Only)
+  setSecureAuthCookie(c, token);
+
   const { password: _, ...safeUser } = user;
   return c.json({
     message: "ورود موفق",
@@ -432,9 +444,8 @@ router.post("/login", async (c) => {
 
 // POST /api/auth/logout
 router.post("/logout", async (c) => {
-  const header = c.req.header("Authorization");
-  if (header?.startsWith("Bearer ")) {
-    const token = header.slice(7);
+  const token = getAuthTokenFromCookieOrHeader(c);
+  if (token) {
     const payload = verifyToken(token);
     const db = getDb();
 
@@ -460,15 +471,17 @@ router.post("/logout", async (c) => {
     }
   }
 
+  // پاکسازی کوکی‌های امن در خروج
+  clearSecureAuthCookie(c);
+
   return c.json({ success: true, message: "با موفقیت از سیستم خارج شدید." });
 });
 
 // GET /api/auth/me  (نیاز به توکن دارد)
 router.get("/me", async (c) => {
-  const header = c.req.header("Authorization");
-  if (!header?.startsWith("Bearer ")) return c.json({ message: "توکن یافت نشد" }, 401);
+  const token = getAuthTokenFromCookieOrHeader(c);
+  if (!token) return c.json({ message: "توکن یافت نشد" }, 401);
 
-  const token = header.slice(7);
   const payload = verifyToken(token);
   if (!payload) return c.json({ message: "توکن نامعتبر یا منقضی شده" }, 401);
 

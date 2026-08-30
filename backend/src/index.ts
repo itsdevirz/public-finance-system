@@ -11,6 +11,7 @@ import { requireAuth } from "./middleware/requireAuth.js";
 import { securityHeaders } from "./middleware/securityHeaders.js";
 import { rateLimiter } from "./middleware/rateLimiter.js";
 import { inputSanitizer } from "./middleware/inputSanitizer.js";
+import { csrfProtection } from "./middleware/csrfProtection.js";
 import { logAuditEvent, AFTA_LOG_EVENT_TYPES, startAuditLogAutoCleanupCron } from "./lib/auditLogger.js";
 
 import authRouter from "./routes/auth.js";
@@ -301,7 +302,8 @@ app.use(
       return allowed.includes(origin) ? origin : allowed[0];
     },
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Authorization", "X-Correlation-ID"],
+    allowHeaders: ["Content-Type", "Authorization", "X-Correlation-ID", "X-CSRF-Token"],
+    exposeHeaders: ["X-CSRF-Token", "X-Correlation-ID"],
     credentials: true,
   })
 );
@@ -354,6 +356,9 @@ app.use("/api/*", rateLimiter({ windowMs: 60 * 1000, max: 300 }));
 
 // Input Sanitizer for NoSQL Injection, XSS, Path Traversal
 app.use("/api/*", inputSanitizer);
+
+// Anti-CSRF Token Validation & Per-Request Token Rotation Middleware
+app.use("/api/*", csrfProtection);
 
 // Public Routes
 app.route("/api/auth", authRouter);

@@ -3,14 +3,14 @@ import { verifyToken } from "../lib/auth.js";
 import { getDb } from "../db/index.js";
 import { ObjectId } from "mongodb";
 import { logAuditEvent, AFTA_LOG_EVENT_TYPES } from "../lib/auditLogger.js";
+import { getAuthTokenFromCookieOrHeader } from "../lib/cookieHelper.js";
 
 export const requireAuth = createMiddleware(async (c, next) => {
-  const header = c.req.header("Authorization");
-  if (!header?.startsWith("Bearer ")) {
+  const rawToken = getAuthTokenFromCookieOrHeader(c);
+  if (!rawToken) {
     return c.json({ success: false, message: "احراز هویت الزامی است" }, 401);
   }
 
-  const rawToken = header.slice(7);
   const payload = verifyToken(rawToken);
   if (!payload) {
     return c.json({ success: false, message: "توکن نامعتبر یا منقضی شده است" }, 401);

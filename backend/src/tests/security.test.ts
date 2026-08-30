@@ -746,4 +746,154 @@ describe("🛡️ Comprehensive Security Test Suite", () => {
       assert.ok(unknownHost.reason?.includes("known_hosts"));
     });
   });
+
+  describe("22. HTTP Security Headers Compliance (HSTS, Cache-Control, X-Content-Type-Options, X-Frame-Options, X-XSS-Protection)", () => {
+    it("should include all 5 mandatory HTTP security headers and cache prevention headers in Hono app responses", async () => {
+      const { Hono } = await import("hono");
+      const { securityHeaders } = await import("../middleware/securityHeaders.js");
+
+      const app = new Hono();
+      app.use("*", securityHeaders);
+      app.get("/test-headers", (c) => c.json({ ok: true }));
+
+      const res = await app.request("http://localhost/test-headers");
+      assert.strictEqual(res.status, 200);
+
+      // 1. Strict-Transport-Security
+      const hsts = res.headers.get("Strict-Transport-Security");
+      assert.ok(hsts, "Strict-Transport-Security header must be present");
+      assert.ok(hsts.includes("max-age="), "HSTS must specify max-age");
+      assert.ok(hsts.includes("includeSubDomains"), "HSTS must include includeSubDomains directive");
+
+      // 2. Cache-Control & Pragma
+      const cacheControl = res.headers.get("Cache-Control");
+      assert.ok(cacheControl, "Cache-Control header must be present");
+      assert.ok(cacheControl.includes("no-cache"), "Cache-Control must contain no-cache");
+      assert.ok(cacheControl.includes("no-store"), "Cache-Control must contain no-store");
+      assert.ok(cacheControl.includes("must-revalidate"), "Cache-Control must contain must-revalidate");
+
+      const pragma = res.headers.get("Pragma");
+      assert.strictEqual(pragma, "no-store", "Pragma header must be set to no-store for legacy HTTP 1.0 client cache prevention");
+
+      // 3. X-Content-Type-Options
+      const nosniff = res.headers.get("X-Content-Type-Options");
+      assert.strictEqual(nosniff, "nosniff", "X-Content-Type-Options must be set to nosniff to prevent MIME-sniffing attacks");
+
+      // 4. X-Frame-Options
+      const frameOptions = res.headers.get("X-Frame-Options");
+      assert.ok(frameOptions === "DENY" || frameOptions === "SAMEORIGIN", "X-Frame-Options must be set to DENY or SAMEORIGIN to prevent Clickjacking");
+
+      // 5. X-XSS-Protection
+      const xssProtection = res.headers.get("X-XSS-Protection");
+      assert.strictEqual(xssProtection, "1; mode=block", "X-XSS-Protection must be set to 1; mode=block to enable browser XSS filtering");
+    });
+  });
+
+  describe("23. Secure Cookie Configuration Compliance (SameSite, Secure, HttpOnly, Host-Only)", () => {
+    it("should correctly configure HttpOnly, Secure, SameSite=Strict, and Host-Only cookie attributes", async () => {
+      const { Hono } = await import("hono");
+      const { setSecureAuthCookie, getAuthTokenFromCookieOrHeader, SECURE_COOKIE_NAME } = await import("../lib/cookieHelper.js");
+
+      const app = new Hono();
+      app.get("/login-test", (c) => {
+        setSecureAuthCookie(c, "test_jwt_token_12345");
+        return c.json({ success: true });
+      });
+
+      app.get("/protected-test", (c) => {
+        const token = getAuthTokenFromCookieOrHeader(c);
+        return c.json({ authenticated: token === "test_jwt_token_12345", token });
+      });
+
+      // Simulate HTTPS Request to verify production/HTTPS cookie headers
+      const req = new Request("https://localhost/login-test", {
+        headers: { "x-forwarded-proto": "https" }
+      });
+      const res = await app.request(req);
+      assert.strictEqual(res.status, 200);
+
+      // Extract Set-Cookie headers
+      const cookies = res.headers.getSetCookie();
+      assert.ok(cookies.length > 0, "Set-Cookie headers must be present in login response");
+
+      const secureCookieHeader = cookies.find(c => c.includes(SECURE_COOKIE_NAME));
+      assert.ok(secureCookieHeader, `Cookie with W3C Host-Only prefix ${SECURE_COOKIE_NAME} must be set`);
+
+      // 1. HttpOnly attribute check
+      assert.ok(secureCookieHeader.includes("HttpOnly"), "Cookie must specify HttpOnly flag");
+
+      // 2. Secure attribute check
+      assert.ok(secureCookieHeader.includes("Secure"), "Cookie must specify Secure flag");
+
+      // 3. SameSite=Strict check
+      assert.ok(secureCookieHeader.includes("SameSite=Strict"), "Cookie must specify SameSite=Strict");
+
+      // 4. Host-Only requirement check (Prefix __Host-, Path=/, No Domain attribute)
+      assert.ok(secureCookieHeader.startsWith("__Host-"), "Cookie name must start with W3C prefix __Host-");
+      assert.ok(secureCookieHeader.includes("Path=/"), "Host-Only cookie must set Path=/");
+      assert.strictEqual(secureCookieHeader.includes("Domain="), false, "Host-Only cookie must NOT specify a Domain attribute");
+
+      // 5. Verify authentication retrieval from cookie
+      const protectedReq = new Request("https://localhost/protected-test", {
+        headers: { Cookie: `${SECURE_COOKIE_NAME}=test_jwt_token_12345` }
+      });
+      const protectedRes = await app.request(protectedReq);
+      const protectedData = await protectedRes.json();
+      assert.strictEqual(protectedData.authenticated, true);
+      assert.strictEqual(protectedData.token, "test_jwt_token_12345");
+    });
+  });
+
+  describe("24. Anti-CSRF Token Protection & Per-Request Token Rotation", () => {
+    it("should enforce Anti-CSRF token verification, reject missing/reused tokens, and issue freshly rotated tokens on every request", async () => {
+      const { Hono } = await import("hono");
+      const { csrfProtection } = await import("../middleware/csrfProtection.js");
+      const { generateCsrfToken, validateAndConsumeCsrfToken } = await import("../lib/csrfHelper.js");
+
+      const app = new Hono();
+      app.use("*", csrfProtection);
+      app.post("/api/sensitive-form", (c) => c.json({ success: true, message: "فرم با موفقیت پردازش شد" }));
+
+      // 1. Rejection of state-changing request missing Anti-CSRF token
+      const reqMissing = new Request("http://localhost/api/sensitive-form", { method: "POST" });
+      const resMissing = await app.request(reqMissing);
+      assert.strictEqual(resMissing.status, 403, "Must reject request without Anti-CSRF token with 403 Forbidden");
+      
+      const missingTokenHeader = resMissing.headers.get("X-CSRF-Token");
+      assert.ok(missingTokenHeader, "Server must return freshly rotated Anti-CSRF token in response header");
+
+      // 2. Acceptance of state-changing request with valid Anti-CSRF token
+      const validToken = generateCsrfToken();
+      const reqValid = new Request("http://localhost/api/sensitive-form", {
+        method: "POST",
+        headers: { "X-CSRF-Token": validToken }
+      });
+      const resValid = await app.request(reqValid);
+      assert.strictEqual(resValid.status, 200, "Valid Anti-CSRF token must be accepted");
+
+      const rotatedTokenHeader = resValid.headers.get("X-CSRF-Token");
+      assert.ok(rotatedTokenHeader, "Rotated CSRF token must be attached to response header");
+      assert.notStrictEqual(rotatedTokenHeader, validToken, "CSRF token must be rotated per-request");
+
+      // 3. One-Time Use / Replay Prevention Check (Token consumption on every request)
+      // Attempting to reuse the exact same token must fail
+      const reqReused = new Request("http://localhost/api/sensitive-form", {
+        method: "POST",
+        headers: { "X-CSRF-Token": validToken }
+      });
+      const resReused = await app.request(reqReused);
+      assert.strictEqual(resReused.status, 403, "Reused Anti-CSRF token must be rejected (One-time token per request)");
+
+      // 4. Verification of newly rotated token usage
+      const reqNewRotated = new Request("http://localhost/api/sensitive-form", {
+        method: "POST",
+        headers: { "X-CSRF-Token": rotatedTokenHeader }
+      });
+      const resNewRotated = await app.request(reqNewRotated);
+      assert.strictEqual(resNewRotated.status, 200, "Newly rotated token must be valid for the next request");
+    });
+  });
 });
+
+
+

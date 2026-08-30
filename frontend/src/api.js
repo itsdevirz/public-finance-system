@@ -12,10 +12,16 @@ const api = axios.create({
 const pendingRequests = new Map(); // url → Promise
 
 api.interceptors.request.use((config) => {
-  // اضافه کردن توکن
+  // اضافه کردن توکن احراز هویت
   const token = sessionStorage.getItem("token") || localStorage.getItem("token");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  // 🌟 اضافه کردن توکن چرخشی Anti-CSRF
+  const csrfToken = sessionStorage.getItem("csrfToken");
+  if (csrfToken) {
+    config.headers["X-CSRF-Token"] = csrfToken;
   }
 
   // اضافه کردن correlation ID جهت پیگیری لوگ‌های امنیتی
@@ -43,16 +49,29 @@ api.get = function dedupedGet(url, config) {
   return promise;
 };
 
-// اگه توکن منقضی شد (401)، کاربر رو به login هدایت کن
+// دریافت و ذخیره‌سازی خودکار توکن چرخشی Anti-CSRF پس از هر پاسخ سرور (Per-Request Rotation)
 api.interceptors.response.use(
-  (res) => res,
+  (res) => {
+    const rotatedCsrfToken = res.headers ? (res.headers["x-csrf-token"] || res.headers["X-CSRF-Token"]) : null;
+    if (rotatedCsrfToken) {
+      sessionStorage.setItem("csrfToken", rotatedCsrfToken);
+    }
+    return res;
+  },
   (err) => {
+    if (err.response && err.response.headers) {
+      const rotatedCsrfToken = err.response.headers["x-csrf-token"] || err.response.headers["X-CSRF-Token"] || (err.response.data && err.response.data.csrfToken);
+      if (rotatedCsrfToken) {
+        sessionStorage.setItem("csrfToken", rotatedCsrfToken);
+      }
+    }
     const status = err.response ? err.response.status : null;
     const url = err.config ? err.config.url : "";
     const isAuthUrl = url ? url.includes("/auth/") : false;
 
     if (status === 401 && !isAuthUrl) {
       sessionStorage.removeItem("token");
+      sessionStorage.removeItem("csrfToken");
       localStorage.removeItem("token");
       window.location.href = "/login";
     }
