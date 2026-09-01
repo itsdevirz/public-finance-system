@@ -13,6 +13,7 @@ import { rateLimiter } from "./middleware/rateLimiter.js";
 import { inputSanitizer } from "./middleware/inputSanitizer.js";
 import { csrfProtection } from "./middleware/csrfProtection.js";
 import { logAuditEvent, AFTA_LOG_EVENT_TYPES, startAuditLogAutoCleanupCron } from "./lib/auditLogger.js";
+import { validateSecureFailureState, DEFAULT_SECURITY_POLICY } from "./lib/securityPolicy.js";
 
 import authRouter from "./routes/auth.js";
 import securitySettingsRouter from "./routes/securitySettings.js";
@@ -308,19 +309,27 @@ app.use(
   })
 );
 
-// Secure Error Handling (No stack traces in response)
+// 🌟 Secure Error Handling (FPT_FLS.1.1: No stack traces or internal secrets in response)
 app.onError(async (err, c) => {
-  const correlationId = (c.get as any)("correlationId") || "UNKNOWN";
+  const correlationId = (c.get as any)("correlationId") || crypto.randomUUID();
   const payload = (c.get as any)("jwtPayload");
-  console.error(`[Error ID: ${correlationId}] Global Server Error:`, err);
+  console.error(`[Error ID: ${correlationId}] Failure Event (FPT_FLS.1.1):`, err.message);
 
-  // ثبت شکست در قابلیت کارکردی محصول (SYSTEM_CAPABILITY_FAILURE)
+  const failureValidation = validateSecureFailureState({
+    failureType: "SOFTWARE_FAILURE",
+    errorMessage: err.message,
+    stackTrace: err.stack,
+    requestedResource: c.req.path,
+    userRole: payload?.role
+  });
+
+  // ثبت‌نشان بروز شکست در محصول (Audit log of failure events)
   try {
     await logAuditEvent({
-      userId: payload?.sub,
-      username: payload?.username,
-      userRole: payload?.role,
-      action: AFTA_LOG_EVENT_TYPES.SYSTEM_CAPABILITY_FAILURE,
+      userId: payload?.sub || "system",
+      username: payload?.username || "system",
+      userRole: payload?.role || "سیستم",
+      action: `ثبت رویداد بروز شکست/خطای نرم‌افزاری در محصول (الزام FPT_FLS.1.1 افتا): ${c.req.method} ${c.req.path}`,
       eventType: AFTA_LOG_EVENT_TYPES.SYSTEM_CAPABILITY_FAILURE,
       resource: c.req.path,
       method: c.req.method,
@@ -329,16 +338,22 @@ app.onError(async (err, c) => {
       userAgent: c.req.header("user-agent"),
       correlationId,
       errorCode: 500,
-      details: { errorMsg: err.message, path: c.req.path, method: c.req.method }
+      details: {
+        errorType: err.name,
+        path: c.req.path,
+        method: c.req.method,
+        accessControlMaintained: failureValidation.accessControlMaintained,
+        aftaRequirement: "FPT_FLS.1.1"
+      }
     });
   } catch (_) {}
 
+  // عدم افشای اطلاعات محرمانه (Zero stack trace or internal code disclosure)
   return c.json(
     {
       success: false,
-      message: "خطایی در سمت سرور رخ داد. لطفا دوباره تلاش کنید.",
-      correlationId,
-      error: process.env.NODE_ENV === "development" ? err.message : undefined,
+      message: failureValidation.sanitizedErrorMessage,
+      correlationId
     },
     500
   );
@@ -408,9 +423,57 @@ app.route("/api/bank-reconciliation", bankReconciliationRouter);
 connectDb().then(() => {
   startAuditLogAutoCleanupCron();
   serve({ fetch: app.fetch, port: 8000 }, () => {
-    console.log("🚀 Server running securely at http://localhost:8000 (Auto Log Retention & 10k Capacity Rotation Active)");
+    console.log("🚀 Server running securely at http://localhost:8000 (Auto Log Retention & FPT_FLS.1.1 Secure Failure State Active)");
   });
-}).catch((err) => {
-  console.error("Failed to connect to MongoDB:", err);
+}).catch(async (err) => {
+  console.error("Failed to connect to MongoDB (Hardware/Service Failure):", err);
+  try {
+    await logAuditEvent({
+      userId: "system",
+      username: "system",
+      userRole: "سیستم",
+      action: `ثبت رویداد عدم امکان برقراری ارتباط با پایگاه داده (الزام FPT_FLS.1.1 افتا): ${err.message}`,
+      eventType: AFTA_LOG_EVENT_TYPES.SYSTEM_CAPABILITY_FAILURE,
+      resource: "database/connect",
+      result: "FAILURE",
+      ip: "127.0.0.1",
+      details: { error: err.message, aftaRequirement: "FPT_FLS.1.1" }
+    });
+  } catch (_) {}
   process.exit(1);
+});
+
+// 🌟 FPT_FLS.1.1: ثبت رویداد بروز شکست نرم‌افزاری/پردازشی در لاگ ممیزی افتا
+process.on("uncaughtException", async (err) => {
+  console.error("💥 Uncaught Exception Failure (FPT_FLS.1.1):", err.message);
+  try {
+    await logAuditEvent({
+      userId: "system",
+      username: "system",
+      userRole: "سیستم",
+      action: `ثبت رویداد خرابی/شکست استثنای پردازشی نرم‌افزاری (الزام FPT_FLS.1.1 افتا): ${err.message}`,
+      eventType: AFTA_LOG_EVENT_TYPES.SYSTEM_CAPABILITY_FAILURE,
+      resource: "system/process",
+      result: "FAILURE",
+      ip: "127.0.0.1",
+      details: { error: err.message, aftaRequirement: "FPT_FLS.1.1" }
+    });
+  } catch (_) {}
+});
+
+process.on("unhandledRejection", async (reason: any) => {
+  console.error("💥 Unhandled Rejection Failure (FPT_FLS.1.1):", reason);
+  try {
+    await logAuditEvent({
+      userId: "system",
+      username: "system",
+      userRole: "سیستم",
+      action: `ثبت رویداد شکست غیرمنتظره وعده پردازشی سیستم (الزام FPT_FLS.1.1 افتا): ${String(reason)}`,
+      eventType: AFTA_LOG_EVENT_TYPES.SYSTEM_CAPABILITY_FAILURE,
+      resource: "system/process",
+      result: "FAILURE",
+      ip: "127.0.0.1",
+      details: { reason: String(reason), aftaRequirement: "FPT_FLS.1.1" }
+    });
+  } catch (_) {}
 });

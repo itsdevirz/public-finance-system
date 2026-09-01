@@ -86,7 +86,13 @@ export const AFTA_LOG_EVENT_TYPES = {
   INACTIVE_SESSION_TERMINATED_BY_ADMIN: "خاتمه به نشست غیرفعال توسط مدیر سیستم",
 
   // ۲۵. خاتمه نشست توسط کاربر آغازگر
-  SESSION_TERMINATED_BY_USER: "خاتمه نشست توسط کاربر آغازگر"
+  SESSION_TERMINATED_BY_USER: "خاتمه نشست توسط کاربر آغازگر",
+
+  // ۲۶. ثبت‌نشان تغییر سرور NTP (الزام FPT_STM.1.1)
+  NTP_SERVER_CHANGE: "تغییر سرور NTP سیستم",
+
+  // ۲۷. ثبت‌نشان تغییر زمان سیستم (الزام FPT_STM.1.1)
+  SYSTEM_TIME_CHANGE: "تغییر و همگام‌سازی زمان سیستم"
 } as const;
 
 export interface AuditLogParams {

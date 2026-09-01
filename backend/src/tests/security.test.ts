@@ -1,6 +1,6 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert";
-import { DEFAULT_SECURITY_POLICY, validatePassword, validateActiveToInactiveInteractionACL, validateActiveToInactivePreventionRules, validateResourceSanitizationPolicy, validateUserDataInputAccessPolicy, validateSecureDataTransportPolicy, validateUserDataEgressAccessPolicy, validateTargetedDataEgressRules, validateTlsServerProtocolRequest, validateTlsServerKeyExchangeParameters, validateMutualTlsIdentity, validateCertificatePathRules, validateCertificateRevocationCheck, validateExtendedKeyUsageOid, validateCaCertificateAcceptance, validateX509v3Rfc5280Scope, validateSshPacketSize, validateSshRekeyingTrigger, validateSshHostVerification } from "../lib/securityPolicy.js";
+import { DEFAULT_SECURITY_POLICY, validatePassword, validateActiveToInactiveInteractionACL, validateActiveToInactivePreventionRules, validateResourceSanitizationPolicy, validateUserDataInputAccessPolicy, validateSecureDataTransportPolicy, validateUserDataEgressAccessPolicy, validateTargetedDataEgressRules, validateTlsServerProtocolRequest, validateTlsServerKeyExchangeParameters, validateMutualTlsIdentity, validateCertificatePathRules, validateCertificateRevocationCheck, validateExtendedKeyUsageOid, validateCaCertificateAcceptance, validateX509v3Rfc5280Scope, validateSshPacketSize, validateSshRekeyingTrigger, validateSshHostVerification, validateSessionEstablishmentPrevention, validateSecureFailureState, validateInternalTransitProtection, validateSecurityDataInteroperability, validateTrustedTimestamping, validateProductSoftwareUpdate, validateAutoUpdateAuthenticity } from "../lib/securityPolicy.js";
 import { encrypt, decrypt, destroyCryptoKey } from "../lib/crypto.js";
 import { validateRemoteCertificate } from "../lib/certValidator.js";
 import { verifyUpdateIntegrity, verifyUpdateSignature } from "../lib/secureUpdate.js";
@@ -464,32 +464,37 @@ describe("🛡️ Comprehensive Security Test Suite", () => {
       assert.ok(errorMessage.includes("بیش از حد مجاز"), "Error message must indicate exceeding max concurrent sessions limit");
     });
 
-    it("2. should terminate interactive remote sessions after configurable period of inactivity (idleTimeoutMinutes)", () => {
-      const idleTimeoutMinutes = 15;
+    it("2. should terminate interactive remote sessions after configurable period of inactivity (default & user-specific)", () => {
+      const globalDefaultIdleTimeout = 30; // 30 mins
+      const userSpecificIdleTimeout = 10; // 10 mins for specific user
       const now = Date.now();
-      const fifteenMinutesMs = 15 * 60 * 1000;
 
-      const sessions = [
-        { sessionId: "s_active", lastActivity: new Date(now - 5 * 60 * 1000).toISOString() }, // 5 mins ago -> Valid
-        { sessionId: "s_idle_expired", lastActivity: new Date(now - 20 * 60 * 1000).toISOString() } // 20 mins ago -> Expired
+      const userSessions = [
+        { username: "regular_user", lastActivity: new Date(now - 20 * 60 * 1000).toISOString(), userSpecificTimeout: null }, // 20 min ago -> Valid (global threshold is 30)
+        { username: "regular_user_expired", lastActivity: new Date(now - 45 * 60 * 1000).toISOString(), userSpecificTimeout: null }, // 45 min ago -> Expired (global threshold is 30)
+        { username: "special_user", lastActivity: new Date(now - 15 * 60 * 1000).toISOString(), userSpecificTimeout: userSpecificIdleTimeout }, // 15 min ago -> Expired (user specific threshold is 10)
+        { username: "special_user_active", lastActivity: new Date(now - 5 * 60 * 1000).toISOString(), userSpecificTimeout: userSpecificIdleTimeout } // 5 min ago -> Valid (user specific threshold is 10)
       ];
 
-      const activeRemaining: typeof sessions = [];
-      const terminatedSessions: typeof sessions = [];
+      const activeRemaining: typeof userSessions = [];
+      const terminatedSessions: typeof userSessions = [];
 
-      for (const s of sessions) {
+      for (const s of userSessions) {
         const lastActTime = new Date(s.lastActivity).valueOf();
         const idleMinutes = (now - lastActTime) / (60 * 1000);
-        if (idleMinutes > idleTimeoutMinutes) {
+        const effectiveTimeout = s.userSpecificTimeout || globalDefaultIdleTimeout;
+
+        if (idleMinutes > effectiveTimeout) {
           terminatedSessions.push(s);
         } else {
           activeRemaining.push(s);
         }
       }
 
-      assert.strictEqual(activeRemaining.length, 1, "Only active session within idle timeout must remain");
-      assert.strictEqual(terminatedSessions.length, 1, "Idle session exceeding configurable threshold must be terminated");
-      assert.strictEqual(terminatedSessions[0].sessionId, "s_idle_expired");
+      assert.strictEqual(activeRemaining.length, 2, "Only active sessions within effective threshold must remain");
+      assert.strictEqual(terminatedSessions.length, 2, "Sessions exceeding global or user-specific inactivity threshold must be terminated");
+      assert.ok(terminatedSessions.some(s => s.username === "special_user"), "User-specific inactivity threshold must terminate special_user session");
+      assert.ok(terminatedSessions.some(s => s.username === "regular_user_expired"), "Global default inactivity threshold must terminate regular_user_expired session");
     });
 
     it("3. should allow the session initiator user to terminate their own active sessions", () => {
@@ -891,6 +896,421 @@ describe("🛡️ Comprehensive Security Test Suite", () => {
       });
       const resNewRotated = await app.request(reqNewRotated);
       assert.strictEqual(resNewRotated.status, 200, "Newly rotated token must be valid for the next request");
+    });
+  });
+
+  describe("25. Session Establishment Prevention Rules (AFTA Requirements - Location, Port, Day, Time, Other)", () => {
+    it("1. Location (IP): should prevent session creation when client IP is not in allowed IP ranges", () => {
+      const policy = {
+        ...DEFAULT_SECURITY_POLICY.sessionEstablishmentPreventionPolicy!,
+        preventByLocation: true,
+        allowedIpRanges: ["192.168.1.0/24", "10.0.0.1"]
+      };
+
+      const resInvalid = validateSessionEstablishmentPrevention({ ip: "172.16.0.50", userAgent: "Mozilla/5.0" }, policy);
+      assert.strictEqual(resInvalid.valid, false);
+      assert.strictEqual(resInvalid.parameter, "location");
+
+      const resValid = validateSessionEstablishmentPrevention({ ip: "192.168.1.10", userAgent: "Mozilla/5.0" }, policy);
+      assert.strictEqual(resValid.valid, true);
+    });
+
+    it("2. Port: should prevent session creation on unauthorized destination/client port", () => {
+      const policy = {
+        ...DEFAULT_SECURITY_POLICY.sessionEstablishmentPreventionPolicy!,
+        preventByPort: true,
+        allowedPorts: [443, 8443]
+      };
+
+      const resInvalid = validateSessionEstablishmentPrevention({ port: 9999, userAgent: "Mozilla/5.0" }, policy);
+      assert.strictEqual(resInvalid.valid, false);
+      assert.strictEqual(resInvalid.parameter, "port");
+
+      const resValid = validateSessionEstablishmentPrevention({ port: 443, userAgent: "Mozilla/5.0" }, policy);
+      assert.strictEqual(resValid.valid, true);
+    });
+
+    it("3. Day: should prevent session creation on disallowed days of the week", () => {
+      const policy = {
+        ...DEFAULT_SECURITY_POLICY.sessionEstablishmentPreventionPolicy!,
+        preventByDay: true,
+        allowedDays: ["Saturday", "Sunday", "Monday", "Tuesday", "Wednesday"]
+      };
+
+      const resInvalid = validateSessionEstablishmentPrevention({ currentDay: "Friday", userAgent: "Mozilla/5.0" }, policy);
+      assert.strictEqual(resInvalid.valid, false);
+      assert.strictEqual(resInvalid.parameter, "day");
+
+      const resValid = validateSessionEstablishmentPrevention({ currentDay: "Monday", userAgent: "Mozilla/5.0" }, policy);
+      assert.strictEqual(resValid.valid, true);
+    });
+
+    it("4. Time: should prevent session creation outside allowed operational time window", () => {
+      const policy = {
+        ...DEFAULT_SECURITY_POLICY.sessionEstablishmentPreventionPolicy!,
+        preventByTime: true,
+        allowedStartTime: "07:00",
+        allowedEndTime: "22:00"
+      };
+
+      const resTooLate = validateSessionEstablishmentPrevention({ currentTime: "23:15", userAgent: "Mozilla/5.0" }, policy);
+      assert.strictEqual(resTooLate.valid, false);
+      assert.strictEqual(resTooLate.parameter, "time");
+
+      const resTooEarly = validateSessionEstablishmentPrevention({ currentTime: "05:30", userAgent: "Mozilla/5.0" }, policy);
+      assert.strictEqual(resTooEarly.valid, false);
+
+      const resValid = validateSessionEstablishmentPrevention({ currentTime: "14:30", userAgent: "Mozilla/5.0" }, policy);
+      assert.strictEqual(resValid.valid, true);
+    });
+
+    it("5. Other parameters: should prevent session creation for deactivated account or missing user agent", () => {
+      const policy = {
+        ...DEFAULT_SECURITY_POLICY.sessionEstablishmentPreventionPolicy!,
+        preventByOtherParams: true
+      };
+
+      const resStatus = validateSessionEstablishmentPrevention({ userStatus: "غیرفعال", userAgent: "Mozilla/5.0" }, policy);
+      assert.strictEqual(resStatus.valid, false);
+      assert.strictEqual(resStatus.parameter, "other");
+
+      const resMissingUa = validateSessionEstablishmentPrevention({ userAgent: "Unknown" }, policy);
+      assert.strictEqual(resMissingUa.valid, false);
+      assert.strictEqual(resMissingUa.parameter, "other");
+    });
+  });
+
+  describe("26. Failure State Security Compliance (FPT_FLS.1.1 - AFTA Item 39)", () => {
+    it("1. should maintain secure state and mask internal error details/stack traces on failure", () => {
+      const res = validateSecureFailureState({
+        failureType: "SOFTWARE_FAILURE",
+        errorMessage: "Database connection failed at mongodb://localhost:27017 at internal/app.js:45:12",
+        stackTrace: "Error: DB down\n at Object.<anonymous> (node_modules/mongodb/lib/cmap/connection.js:120:15)"
+      });
+
+      assert.strictEqual(res.sensitiveDataExposed, true, "Internal error with stack traces must be flagged as containing sensitive data");
+      assert.ok(res.sanitizedErrorMessage, "System must provide sanitized error message without code internal leakage");
+      assert.strictEqual(res.sanitizedErrorMessage.includes("mongodb://"), false, "Sanitized error message must not expose DB URI");
+      assert.strictEqual(res.sanitizedErrorMessage.includes("node_modules"), false, "Sanitized error message must not expose internal file paths");
+    });
+
+    it("2. should maintain access control rules and fail closed during software or hardware failures", () => {
+      const res = validateSecureFailureState({
+        failureType: "HARDWARE_FAILURE",
+        errorMessage: "Storage disk I/O error",
+        requestedResource: "/api/financial-vouchers",
+        userRole: "regular_user"
+      });
+
+      assert.strictEqual(res.accessControlMaintained, true, "Access control rules must be maintained during failure state (Fail-Closed)");
+      assert.strictEqual(res.auditLogged, true, "Failure events must be configured for audit logging");
+      assert.ok(res.aftaCompliance.includes("FPT_FLS.1.1"), "Must conform to AFTA FPT_FLS.1.1 requirement");
+    });
+  });
+
+  describe("27. Internal Transit Data Security Compliance (FPT_ITT.1.1 - AFTA Item 40)", () => {
+    it("1. Data Leakage Prevention: should reject unencrypted plaintext communication between internal components", () => {
+      const res = validateInternalTransitProtection({
+        sourceComponent: "App-Node-1",
+        targetComponent: "App-Node-2",
+        protocol: "HTTP",
+        isEncrypted: false,
+        hasIntegrityProtection: false
+      });
+
+      assert.strictEqual(res.valid, false, "Unencrypted HTTP communication between internal components must be rejected");
+      assert.strictEqual(res.dataLeakagePrevented, true);
+      assert.ok(res.reason?.includes("FPT_ITT.1.1"), "Reason must mention FPT_ITT.1.1 AFTA clause");
+    });
+
+    it("2. Data Tampering Prevention: should reject inter-component communication lacking integrity authentication tags", () => {
+      const res = validateInternalTransitProtection({
+        sourceComponent: "Web-Node-1",
+        targetComponent: "DB-Cluster",
+        protocol: "TLSv1.2",
+        isEncrypted: true,
+        hasIntegrityProtection: false // Missing HMAC/GCM Auth tag
+      });
+
+      assert.strictEqual(res.valid, false, "Payloads lacking integrity auth tag must be rejected to prevent tampering");
+      assert.strictEqual(res.dataTamperingPrevented, true);
+    });
+
+    it("3. Secure Internal Transit: should authorize encrypted & authenticated TLS/HTTPS/SSH inter-component communication", () => {
+      const res = validateInternalTransitProtection({
+        sourceComponent: "Node-Alpha",
+        targetComponent: "Node-Beta",
+        protocol: "TLSv1.3",
+        isEncrypted: true,
+        hasIntegrityProtection: true
+      });
+
+      assert.strictEqual(res.valid, true, "TLS 1.3 encrypted and integrity-protected transit must be authorized");
+      assert.strictEqual(res.allowed, true);
+      assert.ok(res.aftaCompliance.includes("FPT_ITT.1.1"), "Must conform to AFTA FPT_ITT.1.1 requirement");
+    });
+  });
+
+  describe("28. Security Data Interoperability Compliance (FPT_TDC.1.1 & FPT_TDC.1.2 - AFTA Item 41)", () => {
+    it("1. should validate standardized authData (JWT/OAuth2) shared with external IT security products", () => {
+      const res = validateSecurityDataInteroperability({
+        dataType: "authData",
+        format: "JSON_JWT",
+        targetSystem: "SSO_OAuth2_IdentityServer"
+      });
+
+      assert.strictEqual(res.valid, true, "Standardized JWT authData must be validated for consistent interpretation");
+      assert.strictEqual(res.interoperable, true);
+      assert.ok(res.aftaCompliance.includes("FPT_TDC.1.1"), "Must conform to AFTA FPT_TDC.1.1 & 1.2 requirement");
+    });
+
+    it("2. should validate standardized cryptographic keys (PEM/PKCS8) shared with Key Management Vaults", () => {
+      const res = validateSecurityDataInteroperability({
+        dataType: "cryptoKeys",
+        format: "PEM_X509",
+        targetSystem: "HSM_KeyVault"
+      });
+
+      assert.strictEqual(res.valid, true, "PEM formatted cryptographic keys must be validated for interoperability");
+      assert.strictEqual(res.schemaMatched, true);
+    });
+
+    it("3. should validate standardized digital signatures (PKCS7/CMS) shared with PKI infrastructure", () => {
+      const res = validateSecurityDataInteroperability({
+        dataType: "digitalSignature",
+        format: "PKCS7_CMS",
+        targetSystem: "National_PKI_CA"
+      });
+
+      assert.strictEqual(res.valid, true, "PKCS7/CMS digital signatures must be authorized");
+    });
+
+    it("4. should validate standardized audit logs (Syslog/CEF) shared with SIEM servers", () => {
+      const res = validateSecurityDataInteroperability({
+        dataType: "auditLogs",
+        format: "SYSLOG_CEF",
+        targetSystem: "Enterprise_SIEM"
+      });
+
+      assert.strictEqual(res.valid, true, "Syslog CEF formatted audit logs must be interoperable with SIEM");
+    });
+
+    it("5. should reject ambiguous or unstandardized raw formats to prevent misinterpretation (FPT_TDC.1.2)", () => {
+      const res = validateSecurityDataInteroperability({
+        dataType: "authData",
+        format: "RAW_PLAINTEXT",
+        targetSystem: "External_App"
+      });
+
+      assert.strictEqual(res.valid, false, "Raw plaintext or ambiguous formats must be rejected per FPT_TDC.1.2");
+      assert.ok(res.reason?.includes("FPT_TDC.1.2"), "Reason must reference FPT_TDC.1.2");
+    });
+
+    it("6. should reject shared security data types that are disabled in policy (FPT_TDC.1.1)", () => {
+      const policyWithDisabledKeys = {
+        ...DEFAULT_SECURITY_POLICY.securityDataInteroperabilityPolicy!,
+        supportedShareableData: {
+          ...DEFAULT_SECURITY_POLICY.securityDataInteroperabilityPolicy!.supportedShareableData,
+          cryptoKeys: false
+        }
+      };
+
+      const res = validateSecurityDataInteroperability({
+        dataType: "cryptoKeys",
+        format: "PEM_X509",
+        targetSystem: "HSM_KeyVault"
+      }, policyWithDisabledKeys);
+
+      assert.strictEqual(res.valid, false, "Disabled shareable security data types must be rejected");
+    });
+  });
+
+  describe("29. Trusted Timestamps Security Compliance (FPT_STM.1.1 - AFTA Item 42)", () => {
+    it("1. Local LAN NTP: should authorize timestamps obtained from local LAN NTP server", () => {
+      const res = validateTrustedTimestamping({
+        methodUsed: "NTP_LOCAL_SERVER",
+        ntpServerAddress: "192.168.1.100"
+      });
+
+      assert.strictEqual(res.valid, true, "Timestamps from local LAN NTP server must be authorized");
+      assert.strictEqual(res.trusted, true);
+      assert.ok(res.sourceType.includes("192.168.1.100"), "Source type must include NTP IP");
+      assert.ok(res.aftaCompliance.includes("FPT_STM.1.1"), "Must reference FPT_STM.1.1");
+    });
+
+    it("2. Local Default Hardware RTC: should authorize default trusted timestamps from hardware RTC & monotonic clock", () => {
+      const res = validateTrustedTimestamping({
+        methodUsed: "DEFAULT_SYSTEM_RTC"
+      });
+
+      assert.strictEqual(res.valid, true, "Default local hardware RTC timestamp must be authorized");
+      assert.strictEqual(res.trusted, true);
+      assert.ok(res.sourceType.includes("Hardware RTC"), "Source type must specify hardware RTC");
+    });
+
+    it("3. Local Admin Time Sync: should authorize manual time sync by admin in isolated environment", () => {
+      const res = validateTrustedTimestamping({
+        methodUsed: "MANUAL_ADMIN_SYNC"
+      });
+
+      assert.strictEqual(res.valid, true, "Manual local time sync by admin must be authorized");
+      assert.strictEqual(res.trusted, true);
+    });
+
+    it("4. Untrusted Client Time Prevention: should reject unverified client browser claimed time", () => {
+      const res = validateTrustedTimestamping({
+        methodUsed: "UNTRUSTED_CLIENT_TIME"
+      });
+
+      assert.strictEqual(res.valid, false, "Unverified client claimed time must be rejected");
+      assert.strictEqual(res.trusted, false);
+      assert.ok(res.reason?.includes("FPT_STM.1.1"), "Reason must reference FPT_STM.1.1");
+    });
+  });
+
+  describe("30. Secure Software & Firmware Update Compliance (FPT_TUD_EXT.1.2 - AFTA Item 43)", () => {
+    it("1. Admin Authorization Restriction: should reject software/firmware update requests by non-admin users", () => {
+      const res = validateProductSoftwareUpdate({
+        updateMethod: "MANUAL_UPDATE",
+        userRole: "regular_user"
+      });
+
+      assert.strictEqual(res.valid, false, "Update requests by non-admin users must be rejected");
+      assert.strictEqual(res.authorized, false);
+      assert.ok(res.reason?.includes("FPT_TUD_EXT.1.2"), "Reason must reference FPT_TUD_EXT.1.2 requirement");
+    });
+
+    it("2. Manual Update Support: should authorize manual update requested by System Administrator", () => {
+      const res = validateProductSoftwareUpdate({
+        updateMethod: "MANUAL_UPDATE",
+        userRole: "admin",
+        patchVersion: "v2.5.1"
+      });
+
+      assert.strictEqual(res.valid, true, "Manual software/firmware update by admin must be authorized");
+      assert.strictEqual(res.authorized, true);
+      assert.strictEqual(res.methodAllowed, true);
+      assert.ok(res.aftaCompliance.includes("FPT_TUD_EXT.1.2"), "Must conform to FPT_TUD_EXT.1.2");
+    });
+
+    it("3. Auto Search for Updates: should authorize auto search feature for System Administrator", () => {
+      const res = validateProductSoftwareUpdate({
+        updateMethod: "AUTO_SEARCH",
+        userRole: "admin"
+      });
+
+      assert.strictEqual(res.valid, true, "Auto search for updates by admin must be authorized");
+      assert.strictEqual(res.methodAllowed, true);
+    });
+
+    it("4. Authenticity & Hash Verification: should verify update package SHA-256 integrity hash before installation", () => {
+      const testBuffer = Buffer.from("SECURE_PATCH_PAYLOAD_V2.5.1");
+      const expectedHash = crypto.createHash("sha256").update(testBuffer).digest("hex");
+
+      const resSuccess = validateProductSoftwareUpdate({
+        updateMethod: "MANUAL_AFTER_VERIFICATION",
+        userRole: "admin",
+        fileBuffer: testBuffer,
+        publishedHashHex: expectedHash
+      });
+
+      assert.strictEqual(resSuccess.valid, true, "Matching patch hash must pass integrity verification");
+      assert.strictEqual(resSuccess.authenticityVerified, true);
+
+      const resTampered = validateProductSoftwareUpdate({
+        updateMethod: "MANUAL_AFTER_VERIFICATION",
+        userRole: "admin",
+        fileBuffer: testBuffer,
+        publishedHashHex: "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f"
+      });
+
+      assert.strictEqual(resTampered.valid, false, "Tampered patch with mismatched hash must be rejected");
+      assert.strictEqual(resTampered.authenticityVerified, false);
+    });
+  });
+
+  describe("31. Auto Update Authenticity Verification Compliance (FPT_TUD_EXT.1.3 - AFTA Item 44)", () => {
+    it("1. Published Hash Verification: should verify matching SHA-256 published hash prior to auto update installation", () => {
+      const testBuffer = Buffer.from("SECURE_AUTO_PATCH_PAYLOAD_V2.5.2");
+      const expectedHash = crypto.createHash("sha256").update(testBuffer).digest("hex");
+
+      const res = validateAutoUpdateAuthenticity({
+        patchVersion: "v2.5.2",
+        fileBuffer: testBuffer,
+        publishedHashHex: expectedHash,
+        digitalSignatureHex: "DUMMY_SIG_FOR_HASH_TEST"
+      }, {
+        ...DEFAULT_SECURITY_POLICY.productSoftwareUpdatePolicy!,
+        autoUpdateAuthenticityVerification: {
+          enableAuthenticityVerification: true,
+          publishedHash: true,
+          digitalSignature: false
+        }
+      });
+
+      assert.strictEqual(res.valid, true, "Matching published hash must pass pre-installation authenticity verification");
+      assert.strictEqual(res.hashVerified, true);
+      assert.ok(res.aftaCompliance.includes("FPT_TUD_EXT.1.3"), "Must reference FPT_TUD_EXT.1.3 requirement");
+    });
+
+    it("2. Missing Hash Rejection: should reject auto-update installation when published hash is missing", () => {
+      const res = validateAutoUpdateAuthenticity({
+        patchVersion: "v2.5.2"
+        // missing publishedHashHex
+      }, {
+        ...DEFAULT_SECURITY_POLICY.productSoftwareUpdatePolicy!,
+        autoUpdateAuthenticityVerification: {
+          enableAuthenticityVerification: true,
+          publishedHash: true,
+          digitalSignature: false
+        }
+      });
+
+      assert.strictEqual(res.valid, false, "Auto update installation without published hash must be rejected");
+      assert.strictEqual(res.hashVerified, false);
+      assert.ok(res.reason?.includes("FPT_TUD_EXT.1.3"), "Reason must reference FPT_TUD_EXT.1.3");
+    });
+
+    it("3. Digital Signature Verification: should verify RSA SHA-256 digital signature prior to auto update installation", () => {
+      const { publicKey, privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+      const patchData = Buffer.from("SIGNED_FIRMWARE_PAYLOAD_V2.6.0");
+      const signer = crypto.createSign("SHA256");
+      signer.update(patchData);
+      signer.end();
+      const signatureHex = signer.sign(privateKey, "hex");
+      const publicKeyPem = publicKey.export({ type: "pkcs1", format: "pem" }).toString();
+      const expectedHash = crypto.createHash("sha256").update(patchData).digest("hex");
+
+      const res = validateAutoUpdateAuthenticity({
+        patchVersion: "v2.6.0",
+        fileBuffer: patchData,
+        publishedHashHex: expectedHash,
+        digitalSignatureHex: signatureHex,
+        publicKeyPem
+      });
+
+      assert.strictEqual(res.valid, true, "Valid RSA digital signature and hash must pass pre-installation verification");
+      assert.strictEqual(res.hashVerified, true);
+      assert.strictEqual(res.signatureVerified, true);
+    });
+
+    it("4. Tampered Digital Signature Rejection: should reject auto update when digital signature does not match", () => {
+      const { publicKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+      const patchData = Buffer.from("TAMPERED_FIRMWARE_PAYLOAD");
+      const publicKeyPem = publicKey.export({ type: "pkcs1", format: "pem" }).toString();
+      const expectedHash = crypto.createHash("sha256").update(patchData).digest("hex");
+      const fakeSignatureHex = "0102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f00";
+
+      const res = validateAutoUpdateAuthenticity({
+        patchVersion: "v2.6.0",
+        fileBuffer: patchData,
+        publishedHashHex: expectedHash,
+        digitalSignatureHex: fakeSignatureHex,
+        publicKeyPem
+      });
+
+      assert.strictEqual(res.valid, false, "Tampered patch with invalid signature must be rejected prior to installation");
+      assert.strictEqual(res.signatureVerified, false);
     });
   });
 });

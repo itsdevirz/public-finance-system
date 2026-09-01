@@ -89,6 +89,7 @@ router.post("/", async (c) => {
       maxFailedAttempts: Math.max(1, Math.floor(Number(body.maxFailedAttempts) || 5)),
       lockoutDuration: Number(body.lockoutDuration) || 15,
       maxConcurrentSessions: Math.max(1, Math.floor(Number(body.maxConcurrentSessions) || 1)),
+      idleTimeoutMinutes: body.idleTimeoutMinutes !== undefined && body.idleTimeoutMinutes !== null && body.idleTimeoutMinutes !== "" ? Math.max(1, Math.floor(Number(body.idleTimeoutMinutes))) : null,
       role: body.role || "حسابدار",
       permissions: body.permissions || {},
       financialLimitMin: Number(body.financialLimitMin) || 0,
@@ -236,6 +237,9 @@ router.put("/:id", async (c) => {
       updateData.maxFailedAttempts = body.maxFailedAttempts !== undefined ? Math.max(1, Math.floor(Number(body.maxFailedAttempts) || 5)) : existingUser.maxFailedAttempts;
       updateData.lockoutDuration = body.lockoutDuration !== undefined ? Number(body.lockoutDuration) : existingUser.lockoutDuration;
       updateData.maxConcurrentSessions = body.maxConcurrentSessions !== undefined ? Math.max(1, Math.floor(Number(body.maxConcurrentSessions) || 1)) : (existingUser.maxConcurrentSessions || 1);
+      updateData.idleTimeoutMinutes = body.idleTimeoutMinutes !== undefined
+        ? (body.idleTimeoutMinutes !== null && body.idleTimeoutMinutes !== "" ? Math.max(1, Math.floor(Number(body.idleTimeoutMinutes))) : null)
+        : existingUser.idleTimeoutMinutes;
 
       // Prevent an admin from demoting their own admin role or the root 'admin' account
       const isTargetRootAdmin = existingUser.username?.toLowerCase() === "admin";

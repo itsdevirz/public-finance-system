@@ -34,6 +34,16 @@ export async function pruneExpiredSessions(db: Db, userId?: ObjectId | string) {
         continue;
       }
 
+      // 🌟 Check for user-specific inactivity timeout
+      let effectiveIdleTimeout = idleTimeoutMin;
+      if (session.userId) {
+        const uId = typeof session.userId === "string" ? new ObjectId(session.userId) : session.userId;
+        const userDoc = await db.collection("users").findOne({ _id: uId });
+        if (userDoc && typeof userDoc.idleTimeoutMinutes === "number" && userDoc.idleTimeoutMinutes > 0) {
+          effectiveIdleTimeout = userDoc.idleTimeoutMinutes;
+        }
+      }
+
       // 2. Check idle timeout
       const lastActivityTime = session.lastActivity ? new Date(session.lastActivity).valueOf() : (session.createdAt ? new Date(session.createdAt).valueOf() : now);
       const idleMinutes = (now - lastActivityTime) / (60 * 1000);
@@ -42,12 +52,12 @@ export async function pruneExpiredSessions(db: Db, userId?: ObjectId | string) {
       const createdAtTime = session.createdAt ? new Date(session.createdAt).valueOf() : lastActivityTime;
       const ageHours = (now - createdAtTime) / (3600 * 1000);
 
-      if (idleMinutes > idleTimeoutMin || ageHours > tokenExpiresHours) {
+      if (idleMinutes > effectiveIdleTimeout || ageHours > tokenExpiresHours) {
         expiredIds.push(session._id);
         if (session.token) {
           await db.collection("revoked_tokens").updateOne(
             { token: session.token },
-            { $set: { token: session.token, revokedAt: new Date().toISOString(), reason: "انقضای خودکار نشست به دلیل عدم فعالیت" } },
+            { $set: { token: session.token, revokedAt: new Date().toISOString(), reason: `انقضای خودکار نشست به دلیل عدم فعالیت (آستانه ${effectiveIdleTimeout} دقیقه)` } },
             { upsert: true }
           );
         }

@@ -58,29 +58,48 @@ export const requireAuth = createMiddleware(async (c, next) => {
     const activeSession = await db.collection("active_sessions").findOne({ token: rawToken });
     if (activeSession) {
       const secPolicySetting = await db.collection("system_settings").findOne({ key: "security_policy" });
-      const idleTimeoutMin = secPolicySetting?.value?.sessionPolicy?.idleTimeoutMinutes || 30;
+      const globalIdleTimeout = secPolicySetting?.value?.sessionPolicy?.idleTimeoutMinutes || 30;
+
+      // 🌟 الزام افتا: تعیین زمان غیرفعال بودن برای کاربر مشخص یا پیش‌فرض سیستم
+      const userDoc = await db.collection("users").findOne({ _id: new ObjectId(user._id) });
+      const idleTimeoutMin = (userDoc && typeof userDoc.idleTimeoutMinutes === "number" && userDoc.idleTimeoutMinutes > 0)
+        ? userDoc.idleTimeoutMinutes
+        : globalIdleTimeout;
+
       const lastActivityTime = activeSession.lastActivity ? new Date(activeSession.lastActivity).valueOf() : Date.now();
       const idleMinutes = (Date.now() - lastActivityTime) / (60 * 1000);
 
       if (idleMinutes > idleTimeoutMin) {
-        await db.collection("revoked_tokens").insertOne({ token: rawToken, revokedAt: new Date().toISOString() });
+        await db.collection("revoked_tokens").insertOne({
+          token: rawToken,
+          revokedAt: new Date().toISOString(),
+          reason: `خاتمه خودکار نشست غیرفعال کاربر '${user.username}' پس از ${Math.round(idleMinutes)} دقیقه عدم فعالیت (حد مجاز: ${idleTimeoutMin} دقیقه)`
+        });
         await db.collection("active_sessions").deleteOne({ token: rawToken });
 
         await logAuditEvent({
           userId: user._id,
           username: user.username,
           userRole: user.role,
-          action: AFTA_LOG_EVENT_TYPES.INACTIVE_SESSION_TERMINATED_BY_LOCK,
+          action: `خاتمه و ابطال خودکار نشست غیرفعال کاربر '${user.username}' پس از ${Math.round(idleMinutes)} دقیقه عدم فعالیت (حد مجاز: ${idleTimeoutMin} دقیقه)`,
           eventType: AFTA_LOG_EVENT_TYPES.INACTIVE_SESSION_TERMINATED_BY_LOCK,
           resource: "active_sessions",
           result: "FAILURE",
           ip: c.req.header("x-forwarded-for") || "127.0.0.1",
           userAgent: c.req.header("user-agent"),
           errorCode: 401,
-          details: { idleMinutes: Math.round(idleMinutes), idleTimeoutMin }
+          details: {
+            idleMinutes: Math.round(idleMinutes),
+            idleTimeoutMin,
+            isUserSpecific: !!userDoc?.idleTimeoutMinutes,
+            aftaClause: "8-2-3"
+          }
         });
 
-        return c.json({ success: false, message: `نشست شما به دلیل عدم فعالیت به مدت ${Math.round(idleMinutes)} دقیقه قفل و خاتمه یافت. لطفاً دوباره وارد شوید.` }, 401);
+        return c.json({
+          success: false,
+          message: `نشست شما به دلیل عدم فعالیت به مدت ${Math.round(idleMinutes)} دقیقه (فراتر از حد مجاز تعیین‌شده ${idleTimeoutMin} دقیقه) خاتمه یافت. لطفاً دوباره وارد شوید.`
+        }, 401);
       } else {
         // Update last activity timestamp
         await db.collection("active_sessions").updateOne(

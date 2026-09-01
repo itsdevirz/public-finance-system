@@ -101,6 +101,7 @@ const INITIAL_USER = {
   maxFailedAttempts: 5,
   lockoutDuration: 15,
   maxConcurrentSessions: 1,
+  idleTimeoutMinutes: "", // زمان غیرفعال بودن اختصاصی کاربر (در صورت خالی بودن، پیش‌فرض سیستم لحاظ می‌شود)
   role: "حسابدار",
   permissions: { ...ROLE_PRESETS["حسابدار"] },
   financialLimitMin: 0,
@@ -795,6 +796,22 @@ export default function Users() {
                         value={formState.maxConcurrentSessions ?? 1}
                         onChange={(e) => setFormState({ ...formState, maxConcurrentSessions: Math.max(1, Number(e.target.value) || 1) })}
                         className="h-8.5 text-xs w-28 font-bold text-center border-primary/40 disabled:bg-muted disabled:cursor-not-allowed"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-bold text-primary flex items-center gap-1">
+                        <span>زمان خاتمه عدم فعالیت اختصاصی کاربر (دقیقه)</span>
+                        {!isAdminUser && <span className="text-[10px] text-muted-foreground font-normal">(فقط ادمین)</span>}
+                      </Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        max="1440"
+                        placeholder="پیش‌فرض سیستم (مثلاً ۳۰)"
+                        disabled={!isAdminUser}
+                        value={formState.idleTimeoutMinutes ?? ""}
+                        onChange={(e) => setFormState({ ...formState, idleTimeoutMinutes: e.target.value })}
+                        className="h-8.5 text-xs w-48 text-center border-primary/40 disabled:bg-muted disabled:cursor-not-allowed"
                       />
                     </div>
                   </div>

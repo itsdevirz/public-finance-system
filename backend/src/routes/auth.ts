@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { ObjectId } from "mongodb";
 import { getDb } from "../db/index.js";
 import { hashPassword, verifyPassword, signToken, verifyToken } from "../lib/auth.js";
-import { validatePassword, DEFAULT_SECURITY_POLICY } from "../lib/securityPolicy.js";
+import { validatePassword, DEFAULT_SECURITY_POLICY, validateSessionEstablishmentPrevention } from "../lib/securityPolicy.js";
 import { logAuditEvent, AFTA_LOG_EVENT_TYPES } from "../lib/auditLogger.js";
 import { parseUserAgent } from "../lib/uaParser.js";
 import { pruneExpiredSessions } from "../lib/sessionHelper.js";
@@ -116,6 +116,45 @@ router.post("/login", async (c) => {
     ? user.maxFailedAttempts
     : globalMaxAttempts;
   const lockoutMin = Math.max(1, Number(secPolicy.lockoutPolicy?.lockoutDurationMinutes) || 15);
+
+  // 🌟 الزام افتا: ارزیابی خط‌مشی ممانعت از ایجاد نشست بر اساس پارامترهای مکان، شماره پورت، روز، زمان و سایر موارد
+  const hostHeader = c.req.header("host") || "";
+  const portHeader = c.req.header("x-forwarded-port");
+  const portNum = portHeader ? parseInt(portHeader, 10) : (hostHeader.includes(":") ? parseInt(hostHeader.split(":")[1], 10) : 443);
+
+  const preventionCheck = validateSessionEstablishmentPrevention(
+    {
+      ip,
+      port: isNaN(portNum) ? 443 : portNum,
+      userRole: user?.role,
+      userStatus: user?.status,
+      userAgent
+    },
+    secPolicy.sessionEstablishmentPreventionPolicy,
+    secPolicy.functionBehaviorPolicy
+  );
+
+  if (!preventionCheck.valid) {
+    await logAuditEvent({
+      userId: user?._id,
+      username: user?.username || cleanUsername,
+      userRole: user?.role || "کارمند",
+      action: `ممانعت از ایجاد نشست (پارامتر ${preventionCheck.parameter}): ${preventionCheck.reason}`,
+      eventType: AFTA_LOG_EVENT_TYPES.AUTH_FINAL_OUTCOME,
+      resource: "auth/login",
+      result: "FAILURE",
+      ip,
+      userAgent,
+      errorCode: 403,
+      details: {
+        parameter: preventionCheck.parameter,
+        reason: preventionCheck.reason,
+        requestType: "ورود به سامانه",
+        requestResult: "ناموفق"
+      }
+    });
+    return c.json({ message: preventionCheck.reason, parameter: preventionCheck.parameter }, 403);
+  }
 
   // ۱۳. بررسی درخواست روی موجودیت غیرفعال یا مسدود
   if (user) {

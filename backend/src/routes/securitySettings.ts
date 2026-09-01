@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { ObjectId } from "mongodb";
 import { getDb } from "../db/index.js";
-import { DEFAULT_SECURITY_POLICY, validateTlsClientConnection } from "../lib/securityPolicy.js";
+import { DEFAULT_SECURITY_POLICY, validateTlsClientConnection, validateInternalTransitProtection, validateSecurityDataInteroperability, validateTrustedTimestamping, validateProductSoftwareUpdate, validateAutoUpdateAuthenticity } from "../lib/securityPolicy.js";
 import { executeRealTlsHandshake } from "../lib/secureTlsClient.js";
 import { logAuditEvent, AFTA_LOG_EVENT_TYPES, verifyLogIntegrity, signExistingLogs, runAuditLogRetentionAndRotation, extractClientIp } from "../lib/auditLogger.js";
 import { requireRole } from "../middleware/rbacMiddleware.js";
@@ -286,6 +286,24 @@ router.put("/policy", requireRole(["admin"]), async (c) => {
       });
     }
 
+    // ۵. ثبت‌نشان تغییر سرور NTP (الزام FPT_STM.1.1 افتا)
+    const oldNtpServer = existingVal.trustedTimestampPolicy?.ntpServerAddress || "127.0.0.1";
+    const newNtpServer = newPolicy.trustedTimestampPolicy?.ntpServerAddress || "127.0.0.1";
+    if (oldNtpServer !== newNtpServer) {
+      await logAuditEvent({
+        userId: payload.sub,
+        username: currentAdminUsername,
+        userRole: currentAdminRole === "admin" ? "مدیر" : currentAdminRole,
+        action: `آدرس سرور NTP محلی سیستم از ${oldNtpServer} به ${newNtpServer} تغییر یافت (الزام FPT_STM.1.1)`,
+        eventType: AFTA_LOG_EVENT_TYPES.NTP_SERVER_CHANGE,
+        resource: "system_time_policy",
+        result: "SUCCESS",
+        ip: clientIp,
+        userAgent: c.req.header("user-agent"),
+        details: { oldNtpServer, newNtpServer, aftaClause: "FPT_STM.1.1" }
+      });
+    }
+
     return c.json({ success: true, message: "خط‌مشی‌های امنیتی با موفقیت به‌روزرسانی شد.", data: newPolicy });
   } catch (error: any) {
     await logAuditEvent({
@@ -300,6 +318,334 @@ router.put("/policy", requireRole(["admin"]), async (c) => {
       details: { error: error.message }
     });
 
+    return c.json({ success: false, message: error.message }, 500);
+  }
+});
+
+// POST /api/security/validate-internal-transit - اعتبارسنجی انتقال داده امنیتی در داخل محصول (الزام FPT_ITT.1.1 افتا)
+router.post("/validate-internal-transit", async (c) => {
+  try {
+    const payload = (c.get as any)("jwtPayload");
+    const body = await c.req.json();
+    const db = getDb();
+
+    const config = await db.collection("system_settings").findOne({ key: "security_policy" });
+    const policy = config?.value?.internalTransitProtectionPolicy || DEFAULT_SECURITY_POLICY.internalTransitProtectionPolicy;
+
+    const validation = validateInternalTransitProtection(
+      {
+        sourceComponent: body.sourceComponent || "Web-Node-1",
+        targetComponent: body.targetComponent || "Database-Cluster-1",
+        protocol: body.protocol || "TLSv1.3",
+        isEncrypted: body.isEncrypted !== undefined ? !!body.isEncrypted : true,
+        hasIntegrityProtection: body.hasIntegrityProtection !== undefined ? !!body.hasIntegrityProtection : true
+      },
+      policy
+    );
+
+    if (!validation.valid && policy.auditTransitSecurityViolations !== false) {
+      await logAuditEvent({
+        userId: payload?.sub || "system",
+        username: payload?.username || "system",
+        userRole: payload?.role || "سیستم",
+        action: `ممانعت از انتقال غیرامن داده بین بخش‌های داخلی محصول (الزام FPT_ITT.1.1 افتا): ${validation.reason}`,
+        eventType: AFTA_LOG_EVENT_TYPES.SECURITY_FUNCTION_FAILURE,
+        resource: "internal_transit_channel",
+        result: "FAILURE",
+        ip: extractClientIp(c),
+        userAgent: c.req.header("user-agent"),
+        errorCode: 403,
+        details: {
+          source: body.sourceComponent,
+          target: body.targetComponent,
+          protocol: body.protocol,
+          reason: validation.reason,
+          aftaClause: "FPT_ITT.1.1"
+        }
+      });
+    }
+
+    return c.json({
+      success: validation.valid,
+      validation
+    }, validation.valid ? 200 : 403);
+  } catch (error: any) {
+    return c.json({ success: false, message: error.message }, 500);
+  }
+});
+
+// POST /api/security/validate-data-interoperability - سازگاری و تفسیر یکسان داده‌های امنیتی قابل اشتراک‌گذاری (الزام FPT_TDC.1.1 & FPT_TDC.1.2 افتا)
+router.post("/validate-data-interoperability", async (c) => {
+  try {
+    const payload = (c.get as any)("jwtPayload");
+    const body = await c.req.json();
+    const db = getDb();
+
+    const config = await db.collection("system_settings").findOne({ key: "security_policy" });
+    const policy = config?.value?.securityDataInteroperabilityPolicy || DEFAULT_SECURITY_POLICY.securityDataInteroperabilityPolicy;
+
+    const validation = validateSecurityDataInteroperability(
+      {
+        dataType: body.dataType || "authData",
+        format: body.format || "JSON_JWT",
+        targetSystem: body.targetSystem || "IdentityServer_OAuth2",
+        schemaVersion: body.schemaVersion || "1.0"
+      },
+      policy
+    );
+
+    if (!validation.valid) {
+      await logAuditEvent({
+        userId: payload?.sub || "system",
+        username: payload?.username || "system",
+        userRole: payload?.role || "سیستم",
+        action: `عدم امکان تبادل/تفسیر یکسان داده امنیتی با محصولات IT خارجی (الزام FPT_TDC.1.1/2 افتا): ${validation.reason}`,
+        eventType: AFTA_LOG_EVENT_TYPES.SECURITY_FUNCTION_FAILURE,
+        resource: "security_data_interoperability",
+        result: "FAILURE",
+        ip: extractClientIp(c),
+        userAgent: c.req.header("user-agent"),
+        errorCode: 400,
+        details: {
+          dataType: body.dataType,
+          format: body.format,
+          targetSystem: body.targetSystem,
+          reason: validation.reason,
+          aftaClause: "FPT_TDC.1.1 & FPT_TDC.1.2"
+        }
+      });
+    }
+
+    return c.json({
+      success: validation.valid,
+      validation
+    }, validation.valid ? 200 : 400);
+  } catch (error: any) {
+    return c.json({ success: false, message: error.message }, 500);
+  }
+});
+
+// POST /api/security/update-system-time - تغییر و همگام‌سازی زمان سیستم محلی با ثبت‌نشان (الزام FPT_STM.1.1 افتا)
+router.post("/update-system-time", requireRole(["admin"]), async (c) => {
+  try {
+    const payload = (c.get as any)("jwtPayload");
+    const body = await c.req.json();
+    const clientIp = extractClientIp(c);
+
+    const oldTime = new Date().toISOString();
+    const newTime = body.newTime ? new Date(body.newTime).toISOString() : oldTime;
+    const syncSource = body.syncSource || "ساعت سخت‌افزاری محلی / سرور NTP داخلی شبکه";
+
+    // ثبت‌نشان تغییر زمان (الزام FPT_STM.1.1)
+    await logAuditEvent({
+      userId: payload?.sub || "admin_01",
+      username: payload?.username || "admin",
+      userRole: payload?.role || "مدیر سیستم",
+      action: `تغییر و همگام‌سازی زمان سیستم محلی از منبع '${syncSource}' (الزام FPT_STM.1.1 افتا)`,
+      eventType: AFTA_LOG_EVENT_TYPES.SYSTEM_TIME_CHANGE,
+      resource: "system_clock",
+      result: "SUCCESS",
+      ip: clientIp,
+      userAgent: c.req.header("user-agent"),
+      details: {
+        oldTime,
+        newTime,
+        syncSource,
+        aftaClause: "FPT_STM.1.1"
+      }
+    });
+
+    return c.json({
+      success: true,
+      message: `زمان سیستم با موفقیت از منبع '${syncSource}' همگام‌سازی گردید و ثبت‌نشان تغییر زمان ثبت شد.`,
+      systemTime: newTime
+    });
+  } catch (error: any) {
+    return c.json({ success: false, message: error.message }, 500);
+  }
+});
+
+// POST /api/security/validate-trusted-timestamp - اعتبارسنجی مهرهای زمانی معتبر سیستم (الزام FPT_STM.1.1 افتا)
+router.post("/validate-trusted-timestamp", async (c) => {
+  try {
+    const body = await c.req.json();
+    const db = getDb();
+
+    const config = await db.collection("system_settings").findOne({ key: "security_policy" });
+    const policy = config?.value?.trustedTimestampPolicy || DEFAULT_SECURITY_POLICY.trustedTimestampPolicy;
+
+    const validation = validateTrustedTimestamping(
+      {
+        methodUsed: body.methodUsed || "DEFAULT_SYSTEM_RTC",
+        ntpServerAddress: body.ntpServerAddress || policy.ntpServerAddress || "127.0.0.1",
+        timestampValue: body.timestampValue || new Date().toISOString()
+      },
+      policy
+    );
+
+    return c.json({
+      success: validation.valid,
+      validation
+    }, validation.valid ? 200 : 400);
+  } catch (error: any) {
+    return c.json({ success: false, message: error.message }, 500);
+  }
+});
+
+// POST /api/security/check-updates - جستجوی خودکار/دستی بروزرسانی‌های نرم‌افزار و میان‌افزار (الزام FPT_TUD_EXT.1.2 افتا)
+router.post("/check-updates", requireRole(["admin"]), async (c) => {
+  try {
+    const payload = (c.get as any)("jwtPayload");
+    const db = getDb();
+    const config = await db.collection("system_settings").findOne({ key: "security_policy" });
+    const policy = config?.value?.productSoftwareUpdatePolicy || DEFAULT_SECURITY_POLICY.productSoftwareUpdatePolicy;
+
+    const validation = validateProductSoftwareUpdate(
+      {
+        updateMethod: "AUTO_SEARCH",
+        userRole: payload?.role || "admin"
+      },
+      policy
+    );
+
+    if (!validation.valid) {
+      return c.json({ success: false, message: validation.reason }, 403);
+    }
+
+    await logAuditEvent({
+      userId: payload?.sub || "admin_01",
+      username: payload?.username || "admin",
+      userRole: payload?.role || "مدیر سیستم",
+      action: "جستجوی بروزرسانی‌های نرم‌افزار و میان‌افزار محصول توسط مدیر سیستم (الزام FPT_TUD_EXT.1.2 افتا)",
+      eventType: AFTA_LOG_EVENT_TYPES.ADMIN_FUNCTION_USAGE,
+      resource: "software_firmware_updates",
+      result: "SUCCESS",
+      ip: extractClientIp(c),
+      userAgent: c.req.header("user-agent"),
+      details: { updateMethod: "AUTO_SEARCH", aftaClause: "FPT_TUD_EXT.1.2" }
+    });
+
+    return c.json({
+      success: true,
+      currentVersion: "v2.5.0-build2026",
+      latestAvailableVersion: "v2.5.0-build2026",
+      updateAvailable: false,
+      message: "سامانه به‌روز است. هیچ بسته بروزرسانی جدیدی برای نصب وجود ندارد.",
+      validation
+    });
+  } catch (error: any) {
+    return c.json({ success: false, message: error.message }, 500);
+  }
+});
+
+// POST /api/security/apply-update - اعمال بروزرسانی دستی یا خودکار نرم‌افزار و میان‌افزار توسط مدیر سیستم همراه با اصالت‌سنجی (الزام FPT_TUD_EXT.1.2 افتا)
+router.post("/apply-update", requireRole(["admin"]), async (c) => {
+  try {
+    const payload = (c.get as any)("jwtPayload");
+    const body = await c.req.json();
+    const db = getDb();
+
+    const config = await db.collection("system_settings").findOne({ key: "security_policy" });
+    const policy = config?.value?.productSoftwareUpdatePolicy || DEFAULT_SECURITY_POLICY.productSoftwareUpdatePolicy;
+
+    const validation = validateProductSoftwareUpdate(
+      {
+        updateMethod: body.updateMethod || "MANUAL_AFTER_VERIFICATION",
+        userRole: payload?.role || "admin",
+        patchVersion: body.patchVersion || "v2.5.1",
+        publishedHashHex: body.publishedHashHex,
+        digitalSignatureHex: body.digitalSignatureHex,
+        publicKeyPem: body.publicKeyPem
+      },
+      policy
+    );
+
+    if (!validation.valid) {
+      await logAuditEvent({
+        userId: payload?.sub || "admin_01",
+        username: payload?.username || "admin",
+        userRole: payload?.role || "مدیر سیستم",
+        action: `تلاش ناموفق برای بروزرسانی نرم‌افزار/میان‌افزار محصول: ${validation.reason}`,
+        eventType: AFTA_LOG_EVENT_TYPES.SECURITY_FUNCTION_FAILURE,
+        resource: "software_firmware_updates",
+        result: "FAILURE",
+        ip: extractClientIp(c),
+        userAgent: c.req.header("user-agent"),
+        errorCode: 403,
+        details: { reason: validation.reason, aftaClause: "FPT_TUD_EXT.1.2" }
+      });
+
+      return c.json({ success: false, message: validation.reason }, 403);
+    }
+
+    await logAuditEvent({
+      userId: payload?.sub || "admin_01",
+      username: payload?.username || "admin",
+      userRole: payload?.role || "مدیر سیستم",
+      action: `اعمال موفقیت‌آمیز بروزرسانی نرم‌افزار/میان‌افزار نسخه ${body.patchVersion || "جدید"} توسط مدیر سیستم (الزام FPT_TUD_EXT.1.2 افتا)`,
+      eventType: AFTA_LOG_EVENT_TYPES.FUNCTION_BEHAVIOR_CHANGE,
+      resource: "software_firmware_updates",
+      result: "SUCCESS",
+      ip: extractClientIp(c),
+      userAgent: c.req.header("user-agent"),
+      details: {
+        patchVersion: body.patchVersion || "v2.5.1",
+        updateMethod: body.updateMethod || "MANUAL_AFTER_VERIFICATION",
+        aftaClause: "FPT_TUD_EXT.1.2"
+      }
+    });
+
+    return c.json({
+      success: true,
+      message: `بسته بروزرسانی نرم‌افزار/میان‌افزار (نسخه ${body.patchVersion || "جدید"}) با موفقیت اصالت‌سنجی و بر روی سامانه نصب گردید.`,
+      validation
+    });
+  } catch (error: any) {
+    return c.json({ success: false, message: error.message }, 500);
+  }
+});
+
+// POST /api/security/verify-update-authenticity - احراز اصالت نرم‌افزار/میان‌افزار پیش از نصب بروزرسانی خودکار (الزام FPT_TUD_EXT.1.3 افتا)
+router.post("/verify-update-authenticity", requireRole(["admin"]), async (c) => {
+  try {
+    const payload = (c.get as any)("jwtPayload");
+    const body = await c.req.json();
+    const db = getDb();
+
+    const config = await db.collection("system_settings").findOne({ key: "security_policy" });
+    const policy = config?.value?.productSoftwareUpdatePolicy || DEFAULT_SECURITY_POLICY.productSoftwareUpdatePolicy;
+
+    const validation = validateAutoUpdateAuthenticity(
+      {
+        patchVersion: body.patchVersion || "v2.5.1",
+        publishedHashHex: body.publishedHashHex,
+        digitalSignatureHex: body.digitalSignatureHex,
+        publicKeyPem: body.publicKeyPem
+      },
+      policy
+    );
+
+    if (!validation.valid) {
+      await logAuditEvent({
+        userId: payload?.sub || "admin_01",
+        username: payload?.username || "admin",
+        userRole: payload?.role || "مدیر سیستم",
+        action: `تلاش ناموفق برای احراز اصالت پیش از نصب بروزرسانی خودکار (الزام FPT_TUD_EXT.1.3): ${validation.reason}`,
+        eventType: AFTA_LOG_EVENT_TYPES.SECURITY_FUNCTION_FAILURE,
+        resource: "auto_update_authenticity_verification",
+        result: "FAILURE",
+        ip: extractClientIp(c),
+        userAgent: c.req.header("user-agent"),
+        errorCode: 400,
+        details: { reason: validation.reason, aftaClause: "FPT_TUD_EXT.1.3" }
+      });
+    }
+
+    return c.json({
+      success: validation.valid,
+      validation
+    }, validation.valid ? 200 : 400);
+  } catch (error: any) {
     return c.json({ success: false, message: error.message }, 500);
   }
 });

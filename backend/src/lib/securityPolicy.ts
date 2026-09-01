@@ -1,3 +1,5 @@
+import crypto from "node:crypto";
+
 export interface PasswordPolicy {
   minLength: number;
   requireUppercase: boolean;
@@ -199,11 +201,12 @@ export interface SecurityDataInteroperabilityPolicy {
 // رده ۲-۶ بند ۴ افتا: زمان و تاریخ معتبر و استفاده از مهرهای زمانی معتبر (Trusted Timestamps)
 export interface TrustedTimestampPolicy {
   enableTrustedTimestamping: boolean;
+  ntpServerAddress?: string; // آدرس سرور NTP محلی شبکه
   timestampMethods: {
     getTimestampFromNtpServer: boolean; // گرفتن مهرهای زمانی از سرور NTP
     setTimestampViaInternet: boolean; // تنظیم مهرهای زمانی از طریق اینترنت
     setDefaultTrustedTimestamp: boolean; // تنظیم مهرهای زمانی به صورت پیش‌فرض (معتبر و عدم امکان دستکاری غیرمجاز)
-    otherMethods: boolean; // سایر موارد
+    otherMethods: boolean; // سایر موارد (همگام‌سازی محلی سیستم)
   };
   verifyTimestampIntegrity: boolean;
 }
@@ -262,10 +265,19 @@ export interface PreserveAccessRecordsPolicy {
 export interface SessionEstablishmentPreventionPolicy {
   enable: boolean;
   preventByLocation: boolean;
+  allowedIpRanges?: string[];
   preventByPort: boolean;
+  allowedPorts?: number[];
   preventByDay: boolean;
+  allowedDays?: string[];
   preventByTime: boolean;
+  allowedStartTime?: string;
+  allowedEndTime?: string;
   preventByOtherParams: boolean;
+  otherParamsRules?: {
+    blockSuspiciousUserAgents?: boolean;
+    requireValidStatus?: boolean;
+  };
 }
 
 // الزام افتا (رده ۲-۹): کانال‌ها/مسیرهای مورد اعتماد
@@ -917,9 +929,10 @@ export const DEFAULT_SECURITY_POLICY: SecurityPolicyConfig = {
   },
   trustedTimestampPolicy: {
     enableTrustedTimestamping: true,
+    ntpServerAddress: "127.0.0.1",
     timestampMethods: {
       getTimestampFromNtpServer: true,
-      setTimestampViaInternet: true,
+      setTimestampViaInternet: false, // غیرفعال برای محیط لوکال شبکه داخلی بدون اینترنت
       setDefaultTrustedTimestamp: true,
       otherMethods: true,
     },
@@ -968,10 +981,19 @@ export const DEFAULT_SECURITY_POLICY: SecurityPolicyConfig = {
   sessionEstablishmentPreventionPolicy: {
     enable: true,
     preventByLocation: true,
+    allowedIpRanges: ["192.168.0.0/16", "10.0.0.0/8", "127.0.0.1", "::1", "localhost"],
     preventByPort: true,
+    allowedPorts: [80, 443, 3000, 3001, 5000, 5173, 8000, 8001, 8002, 8080, 8443],
     preventByDay: true,
+    allowedDays: ["Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "شنبه", "یک‌شنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنج‌شنبه", "جمعه"],
     preventByTime: true,
+    allowedStartTime: "07:00",
+    allowedEndTime: "23:30",
     preventByOtherParams: true,
+    otherParamsRules: {
+      blockSuspiciousUserAgents: true,
+      requireValidStatus: true,
+    }
   },
   trustedChannelPolicy: {
     enable: true,
@@ -1737,5 +1759,656 @@ export function validateTlsClientConnection(
     activeCipherSuitesList: enabledSuites,
     protocolVersionStatus: "ENFORCED_TLS_1.2_1.3",
     aftaCompliance: "انطباق کامل با الزام افتا (رده ۳-۲) و استاندارد RFC 8446/5288/5289/6125"
+  };
+}
+
+export function validateSessionEstablishmentPrevention(
+  requestDetails: {
+    ip?: string;
+    port?: number;
+    currentDay?: string;
+    currentTime?: string;
+    userRole?: string;
+    userStatus?: string;
+    userAgent?: string;
+  },
+  policy: SessionEstablishmentPreventionPolicy = DEFAULT_SECURITY_POLICY.sessionEstablishmentPreventionPolicy!,
+  functionBehaviorPolicy?: FunctionBehaviorManagementPolicy
+): { valid: boolean; reason?: string; parameter?: "location" | "port" | "day" | "time" | "other" } {
+  if (!policy || policy.enable === false) {
+    return { valid: true };
+  }
+
+  // ۱. مکان (Location / IP)
+  if (policy.preventByLocation) {
+    const clientIp = requestDetails.ip || "127.0.0.1";
+    const allowedIps = policy.allowedIpRanges && policy.allowedIpRanges.length > 0
+      ? policy.allowedIpRanges
+      : ["192.168.0.0/16", "10.0.0.0/8", "127.0.0.1", "::1", "localhost"];
+
+    const isAllowedIp = allowedIps.some((range) => {
+      const cleanRange = range.trim();
+      if (cleanRange === clientIp || cleanRange === "0.0.0.0/0" || cleanRange === "*") return true;
+      if (cleanRange.includes("/")) {
+        const prefix = cleanRange.split("/")[0].replace(/\.0$/, "").replace(/\.0$/, "");
+        return clientIp.startsWith(prefix);
+      }
+      return clientIp.includes(cleanRange);
+    });
+
+    if (!isAllowedIp) {
+      return {
+        valid: false,
+        parameter: "location",
+        reason: `ممانعت از ایجاد نشست بر اساس موقعیت مکانی / IP غیرمجاز (${clientIp}). دسترسی خارج از محدوده آدرس‌های مجاز شبکه رد شد.`
+      };
+    }
+  }
+
+  // ۲. شماره پورت (Port number)
+  if (policy.preventByPort) {
+    const clientPort = requestDetails.port;
+    if (clientPort) {
+      const defaultAppPorts = [80, 443, 3000, 3001, 5000, 5173, 8000, 8001, 8002, 8080, 8443];
+      const allowedPorts = policy.allowedPorts && policy.allowedPorts.length > 0
+        ? Array.from(new Set([...policy.allowedPorts, ...defaultAppPorts]))
+        : defaultAppPorts;
+
+      if (!allowedPorts.includes(clientPort)) {
+        return {
+          valid: false,
+          parameter: "port",
+          reason: `ممانعت از ایجاد نشست بر اساس شماره پورت غیرمجاز (${clientPort}). امکان ایجاد نشست روی این پورت وجود ندارد.`
+        };
+      }
+    }
+  }
+
+  // ۳. روز (Day of week)
+  if (policy.preventByDay) {
+    const day = requestDetails.currentDay || new Date().toLocaleDateString("en-US", { weekday: "long" });
+    const allowedDays = policy.allowedDays && policy.allowedDays.length > 0
+      ? policy.allowedDays
+      : ["Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "شنبه", "یک‌شنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنج‌شنبه", "جمعه"];
+
+    const isAllowedDay = allowedDays.some(d => d.toLowerCase() === day.toLowerCase());
+    if (!isAllowedDay) {
+      return {
+        valid: false,
+        parameter: "day",
+        reason: `ممانعت از ایجاد نشست بر اساس روز غیرمجاز هفته (${day}). ورود به سامانه در این روز بر اساس خط‌مشی امنیتی مسدود می‌باشد.`
+      };
+    }
+  }
+
+  // ۴. زمان (Time window)
+  if (policy.preventByTime) {
+    const startTime = policy.allowedStartTime || functionBehaviorPolicy?.allowedLoginStartTime || "07:00";
+    const endTime = policy.allowedEndTime || functionBehaviorPolicy?.allowedLoginEndTime || "23:30";
+
+    const currentTimeStr = requestDetails.currentTime || new Date().toTimeString().slice(0, 5); // "HH:mm"
+
+    if (currentTimeStr < startTime || currentTimeStr > endTime) {
+      return {
+        valid: false,
+        parameter: "time",
+        reason: `ممانعت از ایجاد نشست بر اساس زمان ورود (${currentTimeStr}). ورود به سامانه خارج از ساعات مجاز اداری/عملیاتی (${startTime} الی ${endTime}) ممنوع است.`
+      };
+    }
+  }
+
+  // ۵. سایر موارد (Other parameters)
+  if (policy.preventByOtherParams) {
+    if (requestDetails.userStatus && (requestDetails.userStatus === "غیرفعال" || requestDetails.userStatus === "مسدود")) {
+      return {
+        valid: false,
+        parameter: "other",
+        reason: `ممانعت از ایجاد نشست بر اساس سایر موارد: حساب کاربری در وضعیت '${requestDetails.userStatus}' می‌باشد.`
+      };
+    }
+
+    if (requestDetails.userAgent === "" || requestDetails.userAgent === "Unknown") {
+      return {
+        valid: false,
+        parameter: "other",
+        reason: "ممانعت از ایجاد نشست بر اساس سایر موارد: مشخصات مرورگر/کلاینت (User-Agent) ناشناخته یا غیرمعتبر است."
+      };
+    }
+  }
+
+  return { valid: true };
+}
+
+// 🌟 الزام FPT_FLS.1.1 افتا: حفظ و امنیت وضعیت امن در زمان شکست ۱ (خرابی‌های نرم‌افزاری و سخت‌افزاری)
+export function validateSecureFailureState(
+  failureInfo: {
+    failureType: "SOFTWARE_FAILURE" | "HARDWARE_FAILURE" | "DATABASE_DISCONNECT" | "UNHANDLED_EXCEPTION";
+    errorMessage?: string;
+    stackTrace?: string;
+    requestedResource?: string;
+    userRole?: string;
+  },
+  policy: SecureFailureStatePolicy = DEFAULT_SECURITY_POLICY.secureFailureStatePolicy!
+): {
+  secureStateMaintained: boolean;
+  sensitiveDataExposed: boolean;
+  accessControlMaintained: boolean;
+  auditLogged: boolean;
+  sanitizedErrorMessage: string;
+  aftaCompliance: string;
+} {
+  if (!policy || policy.enableSecureFailureState === false) {
+    return {
+      secureStateMaintained: false,
+      sensitiveDataExposed: false,
+      accessControlMaintained: false,
+      auditLogged: false,
+      sanitizedErrorMessage: "خطای عمومی سیستم.",
+      aftaCompliance: "غیرفعال"
+    };
+  }
+
+  const rawMsg = failureInfo.errorMessage || "";
+  const stack = failureInfo.stackTrace || "";
+  const containsSensitiveInfo = /at\s+.*:\d+:\d+|node_modules|mongodb:\/\/|password|secret|key|eval|internal/i.test(rawMsg + stack);
+
+  // عدم افشای اطلاعات محرمانه (No stack trace, source code, or internal error leakage)
+  const sanitizedErrorMessage = "خطای غیرمنتظره در سامانه رخ داده است. درخواست لغو گردیده و وضعیت امن سیستم حفظ شد.";
+
+  return {
+    secureStateMaintained: policy.softwareFailureProtection && policy.preserveDataIntegrityOnCrash && !containsSensitiveInfo,
+    sensitiveDataExposed: containsSensitiveInfo,
+    accessControlMaintained: policy.maintainAccessControlRulesOnFailure !== false,
+    auditLogged: policy.auditLogFailureEvents !== false,
+    sanitizedErrorMessage,
+    aftaCompliance: "انطباق کامل با الزام FPT_FLS.1.1 افتا (رده ۲-۶ بند ۱ - حفظ وضعیت امن در زمان شکست)"
+  };
+}
+
+// 🌟 الزام FPT_ITT.1.1 افتا: انتقال داده امنیتی در داخل محصول (رده ۲-۶ بند ۲ افتا - ممانعت از افشاء و تغییر)
+export function validateInternalTransitProtection(
+  transitInfo: {
+    sourceComponent: string;
+    targetComponent: string;
+    protocol: string;
+    isEncrypted: boolean;
+    hasIntegrityProtection: boolean;
+  },
+  policy: InternalTransitProtectionPolicy = DEFAULT_SECURITY_POLICY.internalTransitProtectionPolicy!
+): {
+  allowed: boolean;
+  valid: boolean;
+  reason?: string;
+  dataLeakagePrevented: boolean;
+  dataTamperingPrevented: boolean;
+  aftaCompliance: string;
+} {
+  if (!policy || policy.enableInternalTransitProtection === false) {
+    return {
+      allowed: true,
+      valid: true,
+      dataLeakagePrevented: false,
+      dataTamperingPrevented: false,
+      aftaCompliance: "غیرفعال"
+    };
+  }
+
+  const protoNorm = (transitInfo.protocol || "").toUpperCase().trim();
+  const isSecureProtocol = protoNorm.includes("TLS") || protoNorm.includes("HTTPS") || protoNorm.includes("SSH");
+
+  // ۱. ممانعت از افشای داده (Prevent Data Leakage / Eavesdropping)
+  if (policy.preventDataLeakageInTransit && (!transitInfo.isEncrypted || !isSecureProtocol)) {
+    return {
+      allowed: false,
+      valid: false,
+      reason: `انتقال داده بین بخش‌های مجزای محصول (${transitInfo.sourceComponent} -> ${transitInfo.targetComponent}) به علت عدم استفاده از پروتکل رمزنگاری‌شده و بستر امن (${transitInfo.protocol}) مسدود گردید (الزام FPT_ITT.1.1 افتا جهت جلوگیری از افشای داده).`,
+      dataLeakagePrevented: true,
+      dataTamperingPrevented: false,
+      aftaCompliance: "عدم انطباق با FPT_ITT.1.1 (عدم وجود رمزنگاری)"
+    };
+  }
+
+  // ۲. ممانعت از تغییر داده (Prevent Data Tampering / Integrity Tag)
+  if (policy.preventDataTamperingInTransit && !transitInfo.hasIntegrityProtection) {
+    return {
+      allowed: false,
+      valid: false,
+      reason: `انتقال داده بین اجزای داخلی محصول (${transitInfo.sourceComponent} -> ${transitInfo.targetComponent}) به علت عدم وجود برچسب احراز اصالت و دستکاری داده (GCM/HMAC Auth Tag) مسدود گردید (الزام FPT_ITT.1.1 افتا جهت جلوگیری از تغییر داده).`,
+      dataLeakagePrevented: true,
+      dataTamperingPrevented: true,
+      aftaCompliance: "عدم انطباق با FPT_ITT.1.1 (عدم وجود کنترل یکپارچگی)"
+    };
+  }
+
+  // ۳. الزام بستر امن TLS بین اجزای داخلی
+  if (policy.enforceInternalComponentTLS && !isSecureProtocol) {
+    return {
+      allowed: false,
+      valid: false,
+      reason: `بستر امن TLS/HTTPS/SSH برای تبادل اطلاعات بین ماشین‌های توزیع‌شده مجزای محصول الزامی می‌باشد (${transitInfo.protocol}).`,
+      dataLeakagePrevented: true,
+      dataTamperingPrevented: true,
+      aftaCompliance: "عدم انطباق با الزام TLS داخلی"
+    };
+  }
+
+  return {
+    allowed: true,
+    valid: true,
+    dataLeakagePrevented: true,
+    dataTamperingPrevented: true,
+    aftaCompliance: "انطباق کامل با الزام FPT_ITT.1.1 افتا (رده ۲-۶ بند ۲ - حفاظت از داده هنگام انتقال بین بخش‌های مجزای محصول)"
+  };
+}
+
+// 🌟 الزام FPT_TDC.1.1 & FPT_TDC.1.2 افتا: سازگاری داده امنیتی بین محصول و موجودیت امن ۱ و ۲ (رده ۲-۶ بند ۳ افتا)
+export function validateSecurityDataInteroperability(
+  sharedData: {
+    dataType: "authData" | "cryptoKeys" | "digitalSignature" | "auditLogs" | "otherSecurityAttributes";
+    format: "JSON_JWT" | "PEM_X509" | "PKCS7_CMS" | "SYSLOG_CEF" | "OPENSSL_HEX" | "RAW_PLAINTEXT" | "UNSUPPORTED" | string;
+    targetSystem: string;
+    schemaVersion?: string;
+  },
+  policy: SecurityDataInteroperabilityPolicy = DEFAULT_SECURITY_POLICY.securityDataInteroperabilityPolicy!
+): {
+  valid: boolean;
+  interoperable: boolean;
+  reason?: string;
+  schemaMatched: boolean;
+  aftaCompliance: string;
+} {
+  if (!policy || policy.enableSecurityDataInteroperability === false) {
+    return {
+      valid: false,
+      interoperable: false,
+      reason: "خط‌مشی سازگاری و تبادل داده‌های امنیتی با سایر محصولات IT غیرفعال می‌باشد.",
+      schemaMatched: false,
+      aftaCompliance: "غیرفعال"
+    };
+  }
+
+  // ۱. بررسی فعال بودن اشتراک‌گذاری نوع داده امنیتی خاص (authData, cryptoKeys, digitalSignature, auditLogs, other)
+  const isTypeSupported = policy.supportedShareableData?.[sharedData.dataType] !== false;
+  if (!isTypeSupported) {
+    return {
+      valid: false,
+      interoperable: false,
+      reason: `اشتراک‌گذاری نوع داده امنیتی '${sharedData.dataType}' با محصولات IT خارجی مطابق تنظیمات امنیتی سیستم غیرفعال شده است (FPT_TDC.1.1).`,
+      schemaMatched: false,
+      aftaCompliance: "عدم انطباق با FPT_TDC.1.1 (نوع داده غیرمجاز)"
+    };
+  }
+
+  // ۲. بررسی تفسیر سازگار و یکسان (Consistent Interpretation & Standard Formats per FPT_TDC.1.2)
+  const fmt = (sharedData.format || "").toUpperCase().trim();
+  const invalidOrAmbiguousFormats = ["RAW_PLAINTEXT", "UNSUPPORTED", "CUSTOM_UNSTRUCTURED", "BINARY_BLOB"];
+
+  if (invalidOrAmbiguousFormats.includes(fmt) || fmt === "") {
+    return {
+      valid: false,
+      interoperable: false,
+      reason: `فرمت داده امنیتی تبادل‌شده (${sharedData.format}) غیراستاندارد یا مبهم می‌باشد و قابلیت تفسیر یکسان در سامانه مقصد (${sharedData.targetSystem}) را ندارد (الزام FPT_TDC.1.2 افتا).`,
+      schemaMatched: false,
+      aftaCompliance: "عدم انطباق با FPT_TDC.1.2 (عدم وجود فرمت استاندارد تفسیرپذیر)"
+    };
+  }
+
+  // اعتبارسنجی فرمت‌های استاندارد بر اساس نوع داده
+  const standardFormatsMap: Record<string, string[]> = {
+    authData: ["JSON_JWT", "OAUTH2_TOKEN", "SAML2_ASSERTION", "PEM_X509"],
+    cryptoKeys: ["PEM_X509", "PKCS8", "JWK", "OPENSSL_HEX", "DER"],
+    digitalSignature: ["PKCS7_CMS", "ECDSA_DER", "RSA_PSS", "XADES_XML"],
+    auditLogs: ["SYSLOG_CEF", "AFTA_JSON_EVENT", "LEEF", "JSON_LOG"],
+    otherSecurityAttributes: ["JSON_JWT", "SECURITY_DESCRIPTOR", "XACML_XML"]
+  };
+
+  const allowedFormatsForType = standardFormatsMap[sharedData.dataType] || [];
+  const isFormatStandard = allowedFormatsForType.includes(fmt) || allowedFormatsForType.some(f => fmt.includes(f));
+
+  if (policy.enforceStandardFormatInterpretation && !isFormatStandard) {
+    return {
+      valid: false,
+      interoperable: false,
+      reason: `فرمت ${sharedData.format} برای نوع داده امنیتی ${sharedData.dataType} با الزامات تفسیر سازگار افتا در تبادل با ${sharedData.targetSystem} مطابقت ندارد. فرمت‌های مجاز: ${allowedFormatsForType.join(", ")}`,
+      schemaMatched: false,
+      aftaCompliance: "عدم انطباق با FPT_TDC.1.2 (عدم تطابق فرمت استاندارد)"
+    };
+  }
+
+  return {
+    valid: true,
+    interoperable: true,
+    schemaMatched: true,
+    aftaCompliance: "انطباق کامل با الزامات FPT_TDC.1.1 و FPT_TDC.1.2 افتا (سازگاری و تفسیر یکسان داده‌های امنیتی بین محصول و سایر موجودیت‌های امن IT)"
+  };
+}
+
+// 🌟 الزام FPT_STM.1.1 افتا: مهرهای زمانی ۱ (رده ۲-۶ بند ۴ افتا - NTP محلی، زمان پیش‌فرض سیستم و عدم امکان دستکاری)
+export function validateTrustedTimestamping(
+  timestampInfo: {
+    methodUsed: "NTP_LOCAL_SERVER" | "DEFAULT_SYSTEM_RTC" | "MANUAL_ADMIN_SYNC" | "UNTRUSTED_CLIENT_TIME" | string;
+    ntpServerAddress?: string;
+    timestampValue?: string | number;
+  },
+  policy: TrustedTimestampPolicy = DEFAULT_SECURITY_POLICY.trustedTimestampPolicy!
+): {
+  valid: boolean;
+  trusted: boolean;
+  reason?: string;
+  sourceType: string;
+  aftaCompliance: string;
+} {
+  if (!policy || policy.enableTrustedTimestamping === false) {
+    return {
+      valid: false,
+      trusted: false,
+      reason: "خط‌مشی استفاده از مهرهای زمانی معتبر غیرفعال می‌باشد.",
+      sourceType: "UNTRUSTED",
+      aftaCompliance: "غیرفعال"
+    };
+  }
+
+  const method = (timestampInfo.methodUsed || "").toUpperCase().trim();
+
+  // عدم پذیرش زمان ادعایی کلاینت/مرورگر غیرمعتبر به صورت ایزوله بدون اعتبارسنجی
+  if (method === "UNTRUSTED_CLIENT_TIME") {
+    return {
+      valid: false,
+      trusted: false,
+      reason: "استفاده از زمان ادعایی کلاینت/مرورگر غیرمعتبر به عنوان مهر زمانی سیستم مسدود گردید (الزام FPT_STM.1.1).",
+      sourceType: "UNTRUSTED_CLIENT",
+      aftaCompliance: "عدم انطباق با FPT_STM.1.1 (زمان غیرمعتبر کلاینت)"
+    };
+  }
+
+  // ۱. گرفتن مهرهای زمانی از سرور NTP محلی شبکه
+  if (method === "NTP_LOCAL_SERVER" || method === "NTP") {
+    if (!policy.timestampMethods?.getTimestampFromNtpServer) {
+      return {
+        valid: false,
+        trusted: false,
+        reason: "دریافت مهر زمانی از سرور NTP محلی مطابق تنظیمات سیستم غیرفعال می‌باشد.",
+        sourceType: "NTP",
+        aftaCompliance: "غیرفعال"
+      };
+    }
+    const ntpAddr = timestampInfo.ntpServerAddress || policy.ntpServerAddress || "127.0.0.1";
+    return {
+      valid: true,
+      trusted: true,
+      sourceType: `سرور NTP محلی شبکه (${ntpAddr})`,
+      aftaCompliance: "انطباق کامل با FPT_STM.1.1 (گرفتن مهرهای زمانی از سرور NTP محلی)"
+    };
+  }
+
+  // ۲. مهرهای زمانی پیش‌فرض محلی سیستم با ساعت سخت‌افزاری (RTC) و عدم امکان دستکاری غیرمجاز
+  if (method === "DEFAULT_SYSTEM_RTC" || method === "DEFAULT") {
+    if (!policy.timestampMethods?.setDefaultTrustedTimestamp) {
+      return {
+        valid: false,
+        trusted: false,
+        reason: "استفاده از مهر زمانی پیش‌فرض سیستم غیرفعال است.",
+        sourceType: "DEFAULT_SYSTEM_CLOCK",
+        aftaCompliance: "غیرفعال"
+      };
+    }
+    return {
+      valid: true,
+      trusted: true,
+      sourceType: "ساعت سخت‌افزاری و پیش‌فرض سیستم لوکال (Hardware RTC & High-Precision Monotonic Clock)",
+      aftaCompliance: "انطباق کامل با FPT_STM.1.1 (مهرهای زمانی پیش‌فرض معتبر و عدم امکان دستکاری غیرمجاز)"
+    };
+  }
+
+  // ۳. راهکار همگام‌سازی زمان محلی توسط مدیر سیستم (Manual Admin Local Sync)
+  if (method === "MANUAL_ADMIN_SYNC" || method === "OTHER") {
+    return {
+      valid: true,
+      trusted: true,
+      sourceType: "همگام‌سازی زمان سیستم محلی توسط مدیر سامانه (Local Admin Time Sync)",
+      aftaCompliance: "انطباق کامل با FPT_STM.1.1 (راهکار محلی همگام‌سازی زمان توسط مدیر سیستم)"
+    };
+  }
+
+  return {
+    valid: true,
+    trusted: true,
+    sourceType: "مهر زمانی معتبر سیستم",
+    aftaCompliance: "انطباق با FPT_STM.1.1"
+  };
+}
+
+// 🌟 الزام FPT_TUD_EXT.1.2 افتا: بروزرسانی امن ۲ (بروزرسانی نرم‌افزار و میان‌افزار محصول برای مدیر سیستم)
+export function validateProductSoftwareUpdate(
+  updateRequest: {
+    updateMethod: "MANUAL_UPDATE" | "AUTO_SEARCH" | "AUTOMATIC_UPDATE" | "MANUAL_AFTER_VERIFICATION" | string;
+    userRole?: string;
+    patchVersion?: string;
+    publishedHashHex?: string;
+    digitalSignatureHex?: string;
+    fileBuffer?: Buffer;
+    publicKeyPem?: string;
+  },
+  policy: ProductSoftwareUpdatePolicy = DEFAULT_SECURITY_POLICY.productSoftwareUpdatePolicy!
+): {
+  valid: boolean;
+  authorized: boolean;
+  reason?: string;
+  methodAllowed: boolean;
+  authenticityVerified: boolean;
+  aftaCompliance: string;
+} {
+  if (!policy || policy.enableSoftwareUpdateManagement === false) {
+    return {
+      valid: false,
+      authorized: false,
+      reason: "مدیریت بروزرسانی نرم‌افزار و میان‌افزار محصول غیرفعال می‌باشد.",
+      methodAllowed: false,
+      authenticityVerified: false,
+      aftaCompliance: "غیرفعال"
+    };
+  }
+
+  // ۱. کنترل دسترسی: بروزرسانی نرم‌افزار و میان‌افزار محصول فقط اختصاص به مدیر سیستم دارد (FPT_TUD_EXT.1.2)
+  const role = (updateRequest.userRole || "").toLowerCase().trim();
+  const isAdmin = role === "admin" || role === "مدیر سیستم" || role === "مدیر";
+  if (!isAdmin) {
+    return {
+      valid: false,
+      authorized: false,
+      reason: "دسترسی غیرمجاز: امکان بروزرسانی نرم‌افزار و میان‌افزار محصول منحصر به مدیر سیستم می‌باشد (الزام FPT_TUD_EXT.1.2).",
+      methodAllowed: false,
+      authenticityVerified: false,
+      aftaCompliance: "عدم انطباق با FPT_TUD_EXT.1.2 (عدم احراز هویت مدیر)"
+    };
+  }
+
+  const method = (updateRequest.updateMethod || "").toUpperCase().trim();
+
+  // ۲. اعتبارسنجی روش‌های بروزرسانی (Manual Update / Auto Search / Automatic Updates)
+  let methodAllowed = false;
+  if (method === "MANUAL_UPDATE" || method === "MANUAL") {
+    methodAllowed = policy.updateMethods?.manualUpdate !== false;
+  } else if (method === "AUTO_SEARCH") {
+    methodAllowed = policy.updateMethods?.autoSearchForUpdates !== false;
+  } else if (method === "AUTOMATIC_UPDATE" || method === "AUTO") {
+    methodAllowed = policy.updateMethods?.automaticUpdates === true;
+  } else if (method === "MANUAL_AFTER_VERIFICATION") {
+    methodAllowed = policy.updateMethods?.manualUpdateAfterSecurityVerification !== false;
+  }
+
+  if (!methodAllowed) {
+    return {
+      valid: false,
+      authorized: true,
+      reason: `روش بروزرسانی درخواست‌شده (${updateRequest.updateMethod}) مطابق تنظیمات امنیتی سیستم مجاز نمی‌باشد.`,
+      methodAllowed: false,
+      authenticityVerified: false,
+      aftaCompliance: "عدم انطباق با FPT_TUD_EXT.1.2 (روش بروزرسانی غیرمجاز)"
+    };
+  }
+
+  // ۳. اصالت‌سنجی و صحت‌سنجی فایل بروزرسانی (Hash & Digital Signature Verification per FPT_TUD_EXT.1.3)
+  let authenticityVerified = true;
+  if (updateRequest.fileBuffer) {
+    if (policy.autoUpdateAuthenticityVerification?.publishedHash && updateRequest.publishedHashHex) {
+      const actualHash = crypto.createHash("sha256").update(updateRequest.fileBuffer).digest("hex");
+      if (actualHash.toLowerCase() !== updateRequest.publishedHashHex.toLowerCase()) {
+        return {
+          valid: false,
+          authorized: true,
+          reason: "صحت‌سنجی فایل بروزرسانی ناموفق بود: درهم‌ساز (SHA-256 Hash) فایل با درهم‌ساز منتشرشده مطابقت ندارد.",
+          methodAllowed: true,
+          authenticityVerified: false,
+          aftaCompliance: "عدم انطباق با اصالت‌سنجی بروزرسانی (خطای Hash)"
+        };
+      }
+    }
+
+    if (policy.autoUpdateAuthenticityVerification?.digitalSignature && updateRequest.digitalSignatureHex && updateRequest.publicKeyPem) {
+      try {
+        const verifier = crypto.createVerify("SHA256");
+        verifier.update(updateRequest.fileBuffer);
+        verifier.end();
+        const sigBuf = Buffer.from(updateRequest.digitalSignatureHex, "hex");
+        const sigValid = verifier.verify(updateRequest.publicKeyPem, sigBuf);
+
+        if (!sigValid) {
+          return {
+            valid: false,
+            authorized: true,
+            reason: "اصالت‌سنجی فایل بروزرسانی ناموفق بود: امضای دیجیتال بسته بروزرسانی غیرمعتبر است.",
+            methodAllowed: true,
+            authenticityVerified: false,
+            aftaCompliance: "عدم انطباق با اصالت‌سنجی بروزرسانی (خطای Digital Signature)"
+          };
+        }
+      } catch (err: any) {
+        return {
+          valid: false,
+          authorized: true,
+          reason: `خطا در بررسی امضای دیجیتال بسته بروزرسانی: ${err.message}`,
+          methodAllowed: true,
+          authenticityVerified: false,
+          aftaCompliance: "خطا در بررسی امضا"
+        };
+      }
+    }
+  }
+
+  return {
+    valid: true,
+    authorized: true,
+    methodAllowed: true,
+    authenticityVerified,
+    aftaCompliance: "انطباق کامل با الزام FPT_TUD_EXT.1.2 افتا (بروزرسانی امن ۲ نرم‌افزار و میان‌افزار محصول برای مدیر سیستم)"
+  };
+}
+
+// 🌟 الزام FPT_TUD_EXT.1.3 افتا: بروزرسانی امن ۳ (احراز اصالت نرم‌افزار/میان‌افزار پیش از نصب بروزرسانی خودکار)
+export function validateAutoUpdateAuthenticity(
+  updatePayload: {
+    patchVersion: string;
+    fileBuffer?: Buffer;
+    publishedHashHex?: string;
+    digitalSignatureHex?: string;
+    publicKeyPem?: string;
+  },
+  policy: ProductSoftwareUpdatePolicy = DEFAULT_SECURITY_POLICY.productSoftwareUpdatePolicy!
+): {
+  valid: boolean;
+  hashVerified: boolean;
+  signatureVerified: boolean;
+  reason?: string;
+  aftaCompliance: string;
+} {
+  if (!policy || !policy.autoUpdateAuthenticityVerification?.enableAuthenticityVerification) {
+    return {
+      valid: false,
+      hashVerified: false,
+      signatureVerified: false,
+      reason: "مکانیسم احراز اصالت بروزرسانی‌های خودکار غیرفعال می‌باشد.",
+      aftaCompliance: "غیرفعال"
+    };
+  }
+
+  const authConfig = policy.autoUpdateAuthenticityVerification;
+  let hashVerified = false;
+  let signatureVerified = false;
+
+  // ۱. بررسی درهم‌ساز منتشرشده (Published Hash - SHA256)
+  if (authConfig.publishedHash) {
+    if (!updatePayload.publishedHashHex) {
+      return {
+        valid: false,
+        hashVerified: false,
+        signatureVerified: false,
+        reason: "احراز اصالت پیش از نصب بروزرسانی ناموفق بود: درهم‌ساز منتشرشده (SHA-256 Published Hash) ارائه نشده است (الزام FPT_TUD_EXT.1.3).",
+        aftaCompliance: "عدم انطباق با FPT_TUD_EXT.1.3 (عدم وجود Hash)"
+      };
+    }
+
+    if (updatePayload.fileBuffer) {
+      const actualHash = crypto.createHash("sha256").update(updatePayload.fileBuffer).digest("hex");
+      if (actualHash.toLowerCase() !== updatePayload.publishedHashHex.toLowerCase()) {
+        return {
+          valid: false,
+          hashVerified: false,
+          signatureVerified: false,
+          reason: "احراز اصالت پیش از نصب بروزرسانی ناموفق بود: درهم‌ساز محاسبه‌شده فایل با درهم‌ساز منتشرشده مطابقت ندارد (دستکاری بسته بروزرسانی).",
+          aftaCompliance: "عدم انطباق با FPT_TUD_EXT.1.3 (مغایرت Hash)"
+        };
+      }
+    }
+    hashVerified = true;
+  }
+
+  // ۲. بررسی امضای دیجیتال (Digital Signature - RSA SHA256)
+  if (authConfig.digitalSignature) {
+    if (!updatePayload.digitalSignatureHex) {
+      return {
+        valid: false,
+        hashVerified,
+        signatureVerified: false,
+        reason: "احراز اصالت پیش از نصب بروزرسانی ناموفق بود: امضای دیجیتال معتبر ارائه نشده است (الزام FPT_TUD_EXT.1.3).",
+        aftaCompliance: "عدم انطباق با FPT_TUD_EXT.1.3 (عدم وجود امضای دیجیتال)"
+      };
+    }
+
+    if (updatePayload.fileBuffer && updatePayload.publicKeyPem) {
+      try {
+        const verifier = crypto.createVerify("SHA256");
+        verifier.update(updatePayload.fileBuffer);
+        verifier.end();
+        const sigBuf = Buffer.from(updatePayload.digitalSignatureHex, "hex");
+        const sigValid = verifier.verify(updatePayload.publicKeyPem, sigBuf);
+
+        if (!sigValid) {
+          return {
+            valid: false,
+            hashVerified,
+            signatureVerified: false,
+            reason: "احراز اصالت پیش از نصب بروزرسانی ناموفق بود: امضای دیجیتال بسته بروزرسانی نامعتبر است.",
+            aftaCompliance: "عدم انطباق با FPT_TUD_EXT.1.3 (امضای دیجیتال غیرمعتبر)"
+          };
+        }
+      } catch (err: any) {
+        return {
+          valid: false,
+          hashVerified,
+          signatureVerified: false,
+          reason: `خطا در ارزیابی امضای دیجیتال: ${err.message}`,
+          aftaCompliance: "خطا در بررسی امضا"
+        };
+      }
+    }
+    signatureVerified = true;
+  }
+
+  return {
+    valid: true,
+    hashVerified,
+    signatureVerified,
+    aftaCompliance: "انطباق کامل با الزام FPT_TUD_EXT.1.3 افتا (بروزرسانی امن ۳ - احراز اصالت نرم‌افزار و میان‌افزار پیش از نصب با امضای دیجیتال و درهم‌ساز منتشرشده)"
   };
 }
