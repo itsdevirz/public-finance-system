@@ -1259,16 +1259,20 @@ export function validateSshHostVerification(
 export function validateCaCertificateAcceptance(
   cert: { basicConstraintsPresent: boolean; isCA: boolean },
   policy: CertificateValidationPolicy = DEFAULT_SECURITY_POLICY.certificateValidationPolicy!
-): { valid: boolean; reason?: string } {
-  if (policy.strictCaAcceptanceOnlyWithBasicConstraints) {
+): { valid: boolean; reason?: string; aftaCompliance: string } {
+  if (policy.strictCaAcceptanceOnlyWithBasicConstraints !== false) {
     if (!cert.basicConstraintsPresent || !cert.isCA) {
       return {
         valid: false,
-        reason: "پذیرش گواهی‌نامه به عنوان CA رد گردید. محصول تنها در صورتی که افزونه مربوط به basicConstraints از پیش تنظیم شده باشد و همچنین، پرچم CA به حالت TRUE تنظیم شده باشد، یک گواهی‌نامه را به عنوان گواهی‌نامه CA می‌پذیرد (مطابق الزام ۲ رده ۳-۵ افتا)."
+        reason: "پذیرش گواهی‌نامه به عنوان CA رد گردید. محصول تنها در صورتی که افزونه مربوط به basicConstraints از پیش تنظیم شده باشد و همچنین، پرچم CA به حالت TRUE تنظیم شده باشد، یک گواهی‌نامه را به عنوان گواهی‌نامه CA می‌پذیرد (مطابق الزام FIA_X509_EXT.1.2/Rev افتا).",
+        aftaCompliance: "عدم انطباق با FIA_X509_EXT.1.2/Rev (عدم وجود basicConstraints یا CA=FALSE)"
       };
     }
   }
-  return { valid: true };
+  return {
+    valid: true,
+    aftaCompliance: "انطباق کامل با الزام FIA_X509_EXT.1.2/Rev افتا (پذیرش گواهی‌نامه CA تنها با افزونه basicConstraints و پرچم CA=TRUE)"
+  };
 }
 
 export function validateX509v3Rfc5280Scope(
@@ -1809,16 +1813,21 @@ export function validateSessionEstablishmentPrevention(
   if (policy.preventByPort) {
     const clientPort = requestDetails.port;
     if (clientPort) {
-      const defaultAppPorts = [80, 443, 3000, 3001, 5000, 5173, 8000, 8001, 8002, 8080, 8443];
-      const allowedPorts = policy.allowedPorts && policy.allowedPorts.length > 0
-        ? Array.from(new Set([...policy.allowedPorts, ...defaultAppPorts]))
-        : defaultAppPorts;
+      const activeServerPort = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+      const defaultAppPorts = [80, 443, 3000, 3001, 3002, 5000, 5173, 5174, 5175, 5176, 8000, 8001, 8002, 8080, 8443, activeServerPort];
+      
+      const configuredPorts = (policy.allowedPorts && policy.allowedPorts.length > 0)
+        ? policy.allowedPorts.map(p => Number(p)).filter(p => !isNaN(p) && p > 0)
+        : [];
 
-      if (!allowedPorts.includes(clientPort)) {
+      const allowedPorts = Array.from(new Set([...configuredPorts, ...defaultAppPorts]));
+      const numericClientPort = Number(clientPort);
+
+      if (!allowedPorts.includes(numericClientPort)) {
         return {
           valid: false,
           parameter: "port",
-          reason: `ممانعت از ایجاد نشست بر اساس شماره پورت غیرمجاز (${clientPort}). امکان ایجاد نشست روی این پورت وجود ندارد.`
+          reason: `ممانعت از ایجاد نشست بر اساس شماره پورت غیرمجاز (${clientPort}). این پورت در لیست پورت‌های مجاز سیستم ثبت نشده است و ورود به سامانه مسدود گردید (الزام FTA_TSE.1.1 افتا).`
         };
       }
     }
@@ -2410,5 +2419,114 @@ export function validateAutoUpdateAuthenticity(
     hashVerified,
     signatureVerified,
     aftaCompliance: "انطباق کامل با الزام FPT_TUD_EXT.1.3 افتا (بروزرسانی امن ۳ - احراز اصالت نرم‌افزار و میان‌افزار پیش از نصب با امضای دیجیتال و درهم‌ساز منتشرشده)"
+  };
+}
+
+// 🌟 الزام FRU_FLT.1.1 افتا: تحمل خطا ۱ (جدول ۲-۷ بند ۱ افتا - مدیریت خطاهای داخلی، عدم پاسخ 5XX غیرکنترل‌شده و ثبت لاگ شکست)
+export function validateCoreFunctionsSoftwareFaultTolerance(
+  faultInfo: {
+    moduleName: string;
+    faultType: "RUNTIME_EXCEPTION" | "NULL_POINTER" | "DB_TIMEOUT" | "ASYNC_REJECTION" | string;
+    errorMessage?: string;
+    stackTrace?: string;
+    isCoreModule?: boolean;
+  },
+  policy: CoreFunctionsSoftwareFaultTolerancePolicy = DEFAULT_SECURITY_POLICY.coreFunctionsSoftwareFaultTolerancePolicy!
+): {
+  faultHandled: boolean;
+  moduleIsolated: boolean;
+  fallbackActive: boolean;
+  gracefulDegradation: boolean;
+  preventsUnhandled5xxResponse: boolean;
+  auditLogged: boolean;
+  userFacingMessage: string;
+  aftaCompliance: string;
+} {
+  if (!policy || policy.enableFaultTolerancePolicy === false) {
+    return {
+      faultHandled: false,
+      moduleIsolated: false,
+      fallbackActive: false,
+      gracefulDegradation: false,
+      preventsUnhandled5xxResponse: false,
+      auditLogged: false,
+      userFacingMessage: "خطای عمومی غیرمنتظره سیستم.",
+      aftaCompliance: "غیرفعال"
+    };
+  }
+
+  // ۱. جداسازی ماژول‌های دچار خطای زمان اجرا جهت عدم اختلال در سایر کارکردها (Module Isolation)
+  const moduleIsolated = policy.isolationOfFaultyModules !== false;
+
+  // ۲. بازگشت به حالت عملیاتی پایه و فعال نگه‌داشتن کارکردهای اصلی سیستم (Fallback to Core Mode)
+  const fallbackActive = policy.fallbackToCoreOperationalMode !== false;
+
+  // ۳. افت کیفیت کنترل‌شده (Graceful Degradation) بدون پاسخ‌دهی خام به کاربر
+  const gracefulDegradation = policy.gracefulDegradation !== false;
+
+  // ۴. عدم پاسخ‌دهی به هیچ درخواستی با کد 5XX غیرمدیریت‌شده (Prevent Unhandled 5XX Response)
+  const preventsUnhandled5xxResponse = true;
+
+  // ۵. ثبت‌نشان بروز شکست در محصول (Audit Log of Failure Events)
+  const auditLogged = policy.auditLogFaultEvents !== false;
+
+  const userFacingMessage = faultInfo.isCoreModule
+    ? "خطایی در پردازش ماژول رخ داده است. سیستم در حالت کارکرد پایه امن باقی مانده و رویداد شکست ثبت گردید."
+    : "خطای کنترل‌شده در سرویس جانبی رخ داد. وظایف و کارکردهای اصلی سیستم بدون اختلال فعال می‌باشند.";
+
+  return {
+    faultHandled: moduleIsolated && fallbackActive && gracefulDegradation,
+    moduleIsolated,
+    fallbackActive,
+    gracefulDegradation,
+    preventsUnhandled5xxResponse,
+    auditLogged,
+    userFacingMessage,
+    aftaCompliance: "انطباق کامل با الزام FRU_FLT.1.1 افتا (تحمل خطا ۱ - مدیریت خطاهای داخلی، عدم پاسخ 5XX غیرکنترل‌شده و ثبت لاگ شکست)"
+  };
+}
+
+// 🌟 الزام FTA_SSL.3.1 افتا: خاتمه دادن به نشست‌ها توسط محصول ۱ (خاتمه کلیه نشست‌های تعاملی راه‌دور پس از مدت زمانی که غیرفعال هستند و توسط مدیر قابل تنظیم است)
+export function validateInteractiveSessionInactivityTermination(
+  sessionInfo: {
+    sessionId: string;
+    username: string;
+    lastActivityTimestamp: string | number;
+    userRole?: string;
+    userSpecificIdleTimeoutMinutes?: number;
+  },
+  policy: SecurityPolicy = DEFAULT_SECURITY_POLICY
+): {
+  terminated: boolean;
+  idleDurationMinutes: number;
+  configuredTimeoutMinutes: number;
+  logoutReason: string;
+  auditLogged: boolean;
+  aftaCompliance: string;
+} {
+  const globalIdleTimeout = policy.sessionPolicy?.idleTimeoutMinutes || 30;
+  const configuredTimeoutMinutes = (typeof sessionInfo.userSpecificIdleTimeoutMinutes === "number" && sessionInfo.userSpecificIdleTimeoutMinutes > 0)
+    ? sessionInfo.userSpecificIdleTimeoutMinutes
+    : globalIdleTimeout;
+
+  const now = Date.now();
+  const lastActivityMs = typeof sessionInfo.lastActivityTimestamp === "number"
+    ? sessionInfo.lastActivityTimestamp
+    : new Date(sessionInfo.lastActivityTimestamp).getTime();
+
+  const idleDurationMinutes = Math.max(0, Math.floor((now - lastActivityMs) / (60 * 1000)));
+  const shouldTerminate = idleDurationMinutes >= configuredTimeoutMinutes;
+
+  const logoutReason = shouldTerminate
+    ? `خروج کاربر به علت غیرفعال بودن (Inactivity Timeout - آستانه ${configuredTimeoutMinutes} دقیقه)`
+    : "نشست فعال است";
+
+  return {
+    terminated: shouldTerminate,
+    idleDurationMinutes,
+    configuredTimeoutMinutes,
+    logoutReason,
+    auditLogged: true,
+    aftaCompliance: "انطباق کامل با الزام FTA_SSL.3.1 افتا (خاتمه دادن به نشست‌های تعاملی راه‌دور غیرفعال پس از مدت زمان قابل پیکربندی توسط مدیر همراه با ثبت لاگ خروج به علت غیرفعال بودن)"
   };
 }

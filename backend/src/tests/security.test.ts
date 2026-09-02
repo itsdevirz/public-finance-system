@@ -1,6 +1,6 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert";
-import { DEFAULT_SECURITY_POLICY, validatePassword, validateActiveToInactiveInteractionACL, validateActiveToInactivePreventionRules, validateResourceSanitizationPolicy, validateUserDataInputAccessPolicy, validateSecureDataTransportPolicy, validateUserDataEgressAccessPolicy, validateTargetedDataEgressRules, validateTlsServerProtocolRequest, validateTlsServerKeyExchangeParameters, validateMutualTlsIdentity, validateCertificatePathRules, validateCertificateRevocationCheck, validateExtendedKeyUsageOid, validateCaCertificateAcceptance, validateX509v3Rfc5280Scope, validateSshPacketSize, validateSshRekeyingTrigger, validateSshHostVerification, validateSessionEstablishmentPrevention, validateSecureFailureState, validateInternalTransitProtection, validateSecurityDataInteroperability, validateTrustedTimestamping, validateProductSoftwareUpdate, validateAutoUpdateAuthenticity } from "../lib/securityPolicy.js";
+import { DEFAULT_SECURITY_POLICY, validatePassword, validateActiveToInactiveInteractionACL, validateActiveToInactivePreventionRules, validateResourceSanitizationPolicy, validateUserDataInputAccessPolicy, validateSecureDataTransportPolicy, validateUserDataEgressAccessPolicy, validateTargetedDataEgressRules, validateTlsServerProtocolRequest, validateTlsServerKeyExchangeParameters, validateMutualTlsIdentity, validateCertificatePathRules, validateCertificateRevocationCheck, validateExtendedKeyUsageOid, validateCaCertificateAcceptance, validateX509v3Rfc5280Scope, validateSshPacketSize, validateSshRekeyingTrigger, validateSshHostVerification, validateSessionEstablishmentPrevention, validateSecureFailureState, validateInternalTransitProtection, validateSecurityDataInteroperability, validateTrustedTimestamping, validateProductSoftwareUpdate, validateAutoUpdateAuthenticity, validateCoreFunctionsSoftwareFaultTolerance, validateInteractiveSessionInactivityTermination } from "../lib/securityPolicy.js";
 import { encrypt, decrypt, destroyCryptoKey } from "../lib/crypto.js";
 import { validateRemoteCertificate } from "../lib/certValidator.js";
 import { verifyUpdateIntegrity, verifyUpdateSignature } from "../lib/secureUpdate.js";
@@ -642,9 +642,11 @@ describe("🛡️ Comprehensive Security Test Suite", () => {
       assert.strictEqual(missingCaFlag.valid, false);
     });
 
-    it("Requirement 2: CA Acceptance Rule - should ONLY accept cert as CA if basicConstraints is present AND CA flag is TRUE", () => {
+    it("Requirement 2: CA Acceptance Rule (FIA_X509_EXT.1.2/Rev) - should ONLY accept cert as CA if basicConstraints is present AND CA flag is TRUE", () => {
       // Valid CA cert with basicConstraints and CA=TRUE -> Accepted
-      assert.strictEqual(validateCaCertificateAcceptance({ basicConstraintsPresent: true, isCA: true }).valid, true);
+      const validRes = validateCaCertificateAcceptance({ basicConstraintsPresent: true, isCA: true });
+      assert.strictEqual(validRes.valid, true);
+      assert.ok(validRes.aftaCompliance.includes("FIA_X509_EXT.1.2/Rev"), "Must reference FIA_X509_EXT.1.2/Rev requirement");
 
       // Cert missing basicConstraints -> Rejected as CA
       const noConstraints = validateCaCertificateAcceptance({ basicConstraintsPresent: false, isCA: true });
@@ -654,6 +656,7 @@ describe("🛡️ Comprehensive Security Test Suite", () => {
       // Cert with CA=FALSE -> Rejected as CA
       const notCA = validateCaCertificateAcceptance({ basicConstraintsPresent: true, isCA: false });
       assert.strictEqual(notCA.valid, false);
+      assert.ok(notCA.reason?.includes("FIA_X509_EXT.1.2/Rev"));
     });
 
     it("Requirement 3: RFC 5280 X509v3 Scopes - should support X509v3 certificates for HTTPS, TLS, SSH, Code Signing & Integrity", () => {
@@ -1313,7 +1316,95 @@ describe("🛡️ Comprehensive Security Test Suite", () => {
       assert.strictEqual(res.signatureVerified, false);
     });
   });
+
+  describe("32. Core Functions Software Fault Tolerance Compliance (FRU_FLT.1.1 - AFTA Item 45)", () => {
+    it("1. 5XX Response Prevention & Graceful Error Handling: should handle internal errors without unhandled 5XX code exposure", () => {
+      const res = validateCoreFunctionsSoftwareFaultTolerance({
+        moduleName: "LedgerCoreModule",
+        faultType: "NULL_POINTER",
+        errorMessage: "Null pointer encountered in ledger calculation",
+        isCoreModule: true
+      });
+
+      assert.strictEqual(res.faultHandled, true, "Internal software fault must be handled gracefully");
+      assert.strictEqual(res.preventsUnhandled5xxResponse, true, "Must prevent unhandled 5XX response exposure per FRU_FLT.1.1 guidance");
+      assert.ok(res.userFacingMessage.includes("پایه امن"), "User facing message must indicate safe operational mode");
+      assert.ok(res.aftaCompliance.includes("FRU_FLT.1.1"), "Must reference FRU_FLT.1.1 requirement");
+    });
+
+    it("2. Module Isolation: should isolate faulty modules to prevent cascading failure across core functions", () => {
+      const res = validateCoreFunctionsSoftwareFaultTolerance({
+        moduleName: "AnalyticsExtension",
+        faultType: "RUNTIME_EXCEPTION",
+        isCoreModule: false
+      });
+
+      assert.strictEqual(res.moduleIsolated, true, "Faulty module must be isolated from core system functions");
+      assert.strictEqual(res.gracefulDegradation, true, "Non-essential module failures must allow graceful degradation");
+    });
+
+    it("3. Core Fallback Operational Mode: should preserve primary operational mode when errors occur", () => {
+      const res = validateCoreFunctionsSoftwareFaultTolerance({
+        moduleName: "PettyCashModule",
+        faultType: "DB_TIMEOUT",
+        isCoreModule: true
+      });
+
+      assert.strictEqual(res.fallbackActive, true, "Core operational mode must be preserved on fault");
+      assert.strictEqual(res.auditLogged, true, "Fault occurrence must be configured for audit logging");
+    });
+  });
+
+  describe("33. TSF-initiated Session Termination Compliance (FTA_SSL.3.1 - AFTA Item 47)", () => {
+    it("1. Configurable Inactivity Session Termination: should terminate interactive session exceeding configured idle timeout", () => {
+      const pastTimeMs = Date.now() - (45 * 60 * 1000); // 45 minutes ago
+      const res = validateInteractiveSessionInactivityTermination({
+        sessionId: "sess_45min_idle",
+        username: "user_idle",
+        lastActivityTimestamp: pastTimeMs
+      }, {
+        ...DEFAULT_SECURITY_POLICY,
+        sessionPolicy: {
+          tokenExpiresInHours: 8,
+          idleTimeoutMinutes: 30
+        }
+      });
+
+      assert.strictEqual(res.terminated, true, "Session exceeding global 30min idle threshold must be terminated");
+      assert.strictEqual(res.configuredTimeoutMinutes, 30);
+      assert.ok(res.logoutReason.includes("غیرفعال بودن"), "Logout reason must state inactivity (غیرفعال بودن) per FTA_SSL.3.1 guidance");
+      assert.ok(res.aftaCompliance.includes("FTA_SSL.3.1"), "Must reference FTA_SSL.3.1 requirement");
+    });
+
+    it("2. User-Specific Configured Inactivity Threshold: should honor admin-configured user-specific idle timeout", () => {
+      const pastTimeMs = Date.now() - (18 * 60 * 1000); // 18 minutes ago
+      const res = validateInteractiveSessionInactivityTermination({
+        sessionId: "sess_custom_user",
+        username: "custom_user",
+        lastActivityTimestamp: pastTimeMs,
+        userSpecificIdleTimeoutMinutes: 15 // admin configured 15 minutes for this user
+      });
+
+      assert.strictEqual(res.terminated, true, "Session exceeding user-specific 15min idle threshold must be terminated");
+      assert.strictEqual(res.configuredTimeoutMinutes, 15);
+      assert.ok(res.logoutReason.includes("غیرفعال بودن"));
+    });
+
+    it("3. Active Session Retention: should retain active session within allowed inactivity window", () => {
+      const recentTimeMs = Date.now() - (10 * 60 * 1000); // 10 minutes ago
+      const res = validateInteractiveSessionInactivityTermination({
+        sessionId: "sess_active_10min",
+        username: "active_user",
+        lastActivityTimestamp: recentTimeMs
+      }, {
+        ...DEFAULT_SECURITY_POLICY,
+        sessionPolicy: {
+          tokenExpiresInHours: 8,
+          idleTimeoutMinutes: 30
+        }
+      });
+
+      assert.strictEqual(res.terminated, false, "Session within 30min idle window must remain active");
+    });
+  });
 });
-
-
-

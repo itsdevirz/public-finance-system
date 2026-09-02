@@ -92,7 +92,13 @@ export const AFTA_LOG_EVENT_TYPES = {
   NTP_SERVER_CHANGE: "تغییر سرور NTP سیستم",
 
   // ۲۷. ثبت‌نشان تغییر زمان سیستم (الزام FPT_STM.1.1)
-  SYSTEM_TIME_CHANGE: "تغییر و همگام‌سازی زمان سیستم"
+  SYSTEM_TIME_CHANGE: "تغییر و همگام‌سازی زمان سیستم",
+
+  // ۲۸. ثبت‌نشان پیکربندی زمان خاتمه به نشست غیرفعال (الزام FTA_SSL.3.1)
+  INACTIVITY_TIMEOUT_CONFIG_CHANGE: "پیکربندی زمان خاتمه به نشست غیرفعال",
+
+  // ۲۹. ثبت‌نشان خروج کاربر غیرفعال با ذکر علت خروج (غیرفعال بودن) (الزام FTA_SSL.3.1)
+  INACTIVE_USER_LOGOUT: "خروج کاربر غیرفعال به علت عدم فعالیت"
 } as const;
 
 export interface AuditLogParams {

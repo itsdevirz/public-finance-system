@@ -347,7 +347,9 @@ const INITIAL_SETTINGS = {
   sessionEstablishmentPreventionPolicy: {
     enable: true,
     preventByLocation: true,
+    allowedIpRanges: ["192.168.0.0/16", "10.0.0.0/8", "127.0.0.1", "::1", "localhost"],
     preventByPort: true,
+    allowedPorts: [80, 443, 3000, 3001, 5000, 5173, 8000, 8001, 8002, 8080, 8443],
     preventByDay: true,
     preventByTime: true,
     preventByOtherParams: true,
@@ -1034,7 +1036,14 @@ export default function SystemSettingsForm() {
       lastSuccessfulSessionNoticePolicy: s.lastSuccessfulSessionNoticePolicy,
       lastFailedSessionNoticePolicy: s.lastFailedSessionNoticePolicy,
       preserveAccessRecordsPolicy: s.preserveAccessRecordsPolicy,
-      sessionEstablishmentPreventionPolicy: s.sessionEstablishmentPreventionPolicy,
+      sessionEstablishmentPreventionPolicy: {
+        ...s.sessionEstablishmentPreventionPolicy,
+        allowedPorts: (Array.isArray(s.sessionEstablishmentPreventionPolicy?.allowedPorts)
+          ? s.sessionEstablishmentPreventionPolicy.allowedPorts
+          : [80, 443, 3000, 3001, 5000, 5173, 8000, 8001, 8002, 8080, 8443])
+          .map(Number)
+          .filter((p, idx, arr) => !isNaN(p) && p > 0 && arr.indexOf(p) === idx)
+      },
       trustedChannelPolicy: s.trustedChannelPolicy,
       httpsProtocolPolicy: s.httpsProtocolPolicy,
       tlsClientPolicy: s.tlsClientPolicy,
@@ -5320,6 +5329,118 @@ export default function SystemSettingsForm() {
                               </span>
                             </div>
                           </label>
+
+                          {settings.sessionEstablishmentPreventionPolicy?.preventByPort && (
+                            <div className="mr-6 my-2 p-4 rounded-xl border border-rose-200 dark:border-rose-900/50 bg-rose-50/40 dark:bg-rose-950/20 space-y-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <ShieldAlert className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                                    مدیریت و ایجاد شماره پورت‌های مجاز سیستم (Allowed Network Ports)
+                                  </span>
+                                </div>
+                                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300">
+                                  الزام FTA_TSE.1.1 افتا
+                                </span>
+                              </div>
+
+                              <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                                برنامه و کلاینت‌ها <strong>تنها در صورتی اجازه لود شدن و برقراری نشست را دارند</strong> که در لیست پورت‌های مجاز زیر ثبت شده باشند. در صورت اجرا روی پورتی غیر از این لیست، لود شدن سامانه مسدود می‌شود.
+                              </p>
+
+                              {/* لیست پورت‌های مجاز فعلی */}
+                              <div className="flex flex-wrap gap-2 items-center pt-1">
+                                <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 ml-1">
+                                  پورت‌های مجاز تعریف‌شده:
+                                </span>
+                                {((Array.isArray(settings.sessionEstablishmentPreventionPolicy?.allowedPorts)
+                                  ? settings.sessionEstablishmentPreventionPolicy.allowedPorts
+                                  : [80, 443, 3000, 3001, 5000, 5173, 8000, 8001, 8002, 8080, 8443])
+                                  .map(Number)
+                                  .filter((p, idx, arr) => !isNaN(p) && p > 0 && arr.indexOf(p) === idx)
+                                ).map((port) => (
+                                  <span
+                                    key={port}
+                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-mono font-bold text-slate-800 dark:text-slate-200 shadow-sm"
+                                  >
+                                    <span>{port}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const rawList = settings.sessionEstablishmentPreventionPolicy?.allowedPorts;
+                                        const currentPorts = (Array.isArray(rawList) ? rawList : [80, 443, 3000, 3001, 5000, 5173, 8000, 8001, 8002, 8080, 8443])
+                                          .map(Number)
+                                          .filter((p, idx, arr) => !isNaN(p) && p > 0 && arr.indexOf(p) === idx);
+                                        const updated = currentPorts.filter(p => p !== port);
+                                        set("sessionEstablishmentPreventionPolicy", {
+                                          ...settings.sessionEstablishmentPreventionPolicy,
+                                          allowedPorts: updated
+                                        });
+                                      }}
+                                      className="text-slate-400 hover:text-rose-600 transition-colors p-0.5 rounded ml-0.5"
+                                      title="حذف پورت"
+                                    >
+                                      ×
+                                    </button>
+                                  </span>
+                                ))}
+                              </div>
+
+                              {/* ورودی اضافه کردن پورت جدید */}
+                              <div className="flex items-center gap-2 pt-2 border-t border-rose-200/60 dark:border-rose-900/40">
+                                <input
+                                  type="number"
+                                  id="allowed-port-input-field"
+                                  placeholder="شماره پورت جدید (مثلاً 8200 یا 5175)"
+                                  className="text-xs px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 w-56 focus:outline-none focus:ring-2 focus:ring-rose-500 font-mono dir-ltr"
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault();
+                                      const val = parseInt(e.currentTarget.value, 10);
+                                      if (!isNaN(val) && val > 0 && val <= 65535) {
+                                        const rawList = settings.sessionEstablishmentPreventionPolicy?.allowedPorts;
+                                        const currentPorts = (Array.isArray(rawList) ? rawList : [80, 443, 3000, 3001, 5000, 5173, 8000, 8001, 8002, 8080, 8443])
+                                          .map(Number)
+                                          .filter((p, idx, arr) => !isNaN(p) && p > 0 && arr.indexOf(p) === idx);
+                                        if (!currentPorts.includes(val)) {
+                                          set("sessionEstablishmentPreventionPolicy", {
+                                            ...settings.sessionEstablishmentPreventionPolicy,
+                                            allowedPorts: [...currentPorts, val]
+                                          });
+                                        }
+                                        e.currentTarget.value = '';
+                                      }
+                                    }
+                                  }}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const inputEl = document.getElementById("allowed-port-input-field");
+                                    if (inputEl && inputEl.value) {
+                                      const val = parseInt(inputEl.value, 10);
+                                      if (!isNaN(val) && val > 0 && val <= 65535) {
+                                        const rawList = settings.sessionEstablishmentPreventionPolicy?.allowedPorts;
+                                        const currentPorts = (Array.isArray(rawList) ? rawList : [80, 443, 3000, 3001, 5000, 5173, 8000, 8001, 8002, 8080, 8443])
+                                          .map(Number)
+                                          .filter((p, idx, arr) => !isNaN(p) && p > 0 && arr.indexOf(p) === idx);
+                                        if (!currentPorts.includes(val)) {
+                                          set("sessionEstablishmentPreventionPolicy", {
+                                            ...settings.sessionEstablishmentPreventionPolicy,
+                                            allowedPorts: [...currentPorts, val]
+                                          });
+                                        }
+                                        inputEl.value = '';
+                                      }
+                                    }
+                                  }}
+                                  className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow transition-colors flex items-center gap-1"
+                                >
+                                  <span>+ افزودن به پورت‌های مجاز</span>
+                                </button>
+                              </div>
+                            </div>
+                          )}
 
                           <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
                             <input

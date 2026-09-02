@@ -98,12 +98,14 @@ export default function Login() {
         await login(username, password, rememberMe);
       }
     } catch (err) {
-      setError(
-        err?.response?.data?.message ??
-        (isSetupMode
+      const isNetworkOrCorsError = err?.message === "Network Error" || !err?.response;
+      const fallbackMessage = isNetworkOrCorsError
+        ? "خطا در ارتباط با سرور یا محدودیت CORS. لطفاً از روشن بودن سرور و تطابق پورت مطمئن شوید."
+        : (isSetupMode
           ? "خطا در تعریف مدیر سیستم. لطفاً مجدداً تلاش کنید."
-          : "خطا در ورود به سامانه. لطفاً نام کاربری و رمز عبور را بررسی کنید.")
-      );
+          : "خطا در ورود به سامانه. لطفاً نام کاربری و رمز عبور را بررسی کنید.");
+
+      setError(err?.response?.data?.message ?? fallbackMessage);
       setLoading(false);
     }
   }

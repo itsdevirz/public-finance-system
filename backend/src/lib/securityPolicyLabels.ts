@@ -249,6 +249,7 @@ export const SECURITY_POLICY_LABELS: Record<string, Record<string, PolicyFieldMe
     enable: { accordion: "ممانعت از ایجاد نشست بر اساس پارامترها", label: "فعال‌سازی خط‌مشی ممانعت از ایجاد نشست بر اساس پارامترها", type: "boolean" },
     preventByLocation: { accordion: "ممانعت از ایجاد نشست بر اساس پارامترها", label: "ممانعت از ایجاد نشست بر اساس مکان جغرافیایی / IP", type: "boolean" },
     preventByPort: { accordion: "ممانعت از ایجاد نشست بر اساس پارامترها", label: "ممانعت از برقراری نشست روی پورت‌های غیرمجاز شبکه", type: "boolean" },
+    allowedPorts: { accordion: "ممانعت از ایجاد نشست بر اساس پارامترها", label: "لیست شماره پورت‌های مجاز شبکه", type: "string" },
     preventByDay: { accordion: "ممانعت از ایجاد نشست بر اساس پارامترها", label: "ممانعت از ورود در روزهای غیرمجاز", type: "boolean" },
     preventByTime: { accordion: "ممانعت از ایجاد نشست بر اساس پارامترها", label: "ممانعت از ورود در ساعات غیرمجاز شبانه‌روز", type: "boolean" },
     preventByOtherParams: { accordion: "ممانعت از ایجاد نشست بر اساس پارامترها", label: "ممانعت از ایجاد نشست بر اساس سایر پارامترها", type: "boolean" }

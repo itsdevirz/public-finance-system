@@ -1,5 +1,6 @@
 import { Db, ObjectId } from "mongodb";
 import { DEFAULT_SECURITY_POLICY } from "./securityPolicy.js";
+import { logAuditEvent, AFTA_LOG_EVENT_TYPES } from "./auditLogger.js";
 
 /**
  * Prunes expired or revoked sessions from active_sessions collection.
@@ -52,15 +53,41 @@ export async function pruneExpiredSessions(db: Db, userId?: ObjectId | string) {
       const createdAtTime = session.createdAt ? new Date(session.createdAt).valueOf() : lastActivityTime;
       const ageHours = (now - createdAtTime) / (3600 * 1000);
 
-      if (idleMinutes > effectiveIdleTimeout || ageHours > tokenExpiresHours) {
+      const isIdleTimeout = idleMinutes > effectiveIdleTimeout;
+      const isAbsoluteExpiration = ageHours > tokenExpiresHours;
+
+      if (isIdleTimeout || isAbsoluteExpiration) {
         expiredIds.push(session._id);
+        const logoutReason = isIdleTimeout ? "غیرفعال بودن" : "انقضای سقف زمانی نشست";
         if (session.token) {
           await db.collection("revoked_tokens").updateOne(
             { token: session.token },
-            { $set: { token: session.token, revokedAt: new Date().toISOString(), reason: `انقضای خودکار نشست به دلیل عدم فعالیت (آستانه ${effectiveIdleTimeout} دقیقه)` } },
+            { $set: { token: session.token, revokedAt: new Date().toISOString(), reason: `انقضای خودکار نشست به دلیل ${logoutReason} (آستانه ${effectiveIdleTimeout} دقیقه)` } },
             { upsert: true }
           );
         }
+
+        // 🌟 ثبت‌نشان خروج کاربر غیرفعال (با ذکر علت خروج: غیرفعال بودن) - الزام FTA_SSL.3.1 افتا
+        try {
+          await logAuditEvent({
+            userId: session.userId || "system",
+            username: session.username || "کاربر ناشناس",
+            userRole: session.userRole || "کاربر",
+            action: `خاتمه دادن به نشست غیرفعال کاربر (علت خروج: ${logoutReason} - آستانه عدم فعالیت ${effectiveIdleTimeout} دقیقه - الزام FTA_SSL.3.1 افتا)`,
+            eventType: AFTA_LOG_EVENT_TYPES.INACTIVE_USER_LOGOUT,
+            resource: "session_management",
+            result: "SUCCESS",
+            ip: session.ip || "127.0.0.1",
+            userAgent: session.userAgent,
+            details: {
+              sessionId: String(session._id),
+              logoutReason,
+              idleMinutes: Math.round(idleMinutes),
+              configuredIdleTimeoutMinutes: effectiveIdleTimeout,
+              aftaRequirement: "FTA_SSL.3.1"
+            }
+          });
+        } catch (_) {}
       } else {
         validSessions.push(session);
       }

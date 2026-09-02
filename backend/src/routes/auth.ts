@@ -139,7 +139,7 @@ router.post("/login", async (c) => {
       userId: user?._id,
       username: user?.username || cleanUsername,
       userRole: user?.role || "کارمند",
-      action: `ممانعت از ایجاد نشست (پارامتر ${preventionCheck.parameter}): ${preventionCheck.reason}`,
+      action: `ممانعت از ایجاد نشست بر اساس پارامترهای برقراری نشست (الزام FTA_TSE.1.1 افتا - پارامتر ${preventionCheck.parameter}): ${preventionCheck.reason}`,
       eventType: AFTA_LOG_EVENT_TYPES.AUTH_FINAL_OUTCOME,
       resource: "auth/login",
       result: "FAILURE",
@@ -149,11 +149,14 @@ router.post("/login", async (c) => {
       details: {
         parameter: preventionCheck.parameter,
         reason: preventionCheck.reason,
+        failureCategory: "ACCESS_RESTRICTION_VIOLATION",
+        failureCategoryDescription: "تلاش ناموفق ورود به دلیل نقض محدودیتهای دسترسی (مکان/پورت/روز/زمان/سایر)",
         requestType: "ورود به سامانه",
-        requestResult: "ناموفق"
+        requestResult: "ناموفق",
+        aftaRequirement: "FTA_TSE.1.1"
       }
     });
-    return c.json({ message: preventionCheck.reason, parameter: preventionCheck.parameter }, 403);
+    return c.json({ message: preventionCheck.reason, parameter: preventionCheck.parameter, failureCategory: "ACCESS_RESTRICTION_VIOLATION" }, 403);
   }
 
   // ۱۳. بررسی درخواست روی موجودیت غیرفعال یا مسدود
@@ -237,6 +240,8 @@ router.post("/login", async (c) => {
           failedAttempts: newAttempts,
           maxAttempts,
           deactivated: isLimitReached,
+          failureCategory: "INVALID_CREDENTIALS",
+          failureCategoryDescription: "تلاش ناموفق ورود به دلیل ورود اطلاعات کاربردی اشتباه (نام کاربری یا رمز عبور)",
           requestType: "ورود به سامانه",
           requestResult: "ناموفق"
         }

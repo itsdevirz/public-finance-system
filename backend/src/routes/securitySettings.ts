@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { ObjectId } from "mongodb";
 import { getDb } from "../db/index.js";
-import { DEFAULT_SECURITY_POLICY, validateTlsClientConnection, validateInternalTransitProtection, validateSecurityDataInteroperability, validateTrustedTimestamping, validateProductSoftwareUpdate, validateAutoUpdateAuthenticity } from "../lib/securityPolicy.js";
+import { DEFAULT_SECURITY_POLICY, validateTlsClientConnection, validateInternalTransitProtection, validateSecurityDataInteroperability, validateTrustedTimestamping, validateProductSoftwareUpdate, validateAutoUpdateAuthenticity, validateCoreFunctionsSoftwareFaultTolerance, validateInteractiveSessionInactivityTermination, validateCaCertificateAcceptance } from "../lib/securityPolicy.js";
 import { executeRealTlsHandshake } from "../lib/secureTlsClient.js";
 import { logAuditEvent, AFTA_LOG_EVENT_TYPES, verifyLogIntegrity, signExistingLogs, runAuditLogRetentionAndRotation, extractClientIp } from "../lib/auditLogger.js";
 import { requireRole } from "../middleware/rbacMiddleware.js";
@@ -138,7 +138,16 @@ router.put("/policy", requireRole(["admin"]), async (c) => {
         const oldVal = rawOldVal !== undefined ? rawOldVal : defaultFallback;
         const newVal = rawNewVal !== undefined ? rawNewVal : defaultFallback;
 
-        if (oldVal !== newVal) {
+        const isArray = Array.isArray(oldVal) || Array.isArray(newVal) || meta.type === "array";
+        const oldStr = isArray
+          ? (Array.isArray(oldVal) ? oldVal.join(", ") : String(oldVal || "خالی"))
+          : (oldVal !== undefined && oldVal !== null && oldVal !== "" ? String(oldVal) : "خالی");
+
+        const newStr = isArray
+          ? (Array.isArray(newVal) ? newVal.join(", ") : String(newVal || "خالی"))
+          : (newVal !== undefined && newVal !== null && newVal !== "" ? String(newVal) : "خالی");
+
+        if (oldStr !== newStr) {
           let actionText = "";
           let changeType = "UPDATED";
 
@@ -148,8 +157,6 @@ router.put("/policy", requireRole(["admin"]), async (c) => {
             const stateStr = isActivated ? "(فعال شد)" : "(غیرفعال شد)";
             actionText = `آکاردئون [${meta.accordion}]: تیک گزینه ${meta.label} ${stateStr}`;
           } else {
-            const oldStr = oldVal !== undefined && oldVal !== null && oldVal !== "" ? oldVal : "خالی";
-            const newStr = newVal !== undefined && newVal !== null && newVal !== "" ? newVal : "خالی";
             actionText = `آکاردئون [${meta.accordion}]: مقدار ${meta.label} از [${oldStr}] به [${newStr}] ثبت شد.`;
           }
 
@@ -640,6 +647,134 @@ router.post("/verify-update-authenticity", requireRole(["admin"]), async (c) => 
         details: { reason: validation.reason, aftaClause: "FPT_TUD_EXT.1.3" }
       });
     }
+
+    return c.json({
+      success: validation.valid,
+      validation
+    }, validation.valid ? 200 : 400);
+  } catch (error: any) {
+    return c.json({ success: false, message: error.message }, 500);
+  }
+});
+
+// POST /api/security/validate-fault-tolerance - سنجش و اعتبارسنجی تحمل خطای نرم‌افزاری در کارکردهای اصلی (الزام FRU_FLT.1.1 افتا)
+router.post("/validate-fault-tolerance", async (c) => {
+  try {
+    const payload = (c.get as any)("jwtPayload");
+    const body = await c.req.json();
+    const db = getDb();
+
+    const config = await db.collection("system_settings").findOne({ key: "security_policy" });
+    const policy = config?.value?.coreFunctionsSoftwareFaultTolerancePolicy || DEFAULT_SECURITY_POLICY.coreFunctionsSoftwareFaultTolerancePolicy;
+
+    const validation = validateCoreFunctionsSoftwareFaultTolerance(
+      {
+        moduleName: body.moduleName || "LedgerCoreModule",
+        faultType: body.faultType || "RUNTIME_EXCEPTION",
+        errorMessage: body.errorMessage || "Simulated module internal error",
+        isCoreModule: body.isCoreModule !== undefined ? !!body.isCoreModule : true
+      },
+      policy
+    );
+
+    if (policy.auditLogFaultEvents !== false) {
+      await logAuditEvent({
+        userId: payload?.sub || "system",
+        username: payload?.username || "system",
+        userRole: payload?.role || "سیستم",
+        action: `ثبت رویداد اشکال و شکست نرم‌افزاری و اجرای سازوکار تحمل خطا (الزام FRU_FLT.1.1 افتا): ماژول ${body.moduleName || "اصلی"}`,
+        eventType: AFTA_LOG_EVENT_TYPES.SYSTEM_CAPABILITY_FAILURE,
+        resource: "fault_tolerance_subsystem",
+        result: "FAILURE",
+        ip: extractClientIp(c),
+        userAgent: c.req.header("user-agent"),
+        details: {
+          moduleName: body.moduleName,
+          faultType: body.faultType,
+          isolation: validation.moduleIsolated,
+          fallback: validation.fallbackActive,
+          aftaClause: "FRU_FLT.1.1"
+        }
+      });
+    }
+
+    return c.json({
+      success: true,
+      handledGracefully: validation.faultHandled,
+      validation
+    });
+  } catch (error: any) {
+    return c.json({ success: false, message: error.message }, 500);
+  }
+});
+
+// POST /api/security/validate-session-inactivity-termination - سنجش خاتمه نشست تعاملی به علت عدم فعالیت (الزام FTA_SSL.3.1 افتا)
+router.post("/validate-session-inactivity-termination", async (c) => {
+  try {
+    const payload = (c.get as any)("jwtPayload");
+    const body = await c.req.json();
+    const db = getDb();
+
+    const config = await db.collection("system_settings").findOne({ key: "security_policy" });
+    const policy = config?.value || DEFAULT_SECURITY_POLICY;
+
+    const validation = validateInteractiveSessionInactivityTermination(
+      {
+        sessionId: body.sessionId || "sess_demo_123",
+        username: body.username || payload?.username || "user_demo",
+        lastActivityTimestamp: body.lastActivityTimestamp || Date.now() - (35 * 60 * 1000),
+        userRole: payload?.role || "user",
+        userSpecificIdleTimeoutMinutes: body.userSpecificIdleTimeoutMinutes
+      },
+      policy
+    );
+
+    if (validation.terminated) {
+      await logAuditEvent({
+        userId: payload?.sub || "system",
+        username: body.username || payload?.username || "user_demo",
+        userRole: payload?.role || "کاربر",
+        action: `خاتمه دادن به نشست غیرفعال کاربر (علت خروج: غیرفعال بودن - آستانه عدم فعالیت ${validation.configuredTimeoutMinutes} دقیقه - الزام FTA_SSL.3.1 افتا)`,
+        eventType: AFTA_LOG_EVENT_TYPES.INACTIVE_USER_LOGOUT,
+        resource: "session_management",
+        result: "SUCCESS",
+        ip: extractClientIp(c),
+        userAgent: c.req.header("user-agent"),
+        details: {
+          sessionId: body.sessionId || "sess_demo_123",
+          logoutReason: "غیرفعال بودن",
+          idleMinutes: validation.idleDurationMinutes,
+          configuredIdleTimeoutMinutes: validation.configuredTimeoutMinutes,
+          aftaClause: "FTA_SSL.3.1"
+        }
+      });
+    }
+
+    return c.json({
+      success: true,
+      validation
+    });
+  } catch (error: any) {
+    return c.json({ success: false, message: error.message }, 500);
+  }
+});
+
+// POST /api/security/validate-ca-certificate - سنجش قوانین پذیرش گواهی‌نامه CA با basicConstraints و CA=TRUE (الزام FIA_X509_EXT.1.2/Rev افتا)
+router.post("/validate-ca-certificate", async (c) => {
+  try {
+    const body = await c.req.json();
+    const db = getDb();
+
+    const config = await db.collection("system_settings").findOne({ key: "security_policy" });
+    const policy = config?.value?.certificateValidationPolicy || DEFAULT_SECURITY_POLICY.certificateValidationPolicy;
+
+    const validation = validateCaCertificateAcceptance(
+      {
+        basicConstraintsPresent: body.basicConstraintsPresent !== undefined ? !!body.basicConstraintsPresent : true,
+        isCA: body.isCA !== undefined ? !!body.isCA : true
+      },
+      policy
+    );
 
     return c.json({
       success: validation.valid,

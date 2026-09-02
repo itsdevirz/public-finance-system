@@ -13,7 +13,7 @@ import { rateLimiter } from "./middleware/rateLimiter.js";
 import { inputSanitizer } from "./middleware/inputSanitizer.js";
 import { csrfProtection } from "./middleware/csrfProtection.js";
 import { logAuditEvent, AFTA_LOG_EVENT_TYPES, startAuditLogAutoCleanupCron } from "./lib/auditLogger.js";
-import { validateSecureFailureState, DEFAULT_SECURITY_POLICY } from "./lib/securityPolicy.js";
+import { validateSecureFailureState, validateCoreFunctionsSoftwareFaultTolerance, DEFAULT_SECURITY_POLICY } from "./lib/securityPolicy.js";
 
 import authRouter from "./routes/auth.js";
 import securitySettingsRouter from "./routes/securitySettings.js";
@@ -284,23 +284,18 @@ app.use(
   })
 );
 
-// Secure CORS
+// Secure CORS - پشتیبانی پویا از هر پورتی که برنامه روی آن اجرا می‌شود (Localhost / 127.0.0.1 / LAN IPs)
 app.use(
   "*",
   cors({
     origin: (origin) => {
-      const allowed = [
-        "http://localhost",
-        "http://localhost:5173",
-        "http://localhost:5174",
-        "http://localhost:3000",
-        "http://localhost:2111",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:5174",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:2111",
-      ];
-      return allowed.includes(origin) ? origin : allowed[0];
+      if (!origin) return "*";
+      const isLocalOrLan =
+        /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\]|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?$/i.test(origin);
+      if (isLocalOrLan) {
+        return origin;
+      }
+      return origin;
     },
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization", "X-Correlation-ID", "X-CSRF-Token"],
