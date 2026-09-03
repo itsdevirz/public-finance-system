@@ -293,7 +293,48 @@ router.put("/policy", requireRole(["admin"]), async (c) => {
       });
     }
 
-    // ۵. ثبت‌نشان تغییر سرور NTP (الزام FPT_STM.1.1 افتا)
+    // ۵. ثبت‌نشان‌های تفکیک‌شده برای تغییر هر یک از روش‌های ۴گانه مهرهای زمانی (الزام FPT_STM.1.1 افتا)
+    const oldMethods = existingVal.trustedTimestampPolicy?.timestampMethods || {};
+    const newMethods = newPolicy.trustedTimestampPolicy?.timestampMethods || {};
+
+    const methodLabels: Record<string, string> = {
+      getTimestampFromNtpServer: "گرفتن مهرهای زمانی از سرور NTP",
+      setTimestampViaInternet: "تنظیم مهرهای زمانی از طریق اینترنت",
+      setDefaultTrustedTimestamp: "تنظیم مهرهای زمانی به صورت پیش‌فرض (معتبر و عدم امکان دستکاری غیرمجاز)",
+      otherMethods: "سایر موارد (استفاده از سخت‌افزارهای امنیتی HSM و مراکز TSA)"
+    };
+
+    for (const [key, label] of Object.entries(methodLabels)) {
+      const oldState = oldMethods[key] ?? true;
+      const newState = newMethods[key] ?? true;
+      if (oldState !== newState) {
+        const stateText = newState ? "فعال گردید" : "غیرفعال شد";
+        const extraNtpInfo = key === "getTimestampFromNtpServer" && newState
+          ? ` (آدرس سرور NTP: ${newPolicy.trustedTimestampPolicy?.ntpServerAddress || "127.0.0.1"})`
+          : "";
+
+        await logAuditEvent({
+          userId: payload.sub,
+          username: currentAdminUsername,
+          userRole: currentAdminRole === "admin" ? "مدیر" : currentAdminRole,
+          action: `روش '${label}' در سیستم ${stateText}${extraNtpInfo} (الزام FPT_STM.1.1 افتا)`,
+          eventType: key === "getTimestampFromNtpServer" ? AFTA_LOG_EVENT_TYPES.NTP_SERVER_CHANGE : AFTA_LOG_EVENT_TYPES.SYSTEM_TIME_CHANGE,
+          resource: "system_time_policy",
+          result: "SUCCESS",
+          ip: clientIp,
+          userAgent: c.req.header("user-agent"),
+          details: {
+            methodKey: key,
+            methodLabel: label,
+            oldState: oldState ? "فعال" : "غیرفعال",
+            newState: newState ? "فعال" : "غیرفعال",
+            ntpServerAddress: newPolicy.trustedTimestampPolicy?.ntpServerAddress || "127.0.0.1",
+            aftaClause: "FPT_STM.1.1"
+          }
+        });
+      }
+    }
+
     const oldNtpServer = existingVal.trustedTimestampPolicy?.ntpServerAddress || "127.0.0.1";
     const newNtpServer = newPolicy.trustedTimestampPolicy?.ntpServerAddress || "127.0.0.1";
     if (oldNtpServer !== newNtpServer) {
@@ -1531,6 +1572,99 @@ router.post("/audit-file-download", async (c) => {
   return c.json({
     success: true,
     message: "لاگ دانلود فایل و خروج داده با موفقیت ثبت گردید."
+  });
+});
+
+// POST /api/security/audit-failure - Log failure occurrences (CORS error, server offline, auth failure, network drop)
+router.post("/audit-failure", async (c) => {
+  const payload = (c.get as any)("jwtPayload");
+  const body = await c.req.json().catch(() => ({}));
+
+  const clientIp = body.ip || extractClientIp(c);
+  const userAgent = body.userAgent || c.req.header("user-agent") || "Mozilla/5.0 (Windows NT 10.0; Win64; x64)";
+
+  const userMessage = body.details?.userMessage || body.userMessage || "خطا در ارتباط با سرور یا محدودیت CORS. لطفاً از روشن بودن سرور و تطابق پورت مطمئن شوید.";
+  const action = body.action || "شکست در ارتباط با سرور یا محدودیت CORS (بروز خطای شبکه/پورت)";
+  const eventType = body.eventType || AFTA_LOG_EVENT_TYPES.SYSTEM_CAPABILITY_FAILURE;
+  const resource = body.resource || "/api/auth/login";
+  const method = body.method || "POST";
+  const errorCode = body.errorCode || 0;
+
+  const fullExplanation = body.details?.fullExplanation || 
+    "تلاش ناموفق جهت برقراری ارتباط با سرور یا مسدود شدن درخواست توسط قوانین محدودیت CORS / شبکه. این رویداد نشان‌دهنده شکست در قابلیت‌های کارکردی محصول و عدم دسترسی به سرویس پشتیبان (بک‌اند) بر روی پورت تعیین‌شده می‌باشد.";
+
+  const troubleshootingSteps = body.details?.troubleshootingSteps || [
+    "۱. بررسی و اطمینان از روشن بودن سرویس بک‌اند بر روی پورت 8000.",
+    "۲. بررسی تطابق پورت و پروتکل درخواست کلاینت (HTTP/HTTPS) با سرور.",
+    "۳. بررسی هدر Origin و مجوزهای دامنه درخواست‌دهنده در پیکربندی CORS سرور.",
+    "۴. بررسی اتصال شبکه یا دیواره آتش (Firewall) دستگاه."
+  ].join("\n");
+
+  await logAuditEvent({
+    userId: payload?.sub || body.userId || "system",
+    username: payload?.username || body.username || "anonymous",
+    userFullName: payload?.userFullName || body.userFullName || payload?.username || "ناشناس",
+    userRole: payload?.role || body.userRole || "سیستم",
+    action: action,
+    eventType: eventType,
+    resource: resource,
+    method: method,
+    result: "FAILURE",
+    ip: clientIp,
+    userAgent,
+    errorCode: errorCode,
+    details: {
+      userMessage,
+      fullExplanation,
+      troubleshootingSteps,
+      aftaRequirement: "بند ۱ جدول ۲-۷ (شکست در قابلیت‌های کارکردی) و بند ۱ جدول ۲-۶ (حفاظت از توابع امنیتی)",
+      failureCategory: "NETWORK_OR_CORS_FAILURE",
+      failureCategoryDescription: "شکست در ارتباط با سرور یا محدودیت دامنه/پورت در CORS",
+      clientOrigin: body.clientOrigin || "http://localhost:5173",
+      targetBaseUrl: body.targetBaseUrl || "http://localhost:8000",
+      ...(body.details || {})
+    }
+  });
+
+  return c.json({
+    success: true,
+    message: "لاگ بروز شکست با موفقیت و تمامی جزئیات در دیتابیس ثبت گردید."
+  });
+});
+
+// POST /api/security/audit-failure-batch - Sync offline failure logs from client
+router.post("/audit-failure-batch", async (c) => {
+  const payload = (c.get as any)("jwtPayload");
+  const body = await c.req.json().catch(() => ({}));
+  const logs = Array.isArray(body.logs) ? body.logs : [];
+
+  for (const item of logs) {
+    const clientIp = item.ip || extractClientIp(c);
+    const userAgent = item.userAgent || c.req.header("user-agent") || "Mozilla/5.0 (Windows NT 10.0; Win64; x64)";
+    
+    await logAuditEvent({
+      userId: payload?.sub || item.userId || "system",
+      username: payload?.username || item.username || "anonymous",
+      userFullName: payload?.userFullName || item.userFullName || payload?.username || "ناشناس",
+      userRole: payload?.role || item.userRole || "سیستم",
+      action: item.action || "شکست در ارتباط با سرور یا محدودیت CORS (آفلاین)",
+      eventType: item.eventType || AFTA_LOG_EVENT_TYPES.SYSTEM_CAPABILITY_FAILURE,
+      resource: item.resource || "/api/auth/login",
+      method: item.method || "POST",
+      result: "FAILURE",
+      ip: clientIp,
+      userAgent,
+      errorCode: item.errorCode || 0,
+      details: {
+        isSyncedFromOffline: true,
+        ...(item.details || {})
+      }
+    });
+  }
+
+  return c.json({
+    success: true,
+    message: `${logs.length} لاگ بروز شکست آفلاین با موفقیت در دیتابیس ثبت و همگام‌سازی شد.`
   });
 });
 

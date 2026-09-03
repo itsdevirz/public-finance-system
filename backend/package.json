@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
+    "build": "npx @vercel/ncc build src/index.ts -o dist -m",
     "test": "tsx --test src/tests/security.test.ts"
   },
   "dependencies": {

@@ -27,7 +27,7 @@ function getAuthUser(c: any) {
     const header = c.req.header("Authorization");
     if (header?.startsWith("Bearer ")) {
       const rawToken = header.slice(7);
-      const decoded = verifyToken(rawToken);
+      const decoded = verifyToken(rawToken) as any;
       if (decoded && decoded.username) {
         return {
           userId: decoded.sub || decoded.id || "admin",

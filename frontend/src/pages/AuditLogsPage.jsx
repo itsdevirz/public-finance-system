@@ -1922,6 +1922,63 @@ export default function AuditLogsPage() {
                 </div>
               )}
 
+              {/* 🌟 بخش اختصاصی نمایش لاگ بروز شکست و توضیحات کامل آن */}
+              {(selectedLogModal.result === "FAILURE" || selectedLogModal.details?.fullExplanation || selectedLogModal.details?.troubleshootingSteps || selectedLogModal.details?.userMessage) && (
+                <div className="p-3.5 rounded-xl bg-rose-50/90 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 space-y-2.5 shadow-xs dir-rtl">
+                  <div className="flex items-center justify-between text-rose-700 dark:text-rose-300 font-bold text-xs border-b border-rose-200/80 dark:border-rose-800/80 pb-2">
+                    <div className="flex items-center gap-2">
+                      <AlertOctagon className="h-4 w-4 text-rose-600 dark:text-rose-400 shrink-0" />
+                      <span>ثبت رویداد بروز شکست و خطای فنی (Failure Occurrence Log):</span>
+                    </div>
+                    <Badge variant="outline" className="bg-rose-500/10 text-rose-600 border-rose-500/30 text-[10px] font-mono font-bold">
+                      FAILURE (بروز شکست)
+                    </Badge>
+                  </div>
+
+                  {selectedLogModal.details?.userMessage && (
+                    <div className="p-2.5 rounded-lg bg-white/90 dark:bg-slate-900/90 border border-rose-200 dark:border-rose-900/60">
+                      <span className="text-muted-foreground block text-[10px] font-bold mb-0.5">پیام خطای نمایش‌داده‌شده به کاربر:</span>
+                      <p className="font-bold text-rose-600 dark:text-rose-400 text-xs leading-relaxed">
+                        {selectedLogModal.details.userMessage}
+                      </p>
+                    </div>
+                  )}
+
+                  {selectedLogModal.details?.fullExplanation && (
+                    <div className="p-2.5 rounded-lg bg-white/90 dark:bg-slate-900/90 border border-rose-200 dark:border-rose-900/60">
+                      <span className="text-muted-foreground block text-[10px] font-bold mb-0.5">توضیحات کامل علت بروز شکست:</span>
+                      <p className="text-foreground text-[11px] leading-relaxed">
+                        {selectedLogModal.details.fullExplanation}
+                      </p>
+                    </div>
+                  )}
+
+                  {selectedLogModal.details?.troubleshootingSteps && (
+                    <div className="p-2.5 rounded-lg bg-white/90 dark:bg-slate-900/90 border border-rose-200 dark:border-rose-900/60 space-y-1">
+                      <span className="text-muted-foreground block text-[10px] font-bold">راهنمای رفع مشکل و دستورالعمل عیب‌یابی:</span>
+                      <pre className="whitespace-pre-wrap font-sans text-[11px] text-slate-700 dark:text-slate-300 leading-relaxed">
+                        {selectedLogModal.details.troubleshootingSteps}
+                      </pre>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10.5px]">
+                    {selectedLogModal.details?.aftaRequirement && (
+                      <div className="bg-white/80 dark:bg-slate-900/80 p-2 rounded-lg border border-rose-100 dark:border-rose-900/40">
+                        <span className="text-muted-foreground block text-[10px]">مستند و بند الزامی افتا:</span>
+                        <span className="font-bold text-foreground text-[11px]">{selectedLogModal.details.aftaRequirement}</span>
+                      </div>
+                    )}
+                    {selectedLogModal.details?.requestTarget && (
+                      <div className="bg-white/80 dark:bg-slate-900/80 p-2 rounded-lg border border-rose-100 dark:border-rose-900/40">
+                        <span className="text-muted-foreground block text-[10px]">درخواست و ایندپوینت هدف:</span>
+                        <span className="font-bold text-primary font-mono text-[10.5px] dir-ltr text-right block">{selectedLogModal.details.requestTarget}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div>
                 <Label className="text-[11px] font-bold text-muted-foreground block mb-1">امضای اصالت HMAC</Label>
                 <div className="p-2.5 rounded-lg bg-muted/40 font-mono text-[10px] text-muted-foreground dir-ltr break-all border">

@@ -5,10 +5,7 @@ import type { JournalDocument, JournalLine } from "../db/types.js";
 import { decryptDocument } from "../lib/crypto.js";
 import { serialize } from "../lib/helpers.js";
 import { logAuditEvent } from "../lib/auditLogger.js";
-import { createRequire } from "module";
-
-const require = createRequire(import.meta.url);
-const sanamaCodes = require("../data/sanamaCodes.json");
+import sanamaCodes from "../data/sanamaCodes.json";
 
 // ── نقشه ماهیت کدها — یک‌بار در startup ساخته می‌شود ─────────────────────────
 const natureMap = new Map<string, "debit" | "credit" | "both">();
@@ -16,7 +13,7 @@ for (const group of sanamaCodes.groups ?? []) {
   for (const account of group.accounts ?? []) {
     for (const child of account.children ?? []) {
       if (child.code && child.nature) {
-        natureMap.set(String(child.code), child.nature);
+        natureMap.set(String(child.code), child.nature as "debit" | "credit" | "both");
       }
     }
   }

@@ -1366,6 +1366,7 @@ describe("🛡️ Comprehensive Security Test Suite", () => {
         ...DEFAULT_SECURITY_POLICY,
         sessionPolicy: {
           tokenExpiresInHours: 8,
+          maxConcurrentSessions: 5,
           idleTimeoutMinutes: 30
         }
       });
@@ -1400,6 +1401,7 @@ describe("🛡️ Comprehensive Security Test Suite", () => {
         ...DEFAULT_SECURITY_POLICY,
         sessionPolicy: {
           tokenExpiresInHours: 8,
+          maxConcurrentSessions: 5,
           idleTimeoutMinutes: 30
         }
       });

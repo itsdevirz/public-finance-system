@@ -2,26 +2,12 @@ import { Hono } from "hono";
 import { getDb } from "../db/index.js";
 import { JournalDocument } from "../db/types.js";
 import { ObjectId } from "mongodb";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import sanamaCodesData from "../data/sanamaCodes.json";
 
 const router = new Hono();
 
 // Load RAG Data
-let sanamaCodes: any = { groups: [] };
-try {
-  const codesData = fs.readFileSync(
-    path.join(__dirname, "../data/sanamaCodes.json"),
-    "utf-8",
-  );
-  sanamaCodes = JSON.parse(codesData);
-} catch (e) {
-  console.error("Failed to load sanamaCodes.json", e);
-}
+const sanamaCodes: any = sanamaCodesData || { groups: [] };
 
 // Flatten accounting codes for simple search
 const FLAT_ACCOUNTS: any[] = [];

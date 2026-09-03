@@ -4576,105 +4576,208 @@ export default function SystemSettingsForm() {
                         </h4>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={settings.trustedTimestampPolicy?.timestampMethods?.getTimestampFromNtpServer ?? true}
-                              onChange={e => {
-                                set("trustedTimestampPolicy", {
-                                  ...settings.trustedTimestampPolicy,
-                                  timestampMethods: {
-                                    ...settings.trustedTimestampPolicy?.timestampMethods,
-                                    getTimestampFromNtpServer: e.target.checked
-                                  }
-                                });
-                              }}
-                              className="h-4 w-4 rounded border-slate-300 text-emerald-600 mt-0.5"
-                            />
-                            <div>
-                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
-                                ۱. گرفتن مهرهای زمانی از سرور NTP
-                              </span>
-                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
-                                دریافت و همگام‌سازی زمان و مهرهای زمانی مرجع از سرور شبکه (NTP Server).
-                              </span>
-                            </div>
-                          </label>
+                          {/* گزینه ۱: گرفتن مهرهای زمانی از سرور NTP */}
+                          <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-3">
+                            <label className="flex items-start gap-3 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={settings.trustedTimestampPolicy?.timestampMethods?.getTimestampFromNtpServer ?? true}
+                                onChange={e => {
+                                  set("trustedTimestampPolicy", {
+                                    ...settings.trustedTimestampPolicy,
+                                    timestampMethods: {
+                                      ...settings.trustedTimestampPolicy?.timestampMethods,
+                                      getTimestampFromNtpServer: e.target.checked
+                                    }
+                                  });
+                                }}
+                                className="h-4 w-4 rounded border-slate-300 text-emerald-600 mt-0.5"
+                              />
+                              <div>
+                                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                  ۱. گرفتن مهرهای زمانی از سرور NTP
+                                </span>
+                                <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                                  دریافت و همگام‌سازی زمان و مهرهای زمانی مرجع از سرور شبکه (NTP Server).
+                                </span>
+                              </div>
+                            </label>
 
-                          <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={settings.trustedTimestampPolicy?.timestampMethods?.setTimestampViaInternet ?? true}
-                              onChange={e => {
-                                set("trustedTimestampPolicy", {
-                                  ...settings.trustedTimestampPolicy,
-                                  timestampMethods: {
-                                    ...settings.trustedTimestampPolicy?.timestampMethods,
-                                    setTimestampViaInternet: e.target.checked
-                                  }
-                                });
-                              }}
-                              className="h-4 w-4 rounded border-slate-300 text-emerald-600 mt-0.5"
-                            />
-                            <div>
-                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
-                                ۲. تنظیم مهرهای زمانی از طریق اینترنت
-                              </span>
-                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
-                                همگام‌سازی آنلاین و دریافت مهرهای زمانی از سرورهای مرجع اینترنتی (Internet Time Protocol).
-                              </span>
-                            </div>
-                          </label>
+                            {/* 🌟 فیلد ورود آدرس سرور NTP در صورت فعال بودن تیک */}
+                            {(settings.trustedTimestampPolicy?.timestampMethods?.getTimestampFromNtpServer ?? true) && (
+                              <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2 animate-in fade-in duration-200">
+                                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block">
+                                  آدرس سرور NTP محلی شبکه:
+                                </label>
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="text"
+                                    value={settings.trustedTimestampPolicy?.ntpServerAddress || "127.0.0.1"}
+                                    onChange={e => {
+                                      set("trustedTimestampPolicy", {
+                                        ...settings.trustedTimestampPolicy,
+                                        ntpServerAddress: e.target.value
+                                      });
+                                    }}
+                                    placeholder="مثلاً 127.0.0.1 یا 192.168.1.100 یا pool.ntp.org"
+                                    className="flex-1 h-8 px-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-xs font-mono dir-ltr text-right focus:ring-1 focus:ring-emerald-500"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      try {
+                                        const ntpAddr = settings.trustedTimestampPolicy?.ntpServerAddress || "127.0.0.1";
+                                        const res = await api.post("/api/security/update-system-time", {
+                                          newTime: new Date().toISOString(),
+                                          syncSource: `سرور NTP محلی شبکه (${ntpAddr})`
+                                        });
+                                        if (res.data?.success) {
+                                          alert(`✅ ${res.data.message}`);
+                                        }
+                                      } catch (err) {
+                                        alert("❌ خطا در همگام‌سازی زمان از سرور NTP.");
+                                      }
+                                    }}
+                                    className="h-8 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold shrink-0 transition-colors shadow-xs"
+                                  >
+                                    همگام‌سازی NTP
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
 
-                          <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={settings.trustedTimestampPolicy?.timestampMethods?.setDefaultTrustedTimestamp ?? true}
-                              onChange={e => {
-                                set("trustedTimestampPolicy", {
-                                  ...settings.trustedTimestampPolicy,
-                                  timestampMethods: {
-                                    ...settings.trustedTimestampPolicy?.timestampMethods,
-                                    setDefaultTrustedTimestamp: e.target.checked
-                                  }
-                                });
-                              }}
-                              className="h-4 w-4 rounded border-slate-300 text-emerald-600 mt-0.5"
-                            />
-                            <div>
-                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
-                                ۳. تنظیم مهرهای زمانی به صورت پیش‌فرض (معتبر و عدم امکان دستکاری غیرمجاز)
-                              </span>
-                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
-                                اعمال مهر زمانی پیش‌فرض سیستم با حفاظت در برابر دستکاری و تغییرات غیرمجاز زمان.
-                              </span>
-                            </div>
-                          </label>
+                          {/* گزینه ۲: تنظیم مهرهای زمانی از طریق اینترنت */}
+                          <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-3">
+                            <label className="flex items-start gap-3 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={settings.trustedTimestampPolicy?.timestampMethods?.setTimestampViaInternet ?? true}
+                                onChange={e => {
+                                  set("trustedTimestampPolicy", {
+                                    ...settings.trustedTimestampPolicy,
+                                    timestampMethods: {
+                                      ...settings.trustedTimestampPolicy?.timestampMethods,
+                                      setTimestampViaInternet: e.target.checked
+                                    }
+                                  });
+                                }}
+                                className="h-4 w-4 rounded border-slate-300 text-emerald-600 mt-0.5"
+                              />
+                              <div>
+                                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                  ۲. تنظیم مهرهای زمانی از طریق اینترنت
+                                </span>
+                                <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                                  همگام‌سازی آنلاین و دریافت مهرهای زمانی از سرورهای مرجع اینترنتی (Internet Time Protocol).
+                                </span>
+                              </div>
+                            </label>
 
-                          <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={settings.trustedTimestampPolicy?.timestampMethods?.otherMethods ?? true}
-                              onChange={e => {
-                                set("trustedTimestampPolicy", {
-                                  ...settings.trustedTimestampPolicy,
-                                  timestampMethods: {
-                                    ...settings.trustedTimestampPolicy?.timestampMethods,
-                                    otherMethods: e.target.checked
-                                  }
-                                });
-                              }}
-                              className="h-4 w-4 rounded border-slate-300 text-emerald-600 mt-0.5"
-                            />
-                            <div>
-                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
-                                ۴. سایر موارد
-                              </span>
-                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
-                                استفاده از سخت‌افزارهای امنیتی زمات‌سنجی (HSM) و مراکز گواهی مهر زمانی (TSA).
-                              </span>
-                            </div>
-                          </label>
+                            {(settings.trustedTimestampPolicy?.timestampMethods?.setTimestampViaInternet ?? true) && (
+                              <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-end animate-in fade-in duration-200">
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    try {
+                                      const res = await api.post("/api/security/update-system-time", {
+                                        newTime: new Date().toISOString(),
+                                        syncSource: "سرور مرجع اینترنتی (Internet Time Protocol)"
+                                      });
+                                      if (res.data?.success) {
+                                        alert(`✅ ${res.data.message}`);
+                                      }
+                                    } catch (err) {
+                                      alert("❌ خطا در همگام‌سازی زمان از اینترنت.");
+                                    }
+                                  }}
+                                  className="h-8 px-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[11px] font-bold transition-colors shadow-xs"
+                                >
+                                  همگام‌سازی از اینترنت
+                                </button>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* گزینه ۳: تنظیم مهرهای زمانی به صورت پیش‌فرض */}
+                          <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-3">
+                            <label className="flex items-start gap-3 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={settings.trustedTimestampPolicy?.timestampMethods?.setDefaultTrustedTimestamp ?? true}
+                                onChange={e => {
+                                  set("trustedTimestampPolicy", {
+                                    ...settings.trustedTimestampPolicy,
+                                    timestampMethods: {
+                                      ...settings.trustedTimestampPolicy?.timestampMethods,
+                                      setDefaultTrustedTimestamp: e.target.checked
+                                    }
+                                  });
+                                }}
+                                className="h-4 w-4 rounded border-slate-300 text-emerald-600 mt-0.5"
+                              />
+                              <div>
+                                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                  ۳. تنظیم مهرهای زمانی به صورت پیش‌فرض (معتبر و عدم امکان دستکاری غیرمجاز)
+                                </span>
+                                <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                                  اعمال مهر زمانی پیش‌فرض سیستم با حفاظت در برابر دستکاری و تغییرات غیرمجاز زمان.
+                                </span>
+                              </div>
+                            </label>
+
+                            {(settings.trustedTimestampPolicy?.timestampMethods?.setDefaultTrustedTimestamp ?? true) && (
+                              <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-end animate-in fade-in duration-200">
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    try {
+                                      const res = await api.post("/api/security/update-system-time", {
+                                        newTime: new Date().toISOString(),
+                                        syncSource: "ساعت سخت‌افزاری پیش‌فرض سیستم (Hardware RTC / Monotonic)"
+                                      });
+                                      if (res.data?.success) {
+                                        alert(`✅ ${res.data.message}`);
+                                      }
+                                    } catch (err) {
+                                      alert("❌ خطا در اعمال زمان پیش‌فرض.");
+                                    }
+                                  }}
+                                  className="h-8 px-2.5 bg-slate-700 hover:bg-slate-800 text-white rounded-lg text-[11px] font-bold transition-colors shadow-xs"
+                                >
+                                  اعمال زمان پیش‌فرض
+                                </button>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* گزینه ۴: سایر موارد */}
+                          <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-3">
+                            <label className="flex items-start gap-3 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={settings.trustedTimestampPolicy?.timestampMethods?.otherMethods ?? true}
+                                onChange={e => {
+                                  set("trustedTimestampPolicy", {
+                                    ...settings.trustedTimestampPolicy,
+                                    timestampMethods: {
+                                      ...settings.trustedTimestampPolicy?.timestampMethods,
+                                      otherMethods: e.target.checked
+                                    }
+                                  });
+                                }}
+                                className="h-4 w-4 rounded border-slate-300 text-emerald-600 mt-0.5"
+                              />
+                              <div>
+                                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                  ۴. سایر موارد
+                                </span>
+                                <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                                  استفاده از سخت‌افزارهای امنیتی زمات‌سنجی (HSM) و مراکز گواهی مهر زمانی (TSA).
+                                </span>
+                              </div>
+                            </label>
+                          </div>
                         </div>
                       </div>
                     </div>

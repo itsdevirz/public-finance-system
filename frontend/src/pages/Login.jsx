@@ -28,6 +28,7 @@ import {
   ArrowLeft
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { logFailureOccurrence } from "@/lib/clientAuditLogger";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -105,8 +106,31 @@ export default function Login() {
           ? "خطا در تعریف مدیر سیستم. لطفاً مجدداً تلاش کنید."
           : "خطا در ورود به سامانه. لطفاً نام کاربری و رمز عبور را بررسی کنید.");
 
-      setError(err?.response?.data?.message ?? fallbackMessage);
+      const displayedError = err?.response?.data?.message ?? fallbackMessage;
+      setError(displayedError);
       setLoading(false);
+
+      // 🌟 ثبت کامل لاگ بروز شکست در سیستم ثبت‌نشان‌های افتا همراه با توضیحات جامع
+      logFailureOccurrence({
+        userMessage: displayedError,
+        action: isNetworkOrCorsError
+          ? "شکست در ارتباط با سرور یا محدودیت CORS (عدم تطابق پورت یا خاموش بودن سرور)"
+          : `تلاش ناموفق جهت ورود به سامانه برای کاربر '${username || "نامشخص"}'`,
+        resource: isSetupMode ? "/api/auth/register" : "/api/auth/login",
+        method: "POST",
+        errorCode: err?.response?.status || 0,
+        errorType: isNetworkOrCorsError ? "CORS_OR_NETWORK_ERROR" : "LOGIN_FAILURE",
+        rawError: err,
+        username: username || "anonymous",
+        details: {
+          isSetupMode,
+          isNetworkOrCorsError,
+          statusText: err?.response?.statusText || "No Response (Server Offline/Blocked)",
+          reasonDescription: isNetworkOrCorsError
+            ? "ارتباط با سرور برقرار نشد یا درخواست توسط محدودیت‌های CORS بلاک گردید."
+            : "اطلاعات ورود اشتباه است یا حساب کاربری مسدود گردیده است."
+        }
+      });
     }
   }
 
@@ -120,8 +144,23 @@ export default function Login() {
       await login("admin", "admin123");
       setActiveModal(null);
     } catch (err) {
-      setError("خطا در احراز هویت با گواهی دیجیتال. لطفاً از اتصال توکن اطمینان حاصل کنید.");
+      const certErrMsg = "خطا در احراز هویت با گواهی دیجیتال. لطفاً از اتصال توکن اطمینان حاصل کنید.";
+      setError(certErrMsg);
       setActiveModal(null);
+
+      logFailureOccurrence({
+        userMessage: certErrMsg,
+        action: "شکست در احراز هویت با گواهی دیجیتال",
+        resource: "/api/auth/cert-login",
+        method: "POST",
+        errorCode: err?.response?.status || 401,
+        errorType: "CERT_AUTH_FAILURE",
+        rawError: err,
+        username: "cert_user",
+        details: {
+          reasonDescription: "عدم شناسایی توکن سخت‌افزاری یا خطای امضای دیجیتال"
+        }
+      });
     } finally {
       setCertLoading(false);
     }

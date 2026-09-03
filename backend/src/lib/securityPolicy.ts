@@ -2495,7 +2495,7 @@ export function validateInteractiveSessionInactivityTermination(
     userRole?: string;
     userSpecificIdleTimeoutMinutes?: number;
   },
-  policy: SecurityPolicy = DEFAULT_SECURITY_POLICY
+  policy: SecurityPolicyConfig = DEFAULT_SECURITY_POLICY
 ): {
   terminated: boolean;
   idleDurationMinutes: number;

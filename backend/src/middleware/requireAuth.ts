@@ -6,6 +6,10 @@ import { logAuditEvent, AFTA_LOG_EVENT_TYPES } from "../lib/auditLogger.js";
 import { getAuthTokenFromCookieOrHeader } from "../lib/cookieHelper.js";
 
 export const requireAuth = createMiddleware(async (c, next) => {
+  if (c.req.path.includes("/security/audit-failure")) {
+    return next();
+  }
+
   const rawToken = getAuthTokenFromCookieOrHeader(c);
   if (!rawToken) {
     return c.json({ success: false, message: "احراز هویت الزامی است" }, 401);

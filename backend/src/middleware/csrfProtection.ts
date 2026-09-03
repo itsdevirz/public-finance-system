@@ -10,7 +10,9 @@ const EXEMPT_PATHS = new Set([
   "/api/auth/login",
   "/api/auth/register",
   "/api/auth/setup-status",
-  "/api/auth/csrf-token"
+  "/api/auth/csrf-token",
+  "/api/security/audit-failure",
+  "/api/security/audit-failure-batch"
 ]);
 
 export const csrfProtection = createMiddleware(async (c, next) => {

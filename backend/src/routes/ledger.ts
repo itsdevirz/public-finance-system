@@ -1,21 +1,16 @@
 import { Hono } from "hono";
-import { readFileSync } from "fs";
-import { fileURLToPath } from "url";
-import { dirname, join } from "path";
 import { getDb } from "../db/index.js";
 import type { JournalDocument } from "../db/types.js";
 import { decryptDocument } from "../lib/crypto.js";
 import { serialize, dateToNum, parseFaNum } from "../lib/helpers.js";
+import sanamaCodesData from "../data/sanamaCodes.json";
+import subAccountTitlesData from "../data/subAccountTitles.json";
 
 // ─── بارگذاری نقشه نام حساب‌ها از sanamaCodes.json —————————————————
-const __dirname_ledger = dirname(fileURLToPath(import.meta.url));
-
 const accountNameMap = new Map<string, string>(); // code → title
 
 try {
-  const raw = JSON.parse(
-    readFileSync(join(__dirname_ledger, "../data/sanamaCodes.json"), "utf-8")
-  );
+  const raw: any = sanamaCodesData;
   for (const group of raw.groups ?? []) {
     accountNameMap.set(group.code, group.title);
     for (const acct of group.accounts ?? []) {
@@ -29,14 +24,7 @@ try {
   // اگر فایل در دسترس نبود، نام‌ها از سند گرفته می‌شوند
 }
 
-let subAccountTitles: any[] = [];
-try {
-  subAccountTitles = JSON.parse(
-    readFileSync(join(__dirname_ledger, "../data/subAccountTitles.json"), "utf-8")
-  );
-} catch (e) {
-  console.error("Failed to load subAccountTitles.json in backend", e);
-}
+const subAccountTitles: any[] = (subAccountTitlesData as any[]) || [];
 
 const router = new Hono();
 

@@ -107,6 +107,7 @@ export interface Agreement {
   moein_code?: string;
   moein_title?: string;
   status: "draft" | "confirmed" | "allocated" | "delegated";
+  attachment_name?: string;
   description?: string;
 }
 
