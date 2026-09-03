@@ -551,6 +551,55 @@ router.post("/logout", async (c) => {
   return c.json({ success: true, message: "با موفقیت از سیستم خارج شدید." });
 });
 
+// POST /api/auth/inactivity-logout
+router.post("/inactivity-logout", async (c) => {
+  const token = getAuthTokenFromCookieOrHeader(c);
+  const body = await c.req.json().catch(() => ({}));
+  const reportedIdleMin = Math.max(1, Number(body.idleMinutes) || 1);
+  const configuredTimeout = Number(body.configuredTimeoutMinutes) || 30;
+
+  if (token) {
+    const payload = verifyToken(token);
+    const db = getDb();
+
+    await db.collection("revoked_tokens").updateOne(
+      { token },
+      { $set: { token, revokedAt: new Date().toISOString(), reason: `خاتمه سیستمی نشست به دلیل ${reportedIdleMin} دقیقه عدم فعالیت` } },
+      { upsert: true }
+    );
+    await db.collection("active_sessions").deleteOne({ token });
+
+    if (payload) {
+      const username = payload.username || "کاربر";
+      const actionMsg = `به دلیل ${reportedIdleMin} دقیقه عدم فعالیت به صورت سیستمی نشست کاربر '${username}' خاتمه یافت`;
+
+      await logAuditEvent({
+        userId: payload.sub,
+        username,
+        userRole: payload.role || "کارمند",
+        action: actionMsg,
+        eventType: AFTA_LOG_EVENT_TYPES.INACTIVE_USER_LOGOUT,
+        resource: "session_management",
+        result: "SUCCESS",
+        ip: c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "127.0.0.1",
+        userAgent: c.req.header("user-agent") || "",
+        details: {
+          username,
+          idleMinutes: reportedIdleMin,
+          configuredIdleTimeoutMinutes: configuredTimeout,
+          idleTimeoutUnit: "دقیقه",
+          isUserSpecific: true,
+          reason: "خاتمه سیستمی نشست به دلیل عدم فعالیت",
+          aftaClause: "FTA_SSL.3.1"
+        }
+      });
+    }
+  }
+
+  clearSecureAuthCookie(c);
+  return c.json({ success: true, message: "نشست به دلیل عدم فعالیت خاتمه یافت." });
+});
+
 // GET /api/auth/me  (نیاز به توکن دارد)
 router.get("/me", async (c) => {
   const token = getAuthTokenFromCookieOrHeader(c);

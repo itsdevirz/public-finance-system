@@ -324,6 +324,29 @@ function formatHumanReadableDescription(log) {
     return rawAction;
   }
 
+// دریافت زمان و تاریخ واقعی لاگ جهت درج در متن خطای استاندارد افتا
+function getLogEventTimestamp(log) {
+  let date = log.shamsiDate;
+  let time = log.shamsiTime;
+  if (log.shamsiDateTime) {
+    const parts = log.shamsiDateTime.trim().split(" ");
+    if (parts.length >= 1 && (!date || date === "—")) date = parts[0];
+    if (parts.length >= 2 && (!time || time === "—")) time = parts[1];
+  }
+  if (!date || date === "—") {
+    const d = new Date(log.createdAt || log.timestamp || Date.now());
+    date = !isNaN(d.getTime()) ? d.toLocaleDateString("fa-IR") : "—";
+  }
+  if (!time || time === "—") {
+    const d = new Date(log.createdAt || log.timestamp || Date.now());
+    time = !isNaN(d.getTime()) ? d.toLocaleTimeString("fa-IR") : "—";
+  }
+  if (time && time !== "—") {
+    return `${date} ${time}`;
+  }
+  return date || new Date().toLocaleDateString("fa-IR");
+}
+
   // فرمت لاگ شکست در قابلیت‌های کارکردی محصول مطابق بند ۱ جدول ۲-۷ افتا (تصویر ۱)
   if (
     log.eventType === "SYSTEM_CAPABILITY_FAILURE" ||
@@ -333,10 +356,13 @@ function formatHumanReadableDescription(log) {
     log.tableName === "توابع کارکردی محصول" ||
     details?.aftaClause === "7-2-1"
   ) {
-    if (rawAction.startsWith("#. error at")) {
-      return rawAction;
+    let errorTime = details?.timestampStr;
+    if (!errorTime || errorTime.includes("1/27/2021") || /^\d{1,2}\/\d{1,2}\/\d{4}/.test(errorTime)) {
+      errorTime = getLogEventTimestamp(log);
     }
-    const errorTime = details?.timestampStr || "1/27/2021 3:53:12 PM";
+    if (rawAction.startsWith("#. error at")) {
+      return rawAction.replace(/^#\.\s*error\s+at\s+[^.]+\.\s*/i, `#. error at ${errorTime}.\n`);
+    }
     const summaryMsg = details?.errorSummary || rawAction || "System.Data.Entity.Core.EntityException: The underlying provider failed on Open. ---> System.Data.SqlClient.SqlException: SQL Server service has been paused.";
     return `#. error at ${errorTime}.\nSummary: ${summaryMsg}`;
   }
@@ -354,10 +380,13 @@ function formatHumanReadableDescription(log) {
     rawAction.includes("The underlying provider failed") ||
     rawAction.startsWith("#. error at")
   ) {
-    if (rawAction.startsWith("#. error at")) {
-      return rawAction;
+    let errorTime = details?.timestampStr;
+    if (!errorTime || errorTime.includes("1/27/2021") || /^\d{1,2}\/\d{1,2}\/\d{4}/.test(errorTime)) {
+      errorTime = getLogEventTimestamp(log);
     }
-    const errorTime = details?.timestampStr || "1/27/2021 3:53:12 PM";
+    if (rawAction.startsWith("#. error at")) {
+      return rawAction.replace(/^#\.\s*error\s+at\s+[^.]+\.\s*/i, `#. error at ${errorTime}.\n`);
+    }
     const summaryMsg = details?.errorSummary || rawAction || "System.Data.Entity.Core.EntityException: The underlying provider failed on Open. ---> System.Data.SqlClient.SqlException: SQL Server service has been paused.";
     return `#. error at ${errorTime}.\nSummary: ${summaryMsg}`;
   }

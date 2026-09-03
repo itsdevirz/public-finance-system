@@ -4,6 +4,7 @@ import { getDb } from "../db/index.js";
 import { DEFAULT_SECURITY_POLICY, validateTlsClientConnection, validateInternalTransitProtection, validateSecurityDataInteroperability, validateTrustedTimestamping, validateProductSoftwareUpdate, validateAutoUpdateAuthenticity, validateCoreFunctionsSoftwareFaultTolerance, validateInteractiveSessionInactivityTermination, validateCaCertificateAcceptance } from "../lib/securityPolicy.js";
 import { executeRealTlsHandshake } from "../lib/secureTlsClient.js";
 import { logAuditEvent, AFTA_LOG_EVENT_TYPES, verifyLogIntegrity, signExistingLogs, runAuditLogRetentionAndRotation, extractClientIp } from "../lib/auditLogger.js";
+import { getShamsiDetails } from "../lib/shamsi.js";
 import { requireRole } from "../middleware/rbacMiddleware.js";
 import { sendAdminThresholdNotification } from "../lib/notifier.js";
 import { pruneExpiredSessions } from "../lib/sessionHelper.js";
@@ -1378,7 +1379,7 @@ router.post("/report-security-failure", async (c) => {
   const clientIp = body.clientIp || extractClientIp(c);
   const userAgent = c.req.header("user-agent") || "Mozilla/5.0 (Windows NT 10.0; Win64; x64)";
   
-  const timestampStr = body.timestampStr || new Date().toLocaleString("en-US", { hour12: true });
+  const timestampStr = body.timestampStr || getShamsiDetails().shamsiDateTime;
   const errorSummary = body.errorSummary || "System.Data.Entity.Core.EntityException: The underlying provider failed on Open. ---> System.Data.SqlClient.SqlException: SQL Server service has been paused.";
   const formattedAction = `#. error at ${timestampStr}.\nSummary: ${errorSummary}`;
 
@@ -1416,7 +1417,7 @@ router.post("/report-capability-failure", async (c) => {
   const clientIp = body.clientIp || extractClientIp(c);
   const userAgent = c.req.header("user-agent") || "Mozilla/5.0 (Windows NT 10.0; Win64; x64)";
   
-  const timestampStr = body.timestampStr || new Date().toLocaleString("en-US", { hour12: true });
+  const timestampStr = body.timestampStr || getShamsiDetails().shamsiDateTime;
   const errorSummary = body.errorSummary || "System.Data.Entity.Core.EntityException: The underlying provider failed on Open. ---> System.Data.SqlClient.SqlException: SQL Server service has been paused.";
   const formattedAction = `#. error at ${timestampStr}.\nSummary: ${errorSummary}`;
 

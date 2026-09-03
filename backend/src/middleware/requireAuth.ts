@@ -81,11 +81,12 @@ export const requireAuth = createMiddleware(async (c, next) => {
         });
         await db.collection("active_sessions").deleteOne({ token: rawToken });
 
+        const reportMin = Math.max(1, Math.round(idleMinutes));
         await logAuditEvent({
           userId: user._id,
           username: user.username,
           userRole: user.role,
-          action: `خاتمه و ابطال خودکار نشست غیرفعال کاربر '${user.username}' پس از ${Math.round(idleMinutes)} دقیقه عدم فعالیت (حد مجاز: ${idleTimeoutMin} دقیقه)`,
+          action: `به دلیل ${reportMin} دقیقه عدم فعالیت به صورت سیستمی نشست کاربر '${user.username}' خاتمه یافت`,
           eventType: AFTA_LOG_EVENT_TYPES.INACTIVE_SESSION_TERMINATED_BY_LOCK,
           resource: "active_sessions",
           result: "FAILURE",
@@ -93,8 +94,10 @@ export const requireAuth = createMiddleware(async (c, next) => {
           userAgent: c.req.header("user-agent"),
           errorCode: 401,
           details: {
-            idleMinutes: Math.round(idleMinutes),
-            idleTimeoutMin,
+            username: user.username,
+            idleMinutes: reportMin,
+            configuredIdleTimeoutMinutes: idleTimeoutMin,
+            idleTimeoutUnit: "دقیقه",
             isUserSpecific: !!userDoc?.idleTimeoutMinutes,
             aftaClause: "8-2-3"
           }
@@ -102,14 +105,17 @@ export const requireAuth = createMiddleware(async (c, next) => {
 
         return c.json({
           success: false,
-          message: `نشست شما به دلیل عدم فعالیت به مدت ${Math.round(idleMinutes)} دقیقه (فراتر از حد مجاز تعیین‌شده ${idleTimeoutMin} دقیقه) خاتمه یافت. لطفاً دوباره وارد شوید.`
+          message: `نشست شما به دلیل ${reportMin} دقیقه عدم فعالیت به صورت سیستمی خاتمه یافت. لطفاً دوباره وارد شوید.`
         }, 401);
       } else {
-        // Update last activity timestamp
-        await db.collection("active_sessions").updateOne(
-          { token: rawToken },
-          { $set: { lastActivity: new Date().toISOString() } }
-        );
+        // Update last activity timestamp ONLY if user interaction occurred (X-User-Active is not "false")
+        const isUserActiveHeader = c.req.header("X-User-Active");
+        if (isUserActiveHeader !== "false") {
+          await db.collection("active_sessions").updateOne(
+            { token: rawToken },
+            { $set: { lastActivity: new Date().toISOString() } }
+          );
+        }
       }
     }
 

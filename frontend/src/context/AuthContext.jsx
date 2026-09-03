@@ -7,9 +7,17 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // هنگام بارگذاری اپ و پایش مستمر صحت نشست (Heartbeat هر ۳ ثانیه برای خروج لحظه‌ای در صورت ابطال توسط ادمین)
+  // پایش مستمر تعامل واقعی کاربر (ماوس، کیبورد، اسکرول، لمس) جهت اعمال آستانه عدم فعالیت
   useEffect(() => {
     let isMounted = true;
+    let lastUserActivityTime = Date.now();
+
+    const handleUserActivity = () => {
+      lastUserActivityTime = Date.now();
+    };
+
+    const activityEvents = ["mousemove", "keydown", "mousedown", "touchstart", "scroll", "wheel"];
+    activityEvents.forEach((evt) => window.addEventListener(evt, handleUserActivity, { passive: true }));
 
     const sessionToken = sessionStorage.getItem("token");
     const leftoverLocalToken = localStorage.getItem("token");
@@ -25,7 +33,9 @@ export function AuthProvider({ children }) {
         localStorage.removeItem("sessionNotice");
       }
       setLoading(false);
-      return;
+      return () => {
+        activityEvents.forEach((evt) => window.removeEventListener(evt, handleUserActivity));
+      };
     }
 
     // بررسی صحت توکن نشست فعال
@@ -48,13 +58,46 @@ export function AuthProvider({ children }) {
       const currentToken = sessionStorage.getItem("token");
       if (!currentToken) return;
 
-      api.get("/api/auth/me")
+      const now = Date.now();
+      const idleMs = now - lastUserActivityTime;
+      const idleMinutes = idleMs / (60 * 1000);
+
+      // دریافت آستانه عدم فعالیت اختصاصی کاربر (بر حسب دقیقه)
+      const currentUserIdleTimeout = (user && typeof user.idleTimeoutMinutes === "number" && user.idleTimeoutMinutes > 0)
+        ? user.idleTimeoutMinutes
+        : 30;
+
+      // اگر کاربر به میزان آستانه تعیین‌شده دچار عدم فعالیت شده باشد
+      if (idleMinutes >= currentUserIdleTimeout) {
+        const roundedIdleMin = Math.max(1, Math.round(idleMinutes));
+        api.post("/api/auth/inactivity-logout", {
+          idleMinutes: roundedIdleMin,
+          configuredTimeoutMinutes: currentUserIdleTimeout
+        }).catch(() => {});
+
+        sessionStorage.removeItem("token");
+        sessionStorage.removeItem("sessionNotice");
+        localStorage.removeItem("token");
+        localStorage.removeItem("sessionNotice");
+        if (isMounted) setUser(null);
+
+        alert(`به دلیل ${roundedIdleMin} دقیقه عدم فعالیت به صورت سیستمی نشست شما خاتمه یافت.`);
+        window.location.href = "/login";
+        return;
+      }
+
+      // ارسال پایش سلامت نشست فقط با نشان‌دهنده فعالیت تعاملی کاربر
+      const wasActiveRecently = (now - lastUserActivityTime) < 15000;
+      api.get("/api/auth/me", {
+        headers: { "X-User-Active": wasActiveRecently ? "true" : "false" }
+      })
         .catch((err) => {
           if (err.response?.status === 401) {
             sessionStorage.removeItem("token");
             localStorage.removeItem("token");
             if (isMounted) setUser(null);
-            alert("نشست شما توسط مدیر سیستم خاتمه یافت.");
+            const msg = err.response?.data?.message || "نشست شما توسط مدیر سیستم خاتمه یافت.";
+            alert(msg);
             window.location.href = "/login";
           }
         });
@@ -63,8 +106,9 @@ export function AuthProvider({ children }) {
     return () => {
       isMounted = false;
       clearInterval(intervalId);
+      activityEvents.forEach((evt) => window.removeEventListener(evt, handleUserActivity));
     };
-  }, []);
+  }, [user?.idleTimeoutMinutes]);
 
   async function login(username, password, rememberMe = true, evictOtherSessions = false) {
     const res = await api.post("/api/auth/login", { username, password, evictOtherSessions });

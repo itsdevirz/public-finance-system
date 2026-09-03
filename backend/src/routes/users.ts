@@ -116,7 +116,8 @@ router.post("/", async (c) => {
     // Log audit action with USER_GROUP_CHANGE eventType (AFTA Clause 1 Table 4-2)
     const shamsiCreate = getShamsiDetails(new Date());
     const roleNameCreate = doc.role || doc.userGroup || "حسابدار";
-    const createActionText = `کاربر ${doc.username} در تاریخ ${shamsiCreate.shamsiDate} و ساعت ${shamsiCreate.shamsiTime} با نقش ${roleNameCreate} ساخته شد`;
+    const timeoutText = doc.idleTimeoutMinutes ? `${doc.idleTimeoutMinutes} دقیقه` : "پیش‌فرض سیستم (30 دقیقه)";
+    const createActionText = `تعریف کاربر جدید '${doc.username}' با نقش '${roleNameCreate}' و زمان خاتمه عدم فعالیت اختصاصی '${timeoutText}'`;
 
     await logAuditEvent({
       userId: payload.sub,
@@ -135,6 +136,9 @@ router.post("/", async (c) => {
         name: doc.username,
         description: roleNameCreate,
         role: roleNameCreate,
+        idleTimeoutMinutes: doc.idleTimeoutMinutes ?? 30,
+        configuredIdleTimeoutMinutes: doc.idleTimeoutMinutes ?? 30,
+        idleTimeoutUnit: "دقیقه",
         icon: "",
         targetUserId: result.insertedId.toHexString()
       }
@@ -341,6 +345,8 @@ router.put("/:id", async (c) => {
       financialLimitMin: "حداقل سقف مالی",
       financialLimitMax: "حداکثر سقف مالی",
       workflowLevel: "سطح گردش کار",
+      maxConcurrentSessions: "حداکثر نشست‌های همزمان",
+      idleTimeoutMinutes: "زمان خاتمه عدم فعالیت اختصاصی کاربر (دقیقه)",
       password: "رمز عبور"
     };
 
@@ -352,6 +358,28 @@ router.put("/:id", async (c) => {
         if (body.password && typeof body.password === "string" && body.password.trim() !== "") {
           changes[key] = { label, before: "••••••", after: "•••••• (جدید)" };
           changeSummaryParts.push(`${label}: تغییر یافت از "••••••" به "•••••• (جدید)"`);
+        }
+        continue;
+      }
+      if (key === "idleTimeoutMinutes") {
+        const beforeVal = (existingUser as any)[key];
+        const afterVal = (updateData as any)[key];
+        if (JSON.stringify(beforeVal) !== JSON.stringify(afterVal)) {
+          const bFormatted = beforeVal ? `${beforeVal} دقیقه` : "پیش‌فرض سیستم (30 دقیقه)";
+          const aFormatted = afterVal ? `${afterVal} دقیقه` : "پیش‌فرض سیستم (30 دقیقه)";
+          changes[key] = { label, before: bFormatted, after: aFormatted };
+          changeSummaryParts.push(`${label}: تغییر یافت از "${bFormatted}" به "${aFormatted}"`);
+        }
+        continue;
+      }
+      if (key === "maxConcurrentSessions") {
+        const beforeVal = (existingUser as any)[key];
+        const afterVal = (updateData as any)[key];
+        if (JSON.stringify(beforeVal) !== JSON.stringify(afterVal)) {
+          const bFormatted = beforeVal ? `${beforeVal} نشست` : "1 نشست";
+          const aFormatted = afterVal ? `${afterVal} نشست` : "1 نشست";
+          changes[key] = { label, before: bFormatted, after: aFormatted };
+          changeSummaryParts.push(`${label}: تغییر یافت از "${bFormatted}" به "${aFormatted}"`);
         }
         continue;
       }
