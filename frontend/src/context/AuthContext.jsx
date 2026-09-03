@@ -9,13 +9,28 @@ export function AuthProvider({ children }) {
 
   // هنگام بارگذاری اپ و پایش مستمر صحت نشست (Heartbeat هر ۳ ثانیه برای خروج لحظه‌ای در صورت ابطال توسط ادمین)
   useEffect(() => {
-    const token = sessionStorage.getItem("token") || localStorage.getItem("token");
-    if (!token) { setLoading(false); return; }
-
     let isMounted = true;
 
+    const sessionToken = sessionStorage.getItem("token");
+    const leftoverLocalToken = localStorage.getItem("token");
+
+    // اگر توکن جلسه در sessionStorage نباشد یعنی مرورگر بسته و دوباره باز شده است
+    if (!sessionToken) {
+      if (leftoverLocalToken) {
+        // نشست قبلی ذخیره‌شده در localStorage را در بک‌اند غیرفعال می‌کنیم
+        api.post("/api/auth/logout", {}, {
+          headers: { Authorization: `Bearer ${leftoverLocalToken}` }
+        }).catch(() => {});
+        localStorage.removeItem("token");
+        localStorage.removeItem("sessionNotice");
+      }
+      setLoading(false);
+      return;
+    }
+
+    // بررسی صحت توکن نشست فعال
     api.get("/api/auth/me", {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${sessionToken}` }
     })
       .then((res) => {
         if (isMounted) setUser(res.data.user);
@@ -30,7 +45,7 @@ export function AuthProvider({ children }) {
       });
 
     const intervalId = setInterval(() => {
-      const currentToken = sessionStorage.getItem("token") || localStorage.getItem("token");
+      const currentToken = sessionStorage.getItem("token");
       if (!currentToken) return;
 
       api.get("/api/auth/me")
@@ -53,24 +68,24 @@ export function AuthProvider({ children }) {
 
   async function login(username, password, rememberMe = true) {
     const res = await api.post("/api/auth/login", { username, password });
+    
+    // توکن نشست فعال صرفاً در sessionStorage قرار می‌گیرد تا با بستن مرورگر غیرفعال شود
     sessionStorage.setItem("token", res.data.token);
+    localStorage.removeItem("token");
+
     if (rememberMe) {
-      localStorage.setItem("token", res.data.token);
+      localStorage.setItem("rememberedUsername", username);
     } else {
-      localStorage.removeItem("token");
+      localStorage.removeItem("rememberedUsername");
     }
 
     if (res.data.sessionNotice) {
       sessionStorage.setItem("sessionNotice", JSON.stringify(res.data.sessionNotice));
-      if (rememberMe) {
-        localStorage.setItem("sessionNotice", JSON.stringify(res.data.sessionNotice));
-      } else {
-        localStorage.removeItem("sessionNotice");
-      }
     } else {
       sessionStorage.removeItem("sessionNotice");
-      localStorage.removeItem("sessionNotice");
     }
+    localStorage.removeItem("sessionNotice");
+
     setUser(res.data.user);
     return res.data.user;
   }

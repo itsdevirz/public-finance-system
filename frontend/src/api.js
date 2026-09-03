@@ -12,8 +12,8 @@ const api = axios.create({
 const pendingRequests = new Map(); // url → Promise
 
 api.interceptors.request.use((config) => {
-  // اضافه کردن توکن احراز هویت
-  const token = sessionStorage.getItem("token") || localStorage.getItem("token");
+  // اضافه کردن توکن احراز هویت (نشست فعال در sessionStorage)
+  const token = sessionStorage.getItem("token");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }

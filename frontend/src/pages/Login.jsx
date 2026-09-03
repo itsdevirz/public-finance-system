@@ -39,7 +39,7 @@ export default function Login() {
   const navigate = useNavigate();
 
   // Form states
-  const [username, setUsername] = useState("");
+  const [username, setUsername] = useState(() => localStorage.getItem("rememberedUsername") || "");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
