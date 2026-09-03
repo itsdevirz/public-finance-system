@@ -87,7 +87,7 @@ router.post("/register", async (c) => {
 router.post("/login", async (c) => {
   const ip = c.req.header("x-forwarded-for") || "127.0.0.1";
   const userAgent = c.req.header("user-agent") || "Unknown";
-  const { username, password } = await c.req.json();
+  const { username, password, evictOtherSessions } = await c.req.json();
 
   // ۸. ثبت فراخوانی سازوکار احراز هویت
   await logAuditEvent({
@@ -288,8 +288,8 @@ router.post("/login", async (c) => {
     ? user.maxConcurrentSessions
     : (thresholdFromPreventionRule ?? secPolicy.sessionPolicy?.maxConcurrentSessions ?? 3);
 
-  const overflowAction = secPolicy.sessionPolicy?.overflowAction || "block"; // "block" or "evict_oldest"
-  
+  const overflowAction = secPolicy.sessionPolicy?.overflowAction || "evict_oldest"; // "evict_oldest" by default to prevent deadlock on browser restart
+
   // 1. Automatically prune expired or revoked sessions first
   const existingActiveSessions = await pruneExpiredSessions(db, user._id);
   const activeCount = existingActiveSessions.length;
@@ -301,8 +301,38 @@ router.post("/login", async (c) => {
     newOs: parsedUa.osName
   };
 
-  if (activeCount >= userMaxSessions) {
-    if (userMaxSessions === 1 || overflowAction === "evict_oldest") {
+  if (activeCount >= userMaxSessions || evictOtherSessions) {
+    if (evictOtherSessions === true) {
+      // کاربر صراحتاً درخواست خروج از تمامی نشست‌های قبلی را ارسال کرده است
+      for (const sess of existingActiveSessions) {
+        if (sess.token) {
+          await db.collection("revoked_tokens").updateOne(
+            { token: sess.token },
+            {
+              $set: {
+                token: sess.token,
+                revokedAt: new Date().toISOString(),
+                reason: "ابطال خودکار نشست به درخواست کاربر هنگام ورود جدید"
+              }
+            },
+            { upsert: true }
+          );
+        }
+      }
+      await db.collection("active_sessions").deleteMany({ userId: user._id });
+
+      await logAuditEvent({
+        userId: user._id,
+        username: user.username,
+        userRole: user.role === "admin" ? "مدیر" : (user.role || "مدیر مالی"),
+        action: `ابطال کلیه نشست‌های قبلی کاربر '${user.username}' به درخواست کاربر هنگام ورود جدید`,
+        eventType: AFTA_LOG_EVENT_TYPES.SECURITY_ATTR_CHANGE,
+        resource: "نشست‌های فعال",
+        result: "SUCCESS",
+        ip,
+        userAgent
+      });
+    } else if (userMaxSessions === 1 || overflowAction === "evict_oldest") {
       // مرتب‌سازی نشست‌های موجود از قدیمی‌ترین به جدیدترین
       const sortedSessions = [...existingActiveSessions].sort((a: any, b: any) => {
         const timeA = new Date(a.lastActivity || a.createdAt || 0).getTime();
@@ -369,7 +399,7 @@ router.post("/login", async (c) => {
         }
       });
 
-      return c.json({ message: actionMessage }, 403);
+      return c.json({ message: actionMessage, canEvictSessions: true }, 403);
     }
   }
 

@@ -66,8 +66,8 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
-  async function login(username, password, rememberMe = true) {
-    const res = await api.post("/api/auth/login", { username, password });
+  async function login(username, password, rememberMe = true, evictOtherSessions = false) {
+    const res = await api.post("/api/auth/login", { username, password, evictOtherSessions });
     
     // توکن نشست فعال صرفاً در sessionStorage قرار می‌گیرد تا با بستن مرورگر غیرفعال شود
     sessionStorage.setItem("token", res.data.token);

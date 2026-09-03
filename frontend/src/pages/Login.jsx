@@ -11,6 +11,7 @@ import {
   Eye,
   EyeOff,
   LogIn,
+  LogOut,
   Fingerprint,
   Headset,
   PieChart,
@@ -44,6 +45,7 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState("");
+  const [canEvict, setCanEvict] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // Setup mode states
@@ -87,16 +89,17 @@ export default function Login() {
       });
   }, []);
 
-  async function handleSubmit(e) {
+  async function handleSubmit(e, forceEvict = false) {
     if (e) e.preventDefault();
     setError("");
+    setCanEvict(false);
     setLoading(true);
     try {
       if (isSetupMode) {
         await api.post("/api/auth/register", { username, password, role: "admin" });
-        await login(username, password, rememberMe);
+        await login(username, password, rememberMe, forceEvict);
       } else {
-        await login(username, password, rememberMe);
+        await login(username, password, rememberMe, forceEvict);
       }
     } catch (err) {
       const isNetworkOrCorsError = err?.message === "Network Error" || !err?.response;
@@ -108,6 +111,9 @@ export default function Login() {
 
       const displayedError = err?.response?.data?.message ?? fallbackMessage;
       setError(displayedError);
+      if (err?.response?.data?.canEvictSessions || (displayedError && displayedError.includes("نشست فعال"))) {
+        setCanEvict(true);
+      }
       setLoading(false);
 
       // 🌟 ثبت کامل لاگ بروز شکست در سیستم ثبت‌نشان‌های افتا همراه با توضیحات جامع
@@ -390,10 +396,22 @@ export default function Login() {
                   <motion.div
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold flex items-center gap-2 text-right shadow-sm"
+                    className="p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold flex flex-col gap-2.5 text-right shadow-sm"
                   >
-                    <X className="w-4 h-4 text-red-500 shrink-0" />
-                    <span>{error}</span>
+                    <div className="flex items-center gap-2">
+                      <X className="w-4 h-4 text-red-500 shrink-0" />
+                      <span>{error}</span>
+                    </div>
+                    {canEvict && (
+                      <button
+                        type="button"
+                        onClick={(e) => handleSubmit(e, true)}
+                        className="mt-1 w-full py-2.5 px-3 rounded-xl bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-extrabold text-xs transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        <span>خروج از تمامی نشست‌های قبلی و ورود به سامانه</span>
+                      </button>
+                    )}
                   </motion.div>
                 )}
               </div>
