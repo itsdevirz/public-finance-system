@@ -13,6 +13,7 @@ import {
 import { BUDGETARY_MOEIN_LIST, deriveBudgetCodesFromMoein, deriveMoeinFromChapterAndArticle } from "@/lib/budgetMoeinMapper";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import api from "@/api";
+import { validateAndLogFileUpload } from "@/lib/fileUploadLogger";
 
 function fmtNum(n) {
   if (n === 0 || n == null) return "۰";
@@ -297,6 +298,29 @@ export default function BudgetModule() {
     }
   };
 
+  const handleFileSelect = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      await validateAndLogFileUpload({
+        file,
+        operation: "ADD",
+        dataType: "1"
+      });
+      const reader = new FileReader();
+      reader.onload = () => {
+        setAgrForm((prev) => ({
+          ...prev,
+          attachment_name: file.name,
+          attachment_data: reader.result
+        }));
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      setAlertMsg({ type: "error", text: err.message || "خطا در بارگذاری پیوست" });
+    }
+  };
+
   // اطلاعات محاسباتی ردیف انتخابی
   const selectedAgr = agreements.find((a) => String(a._id) === String(selectedAgrId)) || agreements[0];
   const agrIdStr = selectedAgr ? String(selectedAgr._id) : "";
@@ -347,7 +371,6 @@ export default function BudgetModule() {
           </div>
           <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setAlertMsg(null)}>
             ×
-          </Button>
         </div>
       )}
 

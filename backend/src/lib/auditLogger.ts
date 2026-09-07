@@ -155,8 +155,9 @@ function sanitizePayload(obj: any): any {
   return sanitized;
 }
 
-const AUDIT_STORAGE_THRESHOLD = 10000; // حد آستانه ۱۰,۰۰۰ رکورد لاگ قبل از سرریز
+export const AUDIT_STORAGE_THRESHOLD = 10000; // حد آستانه ۱۰,۰۰۰ رکورد لاگ قبل از سرریز
 const HMAC_SECRET = process.env.AUDIT_LOG_SECRET || "AFTA_SECURE_HMAC_SECRET_KEY_2026";
+let isOverflowLogging = false;
 
 /**
  * تولید امضای رمزنگاری HMAC برای اعتبارسنجی اصالت و دستکاری‌ناپذیری لاگ
@@ -334,10 +335,12 @@ export async function logAuditEvent(params: AuditLogParams): Promise<void> {
   try {
     const db = getDb();
 
-    // ۵. بررسی حد آستانه سرریز حافظه و پاکسازی اتوماتیک
-    const count = await db.collection("audit_logs").estimatedDocumentCount();
-    if (count >= AUDIT_STORAGE_THRESHOLD) {
-      await runAuditLogRetentionAndRotation();
+    // ۵. بررسی حد آستانه سرریز حافظه و پاکسازی اتوماتیک (جلوگیری از Loop بازگشتی)
+    if (!isOverflowLogging) {
+      const count = await db.collection("audit_logs").estimatedDocumentCount();
+      if (count >= AUDIT_STORAGE_THRESHOLD) {
+        await runAuditLogRetentionAndRotation();
+      }
     }
 
     await db.collection("audit_logs").insertOne(logEntry);
@@ -358,6 +361,7 @@ export async function logAuditEvent(params: AuditLogParams): Promise<void> {
  * عملیات خودکار چرخش و پاکسازی لاگ‌ها:
  * ۱. پاکسازی اتوماتیک تمام لاگ‌های قدیمی‌تر از ۳ ماه (۹۰ روز)
  * ۲. بازنویسی و چرخش اتوماتیک قدیمی‌ترین لاگ‌ها در صورت تجاوز از سقف ۱۰,۰۰۰ رکورد (FIFO)
+ * ۳. ثبت لاگ دقیق سرریز آستانه شامل تعداد لاگ‌ها، سقف و بازنویسی لاگ‌های قدیمی
  */
 export async function runAuditLogRetentionAndRotation(): Promise<{ prunedByAge: number; prunedByCapacity: number }> {
   let prunedByAge = 0;
@@ -401,6 +405,36 @@ export async function runAuditLogRetentionAndRotation(): Promise<{ prunedByAge: 
         actionTaken: `چرخش اتوماتیک لاگ‌ها: ${prunedByCapacity} لاگ قدیمی با جدید بازنویسی شدند. (${prunedByAge} لاگ ۳ ماه پیش پاکسازی شد)`,
         isSimulated: false
       }).catch(err => console.error("Notification Error:", err));
+    }
+
+    // ۳. ثبت لاگ اختصاصی سرریز با جزئیات کامل در دیتابیس مطابق الزام سیستم
+    if ((totalCount >= AUDIT_STORAGE_THRESHOLD || prunedByAge > 0 || prunedByCapacity > 0) && !isOverflowLogging) {
+      isOverflowLogging = true;
+      try {
+        await logAuditEvent({
+          userId: "SYSTEM",
+          username: "system_cron",
+          userFullName: "سیستم پاکسازی لاگ‌ها",
+          userRole: "مدیر سیستم",
+          action: `عملیات سرریز حافظه ثبت‌نشان‌ها: تعداد ثبت‌نشان‌های موجود (${totalCount}) به حد آستانه تعیین‌شده (${AUDIT_STORAGE_THRESHOLD}) رسید.`,
+          eventType: AFTA_LOG_EVENT_TYPES.AUDIT_LOG_OVERFLOW_ACTION,
+          resource: "/api/security/audit-logs/overflow",
+          result: "SUCCESS",
+          details: {
+            registeredLogsCount: totalCount,
+            ceilingLimit: AUDIT_STORAGE_THRESHOLD,
+            overwrittenTimeframe: "۹۰ روز (۳ ماه)",
+            description: `تعداد ثبت‌نشان‌های ذخیره‌شده به حد آستانه تعیین‌شده (سقف ${AUDIT_STORAGE_THRESHOLD} رکورد) رسیده است. لاگ‌های قدیمی‌تر از زمان تعیین‌شده (۹۰ روز / ۳ ماه) و لاگ‌های مازاد بر سقف جهت بازنویسی و ایجاد ظرفیت لاگ جدید به‌صورت خودکار چرخش/بازنویسی گردیدند.`,
+            prunedByAgeCount: prunedByAge,
+            prunedByCapacityCount: prunedByCapacity,
+            retentionPeriodDays: 90
+          }
+        });
+      } catch (logErr) {
+        console.error("Failed to write overflow audit log:", logErr);
+      } finally {
+        isOverflowLogging = false;
+      }
     }
 
     if (prunedByAge > 0 || prunedByCapacity > 0) {

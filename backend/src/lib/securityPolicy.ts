@@ -11,6 +11,10 @@ export interface PasswordPolicy {
 export interface LockoutPolicy {
   maxFailedAttempts: number;
   lockoutDurationMinutes: number;
+  enableIpLockout?: boolean;
+  maxIpFailedAttempts?: number;
+  ipLockoutDurationMinutes?: number;
+  ipRateLimitWindowMinutes?: number;
 }
 
 export interface SessionPolicy {
@@ -264,6 +268,7 @@ export interface PreserveAccessRecordsPolicy {
 // الزام افتا: توانایی ممانعت از ایجاد نشست بر اساس پارامترهایی از قبیل مکان، شماره پورت، روز، زمان و سایر موارد
 export interface SessionEstablishmentPreventionPolicy {
   enable: boolean;
+  exemptAdmin?: boolean;
   preventByLocation: boolean;
   allowedIpRanges?: string[];
   preventByPort: boolean;
@@ -707,6 +712,10 @@ export const DEFAULT_SECURITY_POLICY: SecurityPolicyConfig = {
   lockoutPolicy: {
     maxFailedAttempts: 5,
     lockoutDurationMinutes: 15,
+    enableIpLockout: true,
+    maxIpFailedAttempts: 10,
+    ipLockoutDurationMinutes: 30,
+    ipRateLimitWindowMinutes: 5,
   },
   sessionPolicy: {
     tokenExpiresInHours: 8,
@@ -980,6 +989,7 @@ export const DEFAULT_SECURITY_POLICY: SecurityPolicyConfig = {
   },
   sessionEstablishmentPreventionPolicy: {
     enable: true,
+    exemptAdmin: true,
     preventByLocation: true,
     allowedIpRanges: ["192.168.0.0/16", "10.0.0.0/8", "127.0.0.1", "::1", "localhost"],
     preventByPort: true,
@@ -1772,6 +1782,7 @@ export function validateSessionEstablishmentPrevention(
     port?: number;
     currentDay?: string;
     currentTime?: string;
+    username?: string;
     userRole?: string;
     userStatus?: string;
     userAgent?: string;
@@ -1783,8 +1794,16 @@ export function validateSessionEstablishmentPrevention(
     return { valid: true };
   }
 
+  const isAdmin =
+    (requestDetails.username && requestDetails.username.toLowerCase() === "admin") ||
+    requestDetails.userRole === "admin" ||
+    requestDetails.userRole === "مدیر سیستم" ||
+    requestDetails.userRole === "مدیر";
+
+  const isExemptAdmin = isAdmin && (policy.exemptAdmin !== false);
+
   // ۱. مکان (Location / IP)
-  if (policy.preventByLocation) {
+  if (!isExemptAdmin && policy.preventByLocation) {
     const clientIp = requestDetails.ip || "127.0.0.1";
     const allowedIps = policy.allowedIpRanges && policy.allowedIpRanges.length > 0
       ? policy.allowedIpRanges
@@ -1810,7 +1829,7 @@ export function validateSessionEstablishmentPrevention(
   }
 
   // ۲. شماره پورت (Port number)
-  if (policy.preventByPort) {
+  if (!isExemptAdmin && policy.preventByPort) {
     const clientPort = requestDetails.port;
     if (clientPort) {
       const activeServerPort = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
@@ -1834,7 +1853,7 @@ export function validateSessionEstablishmentPrevention(
   }
 
   // ۳. روز (Day of week)
-  if (policy.preventByDay) {
+  if (!isExemptAdmin && policy.preventByDay) {
     const day = requestDetails.currentDay || new Date().toLocaleDateString("en-US", { weekday: "long" });
     const allowedDays = policy.allowedDays && policy.allowedDays.length > 0
       ? policy.allowedDays
@@ -1851,7 +1870,7 @@ export function validateSessionEstablishmentPrevention(
   }
 
   // ۴. زمان (Time window)
-  if (policy.preventByTime) {
+  if (!isExemptAdmin && policy.preventByTime) {
     const startTime = policy.allowedStartTime || functionBehaviorPolicy?.allowedLoginStartTime || "07:00";
     const endTime = policy.allowedEndTime || functionBehaviorPolicy?.allowedLoginEndTime || "23:30";
 

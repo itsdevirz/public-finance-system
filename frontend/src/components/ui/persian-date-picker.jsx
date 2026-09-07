@@ -10,20 +10,26 @@ const MONTH_NAMES = [
 ];
 
 export function toPersianDigits(str) {
+  if (str == null) return "";
+  const s = typeof str === "object" ? (str.target?.value ?? str.value ?? String(str)) : String(str);
+  if (s === "[object Object]") return "";
   const id = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹'];
-  return str?.toString().replace(/[0-9]/g, function(w) {
+  return s.replace(/[0-9]/g, function(w) {
     return id[+w];
-  }) || "";
+  });
 }
 
 function toEnglishDigits(str) {
-  return str?.toString()
+  if (str == null) return "";
+  const s = typeof str === "object" ? (str.target?.value ?? str.value ?? String(str)) : String(str);
+  if (s === "[object Object]") return "";
+  return s
     .replace(/[۰-۹]/g, function(w) {
       return w.charCodeAt(0) - 1776;
     })
     .replace(/[٠-٩]/g, function(w) {
       return w.charCodeAt(0) - 1632;
-    }) || "";
+    });
 }
 
 function isLeapYear(jy) {
@@ -133,8 +139,9 @@ export function PersianDatePicker({ value = "", onChange, className = "", placeh
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
   
-  // Parse value
-  const englishVal = toEnglishDigits(value);
+  // Safely extract string value even if object or event was passed
+  const safeVal = typeof value === "object" && value !== null ? (value.target?.value ?? value.value ?? "") : (value ?? "");
+  const englishVal = toEnglishDigits(safeVal);
   const parts = englishVal.split("/");
   
   const today = new Date();
@@ -158,7 +165,7 @@ export function PersianDatePicker({ value = "", onChange, className = "", placeh
         setViewMonth(m);
       }
     }
-  }, [value]);
+  }, [safeVal]);
 
   // Click outside listener to close popup
   useEffect(() => {
@@ -171,12 +178,20 @@ export function PersianDatePicker({ value = "", onChange, className = "", placeh
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const triggerChange = (val) => {
+    if (!onChange) return;
+    const strObj = new String(val);
+    strObj.target = { value: val };
+    strObj.value = val;
+    onChange(strObj);
+  };
+
   const handleInputChange = (e) => {
     const val = e.target.value;
     let filtered = toEnglishDigits(val).replace(/[^0-9/]/g, "");
     if (filtered.length > 10) filtered = filtered.substring(0, 10);
     const finalVal = toPersianDigits(filtered);
-    onChange({ target: { value: finalVal } });
+    triggerChange(finalVal);
   };
 
   const handleInputBlur = (e) => {
@@ -184,7 +199,7 @@ export function PersianDatePicker({ value = "", onChange, className = "", placeh
     let digits = val.replace(/\D/g, "");
     if (digits.length === 8) {
       const formatted = `${digits.substring(0, 4)}/${digits.substring(4, 6)}/${digits.substring(6, 8)}`;
-      onChange({ target: { value: toPersianDigits(formatted) } });
+      triggerChange(toPersianDigits(formatted));
     }
   };
 
@@ -193,7 +208,7 @@ export function PersianDatePicker({ value = "", onChange, className = "", placeh
     const mStr = viewMonth.toString().padStart(2, "0");
     const dStr = day.toString().padStart(2, "0");
     const finalVal = toPersianDigits(`${yStr}/${mStr}/${dStr}`);
-    onChange({ target: { value: finalVal } });
+    triggerChange(finalVal);
     setIsOpen(false);
   };
 

@@ -832,6 +832,38 @@ export default function SystemSettingsForm() {
   const [auditLogResultFilter, setAuditLogResultFilter] = useState("");
   const [selectedAuditLogModal, setSelectedAuditLogModal] = useState(null);
 
+  // 🛡️ حالت‌های بخش مسدودسازی آدرس IP (IP Lockout)
+  const [blockedIps, setBlockedIps] = useState([]);
+  const [loadingBlockedIps, setLoadingBlockedIps] = useState(false);
+
+  const fetchBlockedIps = async () => {
+    try {
+      setLoadingBlockedIps(true);
+      const res = await api.get("/api/security/ip-lockouts");
+      if (res?.data?.success && Array.isArray(res.data.data)) {
+        setBlockedIps(res.data.data);
+      }
+    } catch (err) {
+      console.error("خطا در دریافت لیست IPهای مسدودشده:", err);
+    } finally {
+      setLoadingBlockedIps(false);
+    }
+  };
+
+  const handleUnblockIp = async (targetIp) => {
+    if (!window.confirm(`آیا از رفع مسدودی آدرس IP '${targetIp}' اطمینان دارید؟`)) return;
+    try {
+      const res = await api.post("/api/security/ip-lockouts/unblock", { ip: targetIp });
+      if (res?.data?.success) {
+        setSuccessMsg(res.data.message || `آدرس IP '${targetIp}' با موفقیت آنبلاک گردید.`);
+        await fetchBlockedIps();
+        await fetchAuditLogs();
+      }
+    } catch (err) {
+      setErrorMsg("خطا در رفع مسدودی IP: " + (err.response?.data?.message || err.message));
+    }
+  };
+
   const fetchAuditLogs = async (overrideParams = {}) => {
     try {
       setLoadingAuditLogs(true);
@@ -870,6 +902,7 @@ export default function SystemSettingsForm() {
     if (activeTab === "security") {
       fetchActiveSessions();
       fetchAuditLogs();
+      fetchBlockedIps();
     }
   }, [activeTab]);
 
@@ -1990,12 +2023,12 @@ export default function SystemSettingsForm() {
                     </div>
                   </div>
 
-                  {/* 🌟 کارت جدید: خط‌مشی رمز عبور و کاراکترهای مجاز (Password Policy & Required Characters) */}
+                  {/* 🌟 کارت جدید: خط‌مشی طول رمز عبور (Password Policy) */}
                   <AftaAccordionCard
                     id="afta_password_policy"
                     number="تنظیمات رمز عبور"
-                    title="خط‌مشی طول رمز عبور و کاراکترهای الزامی (Password Policy)"
-                    description="تعیین حداقل طول رمز عبور، حروف بزرگ/کوچک انگلیسی، ارقام و کاراکترهای خاص هنگام تعریف کاربران جدید"
+                    title="خط‌مشی طول رمز عبور (Password Policy)"
+                    description="تعیین حداقل طول رمز عبور هنگام تعریف کاربران جدید (الزامات پیچیدگی کاراکترها به‌صورت پیش‌فرض اجباری می‌باشند)"
                     isOpen={!!openAftaSections["afta_password_policy"]}
                     onToggle={toggleAftaSection}
                     icon={KeyRound}
@@ -2029,62 +2062,204 @@ export default function SystemSettingsForm() {
 
                       <Separator />
 
-                      <div className="space-y-3">
+                      <div className="space-y-2">
                         <Label className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
-                          کاراکترهای الزامی جهت تشکیل رمز عبور معتبر:
+                          الزامات پیچیدگی پیش‌فرض و اجباری رمز عبور:
                         </Label>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <label className="flex items-center gap-2.5 p-3 rounded-xl border bg-white dark:bg-slate-900 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                            <input
-                              type="checkbox"
-                              checked={settings.passwordPolicy?.requireUppercase ?? true}
-                              onChange={(e) => setPasswordPolicy("requireUppercase", e.target.checked)}
-                              className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                            />
-                            <div>
-                              <span className="text-xs font-bold block text-slate-800 dark:text-slate-200">شامل حروف بزرگ انگلیسی (A-Z)</span>
-                              <span className="text-[10px] text-muted-foreground">حداقل یک حرف بزرگ انگلیسی در رمز عبور وجود داشته باشد</span>
-                            </div>
-                          </label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                          <div className="flex items-center gap-2 p-2.5 rounded-lg border bg-slate-50/80 dark:bg-slate-900/50 text-slate-700 dark:text-slate-300">
+                            <span className="h-2 w-2 rounded-full bg-emerald-500 flex-shrink-0" />
+                            <span>شامل حروف بزرگ انگلیسی (A-Z)</span>
+                          </div>
+                          <div className="flex items-center gap-2 p-2.5 rounded-lg border bg-slate-50/80 dark:bg-slate-900/50 text-slate-700 dark:text-slate-300">
+                            <span className="h-2 w-2 rounded-full bg-emerald-500 flex-shrink-0" />
+                            <span>شامل حروف کوچک انگلیسی (a-z)</span>
+                          </div>
+                          <div className="flex items-center gap-2 p-2.5 rounded-lg border bg-slate-50/80 dark:bg-slate-900/50 text-slate-700 dark:text-slate-300">
+                            <span className="h-2 w-2 rounded-full bg-emerald-500 flex-shrink-0" />
+                            <span>شامل ارقام و اعداد (0-9)</span>
+                          </div>
+                          <div className="flex items-center gap-2 p-2.5 rounded-lg border bg-slate-50/80 dark:bg-slate-900/50 text-slate-700 dark:text-slate-300">
+                            <span className="h-2 w-2 rounded-full bg-emerald-500 flex-shrink-0" />
+                            <span>شامل کاراکترهای خاص و نمادها (!@#$%^&*)</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </AftaAccordionCard>
 
-                          <label className="flex items-center gap-2.5 p-3 rounded-xl border bg-white dark:bg-slate-900 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                            <input
-                              type="checkbox"
-                              checked={settings.passwordPolicy?.requireLowercase ?? true}
-                              onChange={(e) => setPasswordPolicy("requireLowercase", e.target.checked)}
-                              className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                            />
-                            <div>
-                              <span className="text-xs font-bold block text-slate-800 dark:text-slate-200">شامل حروف کوچک انگلیسی (a-z)</span>
-                              <span className="text-[10px] text-muted-foreground">حداقل یک حرف کوچک انگلیسی در رمز عبور وجود داشته باشد</span>
-                            </div>
-                          </label>
+                  {/* 🛡️ کارت جدید: قوانین مسدودسازی خودکار آدرس IP (IP Blocking Policy) */}
+                  <AftaAccordionCard
+                    id="afta_lockout_policy"
+                    number="بند ۲ افتا (۳-۲)"
+                    title="قوانین مسدودسازی خودکار آدرس IP (IP Blocking)"
+                    description="تنظیم سقف تلاش‌های ناموفق مجاز IP، پنجره زمانی خطا، مدت زمان مسدودی، و مدیریت آدرس‌های IP مسدودشده (منحصر به مدیر)"
+                    isOpen={!!openAftaSections["afta_lockout_policy"]}
+                    onToggle={toggleAftaSection}
+                    icon={Lock}
+                  >
+                    <div className="space-y-5">
+                      <div className="bg-rose-50/70 dark:bg-rose-950/30 p-3.5 rounded-xl border border-rose-200 dark:border-rose-900/50 space-y-1 text-xs">
+                        <span className="font-bold text-rose-900 dark:text-rose-200 block flex items-center gap-1.5">
+                          <ShieldAlert className="h-4 w-4 text-rose-600" />
+                          قوانین مسدودسازی خودکار آدرس IP (الزام بند ۲ جدول ۳-۲ افتا)
+                        </span>
+                        <p className="text-rose-800 dark:text-rose-300 text-[11px] leading-relaxed">
+                          جهت جلوگیری از حملات Brute Force و Password Spraying، آدرس‌های IP دارای تلاش‌های ناموفق مکرر به طور خودکار مسدود می‌گردند. ویرایش این بخش و رفع مسدودی IPها **صرفاً منحصر به مدیر سیستم (`admin`)** است. (تعداد تلاش‌های ناموفق کاربران در بخش مدیریت و تعریف کاربر تنظیم می‌شود).
+                        </p>
+                      </div>
 
-                          <label className="flex items-center gap-2.5 p-3 rounded-xl border bg-white dark:bg-slate-900 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                            <input
-                              type="checkbox"
-                              checked={settings.passwordPolicy?.requireNumbers ?? true}
-                              onChange={(e) => setPasswordPolicy("requireNumbers", e.target.checked)}
-                              className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                            />
-                            <div>
-                              <span className="text-xs font-bold block text-slate-800 dark:text-slate-200">شامل ارقام و اعداد (0-9)</span>
-                              <span className="text-[10px] text-muted-foreground">حداقل یک عدد در رمز عبور وجود داشته باشد</span>
-                            </div>
-                          </label>
+                      {/* تنظیمات مسدودسازی آدرس IP */}
+                      <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4">
+                        <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 border-b pb-2 flex items-center justify-between">
+                          <span className="flex items-center gap-1.5">
+                            <ShieldAlert className="h-4 w-4 text-rose-600" />
+                            تنظیمات مسدودسازی آدرس IP (IP Blocking):
+                          </span>
+                          <Badge className="bg-rose-100 text-rose-800 text-[10px]">منحصر به Admin</Badge>
+                        </h4>
 
-                          <label className="flex items-center gap-2.5 p-3 rounded-xl border bg-white dark:bg-slate-900 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                            <input
-                              type="checkbox"
-                              checked={settings.passwordPolicy?.requireSpecialChars ?? true}
-                              onChange={(e) => setPasswordPolicy("requireSpecialChars", e.target.checked)}
-                              className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        <label className="flex items-center gap-2 cursor-pointer p-2.5 rounded-lg bg-rose-50/50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30">
+                          <input
+                            type="checkbox"
+                            checked={settings.lockoutPolicy?.enableIpLockout ?? true}
+                            onChange={e => {
+                              set("lockoutPolicy", {
+                                ...settings.lockoutPolicy,
+                                enableIpLockout: e.target.checked
+                              });
+                            }}
+                            className="h-4 w-4 rounded border-slate-300 text-rose-600 focus:ring-rose-500"
+                          />
+                          <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                            فعال‌سازی مسدودسازی خودکار آدرس IP
+                          </span>
+                        </label>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
+                          <div>
+                            <Label className="text-xs font-semibold">سقف تلاش ناموفق از یک IP</Label>
+                            <Input
+                              type="number"
+                              min={1}
+                              max={50}
+                              value={settings.lockoutPolicy?.maxIpFailedAttempts ?? 10}
+                              onChange={e => {
+                                set("lockoutPolicy", {
+                                  ...settings.lockoutPolicy,
+                                  maxIpFailedAttempts: Math.max(1, Number(e.target.value) || 10)
+                                });
+                              }}
+                              className="h-9 text-xs font-mono mt-1.5"
                             />
-                            <div>
-                              <span className="text-xs font-bold block text-slate-800 dark:text-slate-200">شامل کاراکترهای خاص و نمادها (!@#$%^&*)</span>
-                              <span className="text-[10px] text-muted-foreground">حداقل یک نماد ویژه مانند !@#$%^&* در رمز وجود داشته باشد</span>
-                            </div>
-                          </label>
+                            <p className="text-[10px] text-muted-foreground mt-1">تعداد خطاهای مجاز از یک آدرس IP قبل از مسدودی (پیش‌فرض: ۱۰ بار)</p>
+                          </div>
+
+                          <div>
+                            <Label className="text-xs font-semibold">پنجره زمانی ارزیابی خطا (دقیقه)</Label>
+                            <Input
+                              type="number"
+                              min={1}
+                              max={60}
+                              value={settings.lockoutPolicy?.ipRateLimitWindowMinutes ?? 5}
+                              onChange={e => {
+                                set("lockoutPolicy", {
+                                  ...settings.lockoutPolicy,
+                                  ipRateLimitWindowMinutes: Math.max(1, Number(e.target.value) || 5)
+                                });
+                              }}
+                              className="h-9 text-xs font-mono mt-1.5"
+                            />
+                            <p className="text-[10px] text-muted-foreground mt-1">بازه زمانی محاسبه خطاهای متوالی (پیش‌فرض: ۵ دقیقه)</p>
+                          </div>
+
+                          <div>
+                            <Label className="text-xs font-semibold">مدت زمان مسدود ماندن آدرس IP (دقیقه)</Label>
+                            <Input
+                              type="number"
+                              min={1}
+                              max={1440}
+                              value={settings.lockoutPolicy?.ipLockoutDurationMinutes ?? 30}
+                              onChange={e => {
+                                set("lockoutPolicy", {
+                                  ...settings.lockoutPolicy,
+                                  ipLockoutDurationMinutes: Math.max(1, Number(e.target.value) || 30)
+                                });
+                              }}
+                              className="h-9 text-xs font-mono mt-1.5"
+                            />
+                            <p className="text-[10px] text-muted-foreground mt-1">مدت زمانی که آدرس IP در حالت مسدود قرار می‌گیرد (پیش‌فرض: ۳۰ دقیقه)</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* بخش ۳: جدول مدیریت آدرس‌های IP مسدودشده فعلی */}
+                      <div className="p-4 rounded-xl border border-rose-200 dark:border-rose-900/50 bg-rose-50/30 dark:bg-slate-900 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                            <ShieldAlert className="h-4 w-4 text-rose-500" />
+                            مدیریت آدرس‌های IP مسدودشده فعلی
+                          </h4>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={fetchBlockedIps}
+                            className="h-7 text-[11px] gap-1"
+                          >
+                            <RefreshCw className={cn("h-3 w-3", loadingBlockedIps && "animate-spin")} />
+                            بروزرسانی لیست
+                          </Button>
+                        </div>
+
+                        <div className="overflow-x-auto border rounded-xl bg-white dark:bg-slate-950">
+                          <table className="w-full text-xs text-right">
+                            <thead className="bg-slate-100 dark:bg-slate-800 font-bold text-slate-700 dark:text-slate-300">
+                              <tr>
+                                <th className="p-2.5">آدرس IP</th>
+                                <th className="p-2.5">تعداد خطا</th>
+                                <th className="p-2.5">زمان منقضی شدن مسدودی</th>
+                                <th className="p-2.5">زمان باقی‌مانده</th>
+                                <th className="p-2.5 text-center">عملیات</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                              {blockedIps.length === 0 ? (
+                                <tr>
+                                  <td colSpan={5} className="p-4 text-center text-muted-foreground text-xs">
+                                    در حال حاضر هیچ آدرس IP در لیست مسدودشده قرار ندارد.
+                                  </td>
+                                </tr>
+                              ) : (
+                                blockedIps.map(item => (
+                                  <tr key={item.ip} className="hover:bg-slate-50 dark:hover:bg-slate-900">
+                                    <td className="p-2.5 font-mono font-bold text-rose-600 dark:text-rose-400">
+                                      {item.ip}
+                                    </td>
+                                    <td className="p-2.5 font-mono">{item.failedAttempts} تلاش</td>
+                                    <td className="p-2.5 dir-ltr text-right font-mono text-[11px]">
+                                      {item.blockedUntil ? new Date(item.blockedUntil).toLocaleString("fa-IR") : "-"}
+                                    </td>
+                                    <td className="p-2.5 font-bold text-amber-600 dark:text-amber-400">
+                                      {item.remainingMinutes} دقیقه
+                                    </td>
+                                    <td className="p-2.5 text-center">
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleUnblockIp(item.ip)}
+                                        className="h-7 px-2 text-[10.5px] font-bold text-emerald-700 border-emerald-300 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-800"
+                                      >
+                                        <Unlock className="h-3 w-3 ml-1" />
+                                        رفع مسدودی IP
+                                      </Button>
+                                    </td>
+                                  </tr>
+                                ))
+                              )}
+                            </tbody>
+                          </table>
                         </div>
                       </div>
                     </div>
@@ -5389,6 +5564,28 @@ export default function SystemSettingsForm() {
                         </h4>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                          <label className="p-3.5 rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/50 dark:bg-blue-950/20 flex items-start gap-3 cursor-pointer lg:col-span-3">
+                            <input
+                              type="checkbox"
+                              checked={settings.sessionEstablishmentPreventionPolicy?.exemptAdmin ?? true}
+                              onChange={e => {
+                                set("sessionEstablishmentPreventionPolicy", {
+                                  ...settings.sessionEstablishmentPreventionPolicy,
+                                  exemptAdmin: e.target.checked
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-blue-300 text-blue-600 mt-0.5"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-blue-900 dark:text-blue-200 block">
+                                معافیت حساب‌های مدیر (admin / مدیر سیستم) از محدودیتهای زمان، روز، پورت و مکان
+                              </span>
+                              <span className="text-[11px] text-blue-700 dark:text-blue-300 block mt-0.5 leading-relaxed">
+                                در صورت فعال بودن، مدیران سیستم می‌توانند در تمامی ساعات شبانه‌روز و روزهای هفته جهت نگهداری و مدیریت سیستم وارد شوند.
+                              </span>
+                            </div>
+                          </label>
+
                           <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
                             <input
                               type="checkbox"

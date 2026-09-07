@@ -910,11 +910,11 @@ describe("🛡️ Comprehensive Security Test Suite", () => {
         allowedIpRanges: ["192.168.1.0/24", "10.0.0.1"]
       };
 
-      const resInvalid = validateSessionEstablishmentPrevention({ ip: "172.16.0.50", userAgent: "Mozilla/5.0" }, policy);
+      const resInvalid = validateSessionEstablishmentPrevention({ ip: "172.16.0.50", currentTime: "12:00", userAgent: "Mozilla/5.0" }, policy);
       assert.strictEqual(resInvalid.valid, false);
       assert.strictEqual(resInvalid.parameter, "location");
 
-      const resValid = validateSessionEstablishmentPrevention({ ip: "192.168.1.10", userAgent: "Mozilla/5.0" }, policy);
+      const resValid = validateSessionEstablishmentPrevention({ ip: "192.168.1.10", currentTime: "12:00", userAgent: "Mozilla/5.0" }, policy);
       assert.strictEqual(resValid.valid, true);
     });
 
@@ -925,11 +925,11 @@ describe("🛡️ Comprehensive Security Test Suite", () => {
         allowedPorts: [443, 8443]
       };
 
-      const resInvalid = validateSessionEstablishmentPrevention({ port: 9999, userAgent: "Mozilla/5.0" }, policy);
+      const resInvalid = validateSessionEstablishmentPrevention({ port: 9999, currentTime: "12:00", userAgent: "Mozilla/5.0" }, policy);
       assert.strictEqual(resInvalid.valid, false);
       assert.strictEqual(resInvalid.parameter, "port");
 
-      const resValid = validateSessionEstablishmentPrevention({ port: 443, userAgent: "Mozilla/5.0" }, policy);
+      const resValid = validateSessionEstablishmentPrevention({ port: 443, currentTime: "12:00", userAgent: "Mozilla/5.0" }, policy);
       assert.strictEqual(resValid.valid, true);
     });
 
@@ -940,11 +940,11 @@ describe("🛡️ Comprehensive Security Test Suite", () => {
         allowedDays: ["Saturday", "Sunday", "Monday", "Tuesday", "Wednesday"]
       };
 
-      const resInvalid = validateSessionEstablishmentPrevention({ currentDay: "Friday", userAgent: "Mozilla/5.0" }, policy);
+      const resInvalid = validateSessionEstablishmentPrevention({ currentDay: "Friday", currentTime: "12:00", userAgent: "Mozilla/5.0" }, policy);
       assert.strictEqual(resInvalid.valid, false);
       assert.strictEqual(resInvalid.parameter, "day");
 
-      const resValid = validateSessionEstablishmentPrevention({ currentDay: "Monday", userAgent: "Mozilla/5.0" }, policy);
+      const resValid = validateSessionEstablishmentPrevention({ currentDay: "Monday", currentTime: "12:00", userAgent: "Mozilla/5.0" }, policy);
       assert.strictEqual(resValid.valid, true);
     });
 
@@ -973,13 +973,33 @@ describe("🛡️ Comprehensive Security Test Suite", () => {
         preventByOtherParams: true
       };
 
-      const resStatus = validateSessionEstablishmentPrevention({ userStatus: "غیرفعال", userAgent: "Mozilla/5.0" }, policy);
+      const resStatus = validateSessionEstablishmentPrevention({ userStatus: "غیرفعال", currentTime: "12:00", userAgent: "Mozilla/5.0" }, policy);
       assert.strictEqual(resStatus.valid, false);
       assert.strictEqual(resStatus.parameter, "other");
 
-      const resMissingUa = validateSessionEstablishmentPrevention({ userAgent: "Unknown" }, policy);
+      const resMissingUa = validateSessionEstablishmentPrevention({ currentTime: "12:00", userAgent: "Unknown" }, policy);
       assert.strictEqual(resMissingUa.valid, false);
       assert.strictEqual(resMissingUa.parameter, "other");
+    });
+
+    it("6. Exempt Admin: should allow admin user to establish session regardless of operational time, day, port or location limits", () => {
+      const policy = {
+        ...DEFAULT_SECURITY_POLICY.sessionEstablishmentPreventionPolicy!,
+        exemptAdmin: true,
+        preventByTime: true,
+        allowedStartTime: "07:00",
+        allowedEndTime: "22:00",
+        preventByDay: true,
+        allowedDays: ["Monday"],
+        preventByLocation: true,
+        allowedIpRanges: ["192.168.1.1"]
+      };
+
+      const resAdminLate = validateSessionEstablishmentPrevention({ username: "admin", currentTime: "23:15", currentDay: "Friday", ip: "10.0.0.99", userAgent: "Mozilla/5.0" }, policy);
+      assert.strictEqual(resAdminLate.valid, true, "Admin user must be exempt from time/day/location session restrictions");
+
+      const resAdminRole = validateSessionEstablishmentPrevention({ userRole: "مدیر سیستم", currentTime: "03:00", userAgent: "Mozilla/5.0" }, policy);
+      assert.strictEqual(resAdminRole.valid, true, "User with admin role must be exempt from time restrictions");
     });
   });
 

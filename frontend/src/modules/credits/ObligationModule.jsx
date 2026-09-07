@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import api from "@/api";
+import { validateAndLogFileUpload } from "@/lib/fileUploadLogger";
 
 function fmtNum(n) {
   if (n === 0 || n == null) return "۰";
@@ -119,18 +120,27 @@ export default function ObligationModule() {
   const availableCommitmentAmount = Math.max(0, fundingTotalAmount - previousObligations);
 
   // آپلود فایل پیوست
-  const handleFileUpload = (e) => {
-    const file = e.target.files[0];
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setForm(prev => ({
-        ...prev,
-        attachment_name: file.name,
-        attachment_data: event.target.result
-      }));
-    };
-    reader.readAsDataURL(file);
+    try {
+      await validateAndLogFileUpload({
+        file,
+        operation: "ADD",
+        dataType: "1"
+      });
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setForm(prev => ({
+          ...prev,
+          attachment_name: file.name,
+          attachment_data: event.target.result
+        }));
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      setAlertMsg({ type: "error", text: err.message || "خطا در بارگذاری پیوست" });
+    }
   };
 
   const handleFundingChange = (fId) => {
@@ -285,6 +295,7 @@ export default function ObligationModule() {
   const valPayRequests = selectedPayRequests.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
   const valRemittances = selectedRemittances.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 
+
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       {alertMsg && (
@@ -382,7 +393,7 @@ export default function ObligationModule() {
                     <Label className="text-xs font-semibold">تاریخ تعهد</Label>
                     <PersianDatePicker
                       value={form.obligation_date}
-                      onChange={(d) => setForm({ ...form, obligation_date: d })}
+                      onChange={(d) => setForm((prev) => ({ ...prev, obligation_date: typeof d === "object" && d?.target ? d.target.value : String(d || "") }))}
                     />
                   </div>
                 </div>
@@ -678,7 +689,7 @@ export default function ObligationModule() {
                 <Label className="text-xs font-semibold">تاریخ آزادسازی</Label>
                 <PersianDatePicker
                   value={releaseDate}
-                  onChange={setReleaseDate}
+                  onChange={(d) => setReleaseDate(typeof d === "object" && d?.target ? d.target.value : String(d || ""))}
                 />
               </div>
 

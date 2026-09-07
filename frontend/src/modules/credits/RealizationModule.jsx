@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Plus, Trash2, Edit, Save, AlertCircle, RefreshCw, FileCheck, Landmark, Upload, Paperclip, Lock } from "lucide-react";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import api from "@/api";
+import { validateAndLogFileUpload } from "@/lib/fileUploadLogger";
 
 function fmtNum(n) {
   if (n === 0 || n == null) return "۰";
@@ -67,21 +68,6 @@ export default function RealizationModule() {
 
   const remainingObligationBalance = Math.max(0, netObligationAmt - previousRealizations);
 
-  // آپلود فایل پیوست صورت وضعیت / سند تحقق
-  const handleFileUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setForm(prev => ({
-        ...prev,
-        attachment_name: file.name,
-        attachment_data: event.target.result
-      }));
-    };
-    reader.readAsDataURL(file);
-  };
-
   const handleObligationChange = (obId) => {
     const found = obligations.find(o => String(o._id) === String(obId));
     if (found) {
@@ -94,6 +80,29 @@ export default function RealizationModule() {
       }));
     } else {
       setForm(prev => ({ ...prev, obligation_id: obId }));
+    }
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      await validateAndLogFileUpload({
+        file,
+        operation: "ADD",
+        dataType: "1"
+      });
+      const reader = new FileReader();
+      reader.onload = () => {
+        setForm(p => ({
+          ...p,
+          attachment_name: file.name,
+          attachment_data: reader.result
+        }));
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      setAlertMsg({ type: "error", text: err.message || "خطا در بارگذاری پیوست" });
     }
   };
 
@@ -256,7 +265,7 @@ export default function RealizationModule() {
                   <Label className="text-xs font-semibold">تاریخ تحقق / تسجیل</Label>
                   <PersianDatePicker
                     value={form.verification_date}
-                    onChange={(d) => setForm({ ...form, verification_date: d })}
+                    onChange={(d) => setForm((prev) => ({ ...prev, verification_date: typeof d === "object" && d?.target ? d.target.value : String(d || "") }))}
                   />
                 </div>
               </div>

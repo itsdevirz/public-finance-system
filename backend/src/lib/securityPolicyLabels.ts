@@ -19,7 +19,11 @@ export const SECURITY_POLICY_LABELS: Record<string, Record<string, PolicyFieldMe
 
   lockoutPolicy: {
     maxFailedAttempts: { accordion: "قوانین قفل‌شدن حساب کاربری و ممانعت از ورود", label: "حداکثر تعداد تلاش‌های ناموفق ورود مجاز", type: "number" },
-    lockoutDurationMinutes: { accordion: "قوانین قفل‌شدن حساب کاربری و ممانعت از ورود", label: "مدت زمان قفل‌شدن حساب (دقیقه)", type: "number" }
+    lockoutDurationMinutes: { accordion: "قوانین قفل‌شدن حساب کاربری و ممانعت از ورود", label: "مدت زمان قفل‌شدن حساب (دقیقه)", type: "number" },
+    enableIpLockout: { accordion: "قوانین قفل‌شدن حساب کاربری و ممانعت از ورود", label: "فعال‌سازی مسدودسازی خودکار آدرس IP", type: "boolean" },
+    maxIpFailedAttempts: { accordion: "قوانین قفل‌شدن حساب کاربری و ممانعت از ورود", label: "حداکثر تعداد تلاش‌های ناموفق مجاز از یک آدرس IP", type: "number" },
+    ipLockoutDurationMinutes: { accordion: "قوانین قفل‌شدن حساب کاربری و ممانعت از ورود", label: "مدت زمان مسدود ماندن آدرس IP (دقیقه)", type: "number" },
+    ipRateLimitWindowMinutes: { accordion: "قوانین قفل‌شدن حساب کاربری و ممانعت از ورود", label: "پنجره زمانی ارزیابی خطا از یک آدرس IP (دقیقه)", type: "number" }
   },
 
   sessionPolicy: {

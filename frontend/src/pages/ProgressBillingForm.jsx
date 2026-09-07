@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import { cn } from "@/lib/utils";
+import { validateAndLogFileUpload } from "@/lib/fileUploadLogger";
 
 const UNITS = ["متر مکعب", "کیلوگرم", "متر مربع", "عدد", "تن", "لیتر", "دستگاه"];
 
@@ -77,34 +78,53 @@ export default function ProgressBillingForm() {
 
   const fileInputRef = useRef(null);
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
-    files.forEach((file) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const fileObj = {
-          name: file.name,
-          size: file.size,
-          type: file.type,
-          content: reader.result,
-          uploadedAt: new Date().toLocaleDateString("fa-IR"),
+    for (const file of files) {
+      try {
+        await validateAndLogFileUpload({
+          file,
+          operation: "ADD",
+          dataType: "1"
+        });
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const fileObj = {
+            name: file.name,
+            size: file.size,
+            type: file.type,
+            content: reader.result,
+            uploadedAt: new Date().toLocaleDateString("fa-IR"),
+          };
+          setForm((prev) => ({
+            ...prev,
+            attachments: [...(prev.attachments || []), fileObj],
+          }));
         };
-        setForm((prev) => ({
-          ...prev,
-          attachments: [...(prev.attachments || []), fileObj],
-        }));
-      };
-      reader.readAsDataURL(file);
-    });
+        reader.readAsDataURL(file);
+      } catch (err) {
+        alert(err.message || "خطا در بارگذاری فایل");
+      }
+    }
 
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
   };
 
-  const handleRemoveFile = (index) => {
+  const handleRemoveFile = async (index) => {
+    const target = form.attachments?.[index];
+    if (target) {
+      try {
+        await validateAndLogFileUpload({
+          file: { name: target.name, size: target.size || 102400 },
+          operation: "DELETE",
+          dataType: "1"
+        });
+      } catch (e) {}
+    }
     setForm((prev) => ({
       ...prev,
       attachments: (prev.attachments || []).filter((_, idx) => idx !== index),

@@ -8,6 +8,7 @@ import { parseUserAgent } from "../lib/uaParser.js";
 import { pruneExpiredSessions } from "../lib/sessionHelper.js";
 import { setSecureAuthCookie, clearSecureAuthCookie, getAuthTokenFromCookieOrHeader } from "../lib/cookieHelper.js";
 import { generateCsrfToken } from "../lib/csrfHelper.js";
+import { checkIpLockout, recordIpFailure, clearIpFailure } from "../lib/ipLockout.js";
 
 const router = new Hono();
 
@@ -117,6 +118,29 @@ router.post("/login", async (c) => {
     : globalMaxAttempts;
   const lockoutMin = Math.max(1, Number(secPolicy.lockoutPolicy?.lockoutDurationMinutes) || 15);
 
+  // 🛡️ بررسی ارزیابی مسدودسازی آدرس IP (IP Lockout Policy)
+  const ipLockCheck = await checkIpLockout(ip, secPolicy.lockoutPolicy);
+  if (ipLockCheck.blocked) {
+    await logAuditEvent({
+      userId: user?._id,
+      username: user?.username || cleanUsername,
+      userRole: user?.role || "ناشناس",
+      action: `عدم پذیرش درخواست ورود به دلیل مسدود بودن آدرس IP '${ip}' (${ipLockCheck.remainingMinutes} دقیقه باقی‌مانده)`,
+      eventType: AFTA_LOG_EVENT_TYPES.AUTH_FINAL_OUTCOME,
+      resource: "auth/login",
+      result: "FAILURE",
+      ip,
+      userAgent,
+      errorCode: 429,
+      details: {
+        reason: ipLockCheck.reason,
+        remainingMinutes: ipLockCheck.remainingMinutes,
+        failureCategory: "IP_BLOCKED"
+      }
+    });
+    return c.json({ message: ipLockCheck.reason, blocked: true, remainingMinutes: ipLockCheck.remainingMinutes }, 429);
+  }
+
   // 🌟 الزام افتا: ارزیابی خط‌مشی ممانعت از ایجاد نشست بر اساس پارامترهای مکان، شماره پورت، روز، زمان و سایر موارد
   const hostHeader = c.req.header("host") || "";
   const portHeader = c.req.header("x-forwarded-port");
@@ -126,6 +150,7 @@ router.post("/login", async (c) => {
     {
       ip,
       port: isNaN(portNum) ? 443 : portNum,
+      username: user?.username || cleanUsername,
       userRole: user?.role,
       userStatus: user?.status,
       userAgent
@@ -191,6 +216,9 @@ router.post("/login", async (c) => {
     : await verifyPassword(password, "$2b$12$invalidhashpadding000000000000000000000000000000000000");
 
   if (!user || !valid) {
+    // 🛡️ ثبت تلاش ناموفق برای آدرس IP درخواست‌دهنده
+    await recordIpFailure(ip, secPolicy.lockoutPolicy);
+
     if (user) {
       const newAttempts = (user.failedLoginAttempts || 0) + 1;
       const isLimitReached = newAttempts >= maxAttempts;
@@ -278,6 +306,9 @@ router.post("/login", async (c) => {
       return c.json({ message: "نام کاربری یا رمز عبور اشتباه است." }, 401);
     }
   }
+
+  // 🛡️ پاکسازی ردیابی آمار خطای آدرس IP پس از ورود موفقیت‌آمیز
+  await clearIpFailure(ip);
 
   const preventionRules = secPolicy.activeToInactivePreventionRules;
   const thresholdFromPreventionRule = (preventionRules?.preventAccessOnExceedingSessionThreshold && typeof preventionRules?.sessionThresholdLimit === "number")

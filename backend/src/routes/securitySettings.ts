@@ -3,12 +3,13 @@ import { ObjectId } from "mongodb";
 import { getDb } from "../db/index.js";
 import { DEFAULT_SECURITY_POLICY, validateTlsClientConnection, validateInternalTransitProtection, validateSecurityDataInteroperability, validateTrustedTimestamping, validateProductSoftwareUpdate, validateAutoUpdateAuthenticity, validateCoreFunctionsSoftwareFaultTolerance, validateInteractiveSessionInactivityTermination, validateCaCertificateAcceptance } from "../lib/securityPolicy.js";
 import { executeRealTlsHandshake } from "../lib/secureTlsClient.js";
-import { logAuditEvent, AFTA_LOG_EVENT_TYPES, verifyLogIntegrity, signExistingLogs, runAuditLogRetentionAndRotation, extractClientIp } from "../lib/auditLogger.js";
+import { logAuditEvent, AFTA_LOG_EVENT_TYPES, verifyLogIntegrity, signExistingLogs, runAuditLogRetentionAndRotation, extractClientIp, AUDIT_STORAGE_THRESHOLD } from "../lib/auditLogger.js";
 import { getShamsiDetails } from "../lib/shamsi.js";
 import { requireRole } from "../middleware/rbacMiddleware.js";
 import { sendAdminThresholdNotification } from "../lib/notifier.js";
 import { pruneExpiredSessions } from "../lib/sessionHelper.js";
 import { SECURITY_POLICY_LABELS } from "../lib/securityPolicyLabels.js";
+import { getIpLockouts, unblockIp } from "../lib/ipLockout.js";
 
 const router = new Hono();
 
@@ -45,14 +46,18 @@ router.put("/policy", requireRole(["admin"]), async (c) => {
     const newPolicy = {
       passwordPolicy: {
         minLength: Number(body.passwordPolicy?.minLength) || 8,
-        requireUppercase: !!body.passwordPolicy?.requireUppercase,
-        requireLowercase: !!body.passwordPolicy?.requireLowercase,
-        requireNumbers: !!body.passwordPolicy?.requireNumbers,
-        requireSpecialChars: !!body.passwordPolicy?.requireSpecialChars,
+        requireUppercase: true,
+        requireLowercase: true,
+        requireNumbers: true,
+        requireSpecialChars: true,
       },
       lockoutPolicy: {
         maxFailedAttempts: maxFailedAttempts > 0 ? maxFailedAttempts : 5,
         lockoutDurationMinutes: Math.max(1, Number(body.lockoutPolicy?.lockoutDurationMinutes) || 15),
+        enableIpLockout: body.lockoutPolicy?.enableIpLockout !== false,
+        maxIpFailedAttempts: Math.max(1, Number(body.lockoutPolicy?.maxIpFailedAttempts) || 10),
+        ipLockoutDurationMinutes: Math.max(1, Number(body.lockoutPolicy?.ipLockoutDurationMinutes) || 30),
+        ipRateLimitWindowMinutes: Math.max(1, Number(body.lockoutPolicy?.ipRateLimitWindowMinutes) || 5),
       },
       sessionPolicy: {
         tokenExpiresInHours: Math.max(1, Number(body.sessionPolicy?.tokenExpiresInHours) || 8),
@@ -966,7 +971,7 @@ router.post("/validate-user-data", async (c) => {
   // ۳. فرمت (Disallow executable/dangerous formats)
   // ۴. تعداد دفعات import / تعداد سند (Max 50 docs per import)
 
-  const allowedFormats = [".xlsx", ".xls", ".doc", ".docx", ".pdf", ".png", ".jpg", ".jpeg", ".csv", ".txt", ".zip", ".json"];
+  const allowedFormats = [".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"];
   const ext = originalFileName.includes(".") ? originalFileName.substring(originalFileName.lastIndexOf(".")).toLowerCase() : "";
   const isFormatAllowed = allowedFormats.includes(ext);
 
@@ -1874,6 +1879,33 @@ router.post("/notifications/mark-read", requireRole(["admin"]), async (c) => {
   }
 });
 
+// GET /api/security/audit-logs/stats - آمار لحظه‌ای حافظه ثبت‌نشان‌ها و حد آستانه
+router.get("/audit-logs/stats", async (c) => {
+  try {
+    const db = getDb();
+    const totalCount = await db.collection("audit_logs").countDocuments();
+    const overflowLogsCount = await db.collection("audit_logs").countDocuments({ eventType: AFTA_LOG_EVENT_TYPES.AUDIT_LOG_OVERFLOW_ACTION });
+    const isThresholdReached = totalCount >= AUDIT_STORAGE_THRESHOLD;
+
+    return c.json({
+      success: true,
+      data: {
+        totalCount,
+        ceilingLimit: AUDIT_STORAGE_THRESHOLD,
+        retentionPeriodDays: 90,
+        retentionTimeframeLabel: "۹۰ روز (۳ ماه)",
+        overflowLogsCount,
+        isThresholdReached,
+        statusMessage: isThresholdReached
+          ? `تعداد لاگ‌های ثبت‌شده (${totalCount}) به حد آستانه تعیین‌شده (${AUDIT_STORAGE_THRESHOLD}) رسیده است. لاگ‌های قدیمی‌تر از ۹۰ روز بازنویسی می‌شوند.`
+          : `ظرفیت حافظه ثبت‌نشان‌ها نرمال است (${totalCount} / ${AUDIT_STORAGE_THRESHOLD} رکورد).`
+      }
+    });
+  } catch (error: any) {
+    return c.json({ success: false, message: error.message }, 500);
+  }
+});
+
 // POST /api/security/prune-logs - اجرای فوری عملیات پاکسازی لاگ‌های قدیمی‌تر از ۳ ماه و چرخش ظرفیت ۱۰,۰۰۰
 router.post("/prune-logs", requireRole(["admin"]), async (c) => {
   try {
@@ -1883,6 +1915,50 @@ router.post("/prune-logs", requireRole(["admin"]), async (c) => {
       message: `عملیات پاکسازی و چرخش لاگ‌ها با موفقیت اجرا شد. (پاکسازی ${result.prunedByAge} لاگ قدیمی‌تر از ۳ ماه، چرخش ${result.prunedByCapacity} لاگ ظرفیت ۱۰,۰۰۰)`,
       result
     });
+  } catch (error: any) {
+    return c.json({ success: false, message: error.message }, 500);
+  }
+});
+
+// GET /api/security/ip-lockouts - دریافت لیست آدرس‌های IP مسدودشده فعلی (منحصر به مدیر)
+router.get("/ip-lockouts", requireRole(["admin"]), async (c) => {
+  try {
+    const lockouts = await getIpLockouts();
+    return c.json({
+      success: true,
+      data: lockouts
+    });
+  } catch (error: any) {
+    return c.json({ success: false, message: error.message }, 500);
+  }
+});
+
+// POST /api/security/ip-lockouts/unblock - رفع مسدودی دستی یک آدرس IP توسط مدیر سیستم
+router.post("/ip-lockouts/unblock", requireRole(["admin"]), async (c) => {
+  const payload = (c.get as any)("jwtPayload");
+  try {
+    const body = await c.req.json();
+    const targetIp = String(body.ip || "").trim();
+
+    if (!targetIp) {
+      return c.json({ success: false, message: "وارد کردن آدرس IP الزامی است." }, 400);
+    }
+
+    const adminUsername = payload?.username || "admin";
+    const adminUserId = payload?.sub;
+
+    const unblocked = await unblockIp(targetIp, adminUsername, adminUserId);
+    if (unblocked) {
+      return c.json({
+        success: true,
+        message: `آدرس IP '${targetIp}' با موفقیت آنبلاک گردید و لاگ مربوطه در ثبت‌نشان‌ها قرار گرفت.`
+      });
+    } else {
+      return c.json({
+        success: false,
+        message: `آدرس IP '${targetIp}' در لیست IPهای مسدودشده یافت نشد یا قبلاً آنبلاک شده است.`
+      }, 404);
+    }
   } catch (error: any) {
     return c.json({ success: false, message: error.message }, 500);
   }

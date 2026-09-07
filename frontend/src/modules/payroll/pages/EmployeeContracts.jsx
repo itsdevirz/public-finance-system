@@ -16,6 +16,7 @@ import {
   Scan, Camera, UploadCloud, Eye
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { validateAndLogFileUpload } from "@/lib/fileUploadLogger";
 
 const INITIAL_FORM = {
   contractNo: "",
@@ -386,6 +387,25 @@ export default function EmployeeContracts() {
       address: emp ? emp.address : "—"
     });
   }
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      await validateAndLogFileUpload({
+        file,
+        operation: "ADD",
+        dataType: "1"
+      });
+      const reader = new FileReader();
+      reader.onload = () => {
+        setCapturedImage(reader.result);
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      alert(err.message || "خطا در بارگذاری سند");
+    }
+  };
 
   // Custom standard CSS print view
   function printPage() {

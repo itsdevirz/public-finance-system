@@ -55,16 +55,12 @@ export default function Login() {
   // Interactive modals & UI states
   const [lang, setLang] = useState("fa");
   const [isLangDropdownOpen, setIsLangDropdownOpen] = useState(false);
-  const [activeModal, setActiveModal] = useState(null); // 'forgot' | 'cert' | 'help' | 'faq' | 'support' | null
+  const [activeModal, setActiveModal] = useState(null); // 'cert' | 'help' | 'faq' | 'support' | null
 
   // Digital cert state simulation
   const [selectedCert, setSelectedCert] = useState("admin_cert");
   const [certPin, setCertPin] = useState("");
   const [certLoading, setCertLoading] = useState(false);
-
-  // Forgot password form state
-  const [forgotInput, setForgotInput] = useState("");
-  const [forgotSuccess, setForgotSuccess] = useState(false);
 
   // Redirect if logged in
   useEffect(() => {
@@ -172,17 +168,7 @@ export default function Login() {
     }
   }
 
-  // Handle forgot password request
-  function handleForgotSubmit(e) {
-    e.preventDefault();
-    if (!forgotInput) return;
-    setForgotSuccess(true);
-    setTimeout(() => {
-      setForgotSuccess(false);
-      setForgotInput("");
-      setActiveModal(null);
-    }, 2500);
-  }
+
 
   if (checkingSetup || authLoading) {
     return (
@@ -471,7 +457,7 @@ export default function Login() {
                   </div>
                 </div>
 
-                {/* Remember Me & Forgot Password Row */}
+                {/* Remember Me Row */}
                 <div className="flex items-center justify-between pt-1 text-xs">
                   <label className="flex items-center gap-2 cursor-pointer select-none font-semibold text-slate-600">
                     <input
@@ -482,14 +468,6 @@ export default function Login() {
                     />
                     <span>مرا به خاطر بسپار</span>
                   </label>
-
-                  <button
-                    type="button"
-                    onClick={() => setActiveModal("forgot")}
-                    className="font-bold text-[#094843] hover:text-[#063b36] hover:underline transition-all"
-                  >
-                    رمز عبور خود را فراموش کرده‌اید؟
-                  </button>
                 </div>
 
                 {/* Primary Action Button */}
@@ -686,75 +664,7 @@ export default function Login() {
           </motion.div>
         )}
 
-        {/* Forgot Password Modal */}
-        {activeModal === "forgot" && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4"
-          >
-            <motion.div
-              initial={{ scale: 0.95, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.95, y: 20 }}
-              className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-slate-100 text-right space-y-5"
-            >
-              <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-                <h3 className="text-base font-bold text-slate-800">بازیابی رمز عبور</h3>
-                <button
-                  onClick={() => setActiveModal(null)}
-                  className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
 
-              {forgotSuccess ? (
-                <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold text-center space-y-2">
-                  <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
-                  <p>درخواست بازیابی رمز عبور ثبت شد.</p>
-                  <p className="text-[11px] text-emerald-700 font-normal">
-                    لینک بازیابی رمز عبور به راهبر سیستم جهت تایید ارسال گردید.
-                  </p>
-                </div>
-              ) : (
-                <form onSubmit={handleForgotSubmit} className="space-y-4">
-                  <p className="text-xs text-slate-500 leading-relaxed">
-                    لطفاً نام کاربری یا شماره موبایل ثبت شده خود را وارد نمایید تا لینک بازیابی ارسال گردد.
-                  </p>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold text-slate-700">نام کاربری یا شماره موبایل:</Label>
-                    <Input
-                      type="text"
-                      value={forgotInput}
-                      onChange={(e) => setForgotInput(e.target.value)}
-                      placeholder="مثال: admin یا 09123456789"
-                      required
-                      className="h-11 rounded-xl border-slate-200 text-xs"
-                    />
-                  </div>
-                  <div className="pt-2 flex gap-3">
-                    <Button
-                      type="submit"
-                      className="flex-1 h-11 rounded-xl bg-[#094843] hover:bg-[#063b36] text-white font-bold text-xs"
-                    >
-                      ارسال لینک بازیابی
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setActiveModal(null)}
-                      className="h-11 rounded-xl border-slate-200 text-xs font-bold"
-                    >
-                      انصراف
-                    </Button>
-                  </div>
-                </form>
-              )}
-            </motion.div>
-          </motion.div>
-        )}
 
         {/* Help & Info Modal */}
         {(activeModal === "help" || activeModal === "faq" || activeModal === "support") && (
@@ -810,7 +720,7 @@ export default function Login() {
                   <div className="space-y-3">
                     <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
                       <p className="font-bold text-slate-800 mb-1">رمز عبور خود را فراموش کرده‌ام، چه کنم؟</p>
-                      <p className="text-slate-600">از گزینه «رمز عبور خود را فراموش کرده‌اید؟» در فرم ورود استفاده نمایید یا با مدیر سیستم تماس بگیرید.</p>
+                      <p className="text-slate-600">لطفاً مستقیماً با راهبر یا مدیر ارشد سیستم جهت بازنشانی رمز عبور خود تماس بگیرید.</p>
                     </div>
                     <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
                       <p className="font-bold text-slate-800 mb-1">خطای عدم تطابق نام کاربری نمایش داده می‌شود؟</p>

@@ -18,7 +18,7 @@ export async function validateAndLogFileUpload({
   taskId,
   taskRotationId
 }) {
-  const allowedExtensions = [".xlsx", ".xls", ".doc", ".docx", ".pdf", ".png", ".jpg", ".jpeg", ".csv", ".txt", ".zip"];
+  const allowedExtensions = [".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"];
   const fileName = file?.name || "file.xlsx";
   const fileSize = file?.size || 102400;
   const ext = fileName.includes(".") ? fileName.substring(fileName.lastIndexOf(".")).toLowerCase() : "";

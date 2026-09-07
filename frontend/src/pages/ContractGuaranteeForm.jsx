@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { PersianDatePicker, addDaysToJalali, diffDaysJalali } from "@/components/ui/persian-date-picker";
 import { cn } from "@/lib/utils";
+import { validateAndLogFileUpload } from "@/lib/fileUploadLogger";
 
 const GUARANTEE_TYPES = ["ضمانت انجام تعهدات", "ضمانت پیش‌پرداخت", "ضمانت حسن انجام کار", "سایر"];
 const ISSUING_BANKS = ["بانک ملت", "بانک ملی", "بانک تجارت", "بانک صادرات", "بانک سپه"];
@@ -804,15 +805,24 @@ export default function ContractGuaranteeForm() {
                           type="file"
                           id="guarantee-file-upload"
                           className="hidden"
-                          onChange={(e) => {
+                          onChange={async (e) => {
                             if (e.target.files?.[0]) {
                               const file = e.target.files[0];
-                              const sizeInMb = (file.size / (1024 * 1024)).toFixed(2) + " MB";
-                              setNewAttachment((prev) => ({
-                                ...prev,
-                                name: file.name,
-                                size: sizeInMb,
-                              }));
+                              try {
+                                await validateAndLogFileUpload({
+                                  file,
+                                  operation: "ADD",
+                                  dataType: "1"
+                                });
+                                const sizeInMb = (file.size / (1024 * 1024)).toFixed(2) + " MB";
+                                setNewAttachment((prev) => ({
+                                  ...prev,
+                                  name: file.name,
+                                  size: sizeInMb,
+                                }));
+                              } catch (err) {
+                                alert(err.message || "خطا در بارگذاری فایل");
+                              }
                             }
                           }}
                         />
