@@ -12,7 +12,7 @@ import {
   Calendar, Clock, Trash2, FileCheck, HelpCircle, HardDrive, Check,
   FolderArchive, Sparkles, ArrowDownToLine, ArrowUpFromLine, Laptop, Activity, LogOut,
   User, UserCheck, KeyRound, Shield, ShieldAlert, ChevronDown, ChevronUp, Globe, AlertOctagon,
-  Search, Eye
+  Search, Eye, X
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import api, { logFileDownloadAudit } from "@/api";
@@ -691,6 +691,21 @@ export default function SystemSettingsForm() {
   const [selectedRoleTab, setSelectedRoleTab] = useState("systemAdmin"); // systemAdmin, regularUser, otherRoles
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const [popLineNotice, setPopLineNotice] = useState(null);
+
+  const showPopLine = (text, type = "success") => {
+    setPopLineNotice({ text, type, id: Date.now() });
+    setSuccessMsg(text);
+  };
+
+  useEffect(() => {
+    if (popLineNotice) {
+      const timer = setTimeout(() => {
+        setPopLineNotice(null);
+      }, 7000);
+      return () => clearTimeout(timer);
+    }
+  }, [popLineNotice]);
   const [isSaving, setIsSaving] = useState(false);
   const [tlsTestTargetUrl, setTlsTestTargetUrl] = useState("https://google.com");
   const [tlsTestResult, setTlsTestResult] = useState(null);
@@ -1091,7 +1106,6 @@ export default function SystemSettingsForm() {
   function set(field, val) {
     setSettings(s => ({ ...s, [field]: val }));
     setErrorMsg("");
-    setSuccessMsg("");
   }
 
   function setPasswordPolicy(field, val) {
@@ -1399,6 +1413,37 @@ export default function SystemSettingsForm() {
 
   return (
     <PageShell>
+      {/* 🌟 Floating Pop-Line Toast Notification Bar (پیام‌های پاپ‌لاین شناور بالای صفحه) */}
+      {(popLineNotice || successMsg) && (
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[99999] w-[92%] max-w-2xl animate-in slide-in-from-top-6 fade-in duration-300 pointer-events-auto">
+          <div className="bg-slate-900/95 text-emerald-300 border border-emerald-500/50 shadow-2xl backdrop-blur-xl p-4 rounded-2xl flex items-center justify-between gap-3 text-xs font-bold ring-2 ring-emerald-500/40">
+            <div className="flex items-center gap-3">
+              <div className="bg-emerald-500/20 text-emerald-400 p-2.5 rounded-xl shrink-0">
+                <RefreshCw className="h-5 w-5 animate-spin-slow" />
+              </div>
+              <div className="space-y-0.5">
+                <span className="text-[10px] text-emerald-400 font-mono font-black tracking-wider block">
+                  ⚡ اطلاعیه پاپ‌لاین همگام‌سازی افتا
+                </span>
+                <span className="text-xs text-white block leading-relaxed font-semibold whitespace-pre-line">
+                  {popLineNotice?.text || successMsg}
+                </span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setPopLineNotice(null);
+                setSuccessMsg("");
+              }}
+              className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all shrink-0 hover:scale-105 active:scale-95"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       <PageHeader
         title="تنظیمات عمومی و پشتیبان‌گیری سامانه"
         description="مدیریت سال مالی، کنترل‌های حسابداری، امضاهای گزارشات، پشتیبان‌گیری سالیانه/ماهیانه/روزانه و ورودی/خروجی کامل سیستم"
@@ -5453,12 +5498,16 @@ export default function SystemSettingsForm() {
                           <label className="p-3.5 rounded-xl border border-amber-300 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20 flex items-start gap-3 cursor-pointer">
                             <input
                               type="checkbox"
-                              checked={settings.lastFailedSessionNoticePolicy?.displayFailedAttemptsCount ?? true}
+                              checked={settings.trustedChannelPolicy?.protocols?.ssh ?? true}
                               onChange={e => {
-                                set("lastFailedSessionNoticePolicy", {
-                                  ...settings.lastFailedSessionNoticePolicy,
-                                  displayFailedAttemptsCount: e.target.checked
+                                set("trustedChannelPolicy", {
+                                  ...settings.trustedChannelPolicy,
+                                  protocols: {
+                                    ...settings.trustedChannelPolicy?.protocols,
+                                    ssh: e.target.checked
+                                  }
                                 });
+                                showPopLine(e.target.checked ? "✅ پروتکل SSH در آکاردئون «کانال‌های مورد اعتماد (جدول ۲-۹)» فعال گردید." : "⚠️ پروتکل SSH در آکاردئون «کانال‌های مورد اعتماد (جدول ۲-۹)» غیرفعال گردید.");
                               }}
                               className="h-4 w-4 rounded border-amber-400 text-amber-600 mt-0.5"
                             />
@@ -5897,6 +5946,7 @@ export default function SystemSettingsForm() {
                                     ssh: e.target.checked
                                   }
                                 });
+                                showPopLine(e.target.checked ? "✅ پروتکل SSH در آکاردئون «کانال‌های مورد اعتماد (جدول ۲-۹)» فعال گردید." : "⚠️ پروتکل SSH در آکاردئون «کانال‌های مورد اعتماد (جدول ۲-۹)» غیرفعال گردید.");
                               }}
                               className="h-4 w-4 rounded border-slate-300 text-indigo-600 mt-0.5"
                             />
@@ -6246,6 +6296,11 @@ export default function SystemSettingsForm() {
                                 "tls_rsa_with_aes_256_gcm_sha384", "tls_rsa_with_aes_128_gcm_sha256", "tls_ecdh_ecdsa_with_aes_256_gcm_sha384", "tls_ecdh_ecdsa_with_aes_128_gcm_sha256",
                                 "tls_ecdh_rsa_with_aes_256_gcm_sha384", "tls_ecdh_rsa_with_aes_128_gcm_sha256", "tls_dh_rsa_with_aes_256_gcm_sha384", "tls_dh_rsa_with_aes_128_gcm_sha256"
                               ].forEach(k => { allOn[k] = true; });
+                              showPopLine(
+                                `⚡ تغییر تنظیمات آکاردئون افتا:\n` +
+                                `• آکاردئون: «جدول ۳-۲: مجموعه‌رمزهای TLS Client (بند ۱)» 👈 تمامی ۱۶ سایفرسوئیت فعال شدند.`,
+                                "info"
+                              );
                               set("tlsClientPolicy", { ...settings.tlsClientPolicy, cipherSuites: allOn });
                             }}
                             className="h-8 text-[11px] font-bold"
@@ -6265,6 +6320,11 @@ export default function SystemSettingsForm() {
                                 "tls_ecdh_rsa_with_aes_256_gcm_sha384", "tls_ecdh_rsa_with_aes_128_gcm_sha256", "tls_dh_rsa_with_aes_256_gcm_sha384", "tls_dh_rsa_with_aes_128_gcm_sha256"
                               ].forEach(k => { allOff[k] = false; });
                               set("tlsClientPolicy", { ...settings.tlsClientPolicy, cipherSuites: allOff });
+                              showPopLine(
+                                `⚡ تغییر تنظیمات آکاردئون افتا:\n` +
+                                `• آکاردئون: «جدول ۳-۲: مجموعه‌رمزهای TLS Client (بند ۱)» 👈 تمامی ۱۶ سایفرسوئیت غیرفعال شدند.`,
+                                "warning"
+                              );
                             }}
                             className="h-8 text-[11px] font-bold text-rose-600 hover:text-rose-700"
                           >
@@ -6364,12 +6424,55 @@ export default function SystemSettingsForm() {
                                 type="checkbox"
                                 checked={settings.tlsClientPolicy?.cipherSuites?.[item.key] ?? true}
                                 onChange={e => {
+                                  const isChecked = e.target.checked;
+                                  const newSuites = {
+                                    ...settings.tlsClientPolicy?.cipherSuites,
+                                    [item.key]: isChecked
+                                  };
+                                  const hasAnyEcdhe = Object.keys(newSuites).some(k => newSuites[k] && (k.includes("ecdhe") || k.includes("ecdh")));
+
+                                  let newElliptic = settings.tlsClientPolicy?.clientHelloEllipticCurves;
+                                  const prevMode = newElliptic?.mode ?? "nistCurves";
+
+                                  if (hasAnyEcdhe && (prevMode === "noExtension" || !newElliptic?.mode)) {
+                                    newElliptic = {
+                                      ...newElliptic,
+                                      mode: "nistCurves",
+                                      curves: {
+                                        secp256r1: true,
+                                        secp384r1: true,
+                                        secp521r1: newElliptic?.curves?.secp521r1 ?? true
+                                      }
+                                    };
+                                    showPopLine(
+                                      `⚡ همگام‌سازی خودکار پاپ‌لاین افتا:\n` +
+                                      `• آکاردئون فعال‌شده: «جدول ۳-۲: مجموعه‌رمزهای TLS Client (بند ۱)» 👈 گزینه «${item.name}» [تیک خورد / فعال شد]\n` +
+                                      `• آکاردئون دیگر همگام‌شده: «تعیین ضوابط استفاده از خم‌های بیضوی در ClientHello (بند ۴)» 👈 گزینه «۲. ارائه Supported Elliptic Curves Extension به همراه NIST Curves» [خودکار فعال شد]`,
+                                      "info"
+                                    );
+                                  } else if (!hasAnyEcdhe && prevMode === "nistCurves") {
+                                    newElliptic = {
+                                      ...newElliptic,
+                                      mode: "noExtension"
+                                    };
+                                    showPopLine(
+                                      `⚡ همگام‌سازی خودکار پاپ‌لاین افتا:\n` +
+                                      `• آکاردئون غیرفعال‌شده: «جدول ۳-۲: مجموعه‌رمزهای TLS Client (بند ۱)» 👈 گزینه «${item.name}» [تیک برداشته شد / تمام سایفرهای ECDHE غیرفعال شدند]\n` +
+                                      `• آکاردئون دیگر همگام‌شده: «تعیین ضوابط استفاده از خم‌های بیضوی در ClientHello (بند ۴)» 👈 گزینه «۱. ارائه نكردن Supported Elliptic Curves Extension» [خودکار فعال شد]`,
+                                      "warning"
+                                    );
+                                  } else {
+                                    showPopLine(
+                                      `⚡ تغییر تنظیمات آکاردئون افتا:\n` +
+                                      `• آکاردئون: «جدول ۳-۲: مجموعه‌رمزهای TLS Client (بند ۱)» 👈 گزینه «${item.name}» [${isChecked ? "تیک خورد / فعال شد" : "تیک برداشته شد / غیرفعال شد"}]`,
+                                      "info"
+                                    );
+                                  }
+
                                   set("tlsClientPolicy", {
                                     ...settings.tlsClientPolicy,
-                                    cipherSuites: {
-                                      ...settings.tlsClientPolicy?.cipherSuites,
-                                      [item.key]: e.target.checked
-                                    }
+                                    cipherSuites: newSuites,
+                                    clientHelloEllipticCurves: newElliptic
                                   });
                                 }}
                                 className="h-4 w-4 rounded border-slate-300 text-blue-600 mt-0.5"
@@ -6417,10 +6520,16 @@ export default function SystemSettingsForm() {
                             type="checkbox"
                             checked={settings.tlsClientPolicy?.rfc6125IdentityValidation ?? true}
                             onChange={e => {
+                              const isChecked = e.target.checked;
                               set("tlsClientPolicy", {
                                 ...settings.tlsClientPolicy,
-                                rfc6125IdentityValidation: e.target.checked
+                                rfc6125IdentityValidation: isChecked
                               });
+                              showPopLine(
+                                `⚡ تغییر تنظیمات آکاردئون افتا:\n` +
+                                `• آکاردئون: «تایید مطابقت شناسه ارائه‌شده با شناسه مرجع (مطابق با RFC 6125)» 👈 گزینه «۱. الزام اعتبارسنجی دقیق نام دامنه/شناسه مرجع کلاینت» [${isChecked ? "تیک خورد / فعال شد" : "تیک برداشته شد / غیرفعال شد"}]`,
+                                "info"
+                              );
                             }}
                             className="h-4 w-4 rounded border-slate-300 text-indigo-600 mt-0.5"
                           />
@@ -6594,72 +6703,114 @@ export default function SystemSettingsForm() {
                         </span>
                       </div>
 
-                      <div className="space-y-3">
-                        <h4 className="text-xs font-black text-purple-900 dark:text-purple-300 border-b pb-2">
-                          تنظیم نحوه ارائه افزونه Supported Elliptic Curves Extension:
-                        </h4>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          <label className={`p-3.5 rounded-xl border flex items-start gap-3 cursor-pointer transition-all ${
-                            settings.tlsClientPolicy?.clientHelloEllipticCurves?.mode === "noExtension"
-                              ? "border-purple-500 bg-purple-50/40 dark:bg-purple-950/30 ring-1 ring-purple-500"
-                              : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
-                          }`}>
-                            <input
-                              type="radio"
-                              name="ellipticCurvesMode"
-                              checked={settings.tlsClientPolicy?.clientHelloEllipticCurves?.mode === "noExtension"}
-                              onChange={() => {
-                                set("tlsClientPolicy", {
-                                  ...settings.tlsClientPolicy,
-                                  clientHelloEllipticCurves: {
-                                    ...settings.tlsClientPolicy?.clientHelloEllipticCurves,
-                                    mode: "noExtension"
-                                  }
-                                });
-                              }}
-                              className="h-4 w-4 text-purple-600 mt-0.5"
-                            />
-                            <div>
-                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
-                                ۱. ارائه نكردن Supported Elliptic Curves Extension
-                              </span>
-                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
-                                در صورتی که محصول از خم‌های بیضوی استفاده می‌نماید، این افزونه ارائه نشود.
-                              </span>
-                            </div>
-                          </label>
-
-                          <label className={`p-3.5 rounded-xl border flex items-start gap-3 cursor-pointer transition-all ${
-                            (settings.tlsClientPolicy?.clientHelloEllipticCurves?.mode ?? "nistCurves") === "nistCurves"
-                              ? "border-purple-500 bg-purple-50/40 dark:bg-purple-950/30 ring-1 ring-purple-500"
-                              : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
-                          }`}>
-                            <input
-                              type="radio"
-                              name="ellipticCurvesMode"
-                              checked={(settings.tlsClientPolicy?.clientHelloEllipticCurves?.mode ?? "nistCurves") === "nistCurves"}
-                              onChange={() => {
-                                set("tlsClientPolicy", {
-                                  ...settings.tlsClientPolicy,
-                                  clientHelloEllipticCurves: {
-                                    ...settings.tlsClientPolicy?.clientHelloEllipticCurves,
-                                    mode: "nistCurves"
-                                  }
-                                });
-                              }}
-                              className="h-4 w-4 text-purple-600 mt-0.5"
-                            />
-                            <div>
-                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
-                                ۲. ارائه Supported Elliptic Curves Extension به همراه NIST Curves
-                              </span>
-                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
-                                نوع خم به همراه خم‌های استاندارد secp256r1 یا secp384r1 یا secp521r1 ارائه گردد.
-                              </span>
-                            </div>
-                          </label>
+                        <div className="bg-purple-100/70 dark:bg-purple-950/40 p-3 rounded-xl border border-purple-300 dark:border-purple-800 flex items-start gap-2.5">
+                          <RefreshCw className="h-4 w-4 text-purple-700 dark:text-purple-300 shrink-0 mt-0.5 animate-spin-slow" />
+                          <div className="text-[11px] text-purple-900 dark:text-purple-200 leading-relaxed font-medium">
+                            <strong>اطلاعیه هوشمند سیستم به مدیر سرور (انطباق بند ۳۶ افتا):</strong> انتخاب یا تغییر در مجموعه رمزهای بند ۱ یا منحنی‌های بیضوی بند ۴ به‌صورت خودکار توسط سیستم همگام‌سازی می‌شود تا هیچ‌گونه عدم مطابقتی رخ ندهد.
+                          </div>
                         </div>
+
+                        <div className="space-y-3">
+                          <h4 className="text-xs font-black text-purple-900 dark:text-purple-300 border-b pb-2">
+                            تنظیم نحوه ارائه افزونه Supported Elliptic Curves Extension:
+                          </h4>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <label className={`p-3.5 rounded-xl border flex items-start gap-3 cursor-pointer transition-all ${
+                              settings.tlsClientPolicy?.clientHelloEllipticCurves?.mode === "noExtension"
+                                ? "border-purple-500 bg-purple-50/40 dark:bg-purple-950/30 ring-1 ring-purple-500"
+                                : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+                            }`}>
+                              <input
+                                type="radio"
+                                name="ellipticCurvesMode"
+                                checked={settings.tlsClientPolicy?.clientHelloEllipticCurves?.mode === "noExtension"}
+                                onChange={() => {
+                                  const updatedSuites = { ...settings.tlsClientPolicy?.cipherSuites };
+                                  Object.keys(updatedSuites).forEach(k => {
+                                    if (k.includes("ecdhe") || k.includes("ecdh")) {
+                                      updatedSuites[k] = false;
+                                    }
+                                  });
+                                  set("tlsClientPolicy", {
+                                    ...settings.tlsClientPolicy,
+                                    cipherSuites: updatedSuites,
+                                    clientHelloEllipticCurves: {
+                                      ...settings.tlsClientPolicy?.clientHelloEllipticCurves,
+                                      mode: "noExtension"
+                                    }
+                                  });
+                                  showPopLine(
+                                    `⚡ همگام‌سازی خودکار پاپ‌لاین افتا:\n` +
+                                    `• آکاردئون تغییریافته: «تعیین ضوابط استفاده از خم‌های بیضوی در ClientHello (بند ۴)» 👈 گزینه «۱. ارائه نكردن Supported Elliptic Curves Extension» [انتخاب شد]\n` +
+                                    `• آکاردئون دیگر همگام‌شده: «جدول ۳-۲: مجموعه‌رمزهای TLS Client (بند ۱)» 👈 تمامی گزینه‌های سایفرسوئیت ECDHE/ECDH (از جمله TLS_ECDHE_RSA_...) [خودکار بدون‌تیک/غیرفعال شدند]`,
+                                    "warning"
+                                  );
+                                  showPopLine(
+                                    `⚡ همگام‌سازی خودکار پاپ‌لاین افتا:\n` +
+                                    `• آکاردئون تغییریافته: «تعیین ضوابط استفاده از خم‌های بیضوی در ClientHello (بند ۴)» 👈 گزینه «۱. ارائه نكردن Supported Elliptic Curves Extension» [انتخاب شد]\n` +
+                                    `• آکاردئون دیگر همگام‌شده: «جدول ۳-۲: مجموعه‌رمزهای TLS Client (بند ۱)» 👈 تمامی گزینه‌های سایفرسوئیت ECDHE/ECDH [خودکار بدون‌تیک/غیرفعال شدند]`,
+                                    "warning"
+                                  );
+                                }}
+                                className="h-4 w-4 text-purple-600 mt-0.5"
+                              />
+                              <div>
+                                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                  ۱. ارائه نكردن Supported Elliptic Curves Extension
+                                </span>
+                                <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                                  در صورتی که محصول از خم‌های بیضوی استفاده می‌نماید، این افزونه ارائه نشود (با انتخاب این گزینه، سایفرسوئیت‌های ECDHE در بند ۱ خودکار غیرفعال می‌شوند).
+                                </span>
+                              </div>
+                            </label>
+
+                            <label className={`p-3.5 rounded-xl border flex items-start gap-3 cursor-pointer transition-all ${
+                              (settings.tlsClientPolicy?.clientHelloEllipticCurves?.mode ?? "nistCurves") === "nistCurves"
+                                ? "border-purple-500 bg-purple-50/40 dark:bg-purple-950/30 ring-1 ring-purple-500"
+                                : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+                            }`}>
+                              <input
+                                type="radio"
+                                name="ellipticCurvesMode"
+                                checked={(settings.tlsClientPolicy?.clientHelloEllipticCurves?.mode ?? "nistCurves") === "nistCurves"}
+                                onChange={() => {
+                                  const updatedSuites = { ...settings.tlsClientPolicy?.cipherSuites };
+                                  ["tls_ecdhe_rsa_with_aes_128_gcm_sha256", "tls_ecdhe_rsa_with_aes_256_gcm_sha384", "tls_ecdhe_ecdsa_with_aes_256_gcm_sha384", "tls_ecdhe_ecdsa_with_aes_128_gcm_sha256"].forEach(k => {
+                                    updatedSuites[k] = true;
+                                  });
+                                  set("tlsClientPolicy", {
+                                    ...settings.tlsClientPolicy,
+                                    cipherSuites: updatedSuites,
+                                    clientHelloEllipticCurves: {
+                                      ...settings.tlsClientPolicy?.clientHelloEllipticCurves,
+                                      mode: "nistCurves",
+                                      curves: {
+                                        secp256r1: true,
+                                        secp384r1: true,
+                                        secp521r1: settings.tlsClientPolicy?.clientHelloEllipticCurves?.curves?.secp521r1 ?? true
+                                      }
+                                    }
+                                  });
+                                  showPopLine(
+                                    `⚡ همگام‌سازی خودکار پاپ‌لاین افتا:\n` +
+                                    `• آکاردئون تغییریافته: «تعیین ضوابط استفاده از خم‌های بیضوی در ClientHello (بند ۴)» 👈 گزینه «۲. ارائه Supported Elliptic Curves Extension به همراه NIST Curves» [انتخاب شد]\n` +
+                                    `• آکاردئون دیگر همگام‌شده: «جدول ۳-۲: مجموعه‌رمزهای TLS Client (بند ۱)» 👈 گزینه‌های سایفرسوئیت ECDHE (از جمله TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) [خودکار تیک‌خورده/فعال شدند]`,
+                                    "info"
+                                  );
+                                }}
+                                className="h-4 w-4 text-purple-600 mt-0.5"
+                              />
+                              <div>
+                                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                  ۲. ارائه Supported Elliptic Curves Extension به همراه NIST Curves
+                                </span>
+                                <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                                  نوع خم به همراه خم‌های استاندارد secp256r1 یا secp384r1 یا secp521r1 ارائه گردد (با انتخاب این گزینه، سایفرسوئیت‌های ECDHE خودکار فعال می‌شوند).
+                                </span>
+                              </div>
+                            </label>
+                          </div>
 
                         {(settings.tlsClientPolicy?.clientHelloEllipticCurves?.mode ?? "nistCurves") === "nistCurves" && (
                           <div className="mt-3 p-3.5 bg-purple-50/50 dark:bg-purple-950/20 rounded-xl border border-purple-200 dark:border-purple-900/40">
