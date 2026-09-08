@@ -1511,6 +1511,21 @@ export function validateUserDataEgressAccessPolicy(
   return { allowed: true };
 }
 
+
+export function validateX509v3Rfc5280AuthenticationScopes(
+  scopeKey: "https" | "tls" | "ssh" | "codeSigningSoftwareUpdates" | "codeSigningIntegrityVerification" | "otherUseCases",
+  policy: CertificateValidationPolicy = DEFAULT_SECURITY_POLICY.certificateValidationPolicy!
+): { supported: boolean; reason?: string } {
+  const scopes = policy.x509v3Rfc5280AuthenticationScopes;
+  if (scopes && scopes[scopeKey] === false) {
+    return {
+      supported: false,
+      reason: `پشتیبانی از احراز هویت با گواهی‌نامه X.509v3 (RFC 5280) برای کارکرد (${scopeKey}) طبق الزام اجباری بند ۳ جدول ۳-۵ افتا غیرفعال می‌باشد.`
+    };
+  }
+  return { supported: true };
+}
+
 export function validateSecureDataTransportPolicy(
   context: { isSecureProtocol?: boolean; hasAuthHeaders?: boolean; checksumValid?: boolean },
   policy: SecureDataTransportPolicy = DEFAULT_SECURITY_POLICY.secureDataTransportPolicy!
@@ -2547,5 +2562,155 @@ export function validateInteractiveSessionInactivityTermination(
     logoutReason,
     auditLogged: true,
     aftaCompliance: "انطباق کامل با الزام FTA_SSL.3.1 افتا (خاتمه دادن به نشست‌های تعاملی راه‌دور غیرفعال پس از مدت زمان قابل پیکربندی توسط مدیر همراه با ثبت لاگ خروج به علت غیرفعال بودن)"
+  };
+}
+
+// 🌟 الزام افتا بند ۴۸: بررسی و رفع عدم انطباق بین پروتکل TLS در جدول ۲-۹ (کانال‌های مورد اعتماد) و جدول ۳-۵ (اعتبارسنجی گواهی‌نامه X.509v3)
+export function validateClause48TlsAlignment(
+  policy: SecurityPolicyConfig = DEFAULT_SECURITY_POLICY
+): {
+  isAligned: boolean;
+  trustedChannelTlsEnabled: boolean;
+  x509v3TlsScopeEnabled: boolean;
+  message: string;
+  aftaCompliance: string;
+} {
+  const trustedTls = policy.trustedChannelPolicy?.protocols?.tls ?? true;
+  const x509Tls = policy.certificateValidationPolicy?.x509v3Rfc5280AuthenticationScopes?.tls ?? true;
+
+  const isAligned = trustedTls === x509Tls;
+
+  if (!isAligned) {
+    return {
+      isAligned: false,
+      trustedChannelTlsEnabled: trustedTls,
+      x509v3TlsScopeEnabled: x509Tls,
+      message: `عدم انطباق بند ۴۸ افتا: وضعیت پروتکل TLS در جدول ۲-۹ (${trustedTls ? "فعال" : "غیرفعال"}) با دامنه احراز هویت TLS در جدول ۳-۵ (${x509Tls ? "فعال" : "غیرفعال"}) همخوان نمی‌باشد.`,
+      aftaCompliance: "عدم انطباق با بند ۴۸ افتا (مغایرت پروتکل TLS بین جدول ۲-۹ و جدول ۳-۵)"
+    };
+  }
+
+  return {
+    isAligned: true,
+    trustedChannelTlsEnabled: trustedTls,
+    x509v3TlsScopeEnabled: x509Tls,
+    message: "انطباق کامل بند ۴۸ افتا: پروتکل TLS در کانال‌های مورد اعتماد (جدول ۲-۹ بند ۱) و احراز هویت گواهی‌نامه X.509v3 (جدول ۳-۵ بند ۳) کاملاً منطبق و همگام می‌باشند.",
+    aftaCompliance: "انطباق کامل با بند ۴۸ افتا (تطابق پروتکل TLS بین جدول ۲-۹ و جدول ۳-۵)"
+  };
+}
+
+// 🌟 الزام افتا بند ۴۹: ارزیابی انطباق کامل الزامات ۹‌گانه پروتکل SSH (جدول ۳-۶ افتا)
+export function validateClause49SshPolicy(
+  policy: SecurityPolicyConfig = DEFAULT_SECURITY_POLICY
+): {
+  valid: boolean;
+  sshEnabled: boolean;
+  bandsStatus: {
+    band1_rfcCompliance: boolean;
+    band2_authMethods: boolean;
+    band3_packetSizeLimit: boolean;
+    band4_ciphers: boolean;
+    band5_hostKeys: boolean;
+    band6_macs: boolean;
+    band7_kex: boolean;
+    band8_rekeying: boolean;
+    band9_hostVerification: boolean;
+  };
+  aftaCompliance: string;
+} {
+  const sshPol = policy.sshProtocolPolicy || DEFAULT_SECURITY_POLICY.sshProtocolPolicy!;
+
+  const bandsStatus = {
+    band1_rfcCompliance: !!(sshPol.rfcCompliance?.rfc4251 && sshPol.rfcCompliance?.rfc4252 && sshPol.rfcCompliance?.rfc4253 && sshPol.rfcCompliance?.rfc4254 && sshPol.rfcCompliance?.rfc5656 && sshPol.rfcCompliance?.rfc6668),
+    band2_authMethods: !!(sshPol.authMethods?.publicKeyAuth || sshPol.authMethods?.passwordAuth),
+    band3_packetSizeLimit: !!(sshPol.packetSizeLimit?.enableMaxPacketCheck && (sshPol.packetSizeLimit?.maxPacketSizeBytes ?? 35000) <= 35000),
+    band4_ciphers: !!(sshPol.encryptionAlgorithms?.aeadAes256Gcm || sshPol.encryptionAlgorithms?.aes256Ctr),
+    band5_hostKeys: !!(sshPol.hostKeyAlgorithms?.sshEd25519 || sshPol.hostKeyAlgorithms?.rsaSha2512),
+    band6_macs: !!(sshPol.macAlgorithms?.aeadAes256Gcm || sshPol.macAlgorithms?.hmacSha2512),
+    band7_kex: !!(sshPol.kexAlgorithms?.curve25519Sha256 || sshPol.kexAlgorithms?.dhGroupExchangeSha256),
+    band8_rekeying: !!(sshPol.rekeyingPolicy?.enableRekeying && (sshPol.rekeyingPolicy?.maxDurationMinutes ?? 60) <= 60 && (sshPol.rekeyingPolicy?.maxDataTransferredMb ?? 1024) <= 1024),
+    band9_hostVerification: !!(sshPol.hostVerificationPolicy?.useLocalKnownHostsDb)
+  };
+
+  const valid = Object.values(bandsStatus).every(status => status === true);
+
+  return {
+    valid,
+    sshEnabled: sshPol.enable !== false,
+    bandsStatus,
+    aftaCompliance: valid
+      ? "انطباق کامل با بند ۴۹ افتا (جدول ۳-۶ - تمامی الزامات ۹‌گانه امنیتی پروتکل SSH در سیستم‌های Gnu/Linux)"
+      : "عدم انطباق با برخی الزامات ۹‌گانه جدول ۳-۶ افتا"
+  };
+}
+
+// 🌟 الزام اجباری بند ۲ جدول ۳-۶ افتا: روش‌های احراز هویت SSH (RFC 4252)
+export function validateSshRfc4252AuthMethods(
+  policy: SshProtocolPolicy = DEFAULT_SECURITY_POLICY.sshProtocolPolicy!
+): {
+  valid: boolean;
+  publicKeyAuthEnabled: boolean;
+  passwordAuthEnabled: boolean;
+  reason?: string;
+  aftaCompliance: string;
+} {
+  const publicKeyAuthEnabled = policy.authMethods?.publicKeyAuth !== false;
+  const passwordAuthEnabled = policy.authMethods?.passwordAuth !== false;
+
+  const valid = publicKeyAuthEnabled || passwordAuthEnabled;
+
+  if (!valid) {
+    return {
+      valid: false,
+      publicKeyAuthEnabled: false,
+      passwordAuthEnabled: false,
+      reason: "عدم انطباق با الزام اجباری بند ۲ جدول ۳-۶ افتا: هیچ‌یک از روش‌های احراز هویت SSH (کلید عمومی یا گذرواژه) فعال نمی‌باشد.",
+      aftaCompliance: "عدم انطباق با RFC 4252 (جدول ۳-۶ بند ۲)"
+    };
+  }
+
+  return {
+    valid: true,
+    publicKeyAuthEnabled,
+    passwordAuthEnabled,
+    aftaCompliance: "انطباق کامل با الزام اجباری بند ۲ جدول ۳-۶ افتا (پشتیبانی از روش‌های احراز هویت مبتنی بر کلید عمومی و گذرواژه مطابق RFC 4252)"
+  };
+}
+
+// 🌟 الزام اجباری بند ۳ جدول ۳-۶ و بند ۵۱ افتا: بیشینه حجم بسته SSH (RFC 4253 و OpenSSH 256KB)
+export function validateClause51SshPacketSize(
+  packetSizeBytes: number,
+  policy: SshProtocolPolicy = DEFAULT_SECURITY_POLICY.sshProtocolPolicy!
+): {
+  valid: boolean;
+  maxAllowedBytes: number;
+  maxAllowedKb: number;
+  explanation: string;
+  reason?: string;
+  aftaCompliance: string;
+} {
+  const maxAllowedBytes = policy.packetSizeLimit?.maxPacketSizeBytes ?? 262144;
+  const maxAllowedKb = maxAllowedBytes / 1024;
+  const explanation = policy.packetSizeLimit?.maxPacketSizeExplanation || "بیشینه حجم بسته قابل انتقال در ابزار OpenSSH برابر 256KB (262,144 بایت) است.";
+
+  const valid = packetSizeBytes <= maxAllowedBytes;
+
+  if (!valid) {
+    return {
+      valid: false,
+      maxAllowedBytes,
+      maxAllowedKb,
+      explanation,
+      reason: `بسته SSH دریافتی با حجم ${packetSizeBytes.toLocaleString()} بایت از بیشینه حجم مجاز (${maxAllowedBytes.toLocaleString()} بایت / ${maxAllowedKb.toFixed(1)}KB) فراتر رفته و بر اساس RFC 4253 کنار گذاشته شد.`,
+      aftaCompliance: "عدم انطباق با بند ۳ جدول ۳-۶ و بند ۵۱ افتا (تخطی از حد بیشینه بسته SSH)"
+    };
+  }
+
+  return {
+    valid: true,
+    maxAllowedBytes,
+    maxAllowedKb,
+    explanation,
+    aftaCompliance: "انطباق کامل با بند ۳ جدول ۳-۶ و بند ۵۱ افتا (تعیین صریح بیشینه حجم بسته SSH بر اساس RFC 4253 و OpenSSH 256KB)"
   };
 }
