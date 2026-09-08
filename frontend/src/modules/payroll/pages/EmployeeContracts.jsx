@@ -192,15 +192,6 @@ export default function EmployeeContracts() {
     }, 200);
   };
 
-  const handleFileUpload = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setCapturedImage(reader.result);
-    };
-    reader.readAsDataURL(file);
-  };
 
   const handleSaveScan = async () => {
     if (!capturedImage || !scannerContract) return;

@@ -119,20 +119,6 @@ export default function BudgetModule() {
     fetchData();
   }, [pathname]);
 
-  // مدیریت انتخاب فایل پیوست
-  const handleFileSelect = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setAgrForm((prev) => ({
-        ...prev,
-        attachment_name: file.name,
-        attachment_data: event.target?.result || ""
-      }));
-    };
-    reader.readAsDataURL(file);
-  };
 
   // تغییر وضعیت مستقیم از جدول (ذخیره موقت -> ارسال -> تایید -> قطعی)
   const handleStatusChange = async (agreementId, newStatus) => {
@@ -371,6 +357,7 @@ export default function BudgetModule() {
           </div>
           <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setAlertMsg(null)}>
             ×
+          </Button>
         </div>
       )}
 
