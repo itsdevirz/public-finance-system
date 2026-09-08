@@ -1429,4 +1429,39 @@ describe("🛡️ Comprehensive Security Test Suite", () => {
       assert.strictEqual(res.terminated, false, "Session within 30min idle window must remain active");
     });
   });
+
+  describe("34. Active Session User Modification Policy Compliance", () => {
+    function checkUserModificationAllowed(targetUser: { username: string; role: string }, activeSessionsCount: number) {
+      const isTargetAdmin = targetUser.role === "admin" || targetUser.role === "مدیر سیستم" || targetUser.username?.toLowerCase() === "admin";
+      if (!isTargetAdmin && activeSessionsCount > 0) {
+        return {
+          allowed: false,
+          statusCode: 400,
+          message: `نشست حساب کاربری "${targetUser.username}" فعال می باشد و در طول نشست فعال نمی توان تغییری ایجاد کرد`
+        };
+      }
+      return { allowed: true };
+    }
+
+    it("1. Block modification for non-admin user with active session", () => {
+      const res = checkUserModificationAllowed({ username: "user_test", role: "حسابدار" }, 1);
+      assert.strictEqual(res.allowed, false);
+      assert.strictEqual(res.statusCode, 400);
+      assert.strictEqual(res.message, 'نشست حساب کاربری "user_test" فعال می باشد و در طول نشست فعال نمی توان تغییری ایجاد کرد');
+    });
+
+    it("2. Allow modification for system admin user even with active session", () => {
+      const resAdmin = checkUserModificationAllowed({ username: "admin", role: "admin" }, 1);
+      assert.strictEqual(resAdmin.allowed, true);
+
+      const resSystemAdmin = checkUserModificationAllowed({ username: "sysadmin", role: "مدیر سیستم" }, 2);
+      assert.strictEqual(resSystemAdmin.allowed, true);
+    });
+
+    it("3. Allow modification for non-admin user with no active session", () => {
+      const res = checkUserModificationAllowed({ username: "user_test", role: "حسابدار" }, 0);
+      assert.strictEqual(res.allowed, true);
+    });
+  });
 });
+

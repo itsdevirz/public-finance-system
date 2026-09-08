@@ -172,26 +172,18 @@ router.put("/:id", async (c) => {
       return c.json({ success: false, message: "کاربر مورد نظر یافت نشد" }, 404);
     }
 
-    // الزامات افتا: غیرمجاز بودن هرگونه تغییر در ویژگی‌های امنیتی و مشخصات کاربر دارای نشست فعال مجزا
-    const secConfig = await db.collection("system_settings").findOne({ key: "security_policy" });
-    const securityPolicy = secConfig?.value?.activeUserSecurityChangePolicy || {
-      disallowChangeDuringActiveSession: true
-    };
+    // عدم امکان تغییر حساب کاربری غیرمدیر دارای نشست فعال (الزام سیستم و افتا)
+    const isTargetAdmin = existingUser.role === "admin" || existingUser.role === "مدیر سیستم" || existingUser.username?.toLowerCase() === "admin";
 
-    const authHeader = c.req.header("authorization") || "";
-    const currentToken = authHeader.replace(/^Bearer\s+/i, "").trim();
-
-    if (securityPolicy.disallowChangeDuringActiveSession === true && !isAdmin) {
+    if (!isTargetAdmin) {
       const activeSessions = await pruneExpiredSessions(db, userObjectId);
-      // Filter out the current requesting session token
-      const otherActiveSessions = activeSessions.filter((s: any) => s.token !== currentToken);
-      if (otherActiveSessions.length > 0) {
-        const errorMsgAction = "Message : کاربر مورد نظر دارای نشست فعال دیگری در سامانه می باشد و امکان تغییر مشخصات آن وجود ندارد.";
+      if (activeSessions.length > 0) {
+        const errorMsg = `نشست حساب کاربری "${existingUser.username}" فعال می باشد و در طول نشست فعال نمی توان تغییری ایجاد کرد`;
         await logAuditEvent({
           userId: payload.sub,
           username: payload.username || "admin",
           userRole: payload.role || "مدیر سیستم",
-          action: errorMsgAction,
+          action: `Message : ${errorMsg}`,
           eventType: AFTA_LOG_EVENT_TYPES.USER_DATA_VALIDATION_FAILURE,
           resource: "users",
           result: "FAILURE",
@@ -201,13 +193,13 @@ router.put("/:id", async (c) => {
           details: {
             targetUserId: id,
             targetUsername: existingUser.username,
-            reason: "کاربر مورد نظر دارای نشست فعال دیگری در سامانه می باشد و امکان تغییر مشخصات آن وجود ندارد."
+            reason: errorMsg
           }
         });
 
         return c.json({
           success: false,
-          message: "کاربر مورد نظر دارای نشست فعال دیگری در سامانه می باشد و امکان تغییر مشخصات آن وجود ندارد."
+          message: errorMsg
         }, 400);
       }
     }
@@ -477,6 +469,16 @@ router.delete("/:id", async (c) => {
     // Prevent deleting oneself
     if (payload.sub === id) {
       return c.json({ success: false, message: "شما نمی‌توانید حساب ادمین فعال خودتان را حذف کنید" }, 400);
+    }
+
+    // عدم امکان حذف کاربر غیرمدیر دارای نشست فعال
+    const isTargetAdmin = existingUser.role === "admin" || existingUser.role === "مدیر سیستم" || existingUser.username?.toLowerCase() === "admin";
+    if (!isTargetAdmin) {
+      const activeSessions = await pruneExpiredSessions(db, userObjectId);
+      if (activeSessions.length > 0) {
+        const errorMsg = `نشست حساب کاربری "${existingUser.username}" فعال می باشد و در طول نشست فعال نمی توان تغییری ایجاد کرد`;
+        return c.json({ success: false, message: errorMsg }, 400);
+      }
     }
 
     const result = await db.collection("users").deleteOne({ _id: userObjectId });
