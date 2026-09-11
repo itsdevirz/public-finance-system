@@ -449,6 +449,7 @@ export interface SshProtocolPolicy {
   packetSizeLimit: {
     enableMaxPacketCheck: boolean;
     maxPacketSizeBytes: number;
+    maxPacketSizeExplanation?: string;
   };
   encryptionAlgorithms: {
     aes128Cbc: boolean;

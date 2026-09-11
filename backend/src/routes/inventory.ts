@@ -69,12 +69,57 @@ router.delete("/assets/:id", async (c) => {
 router.get("/sanama-xml", async (c) => {
   try {
     const db = getDb();
+    const {
+      exportType = "monthly", // "monthly" | "final"
+      month = "12",          // 1 to 12
+      fiscalYear = "1403",   // year
+      rangeMode = "all",     // "all" | "custom"
+      fromAccountCode = "",
+      toAccountCode = "",
+      fromDate = "",
+      toDate = "",
+      fromDocNo = "",
+      toDocNo = "",
+      sourceType = ""
+    } = c.req.query();
     
     // Fetch all journal documents
     let docs = await db.collection("journal_documents").find({ status: "CONFIRMED" }).toArray();
     if (docs.length === 0) {
       // Fallback to all documents if no confirmed ones are found (for sandbox/demo purposes)
       docs = await db.collection("journal_documents").find().toArray();
+    }
+
+    // ── 1. فیلتر اسناد بر اساس تاریخ و شماره ──
+    if (fromDate || toDate) {
+      docs = docs.filter((doc: any) => {
+        const dDate = doc.doc_date || "";
+        if (fromDate && dDate < fromDate) return false;
+        if (toDate && dDate > toDate) return false;
+        return true;
+      });
+    }
+
+    if (fromDocNo || toDocNo) {
+      docs = docs.filter((doc: any) => {
+        const dNo = Number(doc.doc_number || 0);
+        if (fromDocNo && dNo < Number(fromDocNo)) return false;
+        if (toDocNo && dNo > Number(toDocNo)) return false;
+        return true;
+      });
+    }
+
+    // فیلتر ماهانه بر اساس ماه شمسی انتخاب‌شده (در صورت عدم انتخاب تاریخ دستی)
+    if (exportType === "monthly" && month && !fromDate && !toDate) {
+      const paddedMonth = String(month).padStart(2, "0");
+      docs = docs.filter((doc: any) => {
+        const dDate = doc.doc_date || "";
+        const parts = dDate.split("/");
+        if (parts.length >= 2) {
+          return String(parts[1]).padStart(2, "0") === paddedMonth;
+        }
+        return true;
+      });
     }
 
     const attrs = [
@@ -108,9 +153,7 @@ router.get("/sanama-xml", async (c) => {
       DebentureSenderRank: "",
       DebentureReceiverRank: "0",
       CostCenter: "",
-      AwardArticle: "0",
-      SecuritiesType: "0",
-      Year: "",
+      Year: fiscalYear || "1403",
       NomineeCode: "0",
       Nominee: "0",
       GuaranteeEssence: "0",
@@ -153,6 +196,15 @@ router.get("/sanama-xml", async (c) => {
         const accCode = String(line.account_code || "");
         if (!accCode) continue;
 
+        // ── ۲. فیلتر دامنه حساب و منبع اعتبارات ──
+        if (fromAccountCode && accCode < fromAccountCode) continue;
+        if (toAccountCode && accCode > toAccountCode) continue;
+
+        if (sourceType && sourceType !== "0" && sourceType !== "all") {
+          const lineSource = line.sanamaFields?.SourceType || line.SourceType || "0";
+          if (String(lineSource) !== String(sourceType)) continue;
+        }
+
         // Resolve fields
         const resolvedFields: Record<string, string> = {};
         for (const attr of attrs) {
@@ -184,9 +236,15 @@ router.get("/sanama-xml", async (c) => {
       }
     }
 
+    // ── تنظیم پارامترهای هدر پروتکل سناما ──
+    const protocolType = exportType === "final" ? "FinalProtocol" : "MonthlyProtocol";
+    const monthAttr = exportType === "final" ? "15" : String(month || "12");
+    const yearAttr = fiscalYear || "1403";
+    const nowPersian = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+
     // Generate XML output
     let xml = `<?xml version="1.0" encoding="utf-8"?>`;
-    xml += `<SanamaInfo ProtocolName="SANAMA" ProtocolVer="3.1" ProtocolType="MonthlyProtocol" MainOrgID="" MainOrgCode=" 400367" Year="1404" Month="15" Co="نگاران سیستم، تاریخ ایجاد فایل:1405/02/30، کاربر ایجاد کننده فایل:Admin">`;
+    xml += `<SanamaInfo ProtocolName="SANAMA" ProtocolVer="3.1" ProtocolType="${protocolType}" MainOrgID="" MainOrgCode="400367" Year="${yearAttr}" Month="${monthAttr}" Co="نگاران سیستم، تاریخ ایجاد فایل:${nowPersian}، کاربر ایجاد کننده فایل:Admin">`;
 
     // 1. Render Report List
     for (const group of Object.values(reportGroups)) {
@@ -230,8 +288,9 @@ router.get("/sanama-xml", async (c) => {
 
     xml += `</SanamaInfo>\n`;
 
+    const outFilename = exportType === "final" ? `sanama-final-${yearAttr}.xml` : `sanama-monthly-m${monthAttr}-${yearAttr}.xml`;
     c.header("Content-Type", "application/xml; charset=utf-8");
-    c.header("Content-Disposition", 'attachment; filename="sanama-export.xml"');
+    c.header("Content-Disposition", `attachment; filename="${outFilename}"`);
     return c.text(xml);
   } catch (error: any) {
     return c.json({ success: false, message: error.message }, 500);

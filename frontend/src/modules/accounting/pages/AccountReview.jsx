@@ -10,6 +10,7 @@ import { useLocation } from "react-router-dom";
 import api from "@/api";
 import { printTable } from "@/lib/printUtils";
 import subAccountTitles from "@/data/subAccountTitles.json";
+import { cn } from "@/lib/utils";
 
 // ─── ساختار منوی سایدبار ─────────────────────────────────────────────────────
 const SIDEBAR_SECTIONS = [
@@ -256,6 +257,10 @@ export default function AccountReview() {
   const [meta,       setMeta]       = useState(null);
   const [searchText, setSearchText] = useState("");
 
+  // وضعیت تجمیع کد معین و سطر بازشده (Expanded Rows)
+  const [isAggregated, setIsAggregated] = useState(true);
+  const [expandedCodes, setExpandedCodes] = useState({});
+
   const allItems = SIDEBAR_SECTIONS.flatMap((s) => s.items);
 
   const handleSelect = useCallback(async (item) => {
@@ -265,6 +270,7 @@ export default function AccountReview() {
     setRows(null);
     setMeta(null);
     setSearchText("");
+    setExpandedCodes({});
     try {
       let res;
       if (item.mode === "persons") {
@@ -300,8 +306,52 @@ export default function AccountReview() {
   const columns = getColumns(activeItem);
   const isPersonMode = activeItem?.mode === "persons";
 
-  // فیلتر جستجو — برای همه حالت‌ها (اشخاص و حساب‌ها و سناما)
-  const displayRows = (rows ?? []).filter((r) => {
+  // تابع تجمیع‌کننده کد معین‌ها (Moein Aggregator)
+  const aggregateMoeinRows = (rawRows) => {
+    if (!rawRows || !Array.isArray(rawRows)) return [];
+    const map = new Map();
+
+    rawRows.forEach((r) => {
+      const code = r.account_code || r.nominee_code || "سایر";
+      const name = r.account_name || r.person_name || "کد معین نامشخص";
+
+      if (!map.has(code)) {
+        map.set(code, {
+          account_code: code,
+          account_name: name,
+          debit: 0,
+          credit: 0,
+          details: [],
+        });
+      }
+
+      const item = map.get(code);
+      const d = Number(r.debit) || 0;
+      const c = Number(r.credit) || 0;
+
+      item.debit += d;
+      item.credit += c;
+      item.details.push(r);
+    });
+
+    return Array.from(map.values()).map((item) => {
+      const diff = item.debit - item.credit;
+      const balance = Math.abs(diff);
+      let nature = "تراز";
+      if (diff > 0) nature = "بدهکار";
+      else if (diff < 0) nature = "بستانکار";
+
+      return {
+        ...item,
+        balance,
+        nature,
+        doc_count: item.details.length,
+      };
+    });
+  };
+
+  // داده‌های فیلترشده اولیه
+  const filteredRawRows = (rows ?? []).filter((r) => {
     if (!searchText) return true;
     const q = searchText.toLowerCase();
     if (isPersonMode) {
@@ -312,15 +362,24 @@ export default function AccountReview() {
     }
     return (
       (r.account_code ?? "").toLowerCase().includes(q) ||
-      (r.account_name ?? "").toLowerCase().includes(q)
+      (r.account_name ?? "").toLowerCase().includes(q) ||
+      (r.doc_number   ?? "").toLowerCase().includes(q) ||
+      (r.description  ?? "").toLowerCase().includes(q)
     );
   });
+
+  // سطرهای پردازش‌شده (تجمیعی بر اساس کد معین یا تفکیکی)
+  const aggregatedRows = isPersonMode || !isAggregated ? filteredRawRows : aggregateMoeinRows(filteredRawRows);
+
+  const toggleExpand = (code) => {
+    setExpandedCodes((prev) => ({ ...prev, [code]: !prev[code] }));
+  };
 
   return (
     <PageShell>
       <PageHeader
-        title="مرور حساب‌ها"
-        description="مشاهده اسناد ثبت‌شده بر اساس نوع حساب"
+        title="مرور حساب‌ها (تجمیع کد معین‌ها)"
+        description="گزارش مرور حساب با قابلیت تجمیع کد معین‌ها (مانند ۱۱۰۰۱) و کلیک جهت مشاهده ریز تراکنش‌ها"
       />
       <div className="flex gap-4 items-start" dir="rtl">
         {/* ── سایدبار ── */}
@@ -357,7 +416,7 @@ export default function AccountReview() {
             <Card>
               <CardContent className="py-20 flex flex-col items-center gap-3 text-muted-foreground">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="text-sm">در حال بارگذاری...</p>
+                <p className="text-sm">در حال بارگذاری اطلاعات مرور حساب...</p>
               </CardContent>
             </Card>
           )}
@@ -366,7 +425,7 @@ export default function AccountReview() {
               <CardContent className="py-24 flex flex-col items-center gap-3 text-muted-foreground/50">
                 <BookOpen className="h-12 w-12 opacity-20" />
                 <p className="text-sm font-medium">نوع حساب را از سایدبار انتخاب کنید</p>
-                <p className="text-xs">اسناد به صورت خودکار نمایش داده می‌شوند</p>
+                <p className="text-xs">کد معین‌ها به صورت تجمیعی نمایش داده می‌شوند</p>
               </CardContent>
             </Card>
           )}
@@ -385,28 +444,39 @@ export default function AccountReview() {
                         : activeItem?.xmlCode === "group" ? <Layers className="h-4 w-4 text-primary" />
                         : activeItem?.xmlCode === "main"  ? <Hash className="h-4 w-4 text-primary" />
                         : <BookOpen className="h-4 w-4 text-primary" />}
-                      <span className="text-sm font-bold">مرور حساب‌ها</span>
+                      <span className="text-sm font-bold">گزارش مرور حساب</span>
                       {meta && (
                         <>
                           <span className="text-xs font-semibold text-primary border border-primary/30 rounded px-2 py-0.5 bg-primary/5">
                             {meta.label}
                           </span>
                           <span className="text-xs text-muted-foreground border rounded px-2 py-0.5 bg-muted/50">
-                            {searchText
-                              ? `${displayRows.length} از ${meta.count} مورد`
-                              : `${meta.count} ردیف`}
+                            {isAggregated && !isPersonMode ? `${aggregatedRows.length} کد معین تجمیعی` : `${filteredRawRows.length} اسناد`}
                           </span>
                         </>
                       )}
                     </div>
                     <div className="flex gap-2 items-center">
+                      {/* دکمه سوییچ بین حالت تجمیعی کد معین و تفکیکی */}
+                      {!isPersonMode && (
+                        <Button
+                          variant={isAggregated ? "default" : "outline"}
+                          size="sm"
+                          className="h-8 text-xs font-bold gap-1.5"
+                          onClick={() => setIsAggregated(!isAggregated)}
+                        >
+                          <Layers className="h-3.5 w-3.5" />
+                          {isAggregated ? "نمایش تجمیعی معین (فعال)" : "نمایش تفکیکی اسناد"}
+                        </Button>
+                      )}
+
                       {rows && rows.length > 0 && (
                         <input
                           type="text" dir="rtl"
                           value={searchText}
                           onChange={(e) => setSearchText(e.target.value)}
-                          placeholder="جستجو..."
-                          className="h-8 text-xs border rounded-md px-2.5 bg-white focus:outline-none focus:border-primary w-44"
+                          placeholder="جستجوی کد معین، عنوان یا سند..."
+                          className="h-8 text-xs border rounded-md px-2.5 bg-white focus:outline-none focus:border-primary w-48"
                         />
                       )}
                       <Button variant="outline" size="sm" className="gap-1 h-8 text-xs"
@@ -414,14 +484,14 @@ export default function AccountReview() {
                         <Printer className="h-3.5 w-3.5" /> چاپ
                       </Button>
                       <Button variant="outline" size="sm" className="gap-1 h-8 text-xs"
-                        onClick={() => exportCSV(displayRows, meta?.label ?? "", columns)}>
+                        onClick={() => exportCSV(aggregatedRows, meta?.label ?? "", columns)}>
                         <FileDown className="h-3.5 w-3.5" /> اکسل
                       </Button>
                     </div>
                   </div>
 
                   <div className="overflow-x-auto" id="account-review-table">
-                    {displayRows.length === 0 ? (
+                    {aggregatedRows.length === 0 ? (
                       <div className="py-16 text-center text-muted-foreground text-sm" dir="rtl">
                         {isPersonMode ? (
                           <>
@@ -431,78 +501,129 @@ export default function AccountReview() {
                         ) : (
                           <>
                             <BookOpen className="h-8 w-8 mx-auto mb-2 opacity-20" />
-                            <p>سندی برای این نوع حساب یافت نشد</p>
+                            <p>سندی برای این کد معین یافت نشد</p>
                           </>
                         )}
                       </div>
                     ) : (
                       <table className="w-full text-xs" dir="rtl">
                         <thead>
-                          <tr className="border-b bg-muted/40">
-                            {columns.map((col) => (
-                              <th key={col.key}
-                                className={`px-3 py-2.5 font-bold text-muted-foreground whitespace-nowrap
-                                  ${col.align === "left" ? "text-left" : col.align === "center" ? "text-center" : "text-right"}
-                                  ${col.key === "debit" ? "!text-blue-700" : ""}
-                                  ${col.key === "credit" ? "!text-rose-700" : ""}
-                                `}
-                              >
-                                {col.label}
-                              </th>
-                            ))}
+                          <tr className="border-b bg-muted/40 text-muted-foreground font-bold">
+                            {isAggregated && !isPersonMode && <th className="px-3 py-2.5 text-center w-10">جزئیات</th>}
+                            <th className="px-3 py-2.5 text-right">کد معین / حساب</th>
+                            <th className="px-3 py-2.5 text-right">عنوان کد معین / حساب</th>
+                            <th className="px-3 py-2.5 text-left text-blue-700">بدهکار (ریال)</th>
+                            <th className="px-3 py-2.5 text-left text-rose-700">بستانکار (ریال)</th>
+                            <th className="px-3 py-2.5 text-left">مانده (ریال)</th>
+                            <th className="px-3 py-2.5 text-center">ماهیت</th>
+                            {isAggregated && !isPersonMode ? (
+                              <th className="px-3 py-2.5 text-center">تعداد تراکنش‌ها</th>
+                            ) : (
+                              <>
+                                <th className="px-3 py-2.5 text-right">شماره سند</th>
+                                <th className="px-3 py-2.5 text-right">تاریخ</th>
+                              </>
+                            )}
                           </tr>
                         </thead>
                         <tbody>
-                          {displayRows.map((row, idx) => {
-                            const rowKey = isPersonMode
-                              ? (row.nominee_code ?? idx)
-                              : `${row.account_code ?? row.doc_id}-${idx}`;
+                          {aggregatedRows.map((row, idx) => {
+                            const codeKey = row.account_code || `row-${idx}`;
+                            const isExpanded = expandedCodes[codeKey];
+
+                            if (isAggregated && !isPersonMode) {
+                              return (
+                                <tr key={codeKey} className="contents">
+                                  {/* سطر اصلی کد معین (تجمیعی) */}
+                                  <tr
+                                    onClick={() => toggleExpand(codeKey)}
+                                    className={cn(
+                                      "border-b transition-colors cursor-pointer font-bold select-none",
+                                      isExpanded ? "bg-primary/10 hover:bg-primary/15" : (idx % 2 === 0 ? "hover:bg-muted/30" : "bg-muted/10 hover:bg-muted/30")
+                                    )}
+                                  >
+                                    <td className="px-3 py-3 text-center">
+                                      <ChevronDown className={cn("h-4 w-4 text-primary transition-transform inline-block", isExpanded ? "rotate-180" : "")} />
+                                    </td>
+                                    <td className="px-3 py-3 font-mono text-primary text-sm whitespace-nowrap text-right">
+                                      {row.account_code}
+                                    </td>
+                                    <td className="px-3 py-3 text-foreground whitespace-nowrap text-right">
+                                      {row.account_name}
+                                    </td>
+                                    <td className="px-3 py-3 text-left font-mono text-blue-700 tabular-nums whitespace-nowrap">
+                                      {row.debit > 0 ? fmtNum(row.debit) : "—"}
+                                    </td>
+                                    <td className="px-3 py-3 text-left font-mono text-rose-700 tabular-nums whitespace-nowrap">
+                                      {row.credit > 0 ? fmtNum(row.credit) : "—"}
+                                    </td>
+                                    <td className={cn("px-3 py-3 text-left font-mono tabular-nums whitespace-nowrap", balanceColor(row.nature))}>
+                                      {fmtNum(row.balance)}
+                                    </td>
+                                    <td className="px-3 py-3 text-center whitespace-nowrap">
+                                      <NatureBadge nature={row.nature} />
+                                    </td>
+                                    <td className="px-3 py-3 text-center whitespace-nowrap">
+                                      <span className="text-[11px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                                        {row.doc_count} سند (کلیک جهت ریز)
+                                      </span>
+                                    </td>
+                                  </tr>
+
+                                  {/* سطر زیرمجموعه بازشونده تراکنش‌های ریز این کد معین */}
+                                  {isExpanded && (
+                                    <tr className="bg-muted/30 border-b">
+                                      <td colSpan={8} className="p-3 pr-8">
+                                        <div className="bg-background border border-primary/20 rounded-xl p-3 shadow-xs space-y-2">
+                                          <div className="flex items-center justify-between text-xs font-bold text-primary border-b pb-2">
+                                            <span>ریز اسناد و تراکنش‌های کد معین {row.account_code} ({row.account_name})</span>
+                                            <span>تعداد اسناد: {row.doc_count}</span>
+                                          </div>
+                                          <div className="overflow-x-auto">
+                                            <table className="w-full text-xs text-right">
+                                              <thead className="bg-muted/50 text-muted-foreground font-semibold border-b">
+                                                <tr>
+                                                  <th className="p-2 w-10 text-center">#</th>
+                                                  <th className="p-2">شماره سند</th>
+                                                  <th className="p-2 text-center">تاریخ سند</th>
+                                                  <th className="p-2">شرح تراکنش</th>
+                                                  <th className="p-2 text-left text-blue-700">بدهکار (ریال)</th>
+                                                  <th className="p-2 text-left text-rose-700">بستانکار (ریال)</th>
+                                                </tr>
+                                              </thead>
+                                              <tbody className="divide-y">
+                                                {row.details.map((detail, dIdx) => (
+                                                  <tr key={detail.doc_id || dIdx} className="hover:bg-muted/40">
+                                                    <td className="p-2 text-center font-mono text-muted-foreground">{dIdx + 1}</td>
+                                                    <td className="p-2 font-mono font-bold text-primary">{detail.doc_number || detail.doc_id || "—"}</td>
+                                                    <td className="p-2 text-center font-mono">{detail.doc_date || "—"}</td>
+                                                    <td className="p-2 text-foreground font-medium">{detail.description || "سند حسابداری معین"}</td>
+                                                    <td className="p-2 text-left font-mono text-blue-700 font-bold">{detail.debit > 0 ? fmtNum(detail.debit) : "—"}</td>
+                                                    <td className="p-2 text-left font-mono text-rose-700 font-bold">{detail.credit > 0 ? fmtNum(detail.credit) : "—"}</td>
+                                                  </tr>
+                                                ))}
+                                              </tbody>
+                                            </table>
+                                          </div>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  )}
+                                </tr>
+                              );
+                            }
+
+                            // حالت غیر تجمیعی (نمایش مسطح اسناد یا اشخاص)
                             return (
-                              <tr key={rowKey}
-                                className={`border-b transition-colors
-                                  ${idx % 2 === 0 ? "hover:bg-muted/30" : "bg-muted/10 hover:bg-muted/30"}
-                                `}
-                              >
-                                {columns.map((col) => {
-                                  const val = row[col.key];
-                                  if (col.key === "nature") return (
-                                    <td key={col.key} className="px-3 py-2 text-center">
-                                      <NatureBadge nature={val} />
-                                    </td>
-                                  );
-                                  if (col.key === "balance") return (
-                                    <td key={col.key} className={`px-3 py-2 text-left font-mono font-semibold tabular-nums whitespace-nowrap ${balanceColor(row.nature)}`}>
-                                      {fmtNum(Math.abs(val ?? 0))}
-                                    </td>
-                                  );
-                                  if (col.key === "debit") return (
-                                    <td key={col.key} className="px-3 py-2 text-left font-mono text-blue-700 tabular-nums whitespace-nowrap">
-                                      {(val ?? 0) > 0 ? fmtNum(val) : "—"}
-                                    </td>
-                                  );
-                                  if (col.key === "credit") return (
-                                    <td key={col.key} className="px-3 py-2 text-left font-mono text-rose-700 tabular-nums whitespace-nowrap">
-                                      {(val ?? 0) > 0 ? fmtNum(val) : "—"}
-                                    </td>
-                                  );
-                                  if (col.key === "nominee_code" || col.key === "account_code") return (
-                                    <td key={col.key} className="px-3 py-2 font-mono font-semibold whitespace-nowrap text-right">
-                                      {val || "—"}
-                                    </td>
-                                  );
-                                  if (col.key === "person_name" || col.key === "account_name") return (
-                                    <td key={col.key} className="px-3 py-2 max-w-[240px] truncate text-right" title={val}>
-                                      {val || "—"}
-                                    </td>
-                                  );
-                                  return (
-                                    <td key={col.key} className={`px-3 py-2 text-xs text-muted-foreground whitespace-nowrap
-                                      ${col.align === "left" ? "text-left font-mono tabular-nums" : "text-right"}
-                                    `}>
-                                      {val || "—"}
-                                    </td>
-                                  );
-                                })}
+                              <tr key={codeKey} className={cn("border-b transition-colors", idx % 2 === 0 ? "hover:bg-muted/30" : "bg-muted/10 hover:bg-muted/30")}>
+                                <td className="px-3 py-2 font-mono font-semibold whitespace-nowrap text-right">{row.account_code || row.nominee_code || "—"}</td>
+                                <td className="px-3 py-2 max-w-[240px] truncate text-right">{row.account_name || row.person_name || "—"}</td>
+                                <td className="px-3 py-2 text-left font-mono text-blue-700 tabular-nums whitespace-nowrap">{row.debit > 0 ? fmtNum(row.debit) : "—"}</td>
+                                <td className="px-3 py-2 text-left font-mono text-rose-700 tabular-nums whitespace-nowrap">{row.credit > 0 ? fmtNum(row.credit) : "—"}</td>
+                                <td className={cn("px-3 py-2 text-left font-mono font-semibold tabular-nums whitespace-nowrap", balanceColor(row.nature))}>{fmtNum(Math.abs(row.balance ?? 0))}</td>
+                                <td className="px-3 py-2 text-center"><NatureBadge nature={row.nature} /></td>
+                                <td className="px-3 py-2 font-mono text-right">{row.doc_number || "—"}</td>
+                                <td className="px-3 py-2 font-mono text-right">{row.doc_date || "—"}</td>
                               </tr>
                             );
                           })}
@@ -510,27 +631,19 @@ export default function AccountReview() {
 
                         <tfoot>
                           <tr className="border-t-2 bg-muted/30 font-bold">
-                            <td className="px-3 py-2.5 text-right" colSpan={2}>
+                            <td className="px-3 py-2.5 text-right" colSpan={isAggregated && !isPersonMode ? 3 : 2}>
                               <span className="text-xs font-bold">جمع کل</span>
                             </td>
-                            {columns.slice(2).map((col) => {
-                              if (col.key === "debit") return (
-                                <td key="debit" className="px-3 py-2.5 text-left font-mono text-blue-700 tabular-nums whitespace-nowrap">
-                                  {fmtNum(totals.debit)}
-                                </td>
-                              );
-                              if (col.key === "credit") return (
-                                <td key="credit" className="px-3 py-2.5 text-left font-mono text-rose-700 tabular-nums whitespace-nowrap">
-                                  {fmtNum(totals.credit)}
-                                </td>
-                              );
-                              if (col.key === "balance") return (
-                                <td key="balance" className="px-3 py-2.5 text-left font-mono tabular-nums whitespace-nowrap">
-                                  {fmtNum(Math.abs(totals.balance ?? 0))}
-                                </td>
-                              );
-                              return <td key={col.key} />;
-                            })}
+                            <td className="px-3 py-2.5 text-left font-mono text-blue-700 tabular-nums whitespace-nowrap">
+                              {fmtNum(totals.debit)}
+                            </td>
+                            <td className="px-3 py-2.5 text-left font-mono text-rose-700 tabular-nums whitespace-nowrap">
+                              {fmtNum(totals.credit)}
+                            </td>
+                            <td className="px-3 py-2.5 text-left font-mono tabular-nums whitespace-nowrap">
+                              {fmtNum(Math.abs(totals.balance ?? 0))}
+                            </td>
+                            <td colSpan={3} />
                           </tr>
                         </tfoot>
                       </table>

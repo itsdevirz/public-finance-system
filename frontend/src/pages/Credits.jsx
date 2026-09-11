@@ -17,6 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 import api from "@/api";
 import { validateAndLogFileUpload } from "@/lib/fileUploadLogger";
+import AgreementRegistrationForm from "@/modules/credits/AgreementRegistrationForm";
 
 // ─── تابع کمکی تبدیل عدد به حروف فارسی ──────────────────────────────────────────
 function numToPersianWords(num) {
@@ -568,12 +569,12 @@ export default function Credits() {
   if (pathname === "/credits") {
     return (
       <PageShell>
-        <PageHeader title="داشبورد و مدیریت اعتبارات" description="فرآیندهای موافقت‌نامه، درخواست وجه، تخصیص و ابلاغ اعتبار دستگاه" />
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6" dir="rtl">
+        <PageHeader title="داشبورد و مدیریت اعتبارات" description="چرخه ۵ مرحله‌ای اعتبارات: موافقتنامه، تخصیص، دریافت اعتبارات، تأمین اعتبار و پرداخت" />
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6" dir="rtl">
           <Card className="bg-gradient-to-br from-blue-50 to-blue-100/50 border-blue-200">
             <CardContent className="pt-6 flex items-center justify-between">
               <div className="text-right">
-                <p className="text-xs text-blue-600 font-semibold">کل بودجه مصوب</p>
+                <p className="text-xs text-blue-600 font-semibold">موافقتنامه</p>
                 <h3 className="text-lg font-bold mt-1 text-blue-900 font-mono">{fmtNum(totalApproved)} <span className="text-[10px]">ریال</span></h3>
               </div>
               <div className="h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-600">
@@ -581,21 +582,10 @@ export default function Credits() {
               </div>
             </CardContent>
           </Card>
-          <Card className="bg-gradient-to-br from-amber-50 to-amber-100/50 border-amber-200">
-            <CardContent className="pt-6 flex items-center justify-between">
-              <div className="text-right">
-                <p className="text-xs text-amber-600 font-semibold">کل درخواست‌های وجه</p>
-                <h3 className="text-lg font-bold mt-1 text-amber-900 font-mono">{fmtNum(totalRequested)} <span className="text-[10px]">ریال</span></h3>
-              </div>
-              <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-600">
-                <FileSpreadsheet className="h-5 w-5" />
-              </div>
-            </CardContent>
-          </Card>
           <Card className="bg-gradient-to-br from-indigo-50 to-indigo-100/50 border-indigo-200">
             <CardContent className="pt-6 flex items-center justify-between">
               <div className="text-right">
-                <p className="text-xs text-indigo-600 font-semibold">کل تخصیص صادر شده</p>
+                <p className="text-xs text-indigo-600 font-semibold">تخصیص</p>
                 <h3 className="text-lg font-bold mt-1 text-indigo-900 font-mono">{fmtNum(totalAllocated)} <span className="text-[10px]">ریال</span></h3>
               </div>
               <div className="h-10 w-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-600">
@@ -603,10 +593,32 @@ export default function Credits() {
               </div>
             </CardContent>
           </Card>
+          <Card className="bg-gradient-to-br from-teal-50 to-teal-100/50 border-teal-200">
+            <CardContent className="pt-6 flex items-center justify-between">
+              <div className="text-right">
+                <p className="text-xs text-teal-600 font-semibold">دریافت اعتبارات</p>
+                <h3 className="text-lg font-bold mt-1 text-teal-900 font-mono">وصول خزانه</h3>
+              </div>
+              <div className="h-10 w-10 rounded-xl bg-teal-500/10 flex items-center justify-center text-teal-600">
+                <CheckCircle2 className="h-5 w-5" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-gradient-to-br from-amber-50 to-amber-100/50 border-amber-200">
+            <CardContent className="pt-6 flex items-center justify-between">
+              <div className="text-right">
+                <p className="text-xs text-amber-600 font-semibold">تأمین اعتبار</p>
+                <h3 className="text-lg font-bold mt-1 text-amber-900 font-mono">{fmtNum(totalRequested)} <span className="text-[10px]">ریال</span></h3>
+              </div>
+              <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-600">
+                <FileSpreadsheet className="h-5 w-5" />
+              </div>
+            </CardContent>
+          </Card>
           <Card className="bg-gradient-to-br from-emerald-50 to-emerald-100/50 border-emerald-200">
             <CardContent className="pt-6 flex items-center justify-between">
               <div className="text-right">
-                <p className="text-xs text-emerald-600 font-semibold">کل اعتبار ابلاغ‌شده</p>
+                <p className="text-xs text-emerald-600 font-semibold">پرداخت</p>
                 <h3 className="text-lg font-bold mt-1 text-emerald-900 font-mono">{fmtNum(totalDelegated)} <span className="text-[10px]">ریال</span></h3>
               </div>
               <div className="h-10 w-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600">
@@ -616,11 +628,11 @@ export default function Credits() {
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4" dir="rtl">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4" dir="rtl">
           <Card className="hover:border-blue-300 transition-all cursor-pointer" onClick={() => navigate("/credits/agreements")}>
             <CardHeader className="text-right pb-2">
               <CardTitle className="text-sm font-bold text-blue-800 flex items-center gap-2">
-                <FolderOpen className="h-4 w-4" /> موافقت‌نامه بودجه
+                <FolderOpen className="h-4 w-4" /> موافقتنامه
               </CardTitle>
             </CardHeader>
             <CardContent className="text-right text-xs text-muted-foreground">
@@ -628,21 +640,10 @@ export default function Credits() {
             </CardContent>
           </Card>
 
-          <Card className="hover:border-amber-300 transition-all cursor-pointer" onClick={() => navigate("/credits/requests")}>
-            <CardHeader className="text-right pb-2">
-              <CardTitle className="text-sm font-bold text-amber-800 flex items-center gap-2">
-                <FileSpreadsheet className="h-4 w-4" /> درخواست وجه
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-right text-xs text-muted-foreground">
-              ثبت تقاضای اعتبار توسط معاونت‌ها و واحدهای زیرمجموعه بر مبنای فصول هزینه‌ای موافقت‌نامه.
-            </CardContent>
-          </Card>
-
           <Card className="hover:border-indigo-300 transition-all cursor-pointer" onClick={() => navigate("/credits/allocation-no-doc")}>
             <CardHeader className="text-right pb-2">
               <CardTitle className="text-sm font-bold text-indigo-800 flex items-center gap-2">
-                <PieChart className="h-4 w-4" /> تخصیص اعتبار
+                <PieChart className="h-4 w-4" /> تخصیص
               </CardTitle>
             </CardHeader>
             <CardContent className="text-right text-xs text-muted-foreground">
@@ -650,14 +651,36 @@ export default function Credits() {
             </CardContent>
           </Card>
 
-          <Card className="hover:border-emerald-300 transition-all cursor-pointer" onClick={() => navigate("/credits/notification/request")}>
+          <Card className="hover:border-teal-300 transition-all cursor-pointer" onClick={() => navigate("/credits/verification-realization")}>
             <CardHeader className="text-right pb-2">
-              <CardTitle className="text-sm font-bold text-emerald-800 flex items-center gap-2">
-                <Send className="h-4 w-4" /> ابلاغ و انتقال اعتبار
+              <CardTitle className="text-sm font-bold text-teal-800 flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4" /> دریافت اعتبارات
               </CardTitle>
             </CardHeader>
             <CardContent className="text-right text-xs text-muted-foreground">
-              ثبت درخواست‌های ابلاغ اعتبار و انتقال تخصیص‌ها به واحدهای تابعه و ذیحسابی‌ها.
+              ثبت و پایش وصول اعتبارات از خزانه و تخصیص‌های دریافت شده.
+            </CardContent>
+          </Card>
+
+          <Card className="hover:border-amber-300 transition-all cursor-pointer" onClick={() => navigate("/credits/commitments-funding/request")}>
+            <CardHeader className="text-right pb-2">
+              <CardTitle className="text-sm font-bold text-amber-800 flex items-center gap-2">
+                <FileSpreadsheet className="h-4 w-4" /> تأمین اعتبار
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="text-right text-xs text-muted-foreground">
+              صدور گواهی تأمین اعتبار و رزرو ردیف‌های بودجه پیش از انجام تعهد.
+            </CardContent>
+          </Card>
+
+          <Card className="hover:border-emerald-300 transition-all cursor-pointer" onClick={() => navigate("/credits/payments/remittance")}>
+            <CardHeader className="text-right pb-2">
+              <CardTitle className="text-sm font-bold text-emerald-800 flex items-center gap-2">
+                <Send className="h-4 w-4" /> پرداخت
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="text-right text-xs text-muted-foreground">
+              ثبت درخواست‌های پرداخت، صدور حواله و تسویه نهایی حساب‌ها.
             </CardContent>
           </Card>
         </div>
@@ -669,152 +692,8 @@ export default function Credits() {
   if (pathname === "/credits/agreements") {
     return (
       <PageShell>
-        <PageHeader title="موافقت‌نامه بودجه" description="ثبت و ویرایش موافقت‌نامه‌های بودجه مصوب دستگاه" />
-        
-        {alertMsg && (
-          <div className={cn("p-4 mb-4 rounded-xl border flex items-center gap-2 text-sm justify-between",
-            alertMsg.type === "success" ? "bg-emerald-50 border-emerald-200 text-emerald-800" : "bg-rose-50 border-rose-200 text-rose-800")} dir="rtl">
-            <div className="flex items-center gap-2">
-              {alertMsg.type === "success" ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
-              <span>{alertMsg.text}</span>
-            </div>
-            <button onClick={() => setAlertMsg(null)}><X className="h-4 w-4" /></button>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6" dir="rtl">
-          {/* فرم ثبت موافقت نامه */}
-          <Card className="lg:col-span-1">
-            <CardHeader className="text-right">
-              <CardTitle className="text-sm font-bold flex items-center gap-2">
-                <FileText className="h-4 w-4 text-blue-600" />
-                {editingAgr ? "ویرایش موافقت‌نامه" : "موافقت‌نامه جدید"}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleAgrSubmit} className="space-y-4 text-right">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">عنوان موافقت‌نامه <span className="text-rose-500">*</span></Label>
-                  <Input value={agrForm.title} onChange={e => setAgrForm({ ...agrForm, title: e.target.value })} placeholder="مثال: برنامه پشتیبانی اداری" />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold">سال مالی <span className="text-rose-500">*</span></Label>
-                    <SearchableSelect value={agrForm.fiscal_year} onChange={val => setAgrForm({ ...agrForm, fiscal_year: val })} options={fiscalYears} placeholder="سال..." searchable={false} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold">کد برنامه</Label>
-                    <Input value={agrForm.program_code} onChange={e => setAgrForm({ ...agrForm, program_code: e.target.value })} placeholder="11001" className="font-mono" dir="ltr" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold">کد طرح/پروژه</Label>
-                    <Input value={agrForm.activity_code} onChange={e => setAgrForm({ ...agrForm, activity_code: e.target.value })} placeholder="01" className="font-mono" dir="ltr" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold">کد فصل هزینه</Label>
-                    <Input value={agrForm.chapter_code} onChange={e => setAgrForm({ ...agrForm, chapter_code: e.target.value })} placeholder="110200" className="font-mono" dir="ltr" />
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">مبلغ کل بودجه مصوب (ریال) <span className="text-rose-500">*</span></Label>
-                  <div className="relative">
-                    <Input type="number" value={agrForm.total_amount} onChange={e => setAgrForm({ ...agrForm, total_amount: e.target.value })} placeholder="مبلغ ریالی..." className="pl-8 font-mono" dir="ltr" />
-                    <span className="absolute left-2.5 top-2 text-[10px] text-muted-foreground font-bold">ریال</span>
-                  </div>
-                  {agrForm.total_amount && (
-                    <p className="text-[10px] text-blue-600 bg-blue-50/50 p-2 rounded border border-blue-100 font-semibold mt-1">
-                      {numToPersianWords(agrForm.total_amount)}
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">توضیحات</Label>
-                  <Input value={agrForm.description} onChange={e => setAgrForm({ ...agrForm, description: e.target.value })} placeholder="توضیحات..." />
-                </div>
-                <div className="flex gap-2 pt-2">
-                  <Button type="submit" size="sm" className="flex-1 gap-1.5">
-                    <Save className="h-4 w-4" /> ذخیره موافقت‌نامه
-                  </Button>
-                  {editingAgr && (
-                    <Button type="button" variant="outline" size="sm" onClick={() => {
-                      setEditingAgr(null);
-                      setAgrForm({ title: "", fiscal_year: "", total_amount: "", program_code: "", activity_code: "", chapter_code: "", description: "" });
-                    }}>
-                      انصراف
-                    </Button>
-                  )}
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-
-          {/* لیست موافقت نامه ها */}
-          <Card className="lg:col-span-2">
-            <CardHeader className="text-right flex items-center justify-between flex-row">
-              <CardTitle className="text-sm font-bold">لیست موافقت‌نامه‌های فعال</CardTitle>
-              <Button variant="outline" size="icon" className="h-7 w-7" onClick={fetchData} disabled={loading}>
-                <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
-              </Button>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs text-right">
-                  <thead>
-                    <tr className="bg-muted/50 border-b font-bold text-muted-foreground">
-                      <th className="px-3 py-2.5">عنوان / جزئیات</th>
-                      <th className="px-3 py-2.5 text-center w-24">سال مالی</th>
-                      <th className="px-3 py-2.5 text-center w-40">بودجه مصوب (ریال)</th>
-                      <th className="px-3 py-2.5 text-center w-44">کدینگ (برنامه/طرح/فصل)</th>
-                      <th className="px-3 py-2.5 text-center w-24">عملیات</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {agreements.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} className="py-12 text-center text-muted-foreground">
-                          هیچ موافقت‌نامه‌ای ثبت نشده است
-                        </td>
-                      </tr>
-                    ) : (
-                      agreements.map((agr) => (
-                        <tr key={agr._id} className="border-b hover:bg-muted/30">
-                          <td className="px-3 py-3 font-semibold">
-                            <div>{agr.title}</div>
-                            {agr.description && <div className="text-[10px] text-muted-foreground font-normal mt-0.5">{agr.description}</div>}
-                          </td>
-                          <td className="px-3 py-3 text-center font-mono font-medium">{agr.fiscal_year}</td>
-                          <td className="px-3 py-3 text-center font-mono font-bold text-blue-700">{fmtNum(agr.total_amount)}</td>
-                          <td className="px-3 py-3 text-center font-mono text-muted-foreground">
-                            {agr.program_code || "—"} / {agr.activity_code || "—"} / {agr.chapter_code || "—"}
-                          </td>
-                          <td className="px-3 py-3 text-center">
-                            <div className="flex gap-1.5 justify-center">
-                              <Button variant="ghost" size="icon" className="h-6 w-6 text-blue-600" onClick={() => {
-                                setEditingAgr(agr._id);
-                                setAgrForm({
-                                  title: agr.title, fiscal_year: String(agr.fiscal_year), total_amount: String(agr.total_amount),
-                                  program_code: agr.program_code ?? "", activity_code: agr.activity_code ?? "",
-                                  chapter_code: agr.chapter_code ?? "", description: agr.description ?? ""
-                                });
-                              }}>
-                                <Edit className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-6 w-6 text-rose-600" onClick={() => handleAgrDelete(agr._id)}>
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <PageHeader title="ثبت موافقت‌نامه" description="پنجره دو قسمتی ثبت و ویرایش موافقت‌نامه‌های بودجه مصوب و ابلاغی دستگاه" />
+        <AgreementRegistrationForm />
       </PageShell>
     );
   }

@@ -56,11 +56,47 @@ router.get("/agreements", async (c) => {
 router.post("/agreements", async (c) => {
   const body = await c.req.json();
   const agreement_number = body.agreement_number || `AGR-${body.fiscal_year || 1405}-${Date.now()}`;
+  
+  // کدهای اتوماتیک حسابداری طبق الزامات: هزینه‌ای (92001/91001) | عمرانی (92002/91002)
+  const isCapital = body.credit_category === "capital";
+  const debtorCode = isCapital ? "92002" : "92001";
+  const creditorCode = isCapital ? "91002" : "91001";
+  const debtorName = isCapital ? "اعتبارات تملک دارایی‌های سرمایه‌ای" : "اعتبارات هزینه‌ای";
+  const creditorName = isCapital ? "طرف اعتبارات تملک دارایی‌های سرمایه‌ای" : "طرف اعتبارات هزینه‌ای";
+
   const result = await getDb().collection<Agreement>("agreements").insertOne({
-    ...body, agreement_number, status: body.status ?? "draft",
+    ...body,
+    agreement_number,
+    debtor_account: debtorCode,
+    creditor_account: creditorCode,
+    status: body.status ?? "draft",
   });
   const inserted = await getDb().collection<Agreement>("agreements").findOne({ _id: result.insertedId });
   const authUser = getAuthUser(c);
+
+  // ثبت اتوماتیک سند حسابداری دوبل در دفتر کل (journal_documents)
+  if (body.status === "confirmed" || body.issue_journal_voucher !== false) {
+    try {
+      const docNum = `DOC-AGR-${Date.now()}`;
+      await getDb().collection("journal_documents").insertOne({
+        document_number: docNum,
+        document_type: "BUDGET_AGREEMENT",
+        fiscal_year: Number(body.fiscal_year) || 1404,
+        status: "CONFIRMED",
+        document_date: new Date().toLocaleDateString("fa-IR"),
+        description: `سند حسابداری خودکار موافقتنامه بودجه: ${body.title || agreement_number}`,
+        agreement_id: result.insertedId.toHexString(),
+        base_code: body.base_code || "",
+        lines: [
+          { account_code: debtorCode, account_name: debtorName, debit: Number(body.total_amount) || 0, credit: 0, is_budgetary: true },
+          { account_code: creditorCode, account_name: creditorName, debit: 0, credit: Number(body.total_amount) || 0, is_budgetary: true }
+        ],
+        created_at: new Date().toISOString()
+      });
+    } catch (docErr) {
+      console.error("Automated ledger entry creation error:", docErr);
+    }
+  }
 
   // ثبت‌نشان‌های افتا (Audit Logging)
   try {
@@ -79,6 +115,8 @@ router.post("/agreements", async (c) => {
         total_amount: body.total_amount,
         fiscal_year: body.fiscal_year,
         status: body.status || "draft",
+        debtor_account: debtorCode,
+        creditor_account: creditorCode,
         has_attachment: !!body.attachment_name,
         attachment_name: body.attachment_name || null
       }
@@ -87,7 +125,7 @@ router.post("/agreements", async (c) => {
     console.error("Audit log error on agreement insert:", err);
   }
 
-  return c.json({ message: "موافقتنامه ثبت شد", data: serialize(inserted as Record<string, unknown>) }, 201);
+  return c.json({ message: "موافقتنامه با موفقیت ثبت و سند حسابداری خودکار صادر گردید", data: serialize(inserted as Record<string, unknown>) }, 201);
 });
 
 router.put("/agreements/:id", async (c) => {

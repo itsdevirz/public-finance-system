@@ -223,7 +223,7 @@ export default function CreditsDashboardModule() {
                 <span className="text-[11px] text-muted-foreground font-semibold">ورود اطلاعات و صدور اسناد</span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-                {/* 1. ثبت بودجه */}
+                {/* 1. موافقتنامه */}
                 <div
                   onClick={() => navigate("/credits/budget/approved")}
                   className="group cursor-pointer p-3.5 rounded-xl border border-amber-200 dark:border-amber-950/60 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-400 transition-all shadow-xs flex flex-col justify-between"
@@ -233,11 +233,11 @@ export default function CreditsDashboardModule() {
                       <span className="h-6 w-6 rounded-md bg-amber-500/20 text-amber-700 dark:text-amber-300 flex items-center justify-center font-mono font-bold text-xs">۱</span>
                       <FileText className="h-4 w-4 text-amber-600 group-hover:scale-110 transition-transform" />
                     </div>
-                    <h4 className="text-xs font-bold text-foreground">ثبت بودجه</h4>
-                    <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">ثبت ردیف‌های مصوب، برنامه‌ها و اصلاحات بودجه</p>
+                    <h4 className="text-xs font-bold text-foreground">موافقتنامه</h4>
+                    <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">ثبت و مدیریت موافقتنامه‌های بودجه‌ای سالانه</p>
                   </div>
                   <div className="mt-3 pt-2 border-t border-amber-500/10 flex items-center text-[10px] font-bold text-amber-600 group-hover:translate-x-[-2px] transition-transform">
-                    ورود به ثبت بودجه ⬅️
+                    ثبت موافقتنامه ⬅️
                   </div>
                 </div>
 
@@ -252,50 +252,50 @@ export default function CreditsDashboardModule() {
                       <TrendingUp className="h-4 w-4 text-amber-600 group-hover:scale-110 transition-transform" />
                     </div>
                     <h4 className="text-xs font-bold text-foreground">تخصیص</h4>
-                    <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">ثبت تخصیص‌های اعتباری ابلاغی به واحدها</p>
+                    <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">تخصیص اعتبارات ابلاغی به واحدها</p>
                   </div>
                   <div className="mt-3 pt-2 border-t border-amber-500/10 flex items-center text-[10px] font-bold text-amber-600 group-hover:translate-x-[-2px] transition-transform">
-                    ورود به تخصیص ⬅️
+                    ثبت تخصیص ⬅️
                   </div>
                 </div>
 
-                {/* 3. تأمین */}
+                {/* 3. دریافت اعتبارات (جدید) */}
+                <div
+                  onClick={() => navigate("/credits/verification-realization")}
+                  className="group cursor-pointer p-3.5 rounded-xl border border-amber-200 dark:border-amber-950/60 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-400 transition-all shadow-xs flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="h-6 w-6 rounded-md bg-amber-500/20 text-amber-700 dark:text-amber-300 flex items-center justify-center font-mono font-bold text-xs">۳</span>
+                      <CheckCircle2 className="h-4 w-4 text-amber-600 group-hover:scale-110 transition-transform" />
+                    </div>
+                    <h4 className="text-xs font-bold text-foreground">دریافت اعتبارات</h4>
+                    <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">ثبت، پایش و وصول اعتبارات از خزانه</p>
+                  </div>
+                  <div className="mt-3 pt-2 border-t border-amber-500/10 flex items-center text-[10px] font-bold text-amber-600 group-hover:translate-x-[-2px] transition-transform">
+                    دریافت اعتبارات ⬅️
+                  </div>
+                </div>
+
+                {/* 4. تأمین اعتبار */}
                 <div
                   onClick={() => navigate("/credits/commitments-funding/request")}
                   className="group cursor-pointer p-3.5 rounded-xl border border-amber-200 dark:border-amber-950/60 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-400 transition-all shadow-xs flex flex-col justify-between"
                 >
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <span className="h-6 w-6 rounded-md bg-amber-500/20 text-amber-700 dark:text-amber-300 flex items-center justify-center font-mono font-bold text-xs">۳</span>
+                      <span className="h-6 w-6 rounded-md bg-amber-500/20 text-amber-700 dark:text-amber-300 flex items-center justify-center font-mono font-bold text-xs">۴</span>
                       <ShieldCheck className="h-4 w-4 text-amber-600 group-hover:scale-110 transition-transform" />
                     </div>
                     <h4 className="text-xs font-bold text-foreground">تأمین اعتبار</h4>
-                    <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">صدور گواهی و رزرو اعتبار پیش از تعهد</p>
+                    <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">صدور گواهی و رزرو اعتباری پیش از انجام تعهد</p>
                   </div>
                   <div className="mt-3 pt-2 border-t border-amber-500/10 flex items-center text-[10px] font-bold text-amber-600 group-hover:translate-x-[-2px] transition-transform">
-                    ورود به تأمین ⬅️
+                    تأمین اعتبار ⬅️
                   </div>
                 </div>
 
-                {/* 4. تعهد */}
-                <div
-                  onClick={() => navigate("/credits/obligations/create")}
-                  className="group cursor-pointer p-3.5 rounded-xl border border-amber-200 dark:border-amber-950/60 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-400 transition-all shadow-xs flex flex-col justify-between"
-                >
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="h-6 w-6 rounded-md bg-amber-500/20 text-amber-700 dark:text-amber-300 flex items-center justify-center font-mono font-bold text-xs">۴</span>
-                      <Lock className="h-4 w-4 text-amber-600 group-hover:scale-110 transition-transform" />
-                    </div>
-                    <h4 className="text-xs font-bold text-foreground">تعهد</h4>
-                    <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">ایجاد تعهد قطعی حقوقی برای قراردادها</p>
-                  </div>
-                  <div className="mt-3 pt-2 border-t border-amber-500/10 flex items-center text-[10px] font-bold text-amber-600 group-hover:translate-x-[-2px] transition-transform">
-                    ورود به ثبت تعهد ⬅️
-                  </div>
-                </div>
-
-                {/* 5. پرداخت */}
+                {/* 5. پرداخت (پرداخت اعتبار) */}
                 <div
                   onClick={() => navigate("/credits/payments/remittance")}
                   className="group cursor-pointer p-3.5 rounded-xl border border-amber-200 dark:border-amber-950/60 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-400 transition-all shadow-xs flex flex-col justify-between"
@@ -306,10 +306,10 @@ export default function CreditsDashboardModule() {
                       <Wallet className="h-4 w-4 text-amber-600 group-hover:scale-110 transition-transform" />
                     </div>
                     <h4 className="text-xs font-bold text-foreground">پرداخت</h4>
-                    <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">صدور حواله پرداختی و تسویه تعهدات</p>
+                    <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">صدور حواله پرداختی و تسویه بانکی اعتبارات</p>
                   </div>
                   <div className="mt-3 pt-2 border-t border-amber-500/10 flex items-center text-[10px] font-bold text-amber-600 group-hover:translate-x-[-2px] transition-transform">
-                    ورود به صدور حواله ⬅️
+                    پرداخت اعتبار ⬅️
                   </div>
                 </div>
               </div>
@@ -437,13 +437,13 @@ export default function CreditsDashboardModule() {
         </CardContent>
       </Card>
 
-      {/* ۶ کارت شاخص اصلی شفاف و پرکاربرد */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        {/* کارت ۱: بودجه مصوب */}
+      {/* ۵ کارت شاخص اصلی مطابق چرخه اعتبارات */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+        {/* کارت ۱: موافقتنامه */}
         <Card className="border-t-4 border-t-primary shadow-xs hover:shadow-md transition-all">
           <CardHeader className="p-3 pb-1">
             <span className="text-[11px] font-bold text-muted-foreground flex items-center justify-between">
-              بودجه مصوب
+              موافقتنامه
               <Badge variant="outline" className="text-[9px] px-1 py-0 bg-primary/5 text-primary border-primary/20">
                 {counts.agreementsCount} برنامه
               </Badge>
@@ -475,7 +475,25 @@ export default function CreditsDashboardModule() {
           </CardContent>
         </Card>
 
-        {/* کارت ۳: تأمین اعتبار */}
+        {/* کارت ۳: دریافت اعتبارات (جدید) */}
+        <Card className="border-t-4 border-t-teal-500 shadow-xs hover:shadow-md transition-all">
+          <CardHeader className="p-3 pb-1">
+            <span className="text-[11px] font-bold text-muted-foreground flex items-center justify-between">
+              دریافت اعتبارات
+              <Badge variant="outline" className="text-[9px] px-1 py-0 bg-teal-50 text-teal-700 border-teal-200">
+                {counts.realizationsCount} سند
+              </Badge>
+            </span>
+          </CardHeader>
+          <CardContent className="p-3 pt-0 space-y-1">
+            <div className="text-lg font-black text-teal-600 tracking-tight">
+              {fmtNum(stats.totalVerifiedRealized)}
+            </div>
+            <p className="text-[10px] text-muted-foreground font-semibold">ریال</p>
+          </CardContent>
+        </Card>
+
+        {/* کارت ۴: تأمین اعتبار */}
         <Card className="border-t-4 border-t-amber-500 shadow-xs hover:shadow-md transition-all">
           <CardHeader className="p-3 pb-1">
             <span className="text-[11px] font-bold text-muted-foreground flex items-center justify-between">
@@ -493,43 +511,7 @@ export default function CreditsDashboardModule() {
           </CardContent>
         </Card>
 
-        {/* کارت ۴: تعهد */}
-        <Card className="border-t-4 border-t-purple-500 shadow-xs hover:shadow-md transition-all">
-          <CardHeader className="p-3 pb-1">
-            <span className="text-[11px] font-bold text-muted-foreground flex items-center justify-between">
-              تعهد
-              <Badge variant="outline" className="text-[9px] px-1 py-0 bg-purple-50 text-purple-700 border-purple-200">
-                {counts.obligationsCount} تعهد
-              </Badge>
-            </span>
-          </CardHeader>
-          <CardContent className="p-3 pt-0 space-y-1">
-            <div className="text-lg font-black text-purple-600 tracking-tight">
-              {fmtNum(stats.netObligations)}
-            </div>
-            <p className="text-[10px] text-muted-foreground font-semibold">ریال</p>
-          </CardContent>
-        </Card>
-
-        {/* کارت ۵: تحقق */}
-        <Card className="border-t-4 border-t-indigo-500 shadow-xs hover:shadow-md transition-all">
-          <CardHeader className="p-3 pb-1">
-            <span className="text-[11px] font-bold text-muted-foreground flex items-center justify-between">
-              تحقق / تسجیل
-              <Badge variant="outline" className="text-[9px] px-1 py-0 bg-indigo-50 text-indigo-700 border-indigo-200">
-                {counts.realizationsCount} سند
-              </Badge>
-            </span>
-          </CardHeader>
-          <CardContent className="p-3 pt-0 space-y-1">
-            <div className="text-lg font-black text-indigo-600 tracking-tight">
-              {fmtNum(stats.totalVerifiedRealized)}
-            </div>
-            <p className="text-[10px] text-muted-foreground font-semibold">ریال</p>
-          </CardContent>
-        </Card>
-
-        {/* کارت ۶: پرداخت */}
+        {/* کارت ۵: پرداخت */}
         <Card className="border-t-4 border-t-emerald-500 shadow-xs hover:shadow-md transition-all">
           <CardHeader className="p-3 pb-1">
             <span className="text-[11px] font-bold text-muted-foreground flex items-center justify-between">
@@ -556,59 +538,50 @@ export default function CreditsDashboardModule() {
             میانبرهای سریع مدیریت اعتبارات
           </CardTitle>
         </CardHeader>
-        <CardContent className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+        <CardContent className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
           <Button
             onClick={() => navigate("/credits/budget/approved")}
             variant="outline"
-            className="flex flex-col h-auto py-3 items-center justify-center text-center gap-2 hover:bg-primary/5 hover:border-primary"
+            className="flex flex-col h-auto py-3 items-center justify-center text-center gap-2 hover:bg-primary/5 hover:border-primary cursor-pointer"
           >
             <FileText className="h-5 w-5 text-primary" />
-            <span className="text-xs font-bold">ثبت بودجه مصوب</span>
+            <span className="text-xs font-bold">موافقتنامه</span>
           </Button>
 
           <Button
             onClick={() => navigate("/credits/allocations/new")}
             variant="outline"
-            className="flex flex-col h-auto py-3 items-center justify-center text-center gap-2 hover:bg-blue-500/5 hover:border-blue-500"
+            className="flex flex-col h-auto py-3 items-center justify-center text-center gap-2 hover:bg-blue-500/5 hover:border-blue-500 cursor-pointer"
           >
             <TrendingUp className="h-5 w-5 text-blue-600" />
-            <span className="text-xs font-bold">تخصیص اعتبار</span>
+            <span className="text-xs font-bold">تخصیص</span>
+          </Button>
+
+          <Button
+            onClick={() => navigate("/credits/verification-realization")}
+            variant="outline"
+            className="flex flex-col h-auto py-3 items-center justify-center text-center gap-2 hover:bg-teal-500/5 hover:border-teal-500 cursor-pointer"
+          >
+            <CheckCircle2 className="h-5 w-5 text-teal-600" />
+            <span className="text-xs font-bold">دریافت اعتبارات</span>
           </Button>
 
           <Button
             onClick={() => navigate("/credits/commitments-funding/request")}
             variant="outline"
-            className="flex flex-col h-auto py-3 items-center justify-center text-center gap-2 hover:bg-amber-500/5 hover:border-amber-500"
+            className="flex flex-col h-auto py-3 items-center justify-center text-center gap-2 hover:bg-amber-500/5 hover:border-amber-500 cursor-pointer"
           >
             <ShieldCheck className="h-5 w-5 text-amber-600" />
             <span className="text-xs font-bold">تأمین اعتبار</span>
           </Button>
 
           <Button
-            onClick={() => navigate("/credits/obligations/create")}
-            variant="outline"
-            className="flex flex-col h-auto py-3 items-center justify-center text-center gap-2 hover:bg-purple-500/5 hover:border-purple-500"
-          >
-            <Lock className="h-5 w-5 text-purple-600" />
-            <span className="text-xs font-bold">ایجاد تعهد</span>
-          </Button>
-
-          <Button
-            onClick={() => navigate("/credits/verification-realization")}
-            variant="outline"
-            className="flex flex-col h-auto py-3 items-center justify-center text-center gap-2 hover:bg-indigo-500/5 hover:border-indigo-500"
-          >
-            <CheckCircle2 className="h-5 w-5 text-indigo-600" />
-            <span className="text-xs font-bold">تحقق / تسجیل</span>
-          </Button>
-
-          <Button
             onClick={() => navigate("/credits/payments/remittance")}
             variant="outline"
-            className="flex flex-col h-auto py-3 items-center justify-center text-center gap-2 hover:bg-emerald-500/5 hover:border-emerald-500"
+            className="flex flex-col h-auto py-3 items-center justify-center text-center gap-2 hover:bg-emerald-500/5 hover:border-emerald-500 cursor-pointer"
           >
             <Wallet className="h-5 w-5 text-emerald-600" />
-            <span className="text-xs font-bold">صدور حواله</span>
+            <span className="text-xs font-bold">پرداخت</span>
           </Button>
         </CardContent>
       </Card>

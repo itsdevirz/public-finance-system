@@ -198,21 +198,53 @@ export default function AllocationModule() {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">انتخاب بودجه / موافقت‌نامه</Label>
+                <div className="space-y-2 bg-primary/5 p-3 rounded-xl border border-primary/20">
+                  <Label className="text-xs font-bold text-primary flex items-center justify-between">
+                    <span>فراخوانی هوشمند موافقتنامه با «کد مبنا»</span>
+                    <span className="text-[10px] text-muted-foreground font-normal">کلید اصلی رهگیری جامع اعتبار</span>
+                  </Label>
                   <select
                     value={form.agreement_id}
-                    onChange={(e) => setForm({ ...form, agreement_id: e.target.value })}
-                    className="w-full h-9 px-3 text-xs rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                    onChange={(e) => {
+                      const agrId = e.target.value;
+                      const selected = agreements.find(a => String(a._id) === String(agrId) || String(a.base_code) === String(agrId));
+                      if (selected) {
+                        setForm({
+                          ...form,
+                          agreement_id: String(selected._id),
+                          fiscal_year: String(selected.fiscal_year || form.fiscal_year)
+                        });
+                        setSelectedAgrId(String(selected._id));
+                      } else {
+                        setForm({ ...form, agreement_id: agrId });
+                      }
+                    }}
+                    className="w-full h-9 px-3 text-xs font-bold rounded-lg border border-primary/30 bg-background focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
                     required
                   >
-                    <option value="">انتخاب کنید...</option>
+                    <option value="">-- فراخوانی موافقتنامه بر اساس کد مبنا / عنوان --</option>
                     {agreements.map((a) => (
                       <option key={a._id} value={a._id}>
-                        {a.title} ({fmtNum(a.total_amount)} ریال)
+                        {a.base_code ? `[کد مبنا: ${a.base_code}] ` : ""}{a.title} - {a.credit_category === "capital" ? "عمرانی (تملک)" : "هزینه‌ای"} ({fmtNum(a.total_amount)} ریال)
                       </option>
                     ))}
                   </select>
+
+                  {/* اطلاعات خودکار فراخوانی‌شده بر اساس کد مبنا */}
+                  {selectedAgr && (
+                    <div className="text-[11px] bg-background p-2.5 rounded-lg border border-border space-y-1 text-muted-foreground">
+                      <div className="flex justify-between font-bold text-foreground">
+                        <span>عنوان: {selectedAgr.title}</span>
+                        {selectedAgr.base_code && <Badge variant="outline" className="text-[10px] font-mono bg-primary/10 text-primary">کد مبنا: {selectedAgr.base_code}</Badge>}
+                      </div>
+                      <div className="grid grid-cols-2 gap-1 text-[10px] font-mono">
+                        <div>نوع: {selectedAgr.credit_category === "capital" ? "تملک دارایی‌های سرمایه‌ای" : "اعتبارات هزینه‌ای"}</div>
+                        <div>سقف بودجه: {fmtNum(selectedAgr.total_amount)} ریال</div>
+                        <div>کد بدهکار: {selectedAgr.debtor_account || (selectedAgr.credit_category === "capital" ? "92002" : "92001")}</div>
+                        <div>کد بستانکار: {selectedAgr.creditor_account || (selectedAgr.credit_category === "capital" ? "91002" : "91001")}</div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">

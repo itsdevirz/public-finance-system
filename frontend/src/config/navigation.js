@@ -182,12 +182,10 @@ export const TOP_NAV = [
     subItems: [
       { to: "/credits", label: "📊 داشبورد اعتبارات" },
       {
-        to: "/credits/budget",
-        label: "بودجه",
+        to: "/credits/budget/approved",
+        label: "موافقتنامه",
         children: [
-          { to: "/credits/budget/approved", label: "بودجه مصوب" },
-          { to: "/credits/budget/amendments", label: "اصلاحیه بودجه" },
-          { to: "/credits/budget/review", label: "مرور بودجه" },
+          { to: "/credits/budget/approved", label: "ثبت موافقتنامه" },
         ],
       },
       {
@@ -200,6 +198,13 @@ export const TOP_NAV = [
         ],
       },
       {
+        to: "/credits/verification-realization",
+        label: "دریافت اعتبارات",
+        children: [
+          { to: "/credits/verification-realization", label: "ثبت و پایش دریافت اعتبارات" },
+        ],
+      },
+      {
         to: "/credits/commitments-funding",
         label: "تأمین اعتبار",
         children: [
@@ -209,34 +214,22 @@ export const TOP_NAV = [
         ],
       },
       {
-        to: "/credits/obligations",
-        label: "تعهدات",
-        children: [
-          { to: "/credits/obligations/create", label: "تعهد جدید" },
-          { to: "/credits/obligations/edit", label: "اصلاح تعهد" },
-          { to: "/credits/obligations/release", label: "آزادسازی تعهد" },
-          { to: "/credits/obligations/review", label: "مرور تعهدات" },
-        ],
-      },
-      { to: "/credits/verification-realization", label: "تحقق / تسجیل" },
-      {
         to: "/credits/payments",
         label: "پرداخت",
         children: [
           { to: "/credits/payments/request", label: "درخواست پرداخت" },
-          { to: "/credits/payments/remittance", label: "حواله" },
-          { to: "/credits/payments/payment", label: "پرداخت" },
+          { to: "/credits/payments/remittance", label: "حواله پرداخت" },
+          { to: "/credits/payments/payment", label: "پرداخت قطعی" },
         ],
       },
       {
-        to: "/credits/reports",
-        label: "گزارش‌ها",
+        to: "/credits/accounts-review",
+        label: "مرور حساب‌ها",
         children: [
           { to: "/credits/card", label: "کارت اعتبار" },
           { to: "/credits/ledger", label: "گردش اعتبار" },
           { to: "/credits/control", label: "مانده اعتبار" },
-          { to: "/credits/obligations/review", label: "تعهدات" },
-          { to: "/credits/payments/review", label: "پرداخت‌ها" },
+          { to: "/reports/budget", label: "گزارش‌های جامع بودجه و حساب‌ها" },
         ],
       },
     ]
