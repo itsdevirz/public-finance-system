@@ -84,6 +84,7 @@ const QUICK_HUBS = [
       { label: "تخصیص اعتبار",      to: "/credits/allocation-no-doc",   desc: "تخصیص‌های ابلاغی",   icon: TrendingUp,     badge: "عملیاتی" },
       { label: "درخواست وجه",       to: "/credits/requests",            desc: "درخواست از خزانه",   icon: Wallet,         badge: "خزانه" },
       { label: "ابلاغ و انتقال",    to: "/credits/notification/request",desc: "جابجایی اعتبار",     icon: ArrowLeftRight, badge: "انتقال" },
+      { label: "مرور حساب‌ها",      to: "/bookkeeping/ledger-reports/account-review", desc: "دفاتر کل و معین اعتبارات", icon: BookOpen, badge: "اعتبارات" },
       { label: "گزارش‌های بودجه",   to: "/reports/budget",               desc: "تحلیل ردیف‌های بودجه", icon: BarChart3,      badge: "گزارش" },
       { label: "ممیزی سناما",       to: "/system-management/sanama-file-check", desc: "انطباق با سناما", icon: CheckCircle2,  badge: "استاندارد" },
     ]

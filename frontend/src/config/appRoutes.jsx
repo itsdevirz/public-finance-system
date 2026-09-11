@@ -239,6 +239,7 @@ export const PAGE_COMPONENTS = {
   "/credits/ledger": BudgetModule,
   "/credits/operational": CreditsDashboardModule,
   "/credits/control": CreditsDashboardModule,
+  "/credits/accounts-review/account-review": AccountReview,
   "/credits/budget": BudgetModule,
   "/credits/budget/approved": BudgetModule,
   "/credits/budget/amendments": BudgetModule,

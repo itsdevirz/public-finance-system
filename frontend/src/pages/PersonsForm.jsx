@@ -1,7 +1,8 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import {
-  Search, Plus, Printer, FileDown, Trash2, Save
+  Search, Plus, Printer, FileDown, Upload, Trash2, Save
 } from "lucide-react";
+import * as XLSX from "xlsx";
 import { printTable } from "@/lib/printUtils";
 import { PageShell, PageHeader } from "@/components/layout/PageShell";
 import api from "@/api";
@@ -30,6 +31,28 @@ const PERSON_KIND_OPTIONS = [
   { value: "C", label: "C - اشخاص حقیقی ایرانی سایر" },
   { value: "D", label: "D - اشخاص حقیقی خارجی سایر" },
 ];
+
+function normalizePersianText(str) {
+  if (!str) return "";
+  return String(str)
+    .replace(/[\u064B-\u0652]/g, "")   // Remove Arabic diacritics/harakat
+    .replace(/[\u064A\u0649]/g, "ی")   // Arabic Yeh / Alef Maksura -> Persian Yeh
+    .replace(/\u0643/g, "ک")           // Arabic Keh -> Persian Keh
+    .replace(/[\u200c\u00a0]/g, " ")    // ZWNJ and non-breaking space -> space
+    .replace(/\s+/g, " ")              // Multiple spaces -> single space
+    .replace(/[٠۰]/g, "0")
+    .replace(/[١۱]/g, "1")
+    .replace(/[٢۲]/g, "2")
+    .replace(/[٣۳]/g, "3")
+    .replace(/[٤۴]/g, "4")
+    .replace(/[٥۵]/g, "5")
+    .replace(/[٦۶]/g, "6")
+    .replace(/[٧۷]/g, "7")
+    .replace(/[٨۸]/g, "8")
+    .replace(/[٩۹]/g, "9")
+    .trim()
+    .toLowerCase();
+}
 
 // نوع‌هایی که حقیقی هستند
 const NATURAL_PERSON_KINDS = ["B", "C", "D"];
@@ -214,6 +237,9 @@ export default function PersonsForm() {
   const [search, setSearch]       = useState("");
   const [selected, setSelected]   = useState(null);
   const [saved, setSaved]         = useState(false);
+  const [toastMsg, setToastMsg]   = useState("");
+
+  const importRef = useRef(null);
 
   const fetchPersons = async () => {
     setLoading(true);
@@ -232,6 +258,121 @@ export default function PersonsForm() {
   useEffect(() => {
     fetchPersons();
   }, []);
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setLoading(true);
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data, { type: "array" });
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { raw: false });
+
+      if (!jsonData || jsonData.length === 0) {
+        alert("فایل اکسل خالی یا فاقد داده معتبر است.");
+        return;
+      }
+
+      const itemsToImport = jsonData.map((row) => {
+        const keys = Object.keys(row);
+
+        // 1. کلید شناسه ملی (مانند: شناسه ملی طرف حساب، کد ملی)
+        const nationalIdKey = keys.find((k) =>
+          /شناسه\s*ملی|کد\s*ملی|national/i.test(k)
+        );
+
+        // 2. کلید عنوان / طرف حساب (مانند: طرف حساب، عنوان شخصیت حقوقی، عنوان)
+        // اولویت با مطابقت دقیق "طرف حساب" یا "عنوان" است تا با "شناسه ملی طرف حساب" اشتباه نشود
+        const exactTitleKey = keys.find((k) =>
+          /^(طرف\s*حساب|عنوان|عنوان\s*شخصیت\s*حقوقی|نام|نام\s*شخص)$/i.test(k.trim())
+        );
+
+        const titleKey = exactTitleKey || keys.find((k) =>
+          k !== nationalIdKey && !/شناسه|کد\s*ملی|کد\s*طبقه/i.test(k) && /طرف\s*حساب|عنوان|نام|شخص|person|title|name/i.test(k)
+        );
+
+        // 3. کلید کد طبقه بندی
+        const classKey = keys.find((k) =>
+          /طبقه|کد\s*طبقه|detailClass/i.test(k)
+        );
+
+        const title = titleKey ? normalizePersianText(row[titleKey]) : "";
+        const nationalId = nationalIdKey ? normalizePersianText(row[nationalIdKey]) : "";
+        const detailClass = classKey ? normalizePersianText(row[classKey]) : "3237";
+
+        return {
+          personKind: "A",
+          personClass: detailClass.substring(0, 2) || "32",
+          subClass: detailClass.substring(0, 3) || "323",
+          detailClass: detailClass || "3237",
+          title,
+          nationalId,
+        };
+      }).filter((item) => item.title || item.nationalId);
+
+      if (itemsToImport.length === 0) {
+        alert("هیچ ستون مشخصاتی (شناسه ملی، طرف حساب) در فایل یافت نشد.");
+        return;
+      }
+
+      const res = await api.post("/api/persons/import", { items: itemsToImport });
+      if (res.data?.success) {
+        setToastMsg(res.data.message || "اطلاعات اکسل با موفقیت آپلود و ثبت شد.");
+        setTimeout(() => setToastMsg(""), 5000);
+        await fetchPersons();
+      } else {
+        alert(res.data?.message || "خطا در پردازش فایل اکسل");
+      }
+    } catch (err) {
+      console.error("Excel import error:", err);
+      alert("خطا در خواندن فایل اکسل: " + (err.message || err));
+    } finally {
+      setLoading(false);
+      if (e.target) e.target.value = "";
+    }
+  };
+
+  const handleClearAll = async () => {
+    if (!window.confirm("آیا از حذف تمامی رکوردهای اشخاص اطمینان دارید؟")) return;
+    try {
+      setLoading(true);
+      const res = await api.delete("/api/persons/clear-all");
+      if (res.data?.success) {
+        setToastMsg("تمامی رکوردهای اشخاص با موفقیت حذف شدند.");
+        setTimeout(() => setToastMsg(""), 5000);
+        await fetchPersons();
+      }
+    } catch (err) {
+      console.error("Clear persons error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleExportExcel = () => {
+    if (!list || list.length === 0) {
+      alert("لیستی برای دریافت خروجی اکسل وجود ندارد.");
+      return;
+    }
+    const exportData = list.map((item, idx) => ({
+      "ردیف": idx + 1,
+      "کد طبقه بندی شخص بدهکار/بستانکار": item.detailClass || "3237",
+      "شناسه ملی طرف حساب": item.nationalId || "",
+      "طرف حساب": item.title || `${item.firstName || ""} ${item.lastName || ""}`.trim(),
+      "NomineeCode": item.nomineeCode || "",
+      "نوع شخص": item.personKind || "A",
+      "کد اقتصادی": item.economicCode || "",
+      "شماره شبا": item.sheba || "",
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "تعاریف اشخاص");
+    XLSX.writeFile(workbook, "Person_Definitions.xlsx");
+  };
 
   // گزینه‌های وابسته — فیلتر شده بر اساس نوع شخص انتخاب‌شده
   const isTwoLevel     = TWO_LEVEL_KINDS.includes(form.personKind);
@@ -396,13 +537,33 @@ export default function PersonsForm() {
     setActiveTab("main");
   }
 
-  const filtered = list.filter((r) =>
-    !search ||
-    r.title?.includes(search) ||
-    r.nationalId?.includes(search) ||
-    r.nomineeCode?.includes(search) ||
-    r.economicCode?.includes(search)
-  );
+  const filtered = useMemo(() => {
+    if (!search || !search.trim()) return list;
+    const q = normalizePersianText(search);
+    return list.filter((r) => {
+      const title = normalizePersianText(r.title);
+      const firstName = normalizePersianText(r.firstName);
+      const lastName = normalizePersianText(r.lastName);
+      const fullName = normalizePersianText(`${r.firstName || ""} ${r.lastName || ""}`);
+      const nationalId = normalizePersianText(r.nationalId);
+      const nomineeCode = normalizePersianText(r.nomineeCode);
+      const economicCode = normalizePersianText(r.economicCode);
+      const detailClass = normalizePersianText(r.detailClass);
+      const sheba = normalizePersianText(r.sheba);
+
+      return (
+        title.includes(q) ||
+        firstName.includes(q) ||
+        lastName.includes(q) ||
+        fullName.includes(q) ||
+        nationalId.includes(q) ||
+        nomineeCode.includes(q) ||
+        economicCode.includes(q) ||
+        detailClass.includes(q) ||
+        sheba.includes(q)
+      );
+    });
+  }, [list, search]);
 
 
   return (
@@ -708,15 +869,36 @@ export default function PersonsForm() {
               <Button variant="outline" size="sm" disabled={selected === null}>جایگزینی اشخاص</Button>
             </div>
             <div className="flex gap-2">
+              <input
+                ref={importRef}
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                className="hidden"
+                onChange={handleFileUpload}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1 bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100 font-medium"
+                onClick={() => importRef.current?.click()}
+                disabled={loading}
+              >
+                <Upload className="h-4 w-4 ml-1" /> آپلود اکسل
+              </Button>
               <Button variant="outline" size="sm" onClick={() => printTable("#persons-print-area", "لیست اشخاص")}>
                 <Printer className="h-4 w-4 ml-1" /> چاپ
               </Button>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={handleExportExcel}>
                 <FileDown className="h-4 w-4 ml-1" /> اکسل
               </Button>
               <Button variant="outline" size="sm" onClick={handleDelete} disabled={selected === null}>
                 <Trash2 className="h-4 w-4 ml-1" /> حذف
               </Button>
+              {list.length > 0 && (
+                <Button variant="outline" size="sm" className="text-destructive hover:bg-destructive/10 border-destructive/30" onClick={handleClearAll}>
+                  <Trash2 className="h-4 w-4 ml-1" /> حذف همه
+                </Button>
+              )}
               <Button variant="outline" size="sm" onClick={handleNew}>
                 <Plus className="h-4 w-4 ml-1" /> جدید
               </Button>
@@ -726,6 +908,11 @@ export default function PersonsForm() {
               </Button>
             </div>
           </div>
+          {toastMsg && (
+            <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg text-xs font-semibold">
+              ✓ {toastMsg}
+            </div>
+          )}
         </CardContent>
       </Card>
 

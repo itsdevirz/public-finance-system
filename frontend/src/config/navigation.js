@@ -62,12 +62,7 @@ export const TOP_NAV = [
   // ۳ — گزارشات
   {
     to: "/reports", label: "گزارشات", num: 3, subItems: [
-      // ۱. مرور حساب
-      {
-        to: "/bookkeeping/ledger-reports/account-review",
-        label: "مرور حساب",
-      },
-      // ۲. گزارش‌های اسناد حسابداری
+      // ۱. گزارش‌های اسناد حسابداری
       {
         to: "/reports/documents",
         label: "گزارش‌های اسناد حسابداری",
@@ -226,6 +221,7 @@ export const TOP_NAV = [
         to: "/credits/accounts-review",
         label: "مرور حساب‌ها",
         children: [
+          { to: "/bookkeeping/ledger-reports/account-review", label: "مرور حساب" },
           { to: "/credits/card", label: "کارت اعتبار" },
           { to: "/credits/ledger", label: "گردش اعتبار" },
           { to: "/credits/control", label: "مانده اعتبار" },

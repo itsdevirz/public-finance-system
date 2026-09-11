@@ -28,11 +28,21 @@ function isValidSanamaCode(personKind: string, detailClass: string): boolean {
   return false;
 }
 
+// DELETE /api/persons/clear-all - Clear all persons
+router.delete("/clear-all", async (c) => {
+  try {
+    const db = getDb();
+    const result = await db.collection("persons").deleteMany({});
+    return c.json({ success: true, message: "تمامی رکوردهای اشخاص با موفقیت حذف شدند", count: result.deletedCount });
+  } catch (error: any) {
+    return c.json({ success: false, message: error.message }, 500);
+  }
+});
+
 // GET /api/persons - Get all persons
 router.get("/", async (c) => {
   try {
     const db = getDb();
-    // projection: فیلدهای مورد نیاز برای لیست
     const persons = await db.collection("persons")
       .find({}, {
         projection: {
@@ -45,6 +55,92 @@ router.get("/", async (c) => {
       .sort({ nomineeCode: 1 })
       .toArray();
     return c.json({ success: true, data: persons });
+  } catch (error: any) {
+    return c.json({ success: false, message: error.message }, 500);
+  }
+});
+
+function normalizePersianText(str: any): string {
+  if (!str) return "";
+  return String(str)
+    .replace(/[\u064B-\u0652]/g, "")   // Remove Arabic diacritics/harakat
+    .replace(/[\u064A\u0649]/g, "ی")   // Arabic Yeh / Alef Maksura -> Persian Yeh
+    .replace(/\u0643/g, "ک")           // Arabic Keh -> Persian Keh
+    .replace(/[\u200c\u00a0]/g, " ")    // ZWNJ and non-breaking space -> space
+    .replace(/\s+/g, " ")              // Multiple spaces -> single space
+    .replace(/[٠۰]/g, "0")
+    .replace(/[١۱]/g, "1")
+    .replace(/[٢۲]/g, "2")
+    .replace(/[٣۳]/g, "3")
+    .replace(/[٤۴]/g, "4")
+    .replace(/[٥۵]/g, "5")
+    .replace(/[٦۶]/g, "6")
+    .replace(/[٧۷]/g, "7")
+    .replace(/[٨۸]/g, "8")
+    .replace(/[٩۹]/g, "9")
+    .trim();
+}
+
+// POST /api/persons/import - Bulk import persons from Excel/CSV
+router.post("/import", async (c) => {
+  try {
+    const body = await c.req.json();
+    const items = Array.isArray(body.items) ? body.items : [];
+    if (items.length === 0) {
+      return c.json({ success: false, message: "هیچ رکوردی برای آپلود دریافت نشد" }, 400);
+    }
+
+    const db = getDb();
+    let inserted = 0;
+    let updated = 0;
+
+    for (const raw of items) {
+      const personKind = raw.personKind || "A";
+      const detailClass = normalizePersianText(raw.detailClass || "3237");
+      const personClass = raw.personClass || (detailClass ? detailClass.substring(0, 2) : "32");
+      const subClass = raw.subClass || (detailClass ? detailClass.substring(0, 3) : "323");
+      const nationalId = normalizePersianText(raw.nationalId || raw["شناسه ملی"] || raw["شناسه ملی طرف حساب"] || "");
+      const title = normalizePersianText(raw.title || raw["طرف حساب"] || raw["عنوان"] || raw["عنوان شخصیت حقوقی"] || "");
+
+      if (!title && !nationalId) continue;
+
+      const nomineeCode = raw.nomineeCode || `${personKind}${detailClass.padEnd(4, "*")}${nationalId}`;
+
+      const filter = nationalId 
+        ? { $or: [{ nomineeCode }, { nationalId }] }
+        : { nomineeCode };
+
+      const existing = await db.collection("persons").findOne(filter);
+
+      const docData = {
+        personKind,
+        personClass,
+        subClass,
+        detailClass,
+        nationalId,
+        title,
+        nomineeCode,
+        inactive: false,
+        updatedAt: new Date().toISOString(),
+      };
+
+      if (existing) {
+        await db.collection("persons").updateOne({ _id: existing._id }, { $set: docData });
+        updated++;
+      } else {
+        await db.collection("persons").insertOne({
+          ...docData,
+          createdAt: new Date().toISOString(),
+        });
+        inserted++;
+      }
+    }
+
+    return c.json({
+      success: true,
+      message: `${inserted} شخص جدید افزوده‌شد و ${updated} شخص بروزرسانی گردید.`,
+      data: { inserted, updated, total: items.length },
+    });
   } catch (error: any) {
     return c.json({ success: false, message: error.message }, 500);
   }
