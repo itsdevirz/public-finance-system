@@ -3,6 +3,27 @@ import { getDb } from "../db/index.js";
 import { ObjectId } from "mongodb";
 import { decryptDocument } from "../lib/crypto.js";
 import { serialize } from "../lib/helpers.js";
+import sanamaRequirementsData from "../data/sanamaRequirements.json";
+import subAccountTitlesData from "../data/subAccountTitles.json";
+
+const sanamaRequirements: Record<string, { requiredRows: number[] }> = sanamaRequirementsData as any;
+const subAccountTitles: any[] = (subAccountTitlesData as any[]) || [];
+
+const attrToRowMap: Record<string, number> = {};
+subAccountTitles.forEach((item: any) => {
+  if (item.xmlCode) {
+    attrToRowMap[item.xmlCode] = item.row;
+  }
+});
+attrToRowMap["IncomesSubject"] = 13;
+attrToRowMap["AnnualAdjustmentSubject"] = 40;
+attrToRowMap["AnnualAdjustmentsSubject"] = 40;
+attrToRowMap["AllocationsSource"] = 44;
+attrToRowMap["AllocationSource"] = 44;
+attrToRowMap["ExpensePart"] = 49;
+attrToRowMap["ExpenseKind"] = 50;
+attrToRowMap["ExecutiveUnit"] = 51;
+attrToRowMap["Output"] = 52;
 
 const router = new Hono();
 
@@ -125,14 +146,14 @@ router.get("/sanama-xml", async (c) => {
     const attrs = [
       "SourceType", "SourceEssence", "OtherSourceType", "CreditType", "TransferalType",
       "CreditInfo", "RankNumber", "CreditCode", "ExpenseArticle", "ConstructArticle",
-      "ExpenseDetailArticle", "IncomeCode", "IncomeSubject", "TaxSeason", "DebentureSenderRank",
+      "ExpenseDetailArticle", "IncomeCode", "IncomeSubject", "IncomesSubject", "Governmental", "TaxSeason", "DebentureSenderRank",
       "DebentureReceiverRank", "CostCenter", "AwardArticle", "SecuritiesType", "Year",
       "NomineeCode", "Nominee", "GuaranteeEssence", "DemandStatus", "TempPaymentType",
       "LeakageSubject", "AssuranceType", "AssuranceSubject", "CurrencyType", "AccountNumber",
       "InsuranceType", "DebitSubject", "FixedAssetType", "InventoryType", "Quantity",
       "DueDate", "SecuritiesProperties", "ContractProperties", "InvestmentType",
-      "AnnualAdjustmentSubject", "TransferItems", "ReceivablesSubject", "AllocationSource",
-      "SubBudgetCode"
+      "AnnualAdjustmentsSubject", "AnnualAdjustmentSubject", "TransferItems", "ReceivablesSubject", "AllocationSource", "AllocationsSource",
+      "SubBudgetCode", "ExpensePart", "ExpenseKind", "ExecutiveUnit", "Output"
     ];
 
     const defaultValues: Record<string, string> = {
@@ -149,6 +170,8 @@ router.get("/sanama-xml", async (c) => {
       ExpenseDetailArticle: "0",
       IncomeCode: "0",
       IncomeSubject: "0",
+      IncomesSubject: "0",
+      Governmental: "0",
       TaxSeason: "0",
       DebentureSenderRank: "",
       DebentureReceiverRank: "0",
@@ -173,11 +196,17 @@ router.get("/sanama-xml", async (c) => {
       SecuritiesProperties: "0",
       ContractProperties: "0",
       InvestmentType: "0",
+      AnnualAdjustmentsSubject: "0",
       AnnualAdjustmentSubject: "0",
       TransferItems: "0",
       ReceivablesSubject: "0",
       AllocationSource: "0",
-      SubBudgetCode: "400367"
+      AllocationsSource: "0",
+      SubBudgetCode: "400367",
+      ExpensePart: "0",
+      ExpenseKind: "0",
+      ExecutiveUnit: "0",
+      Output: "0"
     };
 
     // Grouping structure to aggregate debit & credit progress totals by combination
@@ -205,18 +234,30 @@ router.get("/sanama-xml", async (c) => {
           if (String(lineSource) !== String(sourceType)) continue;
         }
 
-        // Resolve fields
+        // Resolve fields based on Rule 1:
+        // Out of the sub-account attribute codes defined for each sub-account, only the attributes applicable to that sub-account are assigned values.
+        // Unrequired attributes for a sub-account MUST NOT be "0"; they MUST be completely empty "".
+        const reqRows = sanamaRequirements[accCode]?.requiredRows;
         const resolvedFields: Record<string, string> = {};
+
         for (const attr of attrs) {
-          let val = "";
-          if (line.sanamaFields && line.sanamaFields[attr] !== undefined && line.sanamaFields[attr] !== null) {
-            val = String(line.sanamaFields[attr]);
-          } else if (line[attr] !== undefined && line[attr] !== null) {
-            val = String(line[attr]);
+          const rowNum = attrToRowMap[attr];
+          const isApplicable = reqRows ? (rowNum ? reqRows.includes(rowNum) : true) : true;
+
+          if (isApplicable) {
+            let val = "";
+            if (line.sanamaFields && line.sanamaFields[attr] !== undefined && line.sanamaFields[attr] !== null && String(line.sanamaFields[attr]).trim() !== "") {
+              val = String(line.sanamaFields[attr]);
+            } else if (line[attr] !== undefined && line[attr] !== null && String(line[attr]).trim() !== "") {
+              val = String(line[attr]);
+            } else {
+              val = defaultValues[attr] ?? "0";
+            }
+            resolvedFields[attr] = val;
           } else {
-            val = defaultValues[attr] || "0";
+            // Rule 1: Not applicable for this sub-account -> MUST be empty string ""
+            resolvedFields[attr] = "";
           }
-          resolvedFields[attr] = val;
         }
 
         // Build composite key for grouping
@@ -242,20 +283,20 @@ router.get("/sanama-xml", async (c) => {
     const yearAttr = fiscalYear || "1403";
     const nowPersian = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 
-    // Generate XML output
-    let xml = `<?xml version="1.0" encoding="utf-8"?>`;
-    xml += `<SanamaInfo ProtocolName="SANAMA" ProtocolVer="3.1" ProtocolType="${protocolType}" MainOrgID="" MainOrgCode="400367" Year="${yearAttr}" Month="${monthAttr}" Co="نگاران سیستم، تاریخ ایجاد فایل:${nowPersian}، کاربر ایجاد کننده فایل:Admin">`;
+    // Generate XML output (Rule 2: Each record on a separate line)
+    let xml = `<?xml version="1.0" encoding="utf-8"?>\n`;
+    xml += `<SanamaInfo ProtocolName="SANAMA" ProtocolVer="3.1" ProtocolType="${protocolType}" MainOrgID="" MainOrgCode="400367" Year="${yearAttr}" Month="${monthAttr}" Co="نگاران سیستم، تاریخ ایجاد فایل:${nowPersian}، کاربر ایجاد کننده فایل:Admin">\n`;
 
-    // 1. Render Report List
+    // 1. Render Report List (Line Formatting: Each record in XML output on a separate line)
     for (const group of Object.values(reportGroups)) {
-      xml += `<Report_List`;
+      xml += `  <Report_List`;
       xml += ` AccCode="${group.AccCode}"`;
       xml += ` SummaryProgressDeptor="${group.SummaryProgressDeptor}"`;
       xml += ` SummaryProgressCreditor="${group.SummaryProgressCreditor}"`;
       for (const attr of attrs) {
         xml += ` ${attr}="${group[attr]}"`;
       }
-      xml += ` />`;
+      xml += ` />\n`;
     }
 
     // 2. Render Bank Reconcile list (6 standard accounts matching the sample XML pattern)

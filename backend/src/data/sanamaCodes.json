@@ -417,8 +417,8 @@
             },
             {
               "code": "15011",
-              "title": "جاده ها",
-              "nature": "debit"
+              "title": "راه ها",
+              "nature": "both"
             },
             {
               "code": "15012",

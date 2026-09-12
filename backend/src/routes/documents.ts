@@ -19,8 +19,33 @@ for (const group of sanamaCodes.groups ?? []) {
   }
 }
 
-function getAccountNature(code: string): "debit" | "credit" | "both" | null {
-  return natureMap.get(code) ?? null;
+const CONTRA_ASSET_CODES = new Set(["14551", "15020", "15040", "15045", "15050", "16040", "16050"]);
+
+function getAccountNature(code: string): "debit" | "credit" | "both" {
+  const cleanCode = String(code).trim();
+  if (CONTRA_ASSET_CODES.has(cleanCode)) return "credit";
+
+  const explicit = natureMap.get(cleanCode);
+  if (explicit) return explicit;
+
+  const firstDigit = cleanCode.charAt(0);
+  const first3 = cleanCode.substring(0, 3);
+
+  if (firstDigit === "1") return "debit";
+  if (firstDigit === "2") return "credit";
+  if (firstDigit === "3") return "credit";
+  if (firstDigit === "4") return "credit";
+  if (firstDigit === "5" || firstDigit === "6") return "debit";
+  if (firstDigit === "7") return "both";
+
+  if (first3 === "810" || ["910", "915", "920", "925", "930", "935", "940", "950"].includes(first3)) {
+    return "debit";
+  }
+  if (first3 === "820" || ["960", "970", "980", "990"].includes(first3)) {
+    return "credit";
+  }
+
+  return "both";
 }
 
 const router = new Hono();
@@ -86,11 +111,11 @@ async function validateAccountBalances(
     const totalDebit  = hist.debit  + newDebit;
     const totalCredit = hist.credit + newCredit;
 
-    if (nature === "debit" && totalDebit > 0 && totalCredit > totalDebit) {
+    if (nature === "debit" && totalCredit > totalDebit) {
       const excess = totalCredit - totalDebit;
       return {
         valid: false,
-        message: `خطا: معین ${code} (ماهیت بدهکار) تا کنون ${totalDebit.toLocaleString()} ریال بدهکار شده. جمع بستانکارها (${totalCredit.toLocaleString()} ریال) نمی‌تواند از این مقدار بیشتر شود. مازاد: ${excess.toLocaleString()} ریال`,
+        message: `خطا: مانده حساب معین «${code}» دارای ماهیت بدهکار است. جمع بستانکارها (${totalCredit.toLocaleString("fa-IR")} ریال) از جمع بدهکارها (${totalDebit.toLocaleString("fa-IR")} ریال) بیشتر می‌شود. ثبت سند به دلیل ایجاد مانده بستانکار غیرمجاز متوقف شد. مازاد: ${excess.toLocaleString("fa-IR")} ریال`,
         error_code: "CREDIT_EXCEEDS_DEBIT",
         account_code: code,
         total_debit: totalDebit,
@@ -99,11 +124,11 @@ async function validateAccountBalances(
       };
     }
 
-    if (nature === "credit" && totalCredit > 0 && totalDebit > totalCredit) {
+    if (nature === "credit" && totalDebit > totalCredit) {
       const excess = totalDebit - totalCredit;
       return {
         valid: false,
-        message: `خطا: معین ${code} (ماهیت بستانکار) تا کنون ${totalCredit.toLocaleString()} ریال بستانکار شده. جمع بدهکارها (${totalDebit.toLocaleString()} ریال) نمی‌تواند از این مقدار بیشتر شود. مازاد: ${excess.toLocaleString()} ریال`,
+        message: `خطا: مانده حساب معین «${code}» دارای ماهیت بستانکار است. جمع بدهکارها (${totalDebit.toLocaleString("fa-IR")} ریال) از جمع بستانکارها (${totalCredit.toLocaleString("fa-IR")} ریال) بیشتر می‌شود. ثبت سند به دلیل ایجاد مانده بدهکار غیرمجاز متوقف شد. مازاد: ${excess.toLocaleString("fa-IR")} ریال`,
         error_code: "DEBIT_EXCEEDS_CREDIT",
         account_code: code,
         total_debit: totalDebit,
