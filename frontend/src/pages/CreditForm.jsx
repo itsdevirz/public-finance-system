@@ -17,18 +17,28 @@ import api from "@/api";
 // ثوابت
 // ══════════════════════════════════════════════════════════════════════════════
 const EXPENSE_KIND_OPTIONS = [
-  { value: "general",  label: "عمومی" },
-  { value: "specific", label: "اختصاصی" },
-  { value: "misc",     label: "سایر" },
+  { value: "1", label: "۱. عمومی" },
+  { value: "2", label: "۲. اختصاصی" },
+  { value: "3", label: "۳. سایر منابع / سایر" },
 ];
 const EXPENSE_CHAPTER_OPTIONS = [
-  { value: "110100", label: "110100 — ساختمان و مستحدثات" },
-  { value: "110200", label: "110200 — ماشین آلات و تجهیزات" },
-  { value: "110300", label: "110300 — سایر دارایی‌های ثابت" },
-  { value: "120100", label: "120100 — تغییر در موجودی انبار" },
-  { value: "130100", label: "130100 — اقلام گران‌بها" },
-  { value: "210000", label: "210000 — زمین" },
-  { value: "220000", label: "220000 — سایر دارایی‌های تولید نشده" },
+  { value: "210000", label: "210000 — جبران خدمات کارکنان (فصل ۱)" },
+  { value: "220000", label: "220000 — استفاده از کالاها و خدمات (فصل ۲)" },
+  { value: "230000", label: "230000 — مصرف سرمایه‌های ثابت (فصل ۳)" },
+  { value: "240000", label: "240000 — سود (فصل ۴)" },
+  { value: "250000", label: "250000 — یارانه (فصل ۵)" },
+  { value: "260000", label: "260000 — کمک‌های بلاعوض (فصل ۶)" },
+  { value: "270000", label: "270000 — مزایای اجتماعی (فصل ۷)" },
+  { value: "280000", label: "280000 — سایر هزینه‌ها (فصل ۸)" },
+];
+const CAPITAL_CHAPTER_OPTIONS = [
+  { value: "110100", label: "110100 — ساختمان و مستحدثات (فصل ۱)" },
+  { value: "110200", label: "110200 — ماشین آلات و تجهیزات (فصل ۲)" },
+  { value: "110300", label: "110300 — سایر دارایی‌های ثابت (فصل ۳)" },
+  { value: "120100", label: "120100 — تغییر در موجودی انبار (فصل ۴)" },
+  { value: "130100", label: "130100 — اقلام گران‌بها (فصل ۵)" },
+  { value: "210000", label: "210000 — زمین (فصل ۶)" },
+  { value: "220000", label: "220000 — سایر دارایی‌های تولید نشده (فصل ۷)" },
 ];
 const CREDIT_TYPE_OPTIONS = [
   { value: "expense", label: "هزینه" },
@@ -36,9 +46,30 @@ const CREDIT_TYPE_OPTIONS = [
   { value: "other",   label: "سایر منابع" },
 ];
 
-const EXPENSE_KIND_LABEL = { general: "عمومی", specific: "اختصاصی", misc: "سایر" };
-const EXPENSE_CHAPTER_LABEL = Object.fromEntries(
-  EXPENSE_CHAPTER_OPTIONS.map(o => [o.value, o.label])
+const EXPENSE_KIND_LABEL = {
+  "1": "عمومی",
+  "2": "اختصاصی",
+  "3": "سایر منابع / سایر",
+  general: "عمومی",
+  specific: "اختصاصی",
+  misc: "سایر منابع / سایر",
+  public: "عمومی",
+  special: "اختصاصی",
+  other: "سایر منابع / سایر",
+};
+const EXPENSE_CHAPTER_LABEL = {
+  ...Object.fromEntries(EXPENSE_CHAPTER_OPTIONS.map(o => [o.value, o.label])),
+  "2100000": "2100000 — جبران خدمات کارکنان (فصل ۱)",
+  "2200000": "2200000 — استفاده از کالاها و خدمات (فصل ۲)",
+  "2300000": "2300000 — مصرف سرمایه‌های ثابت (فصل ۳)",
+  "2400000": "2400000 — سود (فصل ۴)",
+  "2500000": "2500000 — یارانه (فصل ۵)",
+  "2600000": "2600000 — کمک‌های بلاعوض (فصل ۶)",
+  "2700000": "2700000 — مزایای اجتماعی (فصل ۷)",
+  "2800000": "2800000 — سایر هزینه‌ها (فصل ۸)",
+};
+const CAPITAL_CHAPTER_LABEL = Object.fromEntries(
+  CAPITAL_CHAPTER_OPTIONS.map(o => [o.value, o.label])
 );
 const CREDIT_TYPE_LABEL = {
   expense: "هزینه",
@@ -151,7 +182,7 @@ function CapitalFields({ data, onChange }) {
       </Field>
       <Field label="فصول" required>
         <SearchableSelect value={data.capitalChapter} onChange={v => set("capitalChapter", v)}
-          options={EXPENSE_CHAPTER_OPTIONS} placeholder="انتخاب فصل" />
+          options={CAPITAL_CHAPTER_OPTIONS} placeholder="انتخاب فصل" />
       </Field>
       <Field label="عنوان طرح">
         <Input value={data.projectTitle ?? ""} onChange={e => set("projectTitle", e.target.value)}
@@ -345,7 +376,7 @@ function CreditModal({ mode, item, onClose, onSaved }) {
                 ? <CapitalFields data={form.capital} onChange={d => setForm(f => ({ ...f, capital: d }))} />
                 : <DetailGrid rows={[
                     { label: "شماره طرح", value: item?.capital?.projectNumber, mono: true           },
-                    { label: "فصل",       value: EXPENSE_CHAPTER_LABEL[item?.capital?.capitalChapter]},
+                    { label: "فصل",         value: CAPITAL_CHAPTER_LABEL[item?.capital?.capitalChapter] },
                     { label: "عنوان طرح", value: item?.capital?.projectTitle                        },
                     { label: "عنوان پروژه", value: item?.capital?.projectPlanTitle                  },
                   ]} />
@@ -397,7 +428,7 @@ function CreditModal({ mode, item, onClose, onSaved }) {
               {!isEditing && item?.otherHasCapital && (
                 <DetailGrid rows={[
                   { label: "شماره طرح",   value: item?.capital?.projectNumber, mono: true            },
-                  { label: "فصل",         value: EXPENSE_CHAPTER_LABEL[item?.capital?.capitalChapter] },
+                  { label: "فصل",         value: CAPITAL_CHAPTER_LABEL[item?.capital?.capitalChapter] },
                   { label: "عنوان طرح",   value: item?.capital?.projectTitle                         },
                   { label: "عنوان پروژه", value: item?.capital?.projectPlanTitle                     },
                 ]} />

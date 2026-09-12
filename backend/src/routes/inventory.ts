@@ -25,6 +25,369 @@ attrToRowMap["ExpenseKind"] = 50;
 attrToRowMap["ExecutiveUnit"] = 51;
 attrToRowMap["Output"] = 52;
 
+function normalizeSourceTypeCode(val: unknown): string {
+  if (!val) return "0";
+  const s = String(val).trim();
+  if (s === "1" || s === "public" || s === "general" || s === "عمومی") return "1";
+  if (s === "2" || s === "special" || s === "specific" || s === "اختصاصی") return "2";
+  if (s === "3" || s === "other" || s === "misc" || s.includes("سایر")) return "3";
+  return s;
+}
+
+function normalizeTransferalTypeCode(val: unknown): string {
+  if (!val) return "0";
+  const s = String(val).trim();
+  if (s === "1" || s === "current" || s === "جاری" || s === "سال جاری") return "1";
+  if (s === "2" || s === "supplementary" || s === "متمم" || s === "دوره متمم") return "2";
+  if (s === "3" || s === "prior" || s === "سنواتی") return "3";
+  return s;
+}
+
+function normalizeSourceEssenceCode(val: unknown): string {
+  if (!val) return "0";
+  const s = String(val).trim();
+  if (s === "1" || s === "درآمد") return "1";
+  if (s === "2" || s.includes("سرمایه‌ای") || s.includes("سرمایه ای")) return "2";
+  if (s === "3" || s.includes("مالی")) return "3";
+  return s;
+}
+
+function normalizeOtherSourceTypeCode(val: unknown): string {
+  if (!val) return "0";
+  const s = String(val).trim();
+  if (s === "1" || s.includes("هدایا") || s.includes("کمک")) return "1";
+  if (s === "2" || s.includes("تنخواه")) return "2";
+  if (s === "3" || s.includes("خانه")) return "3";
+  if (s === "4" || s.includes("سایر")) return "4";
+  return s;
+}
+
+function normalizeIncomeSubjectCode(val: unknown): string {
+  if (!val) return "0";
+  const s = String(val).trim();
+  if (!s || s === "0") return "0";
+  return s;
+}
+
+function normalizeTaxSeasonCode(val: unknown): string {
+  if (!val) return "0";
+  const s = String(val).trim();
+  if (s === "1" || s.includes("اول")) return "1";
+  if (s === "2" || s.includes("دوم")) return "2";
+  if (s === "3" || s.includes("سوم")) return "3";
+  if (s === "4" || s.includes("چهارم")) return "4";
+  return s;
+}
+
+function normalizeGuaranteeEssenceCode(val: unknown): string {
+  if (!val) return "0";
+  const s = String(val).trim();
+  if (s === "1" || s.includes("حسن انجام کار")) return "1";
+  if (s === "2" || s.includes("تعهدات")) return "2";
+  if (s === "3" || s.includes("مناقصه")) return "3";
+  if (s === "4" || s.includes("مزایده")) return "4";
+  if (s === "5" || s.includes("بیمه") || s.includes("تامین") || s.includes("تأمین")) return "5";
+  if (s === "6" || s.includes("سایر")) return "6";
+  return s;
+}
+
+function normalizeDemandStatusCode(val: unknown): string {
+  if (!val) return "0";
+  const s = String(val).trim();
+  if (s === "1" || s.includes("صندوق")) return "1";
+  if (s === "2" || s.includes("وصول")) return "2";
+  if (s === "3" || s.includes("نکول")) return "3";
+  if (s === "4" || s.includes("احکام") || s.includes("دعاوی")) return "4";
+  if (s === "5" || s.includes("سایر")) return "5";
+  return s;
+}
+
+function normalizeTempPaymentTypeCode(val: unknown): string {
+  if (!val) return "0";
+  const s = String(val).trim();
+  if (s === "1" || s === "پیش پرداخت" || s === "پیش‌پرداخت") return "1";
+  if (s === "2" || s.includes("علی الحساب") || s.includes("علی‌الحساب")) return "2";
+  if (s === "3" || s.includes("تنخواه")) return "3";
+  if (s === "4" || s.includes("موجودی")) return "4";
+  if (s === "5" || (s.includes("پیش") && (s.includes("مواد") || s.includes("کالا")))) return "5";
+  if (s === "6" || (s.includes("پیش") && s.includes("اعتبار"))) return "6";
+  return s;
+}
+
+function normalizeReceivablesSubjectCode(val: unknown): string {
+  if (!val) return "0";
+  const s = String(val).trim();
+  if (s === "1" || s.includes("سپرده")) return "1";
+  if (s === "2" || s.includes("نامشخص")) return "2";
+  if (s === "3" || s.includes("بین راهی") || s.includes("بین‌راهی")) return "3";
+  if (s === "4" || s.includes("اضافه")) return "4";
+  if (s === "5" || s.includes("سازمانی")) return "5";
+  if (s === "6" || s.includes("مشارکت")) return "6";
+  if (s === "7" || s.includes("تسهیلات")) return "7";
+  if (s === "9" || s.includes("اختصاصی")) return "9";
+  return s;
+}
+
+function normalizeLeakageSubjectCode(val: unknown): string {
+  if (!val) return "0";
+  const s = String(val).trim();
+  if (s === "1" || s.includes("تنخواه")) return "1";
+  if (s === "2" || s === "پیش پرداخت" || s === "پیش‌پرداخت") return "2";
+  if (s === "3" || s.includes("دارایی")) return "3";
+  if (s === "4" || s.includes("موجودی")) return "4";
+  if (s === "5" || s.includes("سرمایه‌گذاری") || s.includes("سرمایه گذاری")) return "5";
+  if (s === "6" || s.includes("علی الحساب") || s.includes("علی‌الحساب")) return "6";
+  return s;
+}
+
+function normalizeFixedAssetTypeCode(val: unknown): string {
+  if (!val) return "0";
+  const s = String(val).trim();
+  if (s === "1" || s.includes("اثاثه")) return "1";
+  if (s === "2" || s.includes("نقلیه")) return "2";
+  if (s === "3" || s.includes("ماشین")) return "3";
+  if (s === "4" || s.includes("ساختمان") || s.includes("مستحدثات")) return "4";
+  if (s === "5" || s === "زمین") return "5";
+  if (s === "6" || s.includes("گرانبها") || s.includes("گران‌بها")) return "6";
+  if (s === "7" || s.includes("زیستی")) return "7";
+  if (s === "8" || s.includes("دریایی")) return "8";
+  if (s === "9" || s.includes("هوایی")) return "9";
+  if (s === "10" || s.includes("جاده") || s.includes("راه")) return "10";
+  if (s === "11" || s.includes("تاسیسات") || s.includes("تأسیسات")) return "11";
+  if (s === "12" || s.includes("توزیع") || s.includes("انتقال")) return "12";
+  if (s === "13" || s.includes("سد")) return "13";
+  if (s === "14" || s.includes("میراث")) return "14";
+  if (s === "15" || (s.includes("سایر") && s.includes("مشهود") && !s.includes("نامشهود"))) return "15";
+  if (s === "16" || s.includes("نرم افزار") || s.includes("نرم‌افزار")) return "16";
+  if (s === "17" || s.includes("سرقفلی")) return "17";
+  if (s === "18" || s.includes("اطلاعاتی")) return "18";
+  if (s === "19" || s.includes("تالیف") || s.includes("تألیف") || s.includes("اختراع")) return "19";
+  if (s === "20" || s.includes("امتیاز") || s.includes("فرانشیز")) return "20";
+  if (s === "21" || (s.includes("نامشهود") && s.includes("ایجاد"))) return "21";
+  if (s === "22" || (s.includes("سایر") && s.includes("نامشهود"))) return "22";
+  if (s === "23" || s.includes("اجاره")) return "23";
+  return s;
+}
+
+function normalizeInventoryTypeCode(val: unknown): string {
+  if (!val) return "0";
+  const s = String(val).trim();
+  if (s === "1" || s.includes("ملزومات")) return "1";
+  if (s === "2" || s.includes("مواد")) return "2";
+  if (s === "3" || s.includes("کالا")) return "3";
+  if (s === "4" || s.includes("سایر")) return "4";
+  return s;
+}
+
+function normalizeAssuranceTypeCode(val: unknown): string {
+  if (!val) return "0";
+  const s = String(val).trim();
+  if (s === "1" || s.includes("بانکی")) return "1";
+  if (s === "2" || s.includes("نقد")) return "2";
+  if (s === "3" || (s.includes("ضمانت") && s.includes("بیمه"))) return "3";
+  if (s === "4" || s === "سفته") return "4";
+  if (s === "5" || s.includes("گواهی") || s.includes("قطعی")) return "5";
+  if (s === "6" || s.includes("مشارکت")) return "6";
+  if (s === "7" || s.includes("وثیقه") || s.includes("ملکی")) return "7";
+  if (s === "8" || s.includes("دولتی")) return "8";
+  if (s === "9" || s.includes("نوآوری") || s.includes("پژوهش")) return "9";
+  if (s === "10" || s.includes("پیمانکار")) return "10";
+  if (s === "11" || s.includes("دانشگاه") || s.includes("آموزشی")) return "11";
+  if (s === "12" || s.includes("سایر")) return "12";
+  if (s === "13" || s.includes("خزانه")) return "13";
+  return s;
+}
+
+function normalizeAssuranceSubjectCode(val: unknown): string {
+  if (!val) return "0";
+  const s = String(val).trim();
+  if (s === "1" || s === "پیش پرداخت" || s === "پیش‌پرداخت") return "1";
+  if (s === "2" || s.includes("تعهدات")) return "2";
+  if (s === "3" || s.includes("ارجاع") || s.includes("مناقصه")) return "3";
+  if (s === "4" || s.includes("حسن اجرای کار") || s.includes("حسن انجام کار")) return "4";
+  if (s === "5" || s.includes("سایر")) return "5";
+  return s;
+}
+
+function normalizeCurrencyTypeCode(val: unknown): string {
+  if (!val) return "0";
+  const s = String(val).trim();
+  if (s === "1" || s.includes("دلار") || s.toLowerCase().includes("usd")) return "1";
+  if (s === "2" || s.includes("یورو") || s.toLowerCase().includes("eur")) return "2";
+  if (s === "3" || s.includes("سایر")) return "3";
+  if (s === "4" || s.includes("ریال") || s.toLowerCase().includes("irr")) return "4";
+  return s;
+}
+
+function normalizeInvestmentTypeCode(val: unknown): string {
+  if (!val) return "0";
+  const s = String(val).trim();
+  if (s === "1" || s.includes("صندوق")) return "1";
+  if (s === "2" || s.includes("اوراق") || s.includes("مشارکت")) return "2";
+  if (s === "3" || s.includes("سایر")) return "3";
+  return s;
+}
+
+function normalizeAllocationSourceCode(val: unknown): string {
+  if (!val) return "0";
+  const s = String(val).trim();
+  if (s === "1" || s.includes("نقد")) return "1";
+  if (s === "2" || s.includes("قیر")) return "2";
+  if (s === "3" || (s.includes("تسویه") && s.includes("خزانه"))) return "3";
+  if (s === "4" || s.includes("تسهیلات")) return "4";
+  if (s === "5" || (s.includes("اسلامی") && s.includes("خزانه"))) return "5";
+  if (s === "6" || s.includes("مشارکت")) return "6";
+  if (s === "7" || s.includes("مرابحه")) return "7";
+  if (s === "8" || s.includes("اجاره")) return "8";
+  if (s === "9" || s.includes("منفعت")) return "9";
+  return s;
+}
+
+function normalizeAnnualAdjustmentsSubjectCode(val: unknown): string {
+  if (!val) return "0";
+  const s = String(val).trim();
+  if (s === "1" || s.includes("اشتباه")) return "1";
+  if (s === "2" || s.includes("رویه")) return "2";
+  return s;
+}
+
+function normalizeTransferItemsCode(val: unknown): string {
+  if (!val) return "0";
+  const s = String(val).trim();
+  if (s === "11000" || s.includes("موجودی نقد")) return "11000";
+  if (s === "11100" || s.includes("خزانه اسلامی")) return "11100";
+  if (s === "11200" || s.includes("تسویه خزانه")) return "11200";
+  if (s === "11500" || (s.includes("دریافتنی") && s.includes("مبادله‌ای"))) return "11500";
+  if (s === "12000" || (s.includes("دریافتنی") && s.includes("غیرمبادله‌ای"))) return "12000";
+  if (s === "13000" || s === "موجودی‌ها" || s === "موجودی ها") return "13000";
+  if (s === "14000" || s.includes("پیش پرداخت") || s.includes("پیش‌پرداخت")) return "14000";
+  if (s === "14500" || (s.includes("سایر دارایی") && s.includes("جاری"))) return "14500";
+  if (s === "15000" || s.includes("مشهود")) return "15000";
+  if (s === "16000" || s.includes("نامشهود")) return "16000";
+  if (s === "17000" || s.includes("بلند مدت") || s.includes("بلندمدت")) return "17000";
+  if (s === "18000" || (s.includes("سایر دارایی") && s.includes("غیر جاری"))) return "18000";
+  if (s === "21000" || (s.includes("پرداختنی") && s.includes("مبادله‌ای"))) return "21000";
+  if (s === "22000" || (s.includes("پرداختنی") && s.includes("غیرمبادله‌ای"))) return "22000";
+  if (s === "23000" || s.includes("پیش دریافت") || s.includes("پیش‌دریافت")) return "23000";
+  if (s === "24000" || (s.includes("سایر بدهی") && s.includes("جاری"))) return "24000";
+  if (s === "25000" || (s.includes("پرداختنی") && s.includes("بلند"))) return "25000";
+  if (s === "26000" || s.includes("پایان خدمت") || s.includes("مزایا")) return "26000";
+  if (s === "27000" || (s.includes("سایر بدهی") && s.includes("غیرجاری"))) return "27000";
+  if (s === "32001" || s.includes("ارزیابی")) return "32001";
+  return s;
+}
+
+function normalizeAccountTypeCode(val: unknown): string {
+  if (!val) return "0";
+  const s = String(val).trim();
+  if (s === "1" || s.includes("هزینه")) return "1";
+  if (s === "2" || s.includes("سرمایه‌ای") || s.includes("سرمایه ای")) return "2";
+  if (s === "3" || s.includes("اختصاصی")) return "3";
+  if (s === "4" || s.includes("سایر منابع")) return "4";
+  if (s === "5" || (s.includes("دریافت") && s.includes("سپرده"))) return "5";
+  if (s === "6" || (s.includes("رد") && s.includes("سپرده"))) return "6";
+  if (s === "7" || s === "بانک دریافت") return "7";
+  if (s === "9" || s.includes("اضافه دریافتی")) return "9";
+  if (s === "10" || s.includes("ارزش افزوده") || s.includes("مالیات")) return "10";
+  if (s === "11" || s.includes("کارشناسی")) return "11";
+  if (s === "12" || s.includes("خدمات ثبت")) return "12";
+  if (s === "13" || s.includes("سرقتی") || s.includes("اختلاسی")) return "13";
+  if (s === "14" || (s.includes("دریافت") && s.includes("اراضی"))) return "14";
+  if (s === "15" || (s.includes("پرداخت") && s.includes("اراضی"))) return "15";
+  if (s === "16" || (s.includes("دریافت") && s.includes("سازمانی"))) return "16";
+  if (s === "17" || (s.includes("پرداخت") && s.includes("سازمانی"))) return "17";
+  if (s === "18" || s.includes("یارانه")) return "18";
+  if (s === "19" || s.includes("ارزی")) return "19";
+  if (s === "20" || s.includes("اجاره")) return "20";
+  return s;
+}
+
+function normalizeAwardArticleCode(val: unknown): string {
+  if (!val) return "0";
+  const s = String(val).trim();
+  if (s === "1" || s.includes("نقدی")) return "1";
+  if (s === "3" || s.includes("دارایی")) return "3";
+  if (s === "4" || s.includes("موجودی")) return "4";
+  if (s === "5" || s.includes("بخشودگی")) return "5";
+  return s;
+}
+
+function normalizeSecuritiesTypeCode(val: unknown): string {
+  if (!val) return "0";
+  const s = String(val).trim();
+  if (s === "1" || s.includes("قرضه")) return "1";
+  if (s === "2" || s.includes("خزانه")) return "2";
+  if (s === "3" || s.includes("مشارکت")) return "3";
+  if (s === "4" || s.includes("صکوک")) return "4";
+  if (s === "5" || s.includes("سایر")) return "5";
+  return s;
+}
+
+function normalizeDebitSubjectCode(val: unknown): string {
+  if (!val) return "0";
+  const s = String(val).trim();
+  if (s === "1" || (s.includes("کالا") && s.includes("بدون"))) return "1";
+  if (s === "2" || (s.includes("کالا") && s.includes("با"))) return "2";
+  if (s === "3" || (s.includes("پیمانکار") && s.includes("بدون"))) return "3";
+  if (s === "4" || (s.includes("پیمانکار") && s.includes("طرح تملک"))) return "4";
+  if (s === "5" || (s.includes("پیمانکار") && s.includes("با قرارداد برای غیر"))) return "5";
+  if (s === "6" || (s.includes("مشاور") && s.includes("بدون"))) return "6";
+  if (s === "7" || (s.includes("مشاور") && s.includes("طرح تملک"))) return "7";
+  if (s === "8" || (s.includes("مشاور") && s.includes("غیر طرح"))) return "8";
+  if (s === "12" || s.includes("کارکنان")) return "12";
+  if (s === "13" || s.includes("احکام")) return "13";
+  if (s === "14" || s.includes("پیوستن")) return "14";
+  if (s === "15" || s.includes("عضویت")) return "15";
+  if (s === "18" || (s.includes("اوراق") && s.includes("مشارکت"))) return "18";
+  if (s === "20" || (s.includes("صکوک") && s.includes("اجاره"))) return "20";
+  if (s === "23" || (s.includes("اوراق") && s.includes("قرضه"))) return "23";
+  if (s === "24" || s.includes("سایر موضوعات")) return "24";
+  if (s === "25" || s.includes("تسهیلات")) return "25";
+  if (s === "26" || s.includes("تکلیفی")) return "26";
+  if (s === "27" || s.includes("اصل ۴۴") || s.includes("اصل 44")) return "27";
+  if (s === "29" || s.includes("نامشهود") || s.includes("نامشخص")) return "29";
+  if (s === "30" || s.includes("چک")) return "30";
+  if (s === "31" || s.includes("فرسوده")) return "31";
+  return s;
+}
+
+function normalizeTaxSeasonCode(val: unknown): string {
+  if (!val) return "0";
+  const s = String(val).trim();
+  if (s === "1" || s.includes("اول")) return "1";
+  if (s === "2" || s.includes("دوم")) return "2";
+  if (s === "3" || s.includes("سوم")) return "3";
+  if (s === "4" || s.includes("چهارم")) return "4";
+  return s;
+}
+
+function normalizeSanamaAttributeCode(attr: string, val: unknown): string {
+  if (val === undefined || val === null) return "0";
+  switch (attr) {
+    case "SourceType": return normalizeSourceTypeCode(val);
+    case "GuaranteeEssence": return normalizeGuaranteeEssenceCode(val);
+    case "DemandStatus": return normalizeDemandStatusCode(val);
+    case "TempPaymentType": return normalizeTempPaymentTypeCode(val);
+    case "ReceivablesSubject": return normalizeReceivablesSubjectCode(val);
+    case "LeakageSubject": return normalizeLeakageSubjectCode(val);
+    case "FixedAssetType": return normalizeFixedAssetTypeCode(val);
+    case "InventoryType": return normalizeInventoryTypeCode(val);
+    case "AssuranceType": return normalizeAssuranceTypeCode(val);
+    case "AssuranceSubject": return normalizeAssuranceSubjectCode(val);
+    case "CurrencyType": return normalizeCurrencyTypeCode(val);
+    case "InvestmentType": return normalizeInvestmentTypeCode(val);
+    case "AllocationSource": case "AllocationsSource": return normalizeAllocationSourceCode(val);
+    case "AnnualAdjustmentsSubject": case "AnnualAdjustmentSubject": return normalizeAnnualAdjustmentsSubjectCode(val);
+    case "TransferItems": return normalizeTransferItemsCode(val);
+    case "AccountType": return normalizeAccountTypeCode(val);
+    case "AwardArticle": return normalizeAwardArticleCode(val);
+    case "SecuritiesType": return normalizeSecuritiesTypeCode(val);
+    case "DebitSubject": return normalizeDebitSubjectCode(val);
+    case "TaxSeason": return normalizeTaxSeasonCode(val);
+    default: return String(val).trim();
+  }
+}
+
 const router = new Hono();
 
 // Helper to seed warehouses if empty
@@ -230,8 +593,10 @@ router.get("/sanama-xml", async (c) => {
         if (toAccountCode && accCode > toAccountCode) continue;
 
         if (sourceType && sourceType !== "0" && sourceType !== "all") {
-          const lineSource = line.sanamaFields?.SourceType || line.SourceType || "0";
-          if (String(lineSource) !== String(sourceType)) continue;
+          const rawLineSource = line.sanamaFields?.SourceType || line.SourceType || "0";
+          const normLineSource = normalizeSourceTypeCode(rawLineSource);
+          const normFilterSource = normalizeSourceTypeCode(sourceType);
+          if (normLineSource !== normFilterSource && String(rawLineSource) !== String(sourceType)) continue;
         }
 
         // Resolve fields based on Rule 1:
@@ -253,7 +618,7 @@ router.get("/sanama-xml", async (c) => {
             } else {
               val = defaultValues[attr] ?? "0";
             }
-            resolvedFields[attr] = val;
+            resolvedFields[attr] = normalizeSanamaAttributeCode(attr, val);
           } else {
             // Rule 1: Not applicable for this sub-account -> MUST be empty string ""
             resolvedFields[attr] = "";

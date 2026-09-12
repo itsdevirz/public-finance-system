@@ -65,7 +65,27 @@ function numToPersianWords(num) {
 }
 
 // فصول اعتبار مطابق پروتکل صفحه ۱۹
-export const EXPENSE_CHAPTERS = [
+export // نرمال‌سازی کدهای عددی نوع منبع (۱: عمومی، ۲: اختصاصی، ۳: سایر منابع / سایر)
+function normalizeSourceType(val) {
+  if (!val) return "1";
+  const s = String(val).trim();
+  if (s === "1" || s === "public" || s === "general") return "1";
+  if (s === "2" || s === "special" || s === "specific") return "2";
+  if (s === "3" || s === "other" || s === "misc") return "3";
+  return s;
+}
+
+// نرمال‌سازی کدهای عددی نوع سال / دوره (۱: سال جاری، ۲: دوره متمم، ۳: سنواتی)
+function normalizeYearType(val) {
+  if (!val) return "1";
+  const s = String(val).trim();
+  if (s === "1" || s === "current" || s === "جاری" || s === "سال جاری") return "1";
+  if (s === "2" || s === "supplementary" || s === "متمم" || s === "دوره متمم") return "2";
+  if (s === "3" || s === "prior" || s === "سنواتی") return "3";
+  return s;
+}
+
+const EXPENSE_CHAPTERS = [
   { code: "210000", title: "جبران خدمات کارکنان (فصل ۱)" },
   { code: "220000", title: "استفاده از کالاها و خدمات (فصل ۲)" },
   { code: "230000", title: "مصرف سرمایه‌های ثابت (فصل ۳)" },
@@ -96,11 +116,11 @@ export default function AgreementRegistrationForm({ onComplete }) {
   const [headerForm, setHeaderForm] = useState({
     title: "",
     creditCategory: "expense", // هزینه‌ای (expense) / عمرانی (capital)
-    sourceType: "public", // عمومی / اختصاصی / سایر منابع
+    sourceType: "1", // ۱. عمومی / ۲. اختصاصی / ۳. سایر منابع / سایر
     creditType: "approved", // مصوب / ابلاغی
     creditSpec: "program", // برنامه / طرح
     baseCode: "", // کد مبنا (کد فعالیت/طرح) - لایه اتصال به تخصیص/تأمین/پرداخت
-    yearType: "current", // جاری / متمم / سنواتی
+    yearType: "1", // ۱. سال جاری / ۲. دوره متمم / ۳. سنواتی
     fiscalYear: "1404", // ۱۴۰۳ / ۱۴۰۴ / ۱۴۰۵
     description: "",
   });
@@ -322,11 +342,11 @@ export default function AgreementRegistrationForm({ onComplete }) {
     setHeaderForm({
       title: "",
       creditCategory: "expense",
-      sourceType: "public",
+      sourceType: "1",
       creditType: "approved",
       creditSpec: "program",
       baseCode: "",
-      yearType: "current",
+      yearType: "1",
       fiscalYear: "1404",
       description: "",
     });
@@ -350,11 +370,11 @@ export default function AgreementRegistrationForm({ onComplete }) {
     setHeaderForm({
       title: agr.title || "",
       creditCategory: agr.credit_category || "expense",
-      sourceType: agr.source_type || "public",
+      sourceType: normalizeSourceType(agr.source_type || agr.sourceType),
       creditType: agr.credit_type || "approved",
       creditSpec: agr.credit_spec || "program",
       baseCode: agr.base_code || "",
-      yearType: agr.year_type || "current",
+      yearType: normalizeYearType(agr.year_type || agr.yearType),
       fiscalYear: String(agr.fiscal_year || "1404"),
       description: agr.description || "",
     });
@@ -550,9 +570,9 @@ export default function AgreementRegistrationForm({ onComplete }) {
                 onChange={(e) => setHeaderForm({ ...headerForm, sourceType: e.target.value })}
                 className="w-full bg-background border border-input rounded-lg px-2 py-1.5 text-xs font-bold text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
               >
-                <option value="public">۱. عمومی</option>
-                <option value="special">۲. اختصاصی</option>
-                <option value="other">۳. سایر منابع</option>
+                <option value="1">۱. عمومی</option>
+                <option value="2">۲. اختصاصی</option>
+                <option value="3">۳. سایر منابع / سایر</option>
               </select>
             </div>
 
@@ -608,9 +628,9 @@ export default function AgreementRegistrationForm({ onComplete }) {
                   onChange={(e) => setHeaderForm({ ...headerForm, yearType: e.target.value })}
                   className="bg-background border border-input rounded-lg px-1 py-1.5 text-[11px] font-bold text-foreground cursor-pointer"
                 >
-                  <option value="current">۱. جاری</option>
-                  <option value="supplementary">۲. متمم</option>
-                  <option value="prior">۳. سنواتی</option>
+                  <option value="1">۱. سال جاری</option>
+                  <option value="2">۲. دوره متمم</option>
+                  <option value="3">۳. سنواتی</option>
                 </select>
                 <select
                   value={headerForm.fiscalYear}

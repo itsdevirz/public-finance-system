@@ -81,6 +81,33 @@ function normalizePersianText(str: any): string {
     .trim();
 }
 
+function buildNomineeCode(personKind?: string, detailClass?: string, nationalId?: string, exclusiveCode?: string, suggestedCode?: string): string {
+  const kind = (personKind || "A").trim().substring(0, 1).toUpperCase();
+  const cls4 = String(detailClass || "").replace(/\D/g, "").padStart(4, "0").substring(0, 4);
+
+  const rawId = String(nationalId || exclusiveCode || suggestedCode || "").replace(/\D/g, "").trim();
+
+  let id11 = "";
+  if (kind === "A") {
+    // حقوقی: ۱۱ کاراکتر (شناسه ملی)
+    if (rawId.length >= 11) {
+      id11 = rawId.substring(0, 11);
+    } else {
+      id11 = rawId.padStart(11, "0");
+    }
+  } else {
+    // حقیقی (B, C, D): ۱۱ کاراکتر شامل ۱۰ رقم کد ملی + عدد 9 در انتها
+    if (rawId.length === 11 && rawId.endsWith("9")) {
+      id11 = rawId;
+    } else {
+      const national10 = rawId.padStart(10, "0").slice(-10);
+      id11 = `${national10}9`;
+    }
+  }
+
+  return `${kind}${cls4}${id11}`;
+}
+
 // POST /api/persons/import - Bulk import persons from Excel/CSV
 router.post("/import", async (c) => {
   try {
@@ -95,16 +122,22 @@ router.post("/import", async (c) => {
     let updated = 0;
 
     for (const raw of items) {
-      const personKind = raw.personKind || "A";
-      const detailClass = normalizePersianText(raw.detailClass || "3237");
+      const nationalId = normalizePersianText(raw.nationalId || raw["شناسه ملی"] || raw["شناسه ملی طرف حساب"] || raw["کد ملی"] || "");
+      const title = normalizePersianText(raw.title || raw["طرف حساب"] || raw["عنوان"] || raw["عنوان شخصیت حقوقی"] || "");
+
+      let personKind = (raw.personKind || raw["نوع شخص"] || "").toString().trim().toUpperCase();
+      if (!personKind || !["A", "B", "C", "D"].includes(personKind)) {
+        const cleanId = nationalId.replace(/\D/g, "");
+        personKind = cleanId.length === 10 ? "B" : "A";
+      }
+
+      const detailClass = normalizePersianText(raw.detailClass || raw["کد طبقه بندی"] || "3237");
       const personClass = raw.personClass || (detailClass ? detailClass.substring(0, 2) : "32");
       const subClass = raw.subClass || (detailClass ? detailClass.substring(0, 3) : "323");
-      const nationalId = normalizePersianText(raw.nationalId || raw["شناسه ملی"] || raw["شناسه ملی طرف حساب"] || "");
-      const title = normalizePersianText(raw.title || raw["طرف حساب"] || raw["عنوان"] || raw["عنوان شخصیت حقوقی"] || "");
 
       if (!title && !nationalId) continue;
 
-      const nomineeCode = raw.nomineeCode || `${personKind}${detailClass.padEnd(4, "*")}${nationalId}`;
+      const nomineeCode = raw.nomineeCode || buildNomineeCode(personKind, detailClass, nationalId);
 
       const filter = nationalId 
         ? { $or: [{ nomineeCode }, { nationalId }] }
@@ -179,16 +212,17 @@ router.post("/", async (c) => {
       }, 400);
     }
     
+    const nomineeCode = body.nomineeCode || buildNomineeCode(body.personKind, body.detailClass, body.nationalId, body.exclusiveCode, body.suggestedCode);
+
     // Check if nomineeCode already exists
-    if (body.nomineeCode) {
-      const existing = await db.collection("persons").findOne({ nomineeCode: body.nomineeCode });
-      if (existing) {
-        return c.json({ success: false, message: "شخصی با این کد شناسایی (NomineeCode) قبلاً ثبت شده است" }, 400);
-      }
+    const existing = await db.collection("persons").findOne({ nomineeCode });
+    if (existing) {
+      return c.json({ success: false, message: "شخصی با این کد شناسایی (NomineeCode) قبلاً ثبت شده است" }, 400);
     }
 
     const doc = {
       ...body,
+      nomineeCode,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -219,18 +253,19 @@ router.put("/:id", async (c) => {
       }, 400);
     }
 
+    const nomineeCode = body.nomineeCode || buildNomineeCode(body.personKind, body.detailClass, body.nationalId, body.exclusiveCode, body.suggestedCode);
+
     // Check if nomineeCode already exists for another person
-    if (body.nomineeCode) {
-      const existing = await db.collection("persons").findOne({ 
-        nomineeCode: body.nomineeCode, 
-        _id: { $ne: new ObjectId(id) } 
-      });
-      if (existing) {
-        return c.json({ success: false, message: "شخصی با این کد شناسایی (NomineeCode) قبلاً ثبت شده است" }, 400);
-      }
+    const existing = await db.collection("persons").findOne({ 
+      nomineeCode, 
+      _id: { $ne: new ObjectId(id) } 
+    });
+    if (existing) {
+      return c.json({ success: false, message: "شخصی با این کد شناسایی (NomineeCode) قبلاً ثبت شده است" }, 400);
     }
 
     const { _id, ...updateData } = body;
+    updateData.nomineeCode = nomineeCode;
     const result = await db.collection("persons").findOneAndUpdate(
       { _id: new ObjectId(id) },
       { 

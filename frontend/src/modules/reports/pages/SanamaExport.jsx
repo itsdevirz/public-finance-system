@@ -39,9 +39,9 @@ const FISCAL_YEAR_OPTIONS = [
 
 const SOURCE_TYPE_OPTIONS = [
   { value: "all", label: "تمامی منابع (عمومی، اختصاصی و سایر)" },
-  { value: "1", label: "منابع عمومی (۱)" },
-  { value: "2", label: "منابع اختصاصی (۲)" },
-  { value: "3", label: "سایر منابع و تسهیلات (۳)" },
+  { value: "1", label: "۱. عمومی" },
+  { value: "2", label: "۲. اختصاصی" },
+  { value: "3", label: "۳. سایر منابع / سایر" },
 ];
 
 export default function SanamaExport() {

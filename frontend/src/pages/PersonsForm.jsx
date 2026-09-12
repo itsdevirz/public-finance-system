@@ -222,11 +222,35 @@ function SectionTitle({ children }) {
   );
 }
 
-// ─── تابع ساخت NomineeCode (بر اساس نوع شخص + جزء‌طبقه + کد ملی کامل) ───
-function buildNomineeCode(personKind, detailClass, nationalId) {
-  const kind = personKind || "A";
-  const cls4 = (detailClass || "").padEnd(4, "*").substring(0, 4);
-  return `${kind}${cls4}${nationalId || ""}`;
+// ─── تابع ساخت NomineeCode (الگوریتم ۱۶ کاراکتری سناما) ───
+// بخش اول: ۱ کاراکتر شامل حروف انگلیسی A, B, C, D
+// بخش دوم: ۴ کاراکتر (کد جزء‌طبقه)
+// بخش سوم: ۱۱ کاراکتر (اشخاص حقوقی: شناسه ملی ۱۱ رقمی / اشخاص حقیقی: کد ملی ۱۰ رقمی + عدد ۹ در انتها)
+function buildNomineeCode(personKind, detailClass, nationalId, exclusiveCode, suggestedCode) {
+  const kind = (personKind || "A").trim().substring(0, 1).toUpperCase();
+  const cls4 = String(detailClass || "").replace(/\D/g, "").padStart(4, "0").substring(0, 4);
+
+  const rawId = String(nationalId || exclusiveCode || suggestedCode || "").replace(/\D/g, "").trim();
+
+  let id11 = "";
+  if (kind === "A") {
+    // حقوقی: ۱۱ کاراکتر (شناسه ملی)
+    if (rawId.length >= 11) {
+      id11 = rawId.substring(0, 11);
+    } else {
+      id11 = rawId.padStart(11, "0");
+    }
+  } else {
+    // حقیقی (B, C, D): ۱۱ کاراکتر شامل ۱۰ رقم کد ملی + عدد 9 در انتها
+    if (rawId.length === 11 && rawId.endsWith("9")) {
+      id11 = rawId;
+    } else {
+      const national10 = rawId.padStart(10, "0").slice(-10);
+      id11 = `${national10}9`;
+    }
+  }
+
+  return `${kind}${cls4}${id11}`;
 }
 
 export default function PersonsForm() {
@@ -294,22 +318,29 @@ export default function PersonsForm() {
           k !== nationalIdKey && !/شناسه|کد\s*ملی|کد\s*طبقه/i.test(k) && /طرف\s*حساب|عنوان|نام|شخص|person|title|name/i.test(k)
         );
 
-        // 3. کلید کد طبقه بندی
-        const classKey = keys.find((k) =>
-          /طبقه|کد\s*طبقه|detailClass/i.test(k)
-        );
+        // 4. کلید نوع شخص (مانند: نوع شخص، personKind)
+        const kindKey = keys.find((k) => /نوع\s*شخص|personKind/i.test(k));
 
         const title = titleKey ? normalizePersianText(row[titleKey]) : "";
         const nationalId = nationalIdKey ? normalizePersianText(row[nationalIdKey]) : "";
         const detailClass = classKey ? normalizePersianText(row[classKey]) : "3237";
+        
+        let personKind = kindKey ? String(row[kindKey]).trim().toUpperCase() : "";
+        if (!personKind || !["A", "B", "C", "D"].includes(personKind)) {
+          const cleanId = nationalId.replace(/\D/g, "");
+          personKind = cleanId.length === 10 ? "B" : "A";
+        }
+
+        const nomineeCode = buildNomineeCode(personKind, detailClass, nationalId);
 
         return {
-          personKind: "A",
+          personKind,
           personClass: detailClass.substring(0, 2) || "32",
           subClass: detailClass.substring(0, 3) || "323",
           detailClass: detailClass || "3237",
           title,
           nationalId,
+          nomineeCode,
         };
       }).filter((item) => item.title || item.nationalId);
 
@@ -389,7 +420,7 @@ export default function PersonsForm() {
   );
 
   // NomineeCode پیش‌نمایش
-  const nomineeCode = buildNomineeCode(form.personKind, form.detailClass, form.nationalId);
+  const nomineeCode = buildNomineeCode(form.personKind, form.detailClass, form.nationalId, form.exclusiveCode, form.suggestedCode);
 
   const isLegal   = form.personKind === "A";
   const isNatural = NATURAL_PERSON_KINDS.includes(form.personKind);
