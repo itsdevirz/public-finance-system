@@ -1,10 +1,17 @@
 import axios from "axios";
 
+const getBaseUrl = () => {
+  if (typeof window !== "undefined" && window.location && window.location.hostname) {
+    const protocol = window.location.protocol === "https:" ? "https:" : "http:";
+    return `${protocol}//${window.location.hostname}:8000`;
+  }
+  return "http://localhost:8000";
+};
+
 const api = axios.create({
-  baseURL: "http://localhost:8000",
+  baseURL: getBaseUrl(),
   headers: { "Content-Type": "application/json" },
   withCredentials: true,
-  // timeout برای جلوگیری از hanging requests
   timeout: 30000,
 });
 

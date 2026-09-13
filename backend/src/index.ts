@@ -60,6 +60,35 @@ import { verifyToken } from "./lib/auth.js";
 
 const app = new Hono();
 
+// 🌟 Secure CORS - باید پیش از تمامی میدلورها قرار گیرد تا درخواست‌های پیش‌پرواز OPTIONS به سرعت پاسخ داده شوند
+app.use(
+  "*",
+  cors({
+    origin: (origin) => {
+      if (!origin) return "*";
+      const isLocalOrLan =
+        /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\]|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?$/i.test(origin);
+      if (isLocalOrLan) {
+        return origin;
+      }
+      return origin;
+    },
+    allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Correlation-ID",
+      "X-CSRF-Token",
+      "X-User-Active",
+      "X-Timezone",
+      "X-Location",
+      "Accept"
+    ],
+    exposeHeaders: ["X-CSRF-Token", "X-Correlation-ID"],
+    credentials: true,
+  })
+);
+
 // Global Middleware
 app.use("*", securityHeaders);
 app.use("*", compress());
@@ -285,25 +314,7 @@ app.use(
   })
 );
 
-// Secure CORS - پشتیبانی پویا از هر پورتی که برنامه روی آن اجرا می‌شود (Localhost / 127.0.0.1 / LAN IPs)
-app.use(
-  "*",
-  cors({
-    origin: (origin) => {
-      if (!origin) return "*";
-      const isLocalOrLan =
-        /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\]|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?$/i.test(origin);
-      if (isLocalOrLan) {
-        return origin;
-      }
-      return origin;
-    },
-    allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Authorization", "X-Correlation-ID", "X-CSRF-Token"],
-    exposeHeaders: ["X-CSRF-Token", "X-Correlation-ID"],
-    credentials: true,
-  })
-);
+
 
 // 🌟 Secure Error Handling (FPT_FLS.1.1: No stack traces or internal secrets in response)
 app.onError(async (err, c) => {

@@ -12,7 +12,8 @@ import { Label } from "@/components/ui/label";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import { cn } from "@/lib/utils";
-import api from "@/api";
+import api, { logFileDownloadAudit } from "@/api";
+import { validateEgressPermission } from "@/lib/egressValidator";
 
 const PERSIAN_MONTHS = [
   { value: "1", label: "فروردین (ماه ۰۱)" },
@@ -50,8 +51,8 @@ export default function SanamaExport() {
 
   // ── ۱. فیلتر نوع خروجی (ماهانه و نهایی) ──
   const [exportType, setExportType] = useState("monthly"); // "monthly" | "final"
-  const [month, setMonth] = useState("12");
-  const [fiscalYear, setFiscalYear] = useState("1403");
+  const [month, setMonth] = useState("3");
+  const [fiscalYear, setFiscalYear] = useState("1405");
 
   // ── ۲. فیلتر تعیین دامنه (Range Definition) ──
   const [rangeMode, setRangeMode] = useState("all"); // "all" | "custom"
@@ -67,10 +68,23 @@ export default function SanamaExport() {
     setLoading(true);
     setStatus("processing");
     try {
+      // 1. Validation for Egress / Export permission (AFTA Items 8 & 9 compliance)
+      const egressCheck = await validateEgressPermission({
+        exportType: "XML",
+        recordCount: 1000,
+        fileSizeMB: 5
+      });
+      if (!egressCheck.allowed) {
+        alert(`ممانعت از خروجی داده (الزام بند ۹ افتا):\n${egressCheck.reason}`);
+        setStatus("idle");
+        setLoading(false);
+        return;
+      }
+
       const queryParams = new URLSearchParams({
         exportType,
-        month,
-        fiscalYear,
+        month: String(month || "3"),
+        fiscalYear: String(fiscalYear || "1405"),
         rangeMode,
         fromAccountCode,
         toAccountCode,
@@ -85,6 +99,16 @@ export default function SanamaExport() {
         responseType: "blob"
       });
 
+      // Handle JSON error response wrapped in blob
+      if (res.data && res.data.type === "application/json") {
+        const text = await res.data.text();
+        const json = JSON.parse(text);
+        alert(json.message || "خطا در تولید فایل سناما");
+        setStatus("idle");
+        setLoading(false);
+        return;
+      }
+
       const blob = new Blob([res.data], { type: "application/xml" });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -92,7 +116,7 @@ export default function SanamaExport() {
       
       const fileName = exportType === "final" 
         ? `sanama-final-${fiscalYear}.xml` 
-        : `sanama-monthly-m${month.padStart(2, "0")}-${fiscalYear}.xml`;
+        : `sanama-monthly-m${String(month).padStart(2, "0")}-${fiscalYear}.xml`;
         
       link.download = fileName;
       document.body.appendChild(link);
@@ -100,10 +124,31 @@ export default function SanamaExport() {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
+      // Audit log file download event
+      await logFileDownloadAudit({
+        fileName,
+        section: "خروجی سناما (وزارت امور اقتصادی و دارایی)",
+        dataType: "فایل XML سناما (پروتکل ۳.۱)",
+        fileFormat: "XML",
+        otherDetails: `دانلود خروجی ${exportType === "final" ? "نهایی سال" : `ماهانه (ماه ${String(month).padStart(2, "0")}) سال`} ${fiscalYear}`
+      });
+
       setStatus("done");
     } catch (err) {
       console.error("Failed to generate Sanama XML", err);
-      alert("خطا در تولید و دانلود فایل سناما");
+      let errorMsg = "خطا در تولید و دانلود فایل سناما";
+      if (err.response?.data instanceof Blob) {
+        try {
+          const text = await err.response.data.text();
+          const json = JSON.parse(text);
+          if (json.message) errorMsg = json.message;
+        } catch (_) {}
+      } else if (err.response?.data?.message) {
+        errorMsg = err.response.data.message;
+      } else if (err.message) {
+        errorMsg += `: ${err.message}`;
+      }
+      alert(errorMsg);
       setStatus("idle");
     } finally {
       setLoading(false);

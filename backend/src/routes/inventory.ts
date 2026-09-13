@@ -465,33 +465,56 @@ router.get("/sanama-xml", async (c) => {
       docs = await db.collection("journal_documents").find().toArray();
     }
 
-    // ── 1. فیلتر اسناد بر اساس تاریخ و شماره ──
-    if (fromDate || toDate) {
+    // تابع تبدیل اعداد فارسی به انگلیسی
+    const toEngDigits = (str: any) =>
+      String(str || "").replace(/[۰-۹]/g, (d) => "۰۱۲۳۴۵۶۷۸۹".indexOf(d).toString()).trim();
+
+    // ── 1. فیلتر اسناد بر اساس سال مالی، تاریخ و شماره ──
+    if (fiscalYear) {
+      const engYear = toEngDigits(fiscalYear);
       docs = docs.filter((doc: any) => {
-        const dDate = doc.doc_date || "";
-        if (fromDate && dDate < fromDate) return false;
-        if (toDate && dDate > toDate) return false;
+        if (doc.fiscal_year && toEngDigits(doc.fiscal_year) === engYear) return true;
+        const dDate = toEngDigits(doc.doc_date || "");
+        if (dDate.startsWith(engYear)) return true;
+        // اگر سال مالی یا تاریخ ثبت نشده، جهت فال‌بک نگه داشته می‌شود
+        return !doc.fiscal_year && !dDate;
+      });
+    }
+
+    if (fromDate || toDate) {
+      const engFromDate = toEngDigits(fromDate);
+      const engToDate = toEngDigits(toDate);
+      docs = docs.filter((doc: any) => {
+        const dDate = toEngDigits(doc.doc_date || "");
+        if (engFromDate && dDate < engFromDate) return false;
+        if (engToDate && dDate > engToDate) return false;
         return true;
       });
     }
 
     if (fromDocNo || toDocNo) {
       docs = docs.filter((doc: any) => {
-        const dNo = Number(doc.doc_number || 0);
-        if (fromDocNo && dNo < Number(fromDocNo)) return false;
-        if (toDocNo && dNo > Number(toDocNo)) return false;
+        const dNo = Number(toEngDigits(doc.doc_number || doc.doc_no || 0));
+        if (fromDocNo && dNo < Number(toEngDigits(fromDocNo))) return false;
+        if (toDocNo && dNo > Number(toEngDigits(toDocNo))) return false;
         return true;
       });
     }
 
     // فیلتر ماهانه بر اساس ماه شمسی انتخاب‌شده (در صورت عدم انتخاب تاریخ دستی)
     if (exportType === "monthly" && month && !fromDate && !toDate) {
-      const paddedMonth = String(month).padStart(2, "0");
+      const engMonth = toEngDigits(month);
+      const paddedMonth = engMonth.padStart(2, "0");
       docs = docs.filter((doc: any) => {
-        const dDate = doc.doc_date || "";
-        const parts = dDate.split("/");
+        if (doc.month && (toEngDigits(doc.month) === engMonth || toEngDigits(doc.month).padStart(2, "0") === paddedMonth)) {
+          return true;
+        }
+        const dDate = toEngDigits(doc.doc_date || "");
+        // پشتیبانی از اسلش / و خط تیره -
+        const parts = dDate.split(/[\/-]/);
         if (parts.length >= 2) {
-          return String(parts[1]).padStart(2, "0") === paddedMonth;
+          const mPart = parts[1].padStart(2, "0");
+          return mPart === paddedMonth;
         }
         return true;
       });
