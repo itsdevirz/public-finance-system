@@ -5,19 +5,28 @@ const DB_NAME = process.env.DB_NAME ?? "public_finance";
 
 let _db: Db | null = null;
 
-export async function connectDb(): Promise<Db> {
+export async function connectDb(retries = 5, delayMs = 2000): Promise<Db> {
   if (_db) return _db;
-  const client = new MongoClient(MONGO_URI, {
-    maxPoolSize: 10,          // connection pool
-    minPoolSize: 2,
-    serverSelectionTimeoutMS: 5000,
-    socketTimeoutMS: 45000,
-  });
-  await client.connect();
-  _db = client.db(DB_NAME);
-  console.log(`✓ Connected to MongoDB: ${DB_NAME}`);
-  await ensureIndexes(_db);
-  return _db;
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const client = new MongoClient(MONGO_URI, {
+        maxPoolSize: 10,          // connection pool
+        minPoolSize: 2,
+        serverSelectionTimeoutMS: 5000,
+        socketTimeoutMS: 45000,
+      });
+      await client.connect();
+      _db = client.db(DB_NAME);
+      console.log(`✓ Connected to MongoDB: ${DB_NAME}`);
+      await ensureIndexes(_db);
+      return _db;
+    } catch (err) {
+      if (attempt === retries) throw err;
+      console.warn(`⏳ MongoDB connection attempt ${attempt}/${retries} failed. Retrying in ${delayMs / 1000}s...`);
+      await new Promise((res) => setTimeout(res, delayMs));
+    }
+  }
+  throw new Error("Could not connect to MongoDB after multiple retries.");
 }
 
 export function getDb(): Db {

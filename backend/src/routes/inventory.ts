@@ -351,15 +351,6 @@ function normalizeDebitSubjectCode(val: unknown): string {
   return s;
 }
 
-function normalizeTaxSeasonCode(val: unknown): string {
-  if (!val) return "0";
-  const s = String(val).trim();
-  if (s === "1" || s.includes("اول")) return "1";
-  if (s === "2" || s.includes("دوم")) return "2";
-  if (s === "3" || s.includes("سوم")) return "3";
-  if (s === "4" || s.includes("چهارم")) return "4";
-  return s;
-}
 
 function normalizeSanamaAttributeCode(attr: string, val: unknown): string {
   if (val === undefined || val === null) return "0";

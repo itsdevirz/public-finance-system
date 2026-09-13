@@ -99,6 +99,7 @@ const ManualDocument = lazy(() => import("@/modules/accounting/pages/ManualDocum
 const DocumentsList = lazy(() => import("@/modules/accounting/pages/DocumentsList"));
 const PayrollOperations = lazy(() => import("@/modules/accounting/pages/PayrollOperations"));
 const CapitalOperations = lazy(() => import("@/modules/accounting/pages/CapitalOperations"));
+const DepositsOperations = lazy(() => import("@/modules/accounting/pages/DepositsOperations"));
 const AutoDocument = lazy(() => import("@/modules/accounting/pages/AutoDocument"));
 const CopyDocument = lazy(() => import("@/modules/accounting/pages/CopyDocument"));
 const BalanceSheet = lazy(() => import("@/modules/accounting/pages/BalanceSheet"));
@@ -134,8 +135,15 @@ export const PAGE_COMPONENTS = {
   "/system-management/sanama-file-check/capital": SanamaPerformanceControls,
   "/system-management/sanama-file-check/financial-statements": SanamaPerformanceControls,
   "/reports/sanama-forms": SanamaFormsViewer,
+  "/accounting": DocumentSetup,
   // ─── گزارشات ─────────────────────────────────────────────────────────────
   "/reports": DocumentsReport,
+  "/reports/internal": DocumentsReport,
+  "/reports/external": SanamaExport,
+  "/reports/balance": BalanceSheet,
+  "/bookkeeping/operations-balance/10-column": BalanceSheet,
+  "/reports/sanama": SanamaExport,
+  "/reports/audit-legal": SanamaPerformanceControls,
   // گزارش‌های اسناد حسابداری
   "/reports/documents": DocumentsReport,
   "/reports/documents/list": DocumentsReport,
@@ -165,21 +173,28 @@ export const PAGE_COMPONENTS = {
   "/reports/payments/bank-turnover": PaymentsReport,
   "/reports/payments/bank-reconcile": PaymentsReport,
   "/reports/payments/checks": PaymentsReport,
+  "/reports/payments/summary": PaymentsReport,
   // گزارش‌های مالی
   "/reports/financial": FinancialReport,
   "/reports/financial/balance-sheet": FinancialReport,
   "/reports/financial/income-statement": FinancialReport,
   "/reports/financial/revenue-expense": FinancialReport,
   "/reports/financial/cash-flow": FinancialReport,
+  "/reports/financial/ratios": FinancialReport,
+  "/reports/financial/cost-accounting": FinancialReport,
+  "/reports/financial/debtors-creditors": FinancialReport,
   // گزارش‌های مدیریتی
   "/reports/management": ManagementReport,
   "/reports/management/dashboard": ManagementReport,
   "/reports/management/analytical": ManagementReport,
   "/reports/management/period-compare": ManagementReport,
   "/reports/management/cost-analysis": ManagementReport,
+  "/reports/management/variance": ManagementReport,
+  "/reports/management/kpi": ManagementReport,
   "/reports/sanama-export": SanamaExport,
 
   // Contract Reports
+  "/reports/contracts": ContractDashboardReport,
   "/reports/contracts/dashboard": ContractDashboardReport,
   "/reports/contracts/list": ContractListReport,
   "/reports/contracts/payments": ContractPaymentsReport,
@@ -440,7 +455,7 @@ export const PAGE_COMPONENTS = {
   "/system-management/document-templates/payroll": PayrollOperations,
   "/system-management/document-templates/capital-operations": CapitalOperations,
   "/system-management/document-templates/revenues": SystemManagement,
-  "/system-management/document-templates/deposits": SystemManagement,
+  "/system-management/document-templates/deposits": DepositsOperations,
   "/system-management/document-templates/special-cases": SystemManagement,
   "/system-management/update-manager": SystemManagement,
   "/system-management/backup": SystemManagement,

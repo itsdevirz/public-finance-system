@@ -54,83 +54,123 @@ export const DOCUMENT_SETUP_TOP = [
   { to: "/document-setup/docs-list", label: "لیست اسناد" },
 ];
 
-// ─── TOP_NAV — فقط ۹ مورد خواسته‌شده ─────────────────────────────────────────
+// ─── TOP_NAV ─────────────────────────────────────────────────────────────────
 export const TOP_NAV = [
-  // ۲ — تنظیم اسناد
-  { to: "/document-setup", label: "تنظیم اسناد", num: 2, subItems: DOCUMENT_SETUP_TOP },
-
-  // ۳ — گزارشات
+  // ۲ — گزارشات
   {
-    to: "/reports", label: "گزارشات", num: 3, subItems: [
-      // ۱. گزارش‌های اسناد حسابداری
+    to: "/reports",
+    label: "گزارشات",
+    num: 2,
+    subItems: [
+      // ۱. گزارش‌های درون‌سازمانی
       {
-        to: "/reports/documents",
-        label: "گزارش‌های اسناد حسابداری",
-      },
-      // ۳. گزارش‌های حساب‌ها
-      {
-        to: "/reports/accounts",
-        label: "گزارش‌های حساب‌ها",
-      },
-      // ۴. گزارش‌های بودجه
-      {
-        to: "/reports/budget",
-        label: "گزارش‌های بودجه",
-      },
-      // ۵. گزارش‌های دریافت و پرداخت
-      {
-        to: "/reports/payments",
-        label: "گزارش‌های دریافت و پرداخت",
-      },
-      // ۶. گزارش‌های مالی
-      {
-        to: "/reports/financial",
-        label: "گزارش‌های مالی",
-      },
-      // ۷. گزارش‌های مدیریتی
-      {
-        to: "/reports/management",
-        label: "گزارش‌های مدیریتی",
-      },
-      // ۸. گزارش قراردادها
-      {
-        to: "/reports/contracts",
-        label: "گزارش قراردادها",
+        to: "/reports/internal",
+        label: "۱. گزارش‌های درون‌سازمانی",
         children: [
-          { to: "/reports/contracts/dashboard", label: "داشبورد" },
-          { to: "/reports/contracts/list", label: "گزارش قراردادها" },
-          { to: "/reports/contracts/payments", label: "گزارش پرداختها" },
-          { to: "/reports/contracts/guarantees", label: "گزارش ضمانتها" },
-          { to: "/reports/contracts/deductions", label: "گزارش کسورات" },
-          { to: "/reports/contracts/change-25", label: "گزارش افزایش و کاهش" },
-          { to: "/reports/contracts/by-party", label: "گزارش طرف قرارداد" },
+          {
+            to: "/reports/accounts",
+            label: "۱-۱. گزارش‌های حساب",
+            children: [
+              { to: "/reports/documents/journal", label: "دفاتر روزنامه" },
+              { to: "/reports/documents/general-ledger", label: "دفتر کل" },
+              { to: "/reports/documents/moein-ledger", label: "دفتر معین" },
+              { to: "/reports/accounts/detail-turnover", label: "دفتر تفصیلی" },
+              { to: "/reports/accounts/turnover", label: "گردش حساب‌ها" },
+              { to: "/bookkeeping/bank-reconciliation/account-reconciliation", label: "مغایرت‌گیری" },
+            ],
+          },
+          {
+            to: "/reports/budget",
+            label: "۱-۲. گزارش‌های بودجه",
+            children: [
+              { to: "/credits/control", label: "کنترل اعتبارات" },
+              { to: "/credits/allocations", label: "تخصیص‌ها" },
+              { to: "/reports/budget/remaining", label: "مانده اعتبارات ابلاغی/استانی" },
+              { to: "/reports/budget/performance", label: "تفریغ بودجه داخلی" },
+            ],
+          },
+          {
+            to: "/reports/payments",
+            label: "۱-۳. گزارش‌های دریافت و پرداخت",
+            children: [
+              { to: "/reports/payments/cash-turnover", label: "گردش صندوق" },
+              { to: "/reports/payments/bank-turnover", label: "گردش بانک" },
+              { to: "/reports/payments/checks", label: "چک‌های دریافتی/پرداختی" },
+              { to: "/reports/payments/summary", label: "صورت خلاصه واریزی‌ها و پرداختی‌ها" },
+            ],
+          },
+          {
+            to: "/reports/financial",
+            label: "۱-۴. گزارش‌های مالی",
+            children: [
+              { to: "/reports/financial/balance-sheet", label: "صورت‌های مالی پایه درون‌سازمانی" },
+              { to: "/reports/financial/ratios", label: "نسبت‌های مالی" },
+              { to: "/reports/financial/cost-accounting", label: "بهای تمام‌شده" },
+              { to: "/reports/financial/debtors-creditors", label: "وضعیت بدهکاران/بستانکاران" },
+            ],
+          },
+          {
+            to: "/reports/management",
+            label: "۱-۵. گزارش‌های مدیریتی",
+            children: [
+              { to: "/reports/management/dashboard", label: "داشبوردهای تحلیلی" },
+              { to: "/reports/management/period-compare", label: "گزارش‌های مقایسه‌ای دوره‌ای" },
+              { to: "/reports/management/variance", label: "انحرافات عملکرد" },
+              { to: "/reports/management/kpi", label: "شاخص‌های کلیدی عملکرد (KPI)" },
+            ],
+          },
+          {
+            to: "/reports/contracts",
+            label: "۱-۶. گزارش‌های قراردادی",
+            children: [
+              { to: "/reports/contracts/dashboard", label: "وضعیت پیشرفت مالی پیمان‌ها" },
+              { to: "/reports/contracts/list", label: "صورت‌وضعیت‌ها" },
+              { to: "/reports/contracts/payments", label: "پیش‌پرداخت‌ها و علی‌الحساب‌ها" },
+              { to: "/reports/contracts/guarantees", label: "ضمانت‌نامه‌ها" },
+            ],
+          },
         ],
       },
-      // ۹. خروجی سناما
+      // ۲. گزارش‌های برون‌سازمانی
       {
-        to: "/reports/sanama-export",
-        label: "خروجی سناما",
-      },
-      // ۱۰. فرم‌های استاندارد سناما
-      {
-        to: "/reports/sanama-forms",
-        label: "فرم‌های استاندارد سناما",
+        to: "/reports/external",
+        label: "۲. گزارش‌های برون‌سازمانی",
+        children: [
+          {
+            to: "/reports/balance",
+            label: "۲-۱. گزارش‌های تراز",
+            children: [
+              { to: "/bookkeeping/operations-balance/4-column", label: "تراز ۴ ستونی" },
+              { to: "/bookkeeping/operations-balance/6-column", label: "تراز ۶ ستونی" },
+              { to: "/bookkeeping/operations-balance/8-column", label: "تراز ۸ ستونی" },
+              { to: "/bookkeeping/operations-balance/10-column", label: "تراز ۱۰ ستونی" },
+            ],
+          },
+          {
+            to: "/reports/sanama",
+            label: "۲-۲. گزارش‌های سناما (سنما)",
+            children: [
+              { to: "/reports/sanama-export", label: "خروجی سناما (فایل/اکسل استاندارد سامانه)" },
+              { to: "/reports/sanama-forms", label: "فرم‌های عملکرد" },
+            ],
+          },
+          {
+            to: "/reports/audit-legal",
+            label: "۲-۳. گزارش‌های ممیزی و فرم‌های عملکرد قانونی",
+            children: [
+              { to: "/system-management/sanama-file-check/expense", label: "فرم‌های نظارتی ۱ - هزینه" },
+              { to: "/system-management/sanama-file-check/capital", label: "فرم‌های نظارتی ۲ - تملک" },
+              { to: "/system-management/sanama-file-check/financial-statements", label: "فرم‌های نظارتی ۳ - صورت‌های مالی" },
+            ],
+          },
+        ],
       },
     ],
   },
 
-  // ۴ — تراز عملیات
+  // ۳ — امکانات
   {
-    to: "/bookkeeping/operations-balance", label: "تراز عملیات", num: 4, subItems: [
-      { to: "/bookkeeping/operations-balance/4-column", label: "تراز ۴ ستونی" },
-      { to: "/bookkeeping/operations-balance/6-column", label: "تراز ۶ ستونی" },
-      { to: "/bookkeeping/operations-balance/8-column", label: "تراز ۸ ستونی" },
-    ],
-  },
-
-  // ۵ — امکانات
-  {
-    to: "/system-management", label: "امکانات", num: 5, subItems: [
+    to: "/system-management", label: "امکانات", num: 3, subItems: [
       { to: "/system-management/users", label: "تعریف کاربر" },
       { to: "/system-management/audit-logs", label: "ثبت نشان‌ها" },
       { to: "/system-management/financial-details", label: "مشخصات ذیحسابی" },
@@ -142,45 +182,49 @@ export const TOP_NAV = [
           { to: "/bookkeeping/bank-reconciliation/account-reconciliation", label: "مغایرت حساب‌ها" },
         ]
       },
-      {
-        to: "/system-management/sanama-file-check", label: "ممیزی فرم عملکرد سناما", children: [
-          { to: "/system-management/sanama-file-check/expense", label: "۱. هزینه" },
-          { to: "/system-management/sanama-file-check/capital", label: "۲. تملک" },
-          { to: "/system-management/sanama-file-check/financial-statements", label: "۳. تهیه صورت‌های مالی" },
-        ]
-      },
       { to: "/bookkeeping/account-setup", label: "تنظیم حساب" },
       { to: "/system-management/report-signature", label: "تنظیم امضای گزارشات" },
     ],
   },
 
-  // ۶ — الگوی سند
+  // ۴ — حسابداری
   {
-    to: "/system-management/document-templates",
-    label: "الگوی سند",
-    num: 6,
+    to: "/accounting",
+    label: "حسابداری",
+    num: 4,
     subItems: [
-      { to: "/system-management/document-templates/current-operations", label: "حسابداری عملیات جاری" },
-      { to: "/system-management/document-templates/payroll", label: "حسابداری حقوق و مزایای مستمر کارکنان" },
-      { to: "/system-management/document-templates/capital-operations", label: "حسابداری عملیات سرمایه‌ای" },
-      { to: "/system-management/document-templates/revenues", label: "حسابداری درآمدها" },
-      { to: "/system-management/document-templates/deposits", label: "حسابداری وجوه سپرده" },
-      { to: "/system-management/document-templates/special-cases", label: "حسابداری موارد خاص" },
+      {
+        to: "/document-setup",
+        label: "تنظیم اسناد",
+        children: DOCUMENT_SETUP_TOP,
+      },
+      {
+        to: "/system-management/document-templates",
+        label: "الگوی سند",
+        children: [
+          { to: "/system-management/document-templates/current-operations", label: "حسابداری عملیات جاری" },
+          { to: "/system-management/document-templates/payroll", label: "حسابداری حقوق و مزایای مستمر کارکنان" },
+          { to: "/system-management/document-templates/capital-operations", label: "حسابداری عملیات سرمایه‌ای" },
+          { to: "/system-management/document-templates/revenues", label: "حسابداری درآمدها" },
+          { to: "/system-management/document-templates/deposits", label: "حسابداری وجوه سپرده" },
+          { to: "/system-management/document-templates/special-cases", label: "حسابداری موارد خاص" },
+        ],
+      },
     ],
   },
 
-  // ۷ — مدیریت اعتبارات
+  // ۵ — مدیریت اعتبارات
   {
     to: "/credits",
     label: "مدیریت اعتبارات",
-    num: 7,
+    num: 5,
     subItems: [
       { to: "/credits", label: "📊 داشبورد اعتبارات" },
       {
-        to: "/credits/budget/approved",
+        to: "/credits/agreements",
         label: "موافقتنامه",
         children: [
-          { to: "/credits/budget/approved", label: "ثبت موافقتنامه" },
+          { to: "/credits/agreements", label: "ثبت موافقتنامه" },
         ],
       },
       {
@@ -225,22 +269,21 @@ export const TOP_NAV = [
           { to: "/credits/card", label: "کارت اعتبار" },
           { to: "/credits/ledger", label: "گردش اعتبار" },
           { to: "/credits/control", label: "مانده اعتبار" },
-          { to: "/reports/budget", label: "گزارش‌های جامع بودجه و حساب‌ها" },
         ],
       },
     ]
   },
 
-  // ۸ — دستیار هوش مصنوعی
+  // ۶ — دستیار هوش مصنوعی
   {
-    to: "/ai", label: "دستیار هوشمند مالی (AI)", num: 8, subItems: [
+    to: "/ai", label: "دستیار هوشمند مالی (AI)", num: 6, subItems: [
       { to: "/ai/chat", label: "گفتگو با دستیار" },
     ],
   },
 
-  // ۹ — سیستم حقوق و دستمزد
+  // ۷ — سیستم حقوق و دستمزد
   {
-    to: "/payroll", label: "سیستم حقوق و دستمزد", num: 9, subItems: [
+    to: "/payroll", label: "سیستم حقوق و دستمزد", num: 7, subItems: [
       { to: "/payroll/dashboard", label: "داشبورد حقوق" },
       {
         to: "/payroll/employees", label: "اطلاعات کارکنان", children: [
@@ -278,9 +321,9 @@ export const TOP_NAV = [
     ],
   },
 
-  // ۱۰ — سیستم انبار
+  // ۸ — سیستم انبار
   {
-    to: "/warehouse", label: "سیستم انبار", num: 10, subItems: [
+    to: "/warehouse", label: "سیستم انبار", num: 8, subItems: [
       { to: "/warehouse/dashboard", label: "داشبورد انبار" },
       { to: "/warehouse/items", label: "مدیریت کالاها" },
       { to: "/warehouse/stores", label: "مدیریت انبارها" },
@@ -295,9 +338,9 @@ export const TOP_NAV = [
     ],
   },
 
-  // ۱۱ — سیستم اموال
+  // ۹ — سیستم اموال
   {
-    to: "/assets", label: "سیستم اموال", num: 11, subItems: [
+    to: "/assets", label: "سیستم اموال", num: 9, subItems: [
       { to: "/assets/dashboard", label: "داشبورد اموال" },
       {
         to: "/assets/basic-info", label: "اطلاعات پایه", children: [

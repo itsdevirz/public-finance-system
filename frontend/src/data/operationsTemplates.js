@@ -2525,5 +2525,183 @@ export const INITIAL_TEMPLATES = [
       { type: "debit",  accountCode: "91004", accountName: "بودجه اعتبار سرمایه‌ای انتقالی", section: "به میزان مانده منابع مصرف نشده بودجه اي واريزي به خزانه، ثبت ذيل اعمال ميشود", ratio: "**" },
       { type: "credit", accountCode: "91502", accountName: "اعتبار سرمایه‌ای انتقالی",      ratio: "**" }
     ]
+  },
+
+  // ─── ثبت‌های حسابداری وجوه سپرده (ثبت‌های ۱ تا ۱۴) ─────────────────────────
+  {
+    id: 301,
+    title: "ثبت شماره ۱ - وجوه سپرده",
+    description: "به هنگام واریز وجوه سپرده به حساب مربوط",
+    code: "DEP-01",
+    category: "deposits",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "11005", accountName: "بانک دریافت وجوه سپرده", ratio: "100%" },
+      { type: "credit", accountCode: "11002", accountName: "بانک اعتبارات سرمایه‌ای", ratio: "100%" }
+    ]
+  },
+  {
+    id: 302,
+    title: "ثبت شماره ۲ - وجوه سپرده",
+    description: "دریافت تضمین به صورت سپرده نقدی",
+    code: "DEP-02",
+    category: "deposits",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "11005", accountName: "بانک دریافت وجوه سپرده", ratio: "100%" },
+      { type: "credit", accountCode: "11007", accountName: "سپرده پرداختنی", ratio: "100%" }
+    ]
+  },
+  {
+    id: 303,
+    title: "ثبت شماره ۳ - وجوه سپرده",
+    description: "انتقال وجوه تضامین به حساب خزانه",
+    code: "DEP-03",
+    category: "deposits",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "11522", accountName: "مطالبات از خزانه", ratio: "100%" },
+      { type: "credit", accountCode: "11005", accountName: "بانک دریافت وجوه سپرده", ratio: "100%" }
+    ]
+  },
+  {
+    id: 304,
+    title: "ثبت شماره ۴ - وجوه سپرده",
+    description: "دریافت وجه از خزانه بابت تنخواه‌گردان رد وجوه سپرده",
+    code: "DEP-04",
+    category: "deposits",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "11006", accountName: "بانک رد وجوه سپرده", ratio: "100%" },
+      { type: "credit", accountCode: "11513", accountName: "دریافتی بابت تنخواه‌گردان رد وجوه سپرده", ratio: "100%" }
+    ]
+  },
+  {
+    id: 305,
+    title: "ثبت شماره ۵ - وجوه سپرده",
+    description: "دریافت از خزانه بابت رد وجوه سپرده",
+    code: "DEP-05",
+    category: "deposits",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "11007", accountName: "بانک رد وجوه سپرده", ratio: "100%" },
+      { type: "credit", accountCode: "11522", accountName: "مطالبات از خزانه", ratio: "100%" }
+    ]
+  },
+  {
+    id: 306,
+    title: "ثبت شماره ۶ - وجوه سپرده",
+    description: "واگذاری تنخواه‌گردان رد وجوه سپرده به عاملین",
+    code: "DEP-06",
+    category: "deposits",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "11023", accountName: "تنخواه‌گردان رد وجوه سپرده عاملین", ratio: "100%" },
+      { type: "credit", accountCode: "11006", accountName: "بانک رد وجوه سپرده", ratio: "100%" }
+    ]
+  },
+  {
+    id: 307,
+    title: "ثبت شماره ۷ - وجوه سپرده",
+    description: "استرداد وجوه سپرده",
+    code: "DEP-07",
+    category: "deposits",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "11007", accountName: "سپرده پرداختنی", ratio: "100%" },
+      { type: "credit", accountCode: "11006", accountName: "بانک رد وجوه سپرده", ratio: "100%" }
+    ]
+  },
+  {
+    id: 308,
+    title: "ثبت شماره ۸ - وجوه سپرده",
+    description: "استرداد سپرده از محل تنخواه‌گردان رد وجوه سپرده",
+    code: "DEP-08",
+    category: "deposits",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "11513", accountName: "دریافت بابت تنخواه‌گردان رد وجوه سپرده", ratio: "100%" },
+      { type: "credit", accountCode: "11522", accountName: "مطالبات از خزانه", ratio: "100%" }
+    ]
+  },
+  {
+    id: 309,
+    title: "ثبت شماره ۹ - وجوه سپرده",
+    description: "ضبط وجوه سپرده (ماده ۴۲ شرایط عمومی پیمان - شناسایی ۱۵٪ درآمد حاصل از جرایم و خسارات)",
+    code: "DEP-09",
+    category: "deposits",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "11006", accountName: "بانک رد وجوه سپرده", ratio: "**" },
+      { type: "debit",  accountCode: "11007", accountName: "سپرده پرداختنی", ratio: "**" },
+      { type: "credit", accountCode: "11522", accountName: "مطالبات از خزانه", ratio: "**" },
+      { type: "credit", accountCode: "45005", accountName: "درآمد حاصل از جرایم و خسارات", ratio: "**" }
+    ]
+  },
+  {
+    id: 310,
+    title: "ثبت شماره ۱۰ - وجوه سپرده",
+    description: "شناسایی عیب و نقص ناشی از کار پیمانکار",
+    code: "DEP-10",
+    category: "deposits",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "21007", accountName: "سپرده پرداختنی", ratio: "**" },
+      { type: "credit", accountCode: "15001", accountName: "دارایی در جریان تکمیل", ratio: "**" },
+      { type: "credit", accountCode: "45005", accountName: "درآمد حاصل از جرایم و خسارات", ratio: "**" }
+    ]
+  },
+  {
+    id: 311,
+    title: "ثبت شماره ۱۱ - وجوه سپرده",
+    description: "تأمین و برداشت مبلغ مورد نیاز بابت رفع عیب و نقص",
+    code: "DEP-11",
+    category: "deposits",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "11006", accountName: "بانک رد وجوه سپرده", ratio: "100%" },
+      { type: "credit", accountCode: "11522", accountName: "مطالبات از خزانه", ratio: "100%" }
+    ]
+  },
+  {
+    id: 312,
+    title: "ثبت شماره ۱۲ - وجوه سپرده",
+    description: "رفع عیب و نقص (ناشی از عدم ایفای تعهد پیمانکار)",
+    code: "DEP-12",
+    category: "deposits",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "15001", accountName: "دارایی در جریان تکمیل", ratio: "**" },
+      { type: "credit", accountCode: "21001", accountName: "حساب اسناد پرداختنی", ratio: "**" },
+      { type: "credit", accountCode: "11006", accountName: "بانک رد وجوه سپرده", ratio: "**" }
+    ]
+  },
+  {
+    id: 313,
+    title: "ثبت شماره ۱۳ - وجوه سپرده",
+    description: "واریز ۱۵٪ جرایم و خسارات (ماده ۴۲) به حساب درآمد عمومی",
+    code: "DEP-13",
+    category: "deposits",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "71001", accountName: "وجوه ارسالی بابت درآمد عمومی", ratio: "100%" },
+      { type: "credit", accountCode: "11006", accountName: "بانک رد وجوه سپرده", ratio: "100%" }
+    ]
+  },
+  {
+    id: 314,
+    title: "ثبت شماره ۱۴ - وجوه سپرده",
+    description: "ثبت بستن حساب‌های وجوه سپرده (بستن و تصفیه پایان دوره مالی)",
+    code: "DEP-14",
+    category: "deposits",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "11513", accountName: "دریافتی بابت تنخواه‌گردان رد وجوه سپرده", ratio: "**" },
+      { type: "debit",  accountCode: "11007", accountName: "سپرده پرداختنی", ratio: "**" },
+      { type: "credit", accountCode: "11006", accountName: "بانک رد وجوه سپرده", ratio: "**" },
+      { type: "credit", accountCode: "11023", accountName: "تنخواه‌گردان دریافتی رد وجوه سپرده عاملین", ratio: "**" },
+      { type: "credit", accountCode: "11522", accountName: "مطالبات از خزانه", ratio: "**" },
+      { type: "credit", accountCode: "11005", accountName: "بانک دریافت وجوه سپرده", ratio: "**" }
+    ]
   }
 ];

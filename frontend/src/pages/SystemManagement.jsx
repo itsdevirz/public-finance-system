@@ -23,7 +23,7 @@ const ROUTE_LABELS = {
   "/system-management/approve-docs": "تصویب گروهی اسناد",
   "/system-management/close-account-chapters": "تنظیم سرفصل های بستن حساب",
   "/system-management/settings": "تنظیمات",
-  "/system-management/document-templates": "الگوی سند",
+  "/system-management/document-templates": "حسابداری",
   "/system-management/document-templates/current-operations": "حسابداری عملیات جاری",
   "/system-management/document-templates/payroll": "حسابداری حقوق و مزایای مستمر کارکنان",
   "/system-management/document-templates/capital-operations": "حسابداری عملیات سرمایه‌ای",

@@ -51,6 +51,23 @@ const PAGE_CONFIG = {
       { key: "credit_bal",   label: "مانده نهایی بستانکار",    cls: "text-rose-700"  },
     ],
   },
+  "/bookkeeping/operations-balance/10-column": {
+    title: "تراز ۱۰ ستونی",
+    description: "گزارش تراز حساب‌ها در قالب ۱۰ ستون (جهت ارائه به دیوان محاسبات، حسابرسان و مجامع)",
+    columns: 10,
+    colDefs: [
+      { key: "debit_begin",  label: "افتتاحیه بدهکار",   cls: "text-blue-700"  },
+      { key: "credit_begin", label: "افتتاحیه بستانکار",  cls: "text-rose-700"  },
+      { key: "debit_before", label: "قبل از دوره بدهکار",cls: "text-blue-700"  },
+      { key: "credit_before",label: "قبل از دوره بستانکار",cls: "text-rose-700"  },
+      { key: "debit_turn",   label: "گردش طی دوره بدهکار",cls: "text-blue-700"  },
+      { key: "credit_turn",  label: "گردش طی دوره بستانکار",cls: "text-rose-700" },
+      { key: "debit_net",    label: "تجمعی بدهکار",      cls: "text-blue-700"  },
+      { key: "credit_net",   label: "تجمعی بستانکار",    cls: "text-rose-700"  },
+      { key: "debit_bal",    label: "مانده نهایی بدهکار",cls: "text-blue-700"  },
+      { key: "credit_bal",   label: "مانده نهایی بستانکار",cls: "text-rose-700" },
+    ],
+  },
 };
 
 const LEVEL_OPTIONS = [
