@@ -55,6 +55,7 @@ import bankStatementFormatsRouter from "./routes/bankStatementFormats.js";
 import bankStatementsRouter from "./routes/bankStatements.js";
 import bankReconciliationRouter from "./routes/bankReconciliation.js";
 import bankAccountsRouter from "./routes/bankAccounts.js";
+import sanamaRouter from "./routes/sanama.js";
 
 import { verifyToken } from "./lib/auth.js";
 
@@ -425,6 +426,7 @@ app.route("/api/bank-statement-formats", bankStatementFormatsRouter);
 app.route("/api/bank-statements", bankStatementsRouter);
 app.route("/api/bank-reconciliation", bankReconciliationRouter);
 app.route("/api/bank-accounts", bankAccountsRouter);
+app.route("/api/sanama", sanamaRouter);
 
 connectDb().then(() => {
   startAuditLogAutoCleanupCron();

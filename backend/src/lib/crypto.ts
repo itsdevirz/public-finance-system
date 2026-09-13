@@ -82,11 +82,12 @@ export function decryptDocument(doc: any): any {
       const { header, rows } = decryptedData;
       return {
         ...doc,
-        document_date: header.docDate || doc.document_date,
-        description: header.desc || doc.description,
-        reference_number: header.letterNo || doc.reference_number,
+        document_date: header.docDate || doc.document_date || doc.doc_date || doc.date || "",
+        document_number: doc.document_number || doc.doc_number || doc.doc_no || header.docNo || header.docNumber || "",
+        description: header.desc || doc.description || "",
+        reference_number: header.letterNo || doc.reference_number || "",
         lines: (rows || []).map((r: any) => ({
-          account_code: r.subAccount || "",
+          account_code: r.subAccount || r.account_code || "",
           account_name: r.account_name || "",
           debit: parseInt(toEnglishDigits(r.debit), 10) || 0,
           credit: parseInt(toEnglishDigits(r.credit), 10) || 0,

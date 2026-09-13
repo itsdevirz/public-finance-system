@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Download, CheckCircle, Calendar, Filter, Layers, Sparkles, RefreshCw, ShieldCheck } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Download, CheckCircle, Calendar, Filter, Layers, Sparkles, RefreshCw, ShieldCheck, AlertTriangle, AlertCircle, Building, Eye, Table } from "lucide-react";
 import { PageShell, PageHeader } from "@/components/layout/PageShell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ const PERSIAN_MONTHS = [
   { value: "10", label: "دی (ماه ۱۰)" },
   { value: "11", label: "بهمن (ماه ۱۱)" },
   { value: "12", label: "اسفند (ماه ۱۲)" },
+  { value: "15", label: "تراز نهایی سال مالی (ماه ۱۵)" }
 ];
 
 const FISCAL_YEAR_OPTIONS = [
@@ -32,27 +33,33 @@ const FISCAL_YEAR_OPTIONS = [
   { value: "1402", label: "سال مالی ۱۴۰۲" },
   { value: "1403", label: "سال مالی ۱۴۰۳" },
   { value: "1404", label: "سال مالی ۱۴۰۴" },
-  { value: "1405", label: "سال مالی ۱۴۰۵" },
+  { value: "1405", label: "سال مالی ۱۴۰۵" }
 ];
 
 const SOURCE_TYPE_OPTIONS = [
   { value: "all", label: "تمامی منابع (عمومی، اختصاصی و سایر)" },
   { value: "1", label: "۱. عمومی" },
   { value: "2", label: "۲. اختصاصی" },
-  { value: "3", label: "۳. سایر منابع / سایر" },
+  { value: "3", label: "۳. سایر منابع / سایر" }
 ];
 
 export default function SanamaExport() {
   const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState("idle"); // idle, processing, done
+  const [validating, setValidating] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [status, setStatus] = useState("idle"); // idle, validated, done
 
-  // ── ۱. فیلتر نوع خروجی (ماهانه و نهایی) ──
+  // ── ۰. تنظیمات دستگاه اجرایی ──
+  const [mainOrgID, setMainOrgID] = useState("10100000000");
+  const [mainOrgCode, setMainOrgCode] = useState("400367");
+
+  // ── ۱. پارامترهای اصلی خروجی ──
   const [exportType, setExportType] = useState("monthly"); // "monthly" | "final"
   const [month, setMonth] = useState("3");
-  const [fiscalYear, setFiscalYear] = useState("1405");
+  const [fiscalYear, setFiscalYear] = useState("1403");
 
-  // ── ۲. فیلتر تعیین دامنه (Range Definition) ──
-  const [rangeMode, setRangeMode] = useState("all"); // "all" | "custom"
+  // ── ۲. فیلترهای دامنه ──
+  const [rangeMode, setRangeMode] = useState("all");
   const [fromAccountCode, setFromAccountCode] = useState("");
   const [toAccountCode, setToAccountCode] = useState("");
   const [fromDate, setFromDate] = useState("");
@@ -61,27 +68,70 @@ export default function SanamaExport() {
   const [toDocNo, setToDocNo] = useState("");
   const [sourceType, setSourceType] = useState("all");
 
-  const handleDownload = async () => {
-    setLoading(true);
-    setStatus("processing");
-    try {
-      // 1. Validation for Egress / Export permission (AFTA Items 8 & 9 compliance)
-      const egressCheck = await validateEgressPermission({
-        exportType: "XML",
-        recordCount: 1000,
-        fileSizeMB: 5
-      });
-      if (!egressCheck.allowed) {
-        alert(`ممانعت از خروجی داده (الزام بند ۹ افتا):\n${egressCheck.reason}`);
-        setStatus("idle");
-        setLoading(false);
-        return;
-      }
+  // ── ۳. نتایج اعتبارسنجی و پیش‌نمایش ──
+  const [validationResult, setValidationResult] = useState(null);
+  const [previewSummary, setPreviewSummary] = useState(null);
 
-      const queryParams = new URLSearchParams({
+  // بارگذاری اولیه تنظیمات دستگاه
+  useEffect(() => {
+    fetchOrgSettings();
+  }, []);
+
+  const fetchOrgSettings = async () => {
+    try {
+      const res = await api.get("/api/sanama/settings");
+      if (res.data?.success && res.data?.data) {
+        setMainOrgID(res.data.data.mainOrgID || "10100000000");
+        setMainOrgCode(res.data.data.mainOrgCode || "400367");
+      }
+    } catch (_) {}
+  };
+
+  const handleSaveOrgSettings = async () => {
+    if (!/^\d{11}$/.test(mainOrgID)) {
+      alert("شناسه ملی دستگاه اجرایی باید دقیقاً ۱۱ رقم باشد.");
+      return;
+    }
+    if (!mainOrgCode.trim()) {
+      alert("ردیف بودجه‌ای دستگاه اجرایی الزامی است.");
+      return;
+    }
+
+    setSavingSettings(true);
+    try {
+      await api.post("/api/sanama/settings", { mainOrgID, mainOrgCode });
+      alert("تنظیمات دستگاه اجرایی با موفقیت ذخیره شد.");
+    } catch (err) {
+      alert("خطا در ذخیره تنظیمات: " + (err.response?.data?.message || err.message));
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  const buildQueryParams = () => {
+    return new URLSearchParams({
+      exportType,
+      month: String(month || "3"),
+      fiscalYear: String(fiscalYear || "1403"),
+      rangeMode,
+      fromAccountCode,
+      toAccountCode,
+      fromDate,
+      toDate,
+      fromDocNo,
+      toDocNo,
+      sourceType
+    });
+  };
+
+  // اعتبارسنجی و دریافت پیش‌نمایش
+  const handleValidateAndPreview = async () => {
+    setValidating(true);
+    try {
+      const filterBody = {
         exportType,
-        month: String(month || "3"),
-        fiscalYear: String(fiscalYear || "1405"),
+        month,
+        fiscalYear,
         rangeMode,
         fromAccountCode,
         toAccountCode,
@@ -90,18 +140,51 @@ export default function SanamaExport() {
         fromDocNo,
         toDocNo,
         sourceType
+      };
+
+      const prevRes = await api.post("/api/sanama/preview", filterBody);
+
+      if (prevRes.data?.success) {
+        const previewData = prevRes.data.data;
+        setPreviewSummary(previewData);
+        if (previewData.validation) {
+          setValidationResult(previewData.validation);
+        }
+        setStatus("validated");
+      }
+    } catch (err) {
+      alert("خطا در اعتبارسنجی داده‌ها: " + (err.response?.data?.message || err.message));
+    } finally {
+      setValidating(false);
+    }
+  };
+
+  // تولید و دانلود فایل XML رسمی
+  const handleDownload = async () => {
+    setLoading(true);
+    try {
+      // 1. Validation for Egress / Export permission
+      const egressCheck = await validateEgressPermission({
+        exportType: "XML",
+        recordCount: validationResult?.stats?.totalReportRows || 1000,
+        fileSizeMB: 5
       });
 
-      const res = await api.get(`/api/inventory/sanama-xml?${queryParams.toString()}`, {
+      if (!egressCheck.allowed) {
+        alert(`ممانعت از خروجی داده (الزام افتا):\n${egressCheck.reason}`);
+        setLoading(false);
+        return;
+      }
+
+      const queryParams = buildQueryParams();
+      const res = await api.get(`/api/sanama/export-xml?${queryParams.toString()}`, {
         responseType: "blob"
       });
 
-      // Handle JSON error response wrapped in blob
       if (res.data && res.data.type === "application/json") {
         const text = await res.data.text();
         const json = JSON.parse(text);
         alert(json.message || "خطا در تولید فایل سناما");
-        setStatus("idle");
         setLoading(false);
         return;
       }
@@ -110,22 +193,21 @@ export default function SanamaExport() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      
-      const fileName = exportType === "final" 
-        ? `sanama-final-${fiscalYear}.xml` 
-        : `sanama-monthly-m${String(month).padStart(2, "0")}-${fiscalYear}.xml`;
-        
+
+      const fileName = exportType === "final"
+        ? `SANAMA_${mainOrgCode}_${fiscalYear}_15.xml`
+        : `SANAMA_${mainOrgCode}_${fiscalYear}_${String(month).padStart(2, "0")}.xml`;
+
       link.download = fileName;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
-      // Audit log file download event
       await logFileDownloadAudit({
         fileName,
-        section: "خروجی سناما (وزارت امور اقتصادی و دارایی)",
-        dataType: "فایل XML سناما (پروتکل ۳.۱)",
+        section: "خروجی رسمی سناما (وزارت امور اقتصادی و دارایی)",
+        dataType: "فایل XML سناما (پروتکل ۳.۲ - ویرایش ۱۹)",
         fileFormat: "XML",
         otherDetails: `دانلود خروجی ${exportType === "final" ? "نهایی سال" : `ماهانه (ماه ${String(month).padStart(2, "0")}) سال`} ${fiscalYear}`
       });
@@ -134,19 +216,12 @@ export default function SanamaExport() {
     } catch (err) {
       console.error("Failed to generate Sanama XML", err);
       let errorMsg = "خطا در تولید و دانلود فایل سناما";
-      if (err.response?.data instanceof Blob) {
-        try {
-          const text = await err.response.data.text();
-          const json = JSON.parse(text);
-          if (json.message) errorMsg = json.message;
-        } catch (_) {}
-      } else if (err.response?.data?.message) {
+      if (err.response?.data?.message) {
         errorMsg = err.response.data.message;
       } else if (err.message) {
         errorMsg += `: ${err.message}`;
       }
       alert(errorMsg);
-      setStatus("idle");
     } finally {
       setLoading(false);
     }
@@ -155,26 +230,71 @@ export default function SanamaExport() {
   return (
     <PageShell>
       <PageHeader
-        title="تهیه فایل خروجی سناما (وزارت امور اقتصادی و دارایی)"
-        description="تولید خروجی استاندارد XML مصوب پروتکل ۳.۱ خزانه‌داری کل کشور در دو حالت «ماهانه/نهایی» و «تعریف دامنه»"
+        title="تولید خروجی رسمی سناما (وزارت امور اقتصادی و دارایی)"
+        description="سامانه صدور، اعتبارسنجی و خروجی فایل الکترونیکی XML بر اساس پروتکل نسخه ۳.۲ - ویرایش ۱۹"
       />
 
       <div className="space-y-6 max-w-5xl mx-auto" dir="rtl">
-        {/* کارت توضیحات و استاندارد سناما */}
-        <Card className="bg-gradient-to-r from-blue-900 to-indigo-900 text-white shadow-md border-0">
+        {/* کارت توضیحات و استاندارد سناما Edition 19 */}
+        <Card className="bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-900 text-white shadow-lg border-0">
           <CardContent className="pt-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div className="space-y-1.5 text-right">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="h-6 w-6 text-cyan-400" />
-                <h2 className="text-base font-bold text-white">سامانه تولید فایل الکترونیکی سناما (پروتکل ۳.۱)</h2>
+                <h2 className="text-base font-bold text-white">سامانه تولید فایل XML سناما (Version 3.2 - Edition 19)</h2>
               </div>
               <p className="text-xs text-blue-100 leading-relaxed">
-                اطلاعات دفتر کل و اسناد مالی پس از اعتبارسنجی تراز بودن و کنترل کدهای ساختار سناما استخراج می‌شوند.
+                استخراج، انباشت گردش بدهکار و بستانکار تا پایان ماه جاری، اعتبارسنجی ساختاری و کنترل کدهای معین مطابق سند رسمی خزانه‌داری کل کشور.
               </p>
             </div>
-            <div className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-xl backdrop-blur-xs text-xs font-mono text-cyan-200 shrink-0">
+            <div className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-xl backdrop-blur-xs text-xs font-mono text-cyan-200 shrink-0 border border-white/10">
               <Sparkles className="h-4 w-4 text-cyan-300" />
-              <span>پروتکل: SANAMA v3.1</span>
+              <span>Protocol: SANAMA v3.2 (Ed. 19)</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* ── ۰. بخش اطلاعات دستگاه اجرایی ── */}
+        <Card className="shadow-xs border-slate-200">
+          <CardHeader className="pb-3 border-b border-slate-100">
+            <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-800">
+              <Building className="h-4 w-4 text-indigo-600" />
+              اطلاعات شناسایی دستگاه اجرایی (MainOrg)
+            </CardTitle>
+            <CardDescription className="text-xs text-slate-500">
+              شناسه ملی ۱۱ رقمی و ردیف بودجه‌ای دستگاه اجرایی بر اساس سند پروتکل
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-slate-700">شناسه ملی دستگاه (۱۱ رقم)</Label>
+                <Input
+                  value={mainOrgID}
+                  onChange={(e) => setMainOrgID(e.target.value)}
+                  placeholder="۱۰۱۰... (۱۱ رقم)"
+                  className="font-mono text-xs"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-slate-700">ردیف بودجه‌ای (MainOrgCode)</Label>
+                <Input
+                  value={mainOrgCode}
+                  onChange={(e) => setMainOrgCode(e.target.value)}
+                  placeholder="۴۰۰۳۶۷"
+                  className="font-mono text-xs"
+                />
+              </div>
+
+              <Button
+                onClick={handleSaveOrgSettings}
+                disabled={savingSettings}
+                variant="outline"
+                className="h-10 text-xs font-bold border-indigo-200 hover:bg-indigo-50 text-indigo-700"
+              >
+                {savingSettings ? "در حال ذخیره..." : "ذخیره تنظیمات دستگاه"}
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -184,14 +304,10 @@ export default function SanamaExport() {
           <CardHeader className="pb-3 border-b border-slate-100">
             <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-800">
               <Calendar className="h-4 w-4 text-blue-600" />
-              ۱. نوع خروجی (ماهانه و نهایی)
+              ۱. نوع خروجی و دوره مالی (ماهانه / نهایی)
             </CardTitle>
-            <CardDescription className="text-xs text-slate-500">
-              انتخاب دوره زمانی و نوع گزارش عملکرد مالی (دوره ماهانه یا بستن حساب‌های نهایی پایان سال)
-            </CardDescription>
           </CardHeader>
           <CardContent className="pt-5 space-y-5">
-            {/* انتخاب دکمه‌های زبانه ای ماهانه / نهایی */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div
                 onClick={() => setExportType("monthly")}
@@ -207,10 +323,8 @@ export default function SanamaExport() {
                   {exportType === "monthly" && <div className="h-2 w-2 rounded-full bg-white" />}
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-800">خروجی ماهانه (Monthly)</h3>
-                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                    گزارش عملکرد یک ماه مشخص از سال مالی (پروتکل ماهانه خزانه‌داری کل)
-                  </p>
+                  <h3 className="text-sm font-bold text-slate-800">خروجی ماهانه (MonthlyProtocol)</h3>
+                  <p className="text-xs text-slate-500 mt-1">گزارش انباشت گردش ماهانه (ماه ۱ تا ۱۲)</p>
                 </div>
               </div>
 
@@ -228,17 +342,14 @@ export default function SanamaExport() {
                   {exportType === "final" && <div className="h-2 w-2 rounded-full bg-white" />}
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-800">خروجی نهایی (Final / پایان سال)</h3>
-                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                    گزارش موازنه کل و بستن حساب‌های نهایی سال مالی (پروتکل نهایی کد ۱۵)
-                  </p>
+                  <h3 className="text-sm font-bold text-slate-800">خروجی نهایی (FinalProtocol - ماه ۱۵)</h3>
+                  <p className="text-xs text-slate-500 mt-1">گزارش تراز نهایی و بستن حساب‌های پایان سال</p>
                 </div>
               </div>
             </div>
 
-            {/* کنترل‌های سال و ماه */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-slate-50/80 rounded-xl border border-slate-200/60">
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label className="text-xs font-bold text-slate-700">سال مالی</Label>
                 <SearchableSelect
                   options={FISCAL_YEAR_OPTIONS}
@@ -249,10 +360,10 @@ export default function SanamaExport() {
               </div>
 
               {exportType === "monthly" && (
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold text-slate-700">انتخاب ماه عملکرد</Label>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-700">ماه عملکرد</Label>
                   <SearchableSelect
-                    options={PERSIAN_MONTHS}
+                    options={PERSIAN_MONTHS.filter((m) => m.value !== "15")}
                     value={month}
                     onChange={(val) => setMonth(val)}
                     placeholder="انتخاب ماه"
@@ -261,28 +372,24 @@ export default function SanamaExport() {
               )}
 
               {exportType === "final" && (
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold text-slate-700">کد عملکرد پروتکل</Label>
-                  <Input value="پروتکل نهایی پایان سال (کد ۱۵)" disabled className="bg-slate-200/60 text-xs font-semibold" />
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-700">کد ماه در پروتکل</Label>
+                  <Input value="۱۵ (تراز نهایی سال مالی)" disabled className="bg-slate-200/60 text-xs font-bold" />
                 </div>
               )}
             </div>
           </CardContent>
         </Card>
 
-        {/* ── ۲. بخش تعریف دامنه (Scope & Range Definition) ── */}
+        {/* ── ۲. بخش فیلتر دامنه سفارشی ── */}
         <Card className="shadow-xs border-slate-200">
           <CardHeader className="pb-3 border-b border-slate-100">
             <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-800">
               <Filter className="h-4 w-4 text-emerald-600" />
               ۲. تعریف دامنه خروجی (محدودسازی کدهای حساب و اسناد)
             </CardTitle>
-            <CardDescription className="text-xs text-slate-500">
-              تعیین دامنه کدهای معین، بازه تاریخ، شماره اسناد و نوع منابع اعتبارات جهت فیلتر فایل خروجی
-            </CardDescription>
           </CardHeader>
-          <CardContent className="pt-5 space-y-5">
-            {/* انتخاب حالت دامنه (کل / سفارشی) */}
+          <CardContent className="pt-5 space-y-4">
             <div className="flex flex-wrap items-center gap-4">
               <label
                 onClick={() => setRangeMode("all")}
@@ -292,7 +399,7 @@ export default function SanamaExport() {
                 )}
               >
                 <Layers className="h-4 w-4" />
-                کل اطلاعات (بدون محدودیت دامنه)
+                کل اسناد مالی
               </label>
 
               <label
@@ -303,103 +410,187 @@ export default function SanamaExport() {
                 )}
               >
                 <Filter className="h-4 w-4" />
-                تعریف دامنه سفارشی (فیلتر بر اساس کد حساب، تاریخ و سند)
+                دامنه سفارشی (فیلتر کد معین / تاریخ / سند)
               </label>
             </div>
 
-            {/* فرم پارامترهای دامنه سفارشی */}
             {rangeMode === "custom" && (
-              <div className="p-4 bg-slate-50/80 rounded-xl border border-slate-200/60 space-y-4 animate-fadeIn">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* دامنه کدهای حساب معین */}
-                  <div className="space-y-2">
-                    <Label className="text-xs font-bold text-slate-700">از کد معین</Label>
-                    <Input
-                      placeholder="مثلاً ۱۱۰۰۱"
-                      value={fromAccountCode}
-                      onChange={(e) => setFromAccountCode(e.target.value)}
-                      className="font-mono text-xs"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-xs font-bold text-slate-700">تا کد معین</Label>
-                    <Input
-                      placeholder="مثلاً ۶۹۰۰۱"
-                      value={toAccountCode}
-                      onChange={(e) => setToAccountCode(e.target.value)}
-                      className="font-mono text-xs"
-                    />
-                  </div>
-
-                  {/* دامنه تاریخ اسناد */}
-                  <div className="space-y-2">
-                    <Label className="text-xs font-bold text-slate-700">از تاریخ سند</Label>
-                    <PersianDatePicker
-                      value={fromDate}
-                      onChange={(val) => setFromDate(val)}
-                      placeholder="۱۴۰۳/۰۱/۰۱"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-xs font-bold text-slate-700">تا تاریخ سند</Label>
-                    <PersianDatePicker
-                      value={toDate}
-                      onChange={(val) => setToDate(val)}
-                      placeholder="۱۴۰۳/۱۲/۲۹"
-                    />
-                  </div>
-
-                  {/* دامنه شماره اسناد */}
-                  <div className="space-y-2">
-                    <Label className="text-xs font-bold text-slate-700">از شماره سند</Label>
-                    <Input
-                      type="number"
-                      placeholder="۱"
-                      value={fromDocNo}
-                      onChange={(e) => setFromDocNo(e.target.value)}
-                      className="font-mono text-xs"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-xs font-bold text-slate-700">تا شماره سند</Label>
-                    <Input
-                      type="number"
-                      placeholder="۵۰۰"
-                      value={toDocNo}
-                      onChange={(e) => setToDocNo(e.target.value)}
-                      className="font-mono text-xs"
-                    />
-                  </div>
-
-                  {/* دامنه منبع اعتبارات */}
-                  <div className="space-y-2 md:col-span-2">
-                    <Label className="text-xs font-bold text-slate-700">منبع اعتبارات</Label>
-                    <SearchableSelect
-                      options={SOURCE_TYPE_OPTIONS}
-                      value={sourceType}
-                      onChange={(val) => setSourceType(val)}
-                      placeholder="انتخاب منبع اعتبارات"
-                    />
-                  </div>
+              <div className="p-4 bg-slate-50/80 rounded-xl border border-slate-200/60 grid grid-cols-1 md:grid-cols-2 gap-4 animate-fadeIn">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-700">از کد معین</Label>
+                  <Input placeholder="۱۱۰۰۱" value={fromAccountCode} onChange={(e) => setFromAccountCode(e.target.value)} className="font-mono text-xs" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-700">تا کد معین</Label>
+                  <Input placeholder="۶۹۰۰۱" value={toAccountCode} onChange={(e) => setToAccountCode(e.target.value)} className="font-mono text-xs" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-700">از تاریخ سند</Label>
+                  <PersianDatePicker value={fromDate} onChange={(val) => setFromDate(val)} placeholder="۱۴۰۳/۰۱/۰۱" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-700">تا تاریخ سند</Label>
+                  <PersianDatePicker value={toDate} onChange={(val) => setToDate(val)} placeholder="۱۴۰۳/۱۲/۲۹" />
+                </div>
+                <div className="space-y-1.5 md:col-span-2">
+                  <Label className="text-xs font-bold text-slate-700">منبع اعتبارات</Label>
+                  <SearchableSelect options={SOURCE_TYPE_OPTIONS} value={sourceType} onChange={(val) => setSourceType(val)} placeholder="منبع اعتبارات" />
                 </div>
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* ── ۳. بخش تولید و دانلود ── */}
+        {/* ── ۳. بخش اعتبارسنجی و پیش‌نمایش ── */}
+        <Card className="shadow-xs border-slate-200">
+          <CardHeader className="pb-3 border-b border-slate-100 flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-800">
+                <Eye className="h-4 w-4 text-amber-600" />
+                ۳. اعتبارسنجی و پیش‌نمایش داده‌های سناما
+              </CardTitle>
+              <CardDescription className="text-xs text-slate-500">
+                بررسی انطباق کدهای معین، بدهکار/بستانکار، شناسه ملی اشخاص و مغایرت بانکی
+              </CardDescription>
+            </div>
+            <Button
+              onClick={handleValidateAndPreview}
+              disabled={validating}
+              className="bg-amber-600 hover:bg-amber-700 text-white gap-2 h-9 px-4 text-xs font-bold rounded-lg cursor-pointer"
+            >
+              {validating ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />}
+              اجرای اعتبارسنجی و پیش‌نمایش
+            </Button>
+          </CardHeader>
+
+          {validationResult && (
+            <CardContent className="pt-5 space-y-4">
+              {/* آمار خلاصه */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+                <div className="p-3 bg-blue-50 rounded-xl border border-blue-100">
+                  <div className="text-xs text-blue-600 font-medium">تعداد ردیف‌های گزارش</div>
+                  <div className="text-base font-bold text-blue-900 mt-1">{validationResult.stats.totalReportRows}</div>
+                </div>
+                <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100">
+                  <div className="text-xs text-emerald-600 font-medium">مجموع گردش بدهکار</div>
+                  <div className="text-xs font-bold text-emerald-900 mt-1 font-mono">
+                    {validationResult.stats.totalDebitProgress.toLocaleString()}
+                  </div>
+                </div>
+                <div className="p-3 bg-purple-50 rounded-xl border border-purple-100">
+                  <div className="text-xs text-purple-600 font-medium">مجموع گردش بستانکار</div>
+                  <div className="text-xs font-bold text-purple-900 mt-1 font-mono">
+                    {validationResult.stats.totalCreditProgress.toLocaleString()}
+                  </div>
+                </div>
+                <div className="p-3 bg-amber-50 rounded-xl border border-amber-100">
+                  <div className="text-xs text-amber-600 font-medium">حساب‌های بانکی (مغایرت)</div>
+                  <div className="text-base font-bold text-amber-900 mt-1">{validationResult.stats.totalContrastAccounts}</div>
+                </div>
+              </div>
+
+              {/* نمایش وضعیت کلی اعتبارسنجی */}
+              <div className="flex items-center justify-between p-3 rounded-xl border text-xs font-bold">
+                <span>وضعیت صحت داده‌ها:</span>
+                {validationResult.isValid ? (
+                  <Badge className="bg-emerald-600 text-white gap-1 px-3 py-1">
+                    <CheckCircle className="h-3.5 w-3.5" />
+                    کاملاً معتبر و آماده خروجی
+                  </Badge>
+                ) : (
+                  <Badge variant="destructive" className="gap-1 px-3 py-1">
+                    <AlertCircle className="h-3.5 w-3.5" />
+                    {validationResult.errors.length} خطای اعتبارسنجی نیازمند اصلاح
+                  </Badge>
+                )}
+              </div>
+
+              {/* نمایش خطاهای اعتبارسنجی */}
+              {validationResult.errors.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-xs font-bold text-red-700 flex items-center gap-1.5">
+                    <AlertCircle className="h-4 w-4" />
+                    خطاهای اعتبارسنجی (Errors):
+                  </h4>
+                  <div className="max-h-48 overflow-y-auto space-y-1.5 p-3 bg-red-50 rounded-xl border border-red-200">
+                    {validationResult.errors.map((err, idx) => (
+                      <div key={idx} className="text-xs text-red-800 flex items-start gap-2">
+                        <span className="font-mono bg-red-200/60 px-1.5 py-0.5 rounded text-[10px] font-bold text-red-900 shrink-0">
+                          {err.code}
+                        </span>
+                        <span>{err.message}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* نمایش هشدارها و Mapping Gap ها */}
+              {validationResult.warnings.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-xs font-bold text-amber-700 flex items-center gap-1.5">
+                    <AlertTriangle className="h-4 w-4" />
+                    هشدارها و کمبود نگاشت داده (Mapping Gaps):
+                  </h4>
+                  <div className="max-h-48 overflow-y-auto space-y-1.5 p-3 bg-amber-50 rounded-xl border border-amber-200">
+                    {validationResult.warnings.map((warn, idx) => (
+                      <div key={idx} className="text-xs text-amber-900 flex items-start gap-2">
+                        <span className="font-mono bg-amber-200/60 px-1.5 py-0.5 rounded text-[10px] font-bold text-amber-950 shrink-0">
+                          {warn.code}
+                        </span>
+                        <span>{warn.message}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* جدول نمونه پیش‌نمایش ردیف‌های خروجی */}
+              {previewSummary && previewSummary.sampleItems?.length > 0 && (
+                <div className="space-y-2 pt-2">
+                  <h4 className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                    <Table className="h-4 w-4 text-blue-600" />
+                    نمونه ردیف‌های خروجی XML (Report_List):
+                  </h4>
+                  <div className="overflow-x-auto border rounded-xl">
+                    <table className="w-full text-xs text-right text-slate-700">
+                      <thead className="bg-slate-100 text-slate-900 font-bold border-b">
+                        <tr>
+                          <th className="p-2">کد معین (AccCode)</th>
+                          <th className="p-2">گردش بدهکار</th>
+                          <th className="p-2">گردش بستانکار</th>
+                          <th className="p-2">کد شخص (NomineeCode)</th>
+                          <th className="p-2">کد ردیف بودجه (SubBudgetCode)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {previewSummary.sampleItems.map((item, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50 font-mono">
+                            <td className="p-2 font-bold text-blue-700">{item.AccCode}</td>
+                            <td className="p-2 text-emerald-700 font-bold">{Number(item.SummaryProgressDeptor).toLocaleString()}</td>
+                            <td className="p-2 text-purple-700 font-bold">{Number(item.SummaryProgressCreditor).toLocaleString()}</td>
+                            <td className="p-2">{item.NomineeCode || "0"}</td>
+                            <td className="p-2">{item.SubBudgetCode || mainOrgCode}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          )}
+        </Card>
+
+        {/* ── ۴. بخش دانلود نهایی ── */}
         <Card className="shadow-sm border-slate-200 bg-slate-50/50">
           <CardContent className="pt-6 pb-6 text-center space-y-4">
             <div className="max-w-xl mx-auto space-y-1.5">
               <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs px-3 py-1 font-semibold">
-                تنظیمات آماده: {exportType === "final" ? `خروجی نهایی سال ${fiscalYear}` : `خروجی ماهانه ${PERSIAN_MONTHS.find(m => m.value === month)?.label} - ${fiscalYear}`}
-                {rangeMode === "custom" && " (با دامنه سفارشی)"}
+                دستگاه: {mainOrgCode} | سال {fiscalYear} | {exportType === "final" ? "تراز نهایی" : `ماه ${PERSIAN_MONTHS.find(m => m.value === month)?.label}`}
               </Badge>
               <p className="text-xs text-slate-500">
-                فایل استاندارد XML تولید شده و به طور مستقیم در مرورگر ذخیره می‌گردد.
+                فایل استاندارد XML تولید شده و مطابق الزامات امنیتی افتا در مرورگر بارگیری می‌گردد.
               </p>
             </div>
 
@@ -412,27 +603,21 @@ export default function SanamaExport() {
                 {loading ? (
                   <>
                     <RefreshCw className="h-4 w-4 animate-spin" />
-                    در حال تولید فایل سناما (XML)...
+                    در حال تولید و صدور فایل XML...
                   </>
                 ) : (
                   <>
                     <Download className="h-4 w-4" />
-                    تولید و دانلود فایل سناما (XML)
+                    تولید و دانلود فایل XML سناما (Edition 19)
                   </>
                 )}
               </Button>
-
-              {status === "done" && (
-                <Button variant="outline" onClick={() => setStatus("idle")} className="h-11 text-xs rounded-xl">
-                  بازنشانی
-                </Button>
-              )}
             </div>
 
             {status === "done" && (
               <div className="text-xs text-emerald-600 font-bold flex items-center justify-center gap-1.5 animate-fadeIn">
                 <CheckCircle className="h-4 w-4 text-emerald-600" />
-                فایل خروجی سناما با موفقیت تولید و دانلود شد.
+                فایل XML سناما با موفقیت صادر و دانلود شد.
               </div>
             )}
           </CardContent>

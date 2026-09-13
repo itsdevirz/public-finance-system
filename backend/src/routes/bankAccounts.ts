@@ -119,10 +119,14 @@ router.post("/", async (c) => {
 router.put("/:id", async (c) => {
   try {
     const id = c.req.param("id");
+    if (!ObjectId.isValid(id)) {
+      return c.json({ success: false, message: "شناسه حساب بانکی نامعتبر است" }, 400);
+    }
+
     const body = await c.req.json();
     const db = getDb();
 
-    const { _id, ...updateFields } = body;
+    const { _id, id: bodyId, ...updateFields } = body;
     updateFields.updatedAt = new Date().toISOString();
     updateFields.isCentralBank = body.bank === "central" || (body.accountNumber && String(body.accountNumber).startsWith("4"));
 
@@ -146,6 +150,10 @@ router.put("/:id", async (c) => {
 router.delete("/:id", async (c) => {
   try {
     const id = c.req.param("id");
+    if (!ObjectId.isValid(id)) {
+      return c.json({ success: false, message: "شناسه حساب بانکی نامعتبر است" }, 400);
+    }
+
     const db = getDb();
 
     const result = await db.collection("bank_accounts").deleteOne({ _id: new ObjectId(id) });

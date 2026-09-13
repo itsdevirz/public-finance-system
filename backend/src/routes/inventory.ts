@@ -3,6 +3,7 @@ import { getDb } from "../db/index.js";
 import { ObjectId } from "mongodb";
 import { decryptDocument } from "../lib/crypto.js";
 import { serialize } from "../lib/helpers.js";
+import { SanamaService } from "../lib/sanama/sanama.service.js";
 import sanamaRequirementsData from "../data/sanamaRequirements.json";
 import subAccountTitlesData from "../data/subAccountTitles.json";
 
@@ -442,274 +443,30 @@ router.delete("/assets/:id", async (c) => {
 // GET /api/inventory/sanama-xml
 router.get("/sanama-xml", async (c) => {
   try {
-    const db = getDb();
-    const {
-      exportType = "monthly", // "monthly" | "final"
-      month = "12",          // 1 to 12
-      fiscalYear = "1403",   // year
-      rangeMode = "all",     // "all" | "custom"
-      fromAccountCode = "",
-      toAccountCode = "",
-      fromDate = "",
-      toDate = "",
-      fromDocNo = "",
-      toDocNo = "",
-      sourceType = ""
-    } = c.req.query();
-    
-    // Fetch all journal documents
-    let docs = await db.collection("journal_documents").find({ status: "CONFIRMED" }).toArray();
-    if (docs.length === 0) {
-      // Fallback to all documents if no confirmed ones are found (for sandbox/demo purposes)
-      docs = await db.collection("journal_documents").find().toArray();
-    }
-
-    // تابع تبدیل اعداد فارسی به انگلیسی
-    const toEngDigits = (str: any) =>
-      String(str || "").replace(/[۰-۹]/g, (d) => "۰۱۲۳۴۵۶۷۸۹".indexOf(d).toString()).trim();
-
-    // ── 1. فیلتر اسناد بر اساس سال مالی، تاریخ و شماره ──
-    if (fiscalYear) {
-      const engYear = toEngDigits(fiscalYear);
-      docs = docs.filter((doc: any) => {
-        if (doc.fiscal_year && toEngDigits(doc.fiscal_year) === engYear) return true;
-        const dDate = toEngDigits(doc.doc_date || "");
-        if (dDate.startsWith(engYear)) return true;
-        // اگر سال مالی یا تاریخ ثبت نشده، جهت فال‌بک نگه داشته می‌شود
-        return !doc.fiscal_year && !dDate;
-      });
-    }
-
-    if (fromDate || toDate) {
-      const engFromDate = toEngDigits(fromDate);
-      const engToDate = toEngDigits(toDate);
-      docs = docs.filter((doc: any) => {
-        const dDate = toEngDigits(doc.doc_date || "");
-        if (engFromDate && dDate < engFromDate) return false;
-        if (engToDate && dDate > engToDate) return false;
-        return true;
-      });
-    }
-
-    if (fromDocNo || toDocNo) {
-      docs = docs.filter((doc: any) => {
-        const dNo = Number(toEngDigits(doc.doc_number || doc.doc_no || 0));
-        if (fromDocNo && dNo < Number(toEngDigits(fromDocNo))) return false;
-        if (toDocNo && dNo > Number(toEngDigits(toDocNo))) return false;
-        return true;
-      });
-    }
-
-    // فیلتر ماهانه بر اساس ماه شمسی انتخاب‌شده (در صورت عدم انتخاب تاریخ دستی)
-    if (exportType === "monthly" && month && !fromDate && !toDate) {
-      const engMonth = toEngDigits(month);
-      const paddedMonth = engMonth.padStart(2, "0");
-      docs = docs.filter((doc: any) => {
-        if (doc.month && (toEngDigits(doc.month) === engMonth || toEngDigits(doc.month).padStart(2, "0") === paddedMonth)) {
-          return true;
-        }
-        const dDate = toEngDigits(doc.doc_date || "");
-        // پشتیبانی از اسلش / و خط تیره -
-        const parts = dDate.split(/[\/-]/);
-        if (parts.length >= 2) {
-          const mPart = parts[1].padStart(2, "0");
-          return mPart === paddedMonth;
-        }
-        return true;
-      });
-    }
-
-    const attrs = [
-      "SourceType", "SourceEssence", "OtherSourceType", "CreditType", "TransferalType",
-      "CreditInfo", "RankNumber", "CreditCode", "ExpenseArticle", "ConstructArticle",
-      "ExpenseDetailArticle", "IncomeCode", "IncomeSubject", "IncomesSubject", "Governmental", "TaxSeason", "DebentureSenderRank",
-      "DebentureReceiverRank", "CostCenter", "AwardArticle", "SecuritiesType", "Year",
-      "NomineeCode", "Nominee", "GuaranteeEssence", "DemandStatus", "TempPaymentType",
-      "LeakageSubject", "AssuranceType", "AssuranceSubject", "CurrencyType", "AccountNumber",
-      "InsuranceType", "DebitSubject", "FixedAssetType", "InventoryType", "Quantity",
-      "DueDate", "SecuritiesProperties", "ContractProperties", "InvestmentType",
-      "AnnualAdjustmentsSubject", "AnnualAdjustmentSubject", "TransferItems", "ReceivablesSubject", "AllocationSource", "AllocationsSource",
-      "SubBudgetCode", "ExpensePart", "ExpenseKind", "ExecutiveUnit", "Output"
-    ];
-
-    const defaultValues: Record<string, string> = {
-      SourceType: "0",
-      SourceEssence: "0",
-      OtherSourceType: "0",
-      CreditType: "",
-      TransferalType: "0",
-      CreditInfo: "0",
-      RankNumber: "0",
-      CreditCode: "0",
-      ExpenseArticle: "0",
-      ConstructArticle: "0",
-      ExpenseDetailArticle: "0",
-      IncomeCode: "0",
-      IncomeSubject: "0",
-      IncomesSubject: "0",
-      Governmental: "0",
-      TaxSeason: "0",
-      DebentureSenderRank: "",
-      DebentureReceiverRank: "0",
-      CostCenter: "",
-      Year: fiscalYear || "1403",
-      NomineeCode: "0",
-      Nominee: "0",
-      GuaranteeEssence: "0",
-      DemandStatus: "0",
-      TempPaymentType: "0",
-      LeakageSubject: "0",
-      AssuranceType: "0",
-      AssuranceSubject: "0",
-      CurrencyType: "0",
-      AccountNumber: "IR0",
-      InsuranceType: "0",
-      DebitSubject: "0",
-      FixedAssetType: "0",
-      InventoryType: "0",
-      Quantity: "0",
-      DueDate: "0",
-      SecuritiesProperties: "0",
-      ContractProperties: "0",
-      InvestmentType: "0",
-      AnnualAdjustmentsSubject: "0",
-      AnnualAdjustmentSubject: "0",
-      TransferItems: "0",
-      ReceivablesSubject: "0",
-      AllocationSource: "0",
-      AllocationsSource: "0",
-      SubBudgetCode: "400367",
-      ExpensePart: "0",
-      ExpenseKind: "0",
-      ExecutiveUnit: "0",
-      Output: "0"
+    const query = c.req.query();
+    const options = {
+      exportType: query.exportType as any,
+      month: query.month,
+      fiscalYear: query.fiscalYear,
+      fromAccountCode: query.fromAccountCode,
+      toAccountCode: query.toAccountCode,
+      fromDate: query.fromDate,
+      toDate: query.toDate,
+      fromDocNo: query.fromDocNo,
+      toDocNo: query.toDocNo,
+      sourceType: query.sourceType
     };
 
-    // Grouping structure to aggregate debit & credit progress totals by combination
-    const reportGroups: Record<string, any> = {};
+    const userPayload: any = (c as any).get("jwtPayload") || {};
+    const userInfo = {
+      username: userPayload.username || "admin",
+      ip: c.req.header("x-forwarded-for") || "127.0.0.1"
+    };
 
-    for (const doc of docs) {
-      let decrypted: any = doc;
-      try {
-        decrypted = decryptDocument(serialize(doc as Record<string, unknown>));
-      } catch (err) {
-        // Fallback
-      }
+    const { xml, filename } = await SanamaService.generateXml(options, userInfo);
 
-      const lines = decrypted.lines || [];
-      for (const line of lines) {
-        const accCode = String(line.account_code || "");
-        if (!accCode) continue;
-
-        // ── ۲. فیلتر دامنه حساب و منبع اعتبارات ──
-        if (fromAccountCode && accCode < fromAccountCode) continue;
-        if (toAccountCode && accCode > toAccountCode) continue;
-
-        if (sourceType && sourceType !== "0" && sourceType !== "all") {
-          const rawLineSource = line.sanamaFields?.SourceType || line.SourceType || "0";
-          const normLineSource = normalizeSourceTypeCode(rawLineSource);
-          const normFilterSource = normalizeSourceTypeCode(sourceType);
-          if (normLineSource !== normFilterSource && String(rawLineSource) !== String(sourceType)) continue;
-        }
-
-        // Resolve fields based on Rule 1:
-        // Out of the sub-account attribute codes defined for each sub-account, only the attributes applicable to that sub-account are assigned values.
-        // Unrequired attributes for a sub-account MUST NOT be "0"; they MUST be completely empty "".
-        const reqRows = sanamaRequirements[accCode]?.requiredRows;
-        const resolvedFields: Record<string, string> = {};
-
-        for (const attr of attrs) {
-          const rowNum = attrToRowMap[attr];
-          const isApplicable = reqRows ? (rowNum ? reqRows.includes(rowNum) : true) : true;
-
-          if (isApplicable) {
-            let val = "";
-            if (line.sanamaFields && line.sanamaFields[attr] !== undefined && line.sanamaFields[attr] !== null && String(line.sanamaFields[attr]).trim() !== "") {
-              val = String(line.sanamaFields[attr]);
-            } else if (line[attr] !== undefined && line[attr] !== null && String(line[attr]).trim() !== "") {
-              val = String(line[attr]);
-            } else {
-              val = defaultValues[attr] ?? "0";
-            }
-            resolvedFields[attr] = normalizeSanamaAttributeCode(attr, val);
-          } else {
-            // Rule 1: Not applicable for this sub-account -> MUST be empty string ""
-            resolvedFields[attr] = "";
-          }
-        }
-
-        // Build composite key for grouping
-        const compositeKey = `${accCode}_${attrs.map(a => resolvedFields[a]).join("_")}`;
-
-        if (!reportGroups[compositeKey]) {
-          reportGroups[compositeKey] = {
-            AccCode: accCode,
-            SummaryProgressDeptor: 0,
-            SummaryProgressCreditor: 0,
-            ...resolvedFields
-          };
-        }
-
-        reportGroups[compositeKey].SummaryProgressDeptor += Number(line.debit || 0);
-        reportGroups[compositeKey].SummaryProgressCreditor += Number(line.credit || 0);
-      }
-    }
-
-    // ── تنظیم پارامترهای هدر پروتکل سناما ──
-    const protocolType = exportType === "final" ? "FinalProtocol" : "MonthlyProtocol";
-    const monthAttr = exportType === "final" ? "15" : String(month || "12");
-    const yearAttr = fiscalYear || "1403";
-    const nowPersian = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
-
-    // Generate XML output (Rule 2: Each record on a separate line)
-    let xml = `<?xml version="1.0" encoding="utf-8"?>\n`;
-    xml += `<SanamaInfo ProtocolName="SANAMA" ProtocolVer="3.1" ProtocolType="${protocolType}" MainOrgID="" MainOrgCode="400367" Year="${yearAttr}" Month="${monthAttr}" Co="نگاران سیستم، تاریخ ایجاد فایل:${nowPersian}، کاربر ایجاد کننده فایل:Admin">\n`;
-
-    // 1. Render Report List (Line Formatting: Each record in XML output on a separate line)
-    for (const group of Object.values(reportGroups)) {
-      xml += `  <Report_List`;
-      xml += ` AccCode="${group.AccCode}"`;
-      xml += ` SummaryProgressDeptor="${group.SummaryProgressDeptor}"`;
-      xml += ` SummaryProgressCreditor="${group.SummaryProgressCreditor}"`;
-      for (const attr of attrs) {
-        xml += ` ${attr}="${group[attr]}"`;
-      }
-      xml += ` />\n`;
-    }
-
-    // 2. Render Bank Reconcile list (6 standard accounts matching the sample XML pattern)
-    const mockReconciles = [
-      { num: "IR820100004167011444752404", dscp: "بانک پرداخت سرمایه ای", type: "2", ledgerVal: "111067071818" },
-      { num: "IR680100004067011407760692", dscp: "بانک دریافت وجوه سپرده", type: "5", ledgerVal: "14172649164" },
-      { num: "IR750100004167011452752411", dscp: "بانک رد وجوه سپرده", type: "6", ledgerVal: "160550459" },
-      { num: "IR530170000002171140625004", dscp: "بانک پرداخت سرمایه ای", type: "2", ledgerVal: "0" },
-      { num: "IR530017000000217114072100", dscp: "بانک دریافت وجوه سپرده", type: "5", ledgerVal: "0" },
-      { num: "IR930710000000217114076900", dscp: "بانک رد وجوه سپرده", type: "6", ledgerVal: "0" }
-    ];
-
-    for (const rec of mockReconciles) {
-      xml += `<ContrastAccount_List AccountNumber="${rec.num}" AccountDscp="${rec.dscp}" AccountType="${rec.type}" MojoodiTebgheDaftar="${rec.ledgerVal}" MojoodiTebgheBank="0">`;
-      xml += `<AccountNumberImage />`;
-      xml += `<difftype1 Value="0"><Detail_List Date="" Description="" Expense="0" /></difftype1>`;
-      xml += `<difftype2 Value="0"><Detail_List Date="" Description="" Expense="0" /></difftype2>`;
-      xml += `<difftype3 Value="0"><Detail_List Date="" Description="" Expense="0" /></difftype3>`;
-      xml += `<difftype4 Value="0"><Detail_List Date="" Description="" Expense="0" DocNo="" /></difftype4>`;
-      xml += `<difftype5 Value="0"><Detail_List Date="" Description="" Expense="0" DocNo="" /></difftype5>`;
-      xml += `<difftype6 Value="0"><Detail_List Date="" Description="" Expense="0" /></difftype6>`;
-      xml += `<difftype7 Value="0"><Detail_List Date="" Description="" Expense="0" /></difftype7>`;
-      xml += `<difftype8 Value="0"><Detail_List Date="" Documents="" Expense="0" /></difftype8>`;
-      xml += `<difftype9 Value="0"><Detail_List Date="" Description="" Expense="0" /></difftype9>`;
-      xml += `<difftype10 Value="0"><Detail_List CheckNo="0" Zinaf="" Expense="0" Date="" Description="" DocNo="" DocDate="" /></difftype10>`;
-      xml += `<difftype11 Value="0"><Detail_List Date="" Description="" Expense="0" /></difftype11>`;
-      xml += `<difftype12 Value="0"><Detail_List Date="" Description="" Expense="0" /></difftype12>`;
-      xml += `</ContrastAccount_List>`;
-    }
-
-    xml += `</SanamaInfo>\n`;
-
-    const outFilename = exportType === "final" ? `sanama-final-${yearAttr}.xml` : `sanama-monthly-m${monthAttr}-${yearAttr}.xml`;
     c.header("Content-Type", "application/xml; charset=utf-8");
-    c.header("Content-Disposition", `attachment; filename="${outFilename}"`);
+    c.header("Content-Disposition", `attachment; filename="${filename}"`);
     return c.text(xml);
   } catch (error: any) {
     return c.json({ success: false, message: error.message }, 500);
