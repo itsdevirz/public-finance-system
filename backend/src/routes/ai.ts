@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { getDb } from "../db/index.js";
 import { JournalDocument } from "../db/types.js";
-import { ObjectId } from "mongodb";
+
 import sanamaCodesData from "../data/sanamaCodes.json";
 
 const router = new Hono();

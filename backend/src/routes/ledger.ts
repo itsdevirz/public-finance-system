@@ -28,7 +28,6 @@ const subAccountTitles: any[] = (subAccountTitlesData as any[]) || [];
 
 const router = new Hono();
 
-
 // GET /api/ledger/general-ledger — دفتر کل یک حساب در بازه زمانی
 // Query params:
 //   accountCode: کد حساب کل (3 رقم) — اجباری
@@ -989,5 +988,4 @@ router.get("/grouped-lines", async (c) => {
 });
 
 export default router;
-
 

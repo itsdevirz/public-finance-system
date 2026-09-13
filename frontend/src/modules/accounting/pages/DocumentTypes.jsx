@@ -1,13 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PageShell, PageHeader } from "@/components/layout/PageShell";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Modal, ModalFooter } from "@/components/ui/modal";
+
 import {
   Plus, Search, Trash2, Pencil, RefreshCw, X, CheckCircle2, XCircle,
   Settings, Hash, FileCheck, Shield, GitBranch, Printer, Link2,

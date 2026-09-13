@@ -177,8 +177,6 @@ const TABS = [
   { key: "contract", label: "تعریف طرف قرارداد" },
 ];
 
-
-
 // ─── کامپوننت‌های کمکی ──────────────────────────────────────────────────────
 function StyledSelect({ id, value, onChange, options, placeholder, disabled, className }) {
   return (
@@ -595,7 +593,6 @@ export default function PersonsForm() {
       );
     });
   }, [list, search]);
-
 
   return (
     <PageShell>

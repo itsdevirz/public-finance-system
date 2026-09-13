@@ -5,11 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import {
-  List, Printer, Search, FileText, CheckCircle2, AlertCircle, Edit3, Save, Trash2, X, Plus, Minus
-} from "lucide-react";
+import { List, Printer, Search, CheckCircle2, AlertCircle, Edit3, Save, Trash2, X, Plus, Minus } from "lucide-react";
 import { toPersianDigits, toEnglishDigits } from "./InsuranceSettings";
 
 const LOAN_TYPES = [

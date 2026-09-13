@@ -1,13 +1,11 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PageShell, PageHeader } from "@/components/layout/PageShell";
-import { StaggerContainer, StaggerItem, ScaleOnHover } from "@/components/motion/AnimatedPage";
+import { StaggerContainer, StaggerItem } from "@/components/motion/AnimatedPage";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+
 import { Badge } from "@/components/ui/badge";
-import {
-  Plus, ChevronLeft, ChevronDown, Layers, FolderTree, TrendingUp, TrendingDown, ArrowLeftRight,
-} from "lucide-react";
+import { ChevronDown, Layers, FolderTree, TrendingUp, TrendingDown, ArrowLeftRight } from "lucide-react";
 import sanamaCodes from "@/data/sanamaCodes.json";
 
 const ACCOUNT_GROUPS = sanamaCodes.groups.map((g, i) => ({

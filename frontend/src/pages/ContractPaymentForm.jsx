@@ -346,7 +346,6 @@ export default function ContractPaymentForm() {
     }));
   };
 
-
   // Recalculate deductions in real time
   const computedDeductionsSum = useMemo(() => {
     return form.deductions_list.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);

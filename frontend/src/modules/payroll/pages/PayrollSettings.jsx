@@ -1,14 +1,11 @@
 import { useState, useEffect } from "react";
 import { useAssets } from "@/context/AssetContext";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import {
-  Settings, Save, RefreshCw, ShieldCheck, ReceiptText, Calculator,
-  AlertCircle, CheckCircle, Info, Percent, Clock, Calendar, Banknote, Users, Plus, X
-} from "lucide-react";
+import { Settings, Save, RefreshCw, ShieldCheck, ReceiptText, AlertCircle, CheckCircle, Info, Clock, Banknote, Plus, X } from "lucide-react";
 
 // ==========================
 // مقادیر پیش‌فرض سال ۱۴۰۵

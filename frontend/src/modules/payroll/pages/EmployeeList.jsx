@@ -6,9 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import {
-  Search, Plus, Pencil, Trash2, UserPlus, FileText, Briefcase, Landmark, RefreshCw
-} from "lucide-react";
+import { Search, Pencil, Trash2, UserPlus, FileText, Briefcase, RefreshCw } from "lucide-react";
 
 export default function EmployeeList() {
   const navigate = useNavigate();

@@ -7,11 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
-import {
-  Scale, RefreshCw, Wallet, AlignLeft, XCircle,
-  Search, Printer, FileDown, ChevronLeft,
-  RotateCcw, BookOpen, Loader2, AlertCircle, TrendingUp, TrendingDown, Minus
-} from "lucide-react";
+import { Scale, RefreshCw, Wallet, AlignLeft, XCircle, Search, Printer, FileDown, ChevronLeft, RotateCcw, Loader2, AlertCircle, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import api from "@/api";
 import { printTable } from "@/lib/printUtils";
 import { cn } from "@/lib/utils";

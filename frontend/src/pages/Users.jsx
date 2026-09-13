@@ -6,15 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import {
-  Users as UsersIcon, Search, Plus, Printer, FileSpreadsheet, Trash2, Edit2, ShieldAlert, ShieldCheck, CheckCircle2, AlertTriangle,
-  KeyRound, CheckSquare, Coins, UserCheck, Shield, ChevronDown, ChevronRight, History, Settings2, Link, X, Save, Eye,
-  Laptop, Globe, Clock, Calendar, Monitor, Smartphone, Info, Terminal, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, Filter, SlidersHorizontal
-} from "lucide-react";
+import { Users as UsersIcon, Search, Plus, Printer, FileSpreadsheet, Trash2, Edit2, ShieldAlert, ShieldCheck, AlertTriangle, KeyRound, CheckSquare, Coins, UserCheck, Shield, ChevronDown, ChevronRight, History, Settings2, Link, X, Save, Eye, Laptop, Globe, Clock, Calendar, Info, Terminal, RefreshCw, ArrowUp, ArrowDown, Filter, SlidersHorizontal } from "lucide-react";
 import api from "@/api";
 import { cn } from "@/lib/utils";
 import { printTable } from "@/lib/printUtils";
-import { PersianDatePicker } from "@/components/ui/persian-date-picker";
+
 import { useAuth } from "@/context/AuthContext";
 
 const ROLE_PRESETS = {

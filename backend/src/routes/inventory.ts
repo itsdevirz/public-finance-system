@@ -351,7 +351,6 @@ function normalizeDebitSubjectCode(val: unknown): string {
   return s;
 }
 
-
 function normalizeSanamaAttributeCode(attr: string, val: unknown): string {
   if (val === undefined || val === null) return "0";
   switch (attr) {

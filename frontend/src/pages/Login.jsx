@@ -1,33 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  Landmark,
-  Loader2,
-  Sparkles,
-  ShieldCheck,
-  User,
-  Lock,
-  Eye,
-  EyeOff,
-  LogIn,
-  LogOut,
-  Fingerprint,
-  Headset,
-  PieChart,
-  Layers,
-  Globe,
-  HelpCircle,
-  FileQuestion,
-  Headphones,
-  CheckCircle2,
-  X,
-  KeyRound,
-  Shield,
-  ChevronDown,
-  Building2,
-  ArrowLeft
-} from "lucide-react";
+import { Landmark, Loader2, Sparkles, ShieldCheck, User, Lock, Eye, EyeOff, LogIn, LogOut, Fingerprint, Headset, PieChart, Layers, Globe, HelpCircle, FileQuestion, Headphones, CheckCircle2, X, KeyRound, Shield, ChevronDown, Building2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { logFailureOccurrence } from "@/lib/clientAuditLogger";
 import { Button } from "@/components/ui/button";
@@ -167,8 +141,6 @@ export default function Login() {
       setCertLoading(false);
     }
   }
-
-
 
   if (checkingSetup || authLoading) {
     return (
@@ -663,8 +635,6 @@ export default function Login() {
             </motion.div>
           </motion.div>
         )}
-
-
 
         {/* Help & Info Modal */}
         {(activeModal === "help" || activeModal === "faq" || activeModal === "support") && (

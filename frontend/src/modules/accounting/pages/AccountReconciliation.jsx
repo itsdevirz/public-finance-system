@@ -1,17 +1,13 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Scale, RefreshCw, Zap, Link2, Unlink2, FileText, CheckCircle2, AlertCircle,
-  Building2, Printer, FileDown, Search, Filter, ShieldCheck, ChevronLeft,
-  ArrowUpRight, ArrowDownLeft, Landmark, Eye, LogOut
-} from "lucide-react";
+import { Scale, Zap, Link2, Unlink2, FileText, CheckCircle2, AlertCircle, Building2, Printer, Search, Landmark, LogOut } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import api from "@/api";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Modal } from "@/components/ui/modal";
 import { printTable } from "@/lib/printUtils";

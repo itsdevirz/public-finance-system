@@ -1,18 +1,15 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { PageShell, PageHeader } from "@/components/layout/PageShell";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { SearchableSelect } from "@/components/ui/searchable-select";
+
 import { PersianDatePicker, toPersianDigits } from "@/components/ui/persian-date-picker";
 import { Separator } from "@/components/ui/separator";
-import {
-  Copy, Search, ChevronDown, FileText, AlertCircle, RefreshCw, X, ArrowLeft,
-  ArrowRightLeft, Sliders, CheckSquare, Settings, Eye, CheckCircle2, LayoutTemplate, Clock, Layers, ShieldCheck
-} from "lucide-react";
+import { Copy, Search, ChevronDown, FileText, X, ArrowRightLeft, Sliders, CheckSquare, Settings, Eye, Clock, Layers, ShieldCheck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import api from "@/api";
 import { cn } from "@/lib/utils";

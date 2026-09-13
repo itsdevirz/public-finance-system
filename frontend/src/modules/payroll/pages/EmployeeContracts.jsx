@@ -10,11 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Modal } from "@/components/ui/modal";
-import {
-  FileText, Plus, Pencil, Trash2, Printer, Save, RefreshCw, Briefcase,
-  Calendar, Landmark, ShieldCheck, User, ClipboardList, Info, Download, X, Search,
-  Scan, Camera, UploadCloud, Eye
-} from "lucide-react";
+import { FileText, Plus, Pencil, Trash2, Printer, Save, RefreshCw, ShieldCheck, ClipboardList, Info, Download, X, Search, Scan, Camera, UploadCloud, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { validateAndLogFileUpload } from "@/lib/fileUploadLogger";
 
@@ -191,7 +187,6 @@ export default function EmployeeContracts() {
       });
     }, 200);
   };
-
 
   const handleSaveScan = async () => {
     if (!capturedImage || !scannerContract) return;

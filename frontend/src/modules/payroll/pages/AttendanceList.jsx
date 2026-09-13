@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Printer, Search, BarChart2, Users, Calendar, Download, FileText, TrendingUp } from "lucide-react";
+import { Printer, Search, BarChart2, Users, Calendar, FileText, TrendingUp } from "lucide-react";
 
 const MONTHS = [
   { value: "01", label: "فروردین" },

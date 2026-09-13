@@ -1,8 +1,5 @@
 import { useState, useEffect } from "react";
-import {
-  FileSpreadsheet, Download, Save, CheckCircle2, AlertTriangle,
-  RefreshCw, Layers, Calculator, HelpCircle, Eye, Printer, Filter, ShieldCheck
-} from "lucide-react";
+import { FileSpreadsheet, Download, Save, AlertTriangle, Printer } from "lucide-react";
 import api from "@/api";
 import { PageShell, PageHeader } from "@/components/layout/PageShell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";

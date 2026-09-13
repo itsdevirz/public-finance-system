@@ -3,7 +3,7 @@ import assert from "node:assert";
 import { DEFAULT_SECURITY_POLICY, validatePassword, validateActiveToInactiveInteractionACL, validateActiveToInactivePreventionRules, validateResourceSanitizationPolicy, validateUserDataInputAccessPolicy, validateSecureDataTransportPolicy, validateUserDataEgressAccessPolicy, validateTargetedDataEgressRules, validateTlsServerProtocolRequest, validateTlsServerKeyExchangeParameters, validateMutualTlsIdentity, validateCertificatePathRules, validateCertificateRevocationCheck, validateExtendedKeyUsageOid, validateCaCertificateAcceptance, validateX509v3Rfc5280Scope, validateSshPacketSize, validateSshRekeyingTrigger, validateSshHostVerification, validateSessionEstablishmentPrevention, validateSecureFailureState, validateInternalTransitProtection, validateSecurityDataInteroperability, validateTrustedTimestamping, validateProductSoftwareUpdate, validateAutoUpdateAuthenticity, validateCoreFunctionsSoftwareFaultTolerance, validateInteractiveSessionInactivityTermination } from "../lib/securityPolicy.js";
 import { encrypt, decrypt, destroyCryptoKey } from "../lib/crypto.js";
 import { validateRemoteCertificate } from "../lib/certValidator.js";
-import { verifyUpdateIntegrity, verifyUpdateSignature } from "../lib/secureUpdate.js";
+
 import crypto from "crypto";
 
 describe("🛡️ Comprehensive Security Test Suite", () => {

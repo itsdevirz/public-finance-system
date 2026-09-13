@@ -1,13 +1,11 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  FileText, Calendar, CreditCard, Shield, Layers, LogOut, Printer, RefreshCw, AlertCircle, FileSpreadsheet, Filter, Search, ArrowLeft, BarChart2, PieChart, TrendingUp, DollarSign
-} from "lucide-react";
+import { FileText, CreditCard, LogOut, Printer, RefreshCw, FileSpreadsheet, Filter, Search, BarChart2, TrendingUp, DollarSign } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import api from "@/api";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import { cn } from "@/lib/utils";

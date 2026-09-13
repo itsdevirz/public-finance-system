@@ -1,15 +1,11 @@
+import { useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { PageShell, PageHeader } from "@/components/layout/PageShell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Package, PackagePlus, PackageMinus, ArrowLeftRight, ClipboardList,
-  AlertTriangle, Warehouse, ChevronLeft, ShoppingCart, BarChart3, RefreshCw, Link2,
-  DollarSign, Activity, FileText, TrendingUp
-} from "lucide-react";
+import { Package, PackagePlus, PackageMinus, ArrowLeftRight, ClipboardList, AlertTriangle, Warehouse, ChevronLeft, ShoppingCart, BarChart3, RefreshCw, Link2, DollarSign, Activity, FileText } from "lucide-react";
 import { useAssets } from "@/context/AssetContext";
-import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 
 const QUICK_LINKS = [
@@ -26,6 +22,12 @@ export default function WarehouseDashboard() {
   const {
     items, receipts, issues, transfers, assets, warehouses, refreshAllConfigs
   } = useAssets();
+
+  useEffect(() => {
+    if (refreshAllConfigs) {
+      refreshAllConfigs();
+    }
+  }, []);
 
   // 1. Normalize itemsList to merge Warehouse items with consumable Assets
   const itemsList = useMemo(() => {

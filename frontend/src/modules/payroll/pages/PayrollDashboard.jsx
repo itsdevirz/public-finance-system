@@ -3,11 +3,7 @@ import { useAssets } from "@/context/AssetContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Users, Calculator, FileText, CreditCard,
-  TrendingUp, AlertTriangle, Clock, ChevronLeft,
-  Printer, BarChart3, Coins, Award
-} from "lucide-react";
+import { Users, Calculator, FileText, CreditCard, TrendingUp, AlertTriangle, Clock, ChevronLeft, Printer, BarChart3, Coins } from "lucide-react";
 import { useMemo } from "react";
 import { toPersianDigits } from "./InsuranceSettings";
 

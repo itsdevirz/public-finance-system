@@ -435,14 +435,6 @@ export interface ContractCancellation {
   updatedAt?: string;
 }
 
-
-
-
-
-
-
-
-
 // ─── Contract Parties ─────────────────────────────────────────────────────────
 export interface ContractParty {
   _id?: ObjectId;

@@ -15,7 +15,7 @@ import {
 import api from "@/api";
 import { useApiCache } from "@/hooks/useApiCache";
 import { encrypt } from "@/lib/crypto";
-import { printTable } from "@/lib/printUtils";
+
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import sanamaCodes from "@/data/sanamaCodes.json";
 import subAccountTitles from "@/data/subAccountTitles.json";
@@ -138,7 +138,6 @@ function CreditCodeSanamaField({ value, onChange, labelCls, inputCls }) {
     </div>
   );
 }
-
 
 function getSubAccountTitle(rowNum) {
   return subAccountTitles.find((t) => t.row === rowNum);
@@ -488,7 +487,6 @@ function SanamaField({ rowDef, value, onChange, optional }) {
       </SanamaWrap>
     );
   }
-
 
   // ردیف اشخاص
   if (rowDef.types) {

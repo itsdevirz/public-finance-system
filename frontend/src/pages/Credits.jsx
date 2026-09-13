@@ -9,11 +9,7 @@ import ShebaInput from "@/components/ui/sheba-input";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Badge } from "@/components/ui/badge";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
-import {
-  Plus, Trash2, Edit, Save, X, FileText, CheckCircle2,
-  AlertCircle, Calendar, DollarSign, Building, RefreshCw,
-  FolderOpen, PieChart, Send, ShieldAlert, FileSpreadsheet
-} from "lucide-react";
+import { Plus, Trash2, Edit, Save, X, FileText, CheckCircle2, AlertCircle, RefreshCw, FolderOpen, PieChart, Send, ShieldAlert, FileSpreadsheet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import api from "@/api";
 import { validateAndLogFileUpload } from "@/lib/fileUploadLogger";

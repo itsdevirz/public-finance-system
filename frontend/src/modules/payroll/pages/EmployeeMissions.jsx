@@ -9,10 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import {
-  Briefcase, Plus, Pencil, Trash2, Printer, Save, Info, ShieldCheck, X, Search, MapPin, Clock, Car
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Briefcase, Plus, Pencil, Trash2, Printer, Save, Info, ShieldCheck, X, Search, MapPin } from "lucide-react";
 
 const INITIAL_FORM = {
   employeeId: "",

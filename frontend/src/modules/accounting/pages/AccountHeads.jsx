@@ -6,11 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import {
-  Plus, Search, Trash2, Pencil, FolderTree, ChevronDown, ChevronLeft,
-  Download, Upload, Printer, Filter, X, CheckCircle2, XCircle,
-  TrendingUp, TrendingDown, FileSpreadsheet, RefreshCw, Eye,
-} from "lucide-react";
+import { Plus, Search, Trash2, Pencil, FolderTree, ChevronDown, ChevronLeft, Download, Upload, Printer, Filter, X, CheckCircle2, XCircle, TrendingUp, TrendingDown, RefreshCw, Eye } from "lucide-react";
 import api from "@/api";
 
 // ─── ثابت‌ها ───────────────────────────────────────────────────────────────────

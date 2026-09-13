@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { PageShell, PageHeader } from "@/components/layout/PageShell";
 import { Card, CardContent } from "@/components/ui/card";

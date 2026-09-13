@@ -1,16 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PageShell, PageHeader } from "@/components/layout/PageShell";
-import { Card, CardContent } from "@/components/ui/card";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import {
-  Plus, Search, Trash2, Pencil, RefreshCw, X, CheckCircle2, XCircle,
-  Eye, Power, Info, CreditCard, Building2, FileCheck, Settings2,
-  Printer, Download, Wallet, Shield,
-} from "lucide-react";
+import { Plus, Search, Trash2, Pencil, RefreshCw, X, CheckCircle2, XCircle, Power, Info, CreditCard, Building2, FileCheck, Settings2, Printer, Download, Wallet, Shield } from "lucide-react";
 import api from "@/api";
 
 // ─── ثابت‌ها ───────────────────────────────────────────────────────────────────

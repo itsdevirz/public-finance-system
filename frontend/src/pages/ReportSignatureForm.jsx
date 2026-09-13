@@ -5,12 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import {
-  FileSignature, Upload, Trash2, Edit3, Check, RefreshCw, Printer,
-  Eye, CheckCircle2, AlertCircle, UserCheck, ShieldCheck, Image as ImageIcon,
-  Building2, Sliders, Layers, Sparkles, X, Plus
-} from "lucide-react";
+
+import { FileSignature, Upload, Trash2, Edit3, Check, Printer, CheckCircle2, AlertCircle, Image as ImageIcon, Building2, Layers, Sparkles, X, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // لیست پیش‌فرض سمت‌ها جهت ایجاد سریع

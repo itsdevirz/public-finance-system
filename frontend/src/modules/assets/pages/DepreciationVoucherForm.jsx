@@ -1,10 +1,5 @@
 import { useState, useEffect } from "react";
-import {
-  Play, Save, Trash2, Printer, FileSpreadsheet, Eye,
-  Info, ShieldAlert, CheckCircle2, AlertTriangle, AlertCircle, Lock, Unlock,
-  ChevronDown, ChevronUp, X, HelpCircle, Activity, FileText, Settings, Award,
-  Send, RotateCcw, Share2, FileDown
-} from "lucide-react";
+import { Play, Save, Trash2, Printer, FileSpreadsheet, Info, CheckCircle2, AlertTriangle, AlertCircle, ChevronDown, ChevronUp, HelpCircle, Activity, Settings, Award, Send, RotateCcw, FileDown } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import api from "@/api";
 import { Card, CardContent } from "@/components/ui/card";

@@ -1,14 +1,10 @@
 import { useState, useEffect } from "react";
-import {
-  Play, Save, Trash2, Printer, FileSpreadsheet, Eye,
-  Info, ShieldAlert, CheckCircle2, ChevronDown, ChevronUp,
-  X, HelpCircle, Activity, FileText, Settings, Award
-} from "lucide-react";
+import { Play, Trash2, Printer, FileSpreadsheet, Eye, ShieldAlert, CheckCircle2, ChevronDown, ChevronUp, X, FileText } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import api from "@/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {

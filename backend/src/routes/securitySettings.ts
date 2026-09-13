@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { ObjectId } from "mongodb";
 import { getDb } from "../db/index.js";
-import { DEFAULT_SECURITY_POLICY, validateTlsClientConnection, validateInternalTransitProtection, validateSecurityDataInteroperability, validateTrustedTimestamping, validateProductSoftwareUpdate, validateAutoUpdateAuthenticity, validateCoreFunctionsSoftwareFaultTolerance, validateInteractiveSessionInactivityTermination, validateCaCertificateAcceptance } from "../lib/securityPolicy.js";
+import { DEFAULT_SECURITY_POLICY, validateInternalTransitProtection, validateSecurityDataInteroperability, validateTrustedTimestamping, validateProductSoftwareUpdate, validateAutoUpdateAuthenticity, validateCoreFunctionsSoftwareFaultTolerance, validateInteractiveSessionInactivityTermination, validateCaCertificateAcceptance } from "../lib/securityPolicy.js";
 import { executeRealTlsHandshake } from "../lib/secureTlsClient.js";
 import { logAuditEvent, AFTA_LOG_EVENT_TYPES, verifyLogIntegrity, signExistingLogs, runAuditLogRetentionAndRotation, extractClientIp, AUDIT_STORAGE_THRESHOLD } from "../lib/auditLogger.js";
 import { getShamsiDetails } from "../lib/shamsi.js";
@@ -938,7 +938,6 @@ router.post("/audit-config", async (c) => {
     return c.json({ success: false, message: error.message }, 500);
   }
 });
-
 
 // POST /api/security/validate-user-data - User data validation & import access control (AFTA Items 7 & 14)
 router.post("/validate-user-data", async (c) => {

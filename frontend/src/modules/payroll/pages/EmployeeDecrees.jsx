@@ -4,17 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Modal } from "@/components/ui/modal";
-import {
-  FileText, Plus, Pencil, Trash2, Printer, Save, RefreshCw, Briefcase,
-  Calendar, Landmark, ShieldCheck, User, ClipboardList, Info, Download, X, Search, Settings
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+import { FileText, Plus, Pencil, Trash2, Printer, Save, ShieldCheck, Info, X, Search, Settings } from "lucide-react";
 
 const INITIAL_FORM = {
   decreeNo: "",

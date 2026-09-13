@@ -49,13 +49,6 @@ const PenaltyRatesForm = lazy(() => import("@/pages/PenaltyRatesForm"));
 const ContractTerminationForm = lazy(() => import("@/pages/ContractTerminationForm"));
 const ContractCancellationForm = lazy(() => import("@/pages/ContractCancellationForm"));
 
-
-
-
-
-
-
-
 const ContractRegistrationForm = lazy(() => import("@/pages/ContractRegistrationForm"));
 const ProgressBillingForm = lazy(() => import("@/pages/ProgressBillingForm"));
 const ContractPaymentForm = lazy(() => import("@/pages/ContractPaymentForm"));
@@ -221,11 +214,6 @@ export const PAGE_COMPONENTS = {
   "/basic-info/definitions/purchase-power-rate": PurchasePowerRatesForm,
   "/basic-info/definitions/penalty-rate": PenaltyRatesForm,
 
-
-
-
-
-
   "/basic-info/contracts/register": ContractRegistrationForm,
   "/basic-info/contracts/supplement": ContractSupplementForm,
   "/basic-info/contracts/card": ContractCard,
@@ -236,7 +224,6 @@ export const PAGE_COMPONENTS = {
   "/basic-info/contracts/guarantee": ContractGuaranteeForm,
   "/basic-info/contracts/termination": ContractTerminationForm,
   "/basic-info/contracts/cancellation": ContractCancellationForm,
-
 
   "/basic-info/definitions/bank": BankForm,
   "/basic-info/definitions/credit": CreditForm,

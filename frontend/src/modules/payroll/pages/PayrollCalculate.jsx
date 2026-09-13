@@ -5,12 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import {
-  Calculator, Printer, Save, RefreshCw, Search, TrendingUp, DollarSign,
-  Users, ShieldCheck, Info, CheckCircle, AlertCircle, FileText
-} from "lucide-react";
+import { Calculator, Printer, Save, Search, TrendingUp, DollarSign, ShieldCheck, Info, CheckCircle, AlertCircle, FileText } from "lucide-react";
 
 const MONTHS = [
   { value: "01", label: "فروردین" }, { value: "02", label: "اردیبهشت" }, { value: "03", label: "خرداد" },

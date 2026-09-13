@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { Plus, Trash2, Save, Search, Pencil, FileText, CheckCircle2, Clock, Printer, AlertTriangle } from "lucide-react";
+import { useState } from "react";
+import { Plus, Trash2, Save, Search, CheckCircle2, Clock, Printer, AlertTriangle } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

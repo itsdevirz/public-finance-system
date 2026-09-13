@@ -10,13 +10,10 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.19.17",
-    "aws-sdk": "^2.1693.0",
     "bcrypt": "^5.1.1",
     "hono": "^4.13.5",
     "jsonwebtoken": "^9.0.2",
-    "mock-aws-s3": "^4.0.2",
-    "mongodb": "^6.21.0",
-    "nock": "^14.0.17"
+    "mongodb": "^6.21.0"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",

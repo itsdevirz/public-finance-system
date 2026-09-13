@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import ShebaInput from "@/components/ui/sheba-input";
-import { Wallet, Send, RotateCcw, Plus, Trash2, CheckCircle2, AlertCircle, RefreshCw, FileText } from "lucide-react";
+import { Send, RotateCcw, CheckCircle2, AlertCircle, FileText } from "lucide-react";
 import api from "@/api";
 
 function fmtNum(n) {

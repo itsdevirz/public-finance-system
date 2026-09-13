@@ -1,12 +1,9 @@
 import { useNavigate } from "react-router-dom";
 import { PageShell, PageHeader } from "@/components/layout/PageShell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+
 import { Button } from "@/components/ui/button";
-import {
-  Package, DollarSign, Activity, AlertTriangle, ShieldCheck, MapPin,
-  TrendingUp, RefreshCw, BarChart3, ChevronLeft, QrCode, User, Link2, Box
-} from "lucide-react";
+import { Package, DollarSign, Activity, AlertTriangle, ShieldCheck, MapPin, TrendingUp, RefreshCw, BarChart3, ChevronLeft, User } from "lucide-react";
 import { useAssets } from "@/context/AssetContext";
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";

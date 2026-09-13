@@ -1,8 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Save, Plus, Trash2, Printer, LogOut, CheckCircle2, Search, X, Undo2, AlertCircle, RefreshCw
-} from "lucide-react";
+import { Save, Plus, Trash2, Printer, LogOut, CheckCircle2, Search, X, Undo2, AlertCircle } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import api from "@/api";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { PersianDatePicker, addDaysToJalali, diffDaysJalali } from "@/components/ui/persian-date-picker";
+import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import { cn } from "@/lib/utils";
 
 const CHANGE_TYPES = ["افزایش 25 درصد", "کاهش 25 درصد"];

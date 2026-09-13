@@ -1512,7 +1512,6 @@ export function validateUserDataEgressAccessPolicy(
   return { allowed: true };
 }
 
-
 export function validateX509v3Rfc5280AuthenticationScopes(
   scopeKey: "https" | "tls" | "ssh" | "codeSigningSoftwareUpdates" | "codeSigningIntegrityVerification" | "otherUseCases",
   policy: CertificateValidationPolicy = DEFAULT_SECURITY_POLICY.certificateValidationPolicy!

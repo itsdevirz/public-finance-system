@@ -4,7 +4,7 @@ import { PageShell, PageHeader } from "@/components/layout/PageShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+
 import {
   List, AlignLeft, BookOpen, BookMarked, RefreshCw, Activity,
   Search, Printer, FileDown, ChevronLeft, Eye, X, Layers, AlertCircle, Loader2, RotateCcw

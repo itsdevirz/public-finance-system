@@ -17,7 +17,7 @@ import {
 import { INITIAL_TEMPLATES } from "@/data/operationsTemplates";
 import sanamaRequirements from "@/data/sanamaRequirements.json";
 import subAccountTitles from "@/data/subAccountTitles.json";
-import { checkDebitNatureBalance, clearBalanceCache } from "@/lib/accountBalanceCheck";
+import { checkDebitNatureBalance } from "@/lib/accountBalanceCheck";
 import { PersonSanamaField } from "@/components/ui/person-sanama-field";
 import ShebaInput from "@/components/ui/sheba-input";
 

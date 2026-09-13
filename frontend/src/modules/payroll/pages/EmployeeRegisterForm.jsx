@@ -9,10 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import ShebaInput from "@/components/ui/sheba-input";
 import { Badge } from "@/components/ui/badge";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
-import {
-  User, Briefcase, CreditCard, DollarSign, Save, Plus, ArrowRight,
-  ShieldCheck, AlertCircle, Info, Landmark, HelpCircle, Pencil
-} from "lucide-react";
+import { User, Briefcase, CreditCard, DollarSign, Save, Plus, ArrowRight, ShieldCheck, AlertCircle, Info, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TABS = [

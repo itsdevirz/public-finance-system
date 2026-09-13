@@ -13,7 +13,7 @@ import { rateLimiter } from "./middleware/rateLimiter.js";
 import { inputSanitizer } from "./middleware/inputSanitizer.js";
 import { csrfProtection } from "./middleware/csrfProtection.js";
 import { logAuditEvent, AFTA_LOG_EVENT_TYPES, startAuditLogAutoCleanupCron } from "./lib/auditLogger.js";
-import { validateSecureFailureState, validateCoreFunctionsSoftwareFaultTolerance, DEFAULT_SECURITY_POLICY } from "./lib/securityPolicy.js";
+import { validateSecureFailureState } from "./lib/securityPolicy.js";
 
 import authRouter from "./routes/auth.js";
 import securitySettingsRouter from "./routes/securitySettings.js";
@@ -313,8 +313,6 @@ app.use(
     },
   })
 );
-
-
 
 // 🌟 Secure Error Handling (FPT_FLS.1.1: No stack traces or internal secrets in response)
 app.onError(async (err, c) => {

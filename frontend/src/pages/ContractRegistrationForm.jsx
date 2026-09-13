@@ -1,8 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Save, Plus, Trash2, Edit, Search, Printer, LogOut, X, RefreshCw, CheckCircle2
-} from "lucide-react";
+import { Save, Plus, Trash2, Edit, Search, Printer, LogOut, X } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import api from "@/api";
 import { Card, CardContent } from "@/components/ui/card";

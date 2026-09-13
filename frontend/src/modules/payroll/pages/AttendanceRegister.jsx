@@ -4,13 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Separator } from "@/components/ui/separator";
-import {
-  FileText, Save, RefreshCw, Calendar, Users, Info, ShieldCheck, Printer, Check, Search, Download
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+
+import { Save, Calendar, Users, Info, ShieldCheck, Printer, Search } from "lucide-react";
 
 const MONTHS = [
   { value: "01", label: "فروردین" },

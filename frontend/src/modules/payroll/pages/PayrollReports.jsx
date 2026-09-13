@@ -5,10 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import {
-  FileText, Printer, Search, Calculator, ShieldCheck, DollarSign, Calendar, Clock, HelpCircle,
-  Percent, ChevronLeft, Award, HelpCircle as HelpIcon, FileDown, BarChart2, User
-} from "lucide-react";
+import { FileText, Printer, Search, ShieldCheck, DollarSign, Calendar, Clock, Percent, Award, HelpCircle as HelpIcon, FileDown, BarChart2, User } from "lucide-react";
 import { toPersianDigits } from "./InsuranceSettings";
 
 const MONTHS = [

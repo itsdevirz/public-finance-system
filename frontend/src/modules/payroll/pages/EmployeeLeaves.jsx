@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useAssets } from "@/context/AssetContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,11 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import {
-  FileText, Plus, Pencil, Trash2, Printer, Save, RefreshCw, Briefcase,
-  Calendar, Landmark, ShieldCheck, User, ClipboardList, Info, Download, X, Search
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Plus, Pencil, Trash2, Printer, Save, ShieldCheck, ClipboardList, Info, X, Search } from "lucide-react";
 
 const INITIAL_FORM = {
   employeeId: "",

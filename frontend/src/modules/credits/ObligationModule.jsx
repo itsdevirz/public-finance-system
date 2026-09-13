@@ -5,10 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import {
-  Plus, Trash2, Edit, Save, CheckCircle2, AlertCircle, RefreshCw, Lock, Unlock, Search,
-  Landmark, ArrowDown, Eye, Filter, FileText, Upload, Paperclip, ShieldAlert
-} from "lucide-react";
+import { Trash2, CheckCircle2, AlertCircle, Lock, Unlock, Landmark, ArrowDown, FileText, Upload, Paperclip, ShieldAlert } from "lucide-react";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import api from "@/api";
 import { validateAndLogFileUpload } from "@/lib/fileUploadLogger";
@@ -294,7 +291,6 @@ export default function ObligationModule() {
   const valRealizations = selectedRealizations.reduce((sum, item) => sum + (Number(item.verified_amount) || 0), 0);
   const valPayRequests = selectedPayRequests.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
   const valRemittances = selectedRemittances.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">

@@ -1,12 +1,7 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { printTable } from "@/lib/printUtils";
-import {
-  Package, PackagePlus, PackageMinus, ArrowLeftRight, ClipboardList,
-  AlertTriangle, Warehouse as StoreIcon, Users, RefreshCw, BarChart3,
-  Plus, Trash2, Save, Search, Pencil, CheckCircle2, AlertCircle, Eye, ShieldCheck,
-  Printer, Download, FileSpreadsheet
-} from "lucide-react";
+import { Package, PackagePlus, PackageMinus, ArrowLeftRight, ClipboardList, AlertTriangle, Warehouse as StoreIcon, Users, RefreshCw, BarChart3, Plus, Trash2, Save, Search, Pencil, CheckCircle2, AlertCircle, ShieldCheck, Printer, Download } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -44,6 +39,12 @@ export default function Warehouse() {
     units,
     addConfig, updateConfig, deleteConfig, refreshAllConfigs
   } = useAssets();
+
+  useEffect(() => {
+    if (refreshAllConfigs) {
+      refreshAllConfigs();
+    }
+  }, []);
 
   // Determine current active sub-page based on URL pathname
   const activeView = useMemo(() => {
@@ -787,7 +788,6 @@ export default function Warehouse() {
       </Card>
     </div>
   );
-
 
   // ─── 5. REQUESTS VIEW (درخواست کالا) ────────────────────────────────────────
   const requestsList = requests || [];

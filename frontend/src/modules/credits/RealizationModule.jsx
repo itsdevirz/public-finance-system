@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Plus, Trash2, Edit, Save, AlertCircle, RefreshCw, FileCheck, Landmark, Upload, Paperclip, Lock } from "lucide-react";
+import { CheckCircle2, Trash2, AlertCircle, FileCheck, Upload, Paperclip, Lock } from "lucide-react";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import api from "@/api";
 import { validateAndLogFileUpload } from "@/lib/fileUploadLogger";

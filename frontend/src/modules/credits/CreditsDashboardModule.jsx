@@ -4,15 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  RefreshCw, Landmark, ShieldCheck, TrendingUp, Wallet,
-  ArrowLeftRight, Activity, Plus, FileText, CheckCircle2, Lock,
-  Building2, Layers, AlertTriangle, Clock, Hourglass, ArrowUpRight,
-  Zap, BarChart3, Eye, FileSpreadsheet, CreditCard, Search,
-  Sparkles, Filter, ChevronLeft, ArrowRightLeft, BookOpen,
-  PieChart, FileCheck2, Coins, ArrowDownLeft, ShieldAlert,
-  Edit2, Check, LockKeyhole, ArrowDown, Droplets, Flame
-} from "lucide-react";
+import { RefreshCw, Landmark, ShieldCheck, TrendingUp, Wallet, ArrowLeftRight, Activity, Plus, FileText, CheckCircle2, Lock, Building2, Layers, AlertTriangle, Clock, Hourglass, ArrowUpRight, Zap, Eye, FileSpreadsheet, CreditCard, Search, Sparkles, Filter, ChevronLeft, ArrowRightLeft, BookOpen, FileCheck2, Coins, ArrowDownLeft, ShieldAlert, Edit2, Check, LockKeyhole, Flame } from "lucide-react";
 import { cn } from "@/lib/utils";
 import api from "@/api";
 
@@ -617,9 +609,8 @@ export default function CreditsDashboardModule() {
         </div>
       </div>
 
-
-      {/* 🌟 ۲. انیمیشن فوق‌العاده خاص و سبک: پایش زنده و کسر از حوضچه موافقت‌نامه (Agreement Pool Budget Drain Animation) */}
-      <Card className="border-2 border-amber-500/30 bg-gradient-to-br from-[#0c2a27] via-card to-card shadow-xl rounded-3xl overflow-hidden relative">
+      {/* 🌟 ۲. کسر از موافقت‌نامه (Agreement Budget Drain Visualizer) */}
+      <Card className="border-2 border-amber-500/30 bg-card shadow-xl rounded-3xl overflow-hidden relative">
         
         {/* Glow Effects */}
         <div className="absolute top-0 right-0 w-72 h-72 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -633,13 +624,13 @@ export default function CreditsDashboardModule() {
               </div>
               <div>
                 <CardTitle className="text-base sm:text-lg font-black tracking-tight text-foreground flex items-center gap-2">
-                  جریان انیمیشنی مصرف و کسر از حوضچه موافقت‌نامه
+                  کسر از موافقت‌نامه
                   <Badge variant="outline" className="bg-amber-500/15 text-amber-600 dark:text-amber-300 border-amber-500/40 text-[10px] font-black px-2.5 py-0.5 animate-pulse">
                     کسر زنده بودجه ⚡
                   </Badge>
                 </CardTitle>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  نمایش تصویری و انیمیشنی نحوه کسر سهم تخصیص، دریافت، تامین اعتبار و پرداخت از کل موافقت‌نامه مصوب
+                  نمایش تصویری نحوه کسر سهم تخصیص، دریافت، تامین اعتبار و پرداخت از کل موافقت‌نامه مصوب
                 </p>
               </div>
             </div>
@@ -658,16 +649,16 @@ export default function CreditsDashboardModule() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-black">
               <div className="flex items-center gap-2 bg-amber-400 border-2 border-amber-500 px-3.5 py-1.5 rounded-xl shadow-md text-slate-950">
                 <Landmark className="h-4 w-4 text-slate-950 shrink-0" />
-                <span className="text-slate-950 font-black">حوضچه کل موافقت‌نامه:</span>
+                <span className="text-slate-950 font-black">کل موافقت‌نامه:</span>
                 <span className="font-mono text-sm sm:text-base font-black text-slate-950 px-2.5 py-0.5 rounded-lg bg-amber-300/90 border border-amber-600/40 shadow-sm">
                   {fmtNum(stats.netBudget)} ریال (۱۰۰٪)
                 </span>
               </div>
 
-              <div className="flex items-center gap-2 bg-emerald-500/20 border-2 border-emerald-400/70 px-3.5 py-1.5 rounded-xl shadow-md text-white backdrop-blur-md">
-                <CheckCircle2 className="h-4.5 w-4.5 text-emerald-300 shrink-0 animate-pulse" />
-                <span className="text-white font-black text-xs sm:text-sm">مانده آزاد قابل تخصیص:</span>
-                <span className="font-mono text-sm sm:text-base font-black text-white px-2.5 py-0.5 rounded-lg bg-emerald-400/30 border border-emerald-300/60 text-white shadow-inner">
+              <div className="flex items-center gap-2 bg-emerald-500/15 border-2 border-emerald-500/50 px-3.5 py-1.5 rounded-xl shadow-md text-emerald-950 dark:text-white backdrop-blur-md">
+                <CheckCircle2 className="h-4.5 w-4.5 text-emerald-600 dark:text-emerald-300 shrink-0 animate-pulse" />
+                <span className="text-emerald-950 dark:text-white font-black text-xs sm:text-sm">مانده آزاد قابل تخصیص:</span>
+                <span className="font-mono text-sm sm:text-base font-black text-emerald-950 dark:text-white px-2.5 py-0.5 rounded-lg bg-emerald-500/20 border border-emerald-400/50 shadow-inner">
                   {fmtNum(stats.unallocatedBudget)} ریال
                 </span>
               </div>
@@ -702,7 +693,6 @@ export default function CreditsDashboardModule() {
               </motion.div>
             </div>
           </div>
-
 
           {/* 🌟 4 Flowing Animated Streams connecting Agreement to Downstream Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 relative">
@@ -845,7 +835,6 @@ export default function CreditsDashboardModule() {
 
         </CardContent>
       </Card>
-
 
       {/* 🌟 ۳. کارت‌های ۵گانه خلاصه وضعیت اعتبارات */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
@@ -1003,7 +992,6 @@ export default function CreditsDashboardModule() {
         </motion.div>
 
       </div>
-
 
       {/* 🌟 ۴. هاب جامع گزینه‌های مدیریت اعتبارات */}
       <div className="space-y-4">
@@ -1193,7 +1181,6 @@ export default function CreditsDashboardModule() {
         </div>
 
       </div>
-
 
       {/* 🌟 ۵. جدول‌های پایش۴گانه اعتبارات */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-3">
