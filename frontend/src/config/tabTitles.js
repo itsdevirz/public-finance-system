@@ -27,45 +27,13 @@ const EXTRA_TITLES = {
 
   // ─── مدیریت اعتبارات (اعتبارات و بودجه) ──────────────────────────────
   "/credits/agreements": "ثبت موافقت‌نامه",
-  "/credits/budget": "ثبت موافقت‌نامه",
-  "/credits/budget/approved": "ثبت موافقت‌نامه",
-  "/credits/budget/amendments": "متمم و اصلاحیه بودجه",
-  "/credits/budget/review": "مرور بودجه",
   "/credits/allocations": "تخصیص اعتبار",
-  "/credits/allocations/new": "درخواست و ابلاغ تخصیص",
-  "/credits/allocations/edit": "تخصیص‌های ابلاغی",
-  "/credits/allocations/review": "مرور تخصیص",
-  "/credits/allocation-no-doc": "تخصیص اعتبار",
-  "/credits/verification-realization": "ثبت و پایش دریافت اعتبارات",
+  "/credits/verification-realization": "دریافت اعتبارات",
   "/credits/commitments-funding": "تأمین اعتبار",
   "/credits/commitments-funding/request": "درخواست تأمین اعتبار",
-  "/credits/commitments-funding/confirm": "تأمین اعتبار",
   "/credits/commitments-funding/review": "مرور تأمین اعتبار",
-  "/credits/obligations": "تعهدات بودجه‌ای",
-  "/credits/obligations/create": "ثبت تعهد بودجه‌ای",
-  "/credits/obligations/edit": "ویرایش تعهد بودجه‌ای",
-  "/credits/obligations/release": "آزادسازی و تسویه تعهد",
-  "/credits/obligations/review": "مرور تعهدات بودجه‌ای",
   "/credits/payments": "پرداخت اعتبارات",
-  "/credits/payments/request": "درخواست پرداخت",
-  "/credits/payments/remittance": "حواله پرداخت",
-  "/credits/payments/payment": "پرداخت قطعی",
-  "/credits/payments/return": "استرداد و برگشت اعتبار",
   "/credits/card": "شناسنامه و کارت اعتبار",
-  "/credits/ledger": "دفتر گردش اعتبارات",
-  "/credits/definitions": "تعریف سرفصل‌های اعتباری",
-  "/credits/requests": "درخواست وجه از خزانه",
-  "/credits/notification": "ابلاغ و تفویض اعتبار",
-  "/credits/notification/request": "ابلاغ و تفویض اعتبار",
-  "/credits/notification/bank-report": "گزارش بانکی پرداختی‌ها",
-  "/credits/search": "جستجوی اعتبارات",
-  "/credits/receipt-no-doc": "دریافت بدون سند بودجه",
-  "/credits/funded": "تأمین اعتبار",
-  "/credits/funded-search": "جستجوی تأمین اعتبار",
-  "/credits/funded-copy": "کپی تأمین اعتبار",
-  "/credits/funded-merge": "ادغام تأمین اعتبار",
-  "/credits/payroll-funding": "تأمین اعتبار حقوق و دستمزد",
-  "/credits/payroll-from-excel": "ورود حقوق از اکسل",
 
   // ─── خزانه، سپرده‌ها و چک ──────────────────────────────────────────────
   "/check-issuance": "صدور چک و پرداخت",
@@ -107,14 +75,31 @@ const EXTRA_TITLES = {
   "/bookkeeping/bank-reconciliation": "مغایرت بانکی",
 };
 
+export function isRouteValid(pathname) {
+  const cleanPath = pathname ? pathname.split("?")[0].replace(/\/$/, "") || "/" : "/";
+  if (cleanPath === "/") return true;
+  if (EXTRA_TITLES[cleanPath]) return true;
+
+  try {
+    const menuRoutes = getAllMenuRoutes();
+    if (menuRoutes.some((r) => r.path === cleanPath)) return true;
+  } catch (e) {
+    console.error("Error checking route validity:", e);
+  }
+
+  return false;
+}
+
 export function getTabTitle(pathname) {
-  if (EXTRA_TITLES[pathname]) {
-    return EXTRA_TITLES[pathname];
+  const cleanPath = pathname ? pathname.split("?")[0].replace(/\/$/, "") || "/" : "/";
+
+  if (EXTRA_TITLES[cleanPath]) {
+    return EXTRA_TITLES[cleanPath];
   }
 
   try {
     const menuRoutes = getAllMenuRoutes();
-    const match = menuRoutes.find((r) => r.path === pathname);
+    const match = menuRoutes.find((r) => r.path === cleanPath);
     if (match && match.label) {
       return match.label;
     }
@@ -122,12 +107,7 @@ export function getTabTitle(pathname) {
     console.error("Error getting tab title:", e);
   }
 
-  // Fallback formatting for path
-  const cleanPath = pathname.replace(/^\//, "");
-  if (!cleanPath) return "داشبورد اصلی";
+  if (cleanPath === "/") return "داشبورد اصلی";
 
-  const parts = cleanPath.split("/");
-  const lastPart = parts[parts.length - 1];
-  
-  return decodeURIComponent(lastPart).replace(/-/g, " ");
+  return "صفحه یافت نشد";
 }

@@ -4,7 +4,7 @@ import { ChevronLeft, LogOut, Landmark, Laptop, Search, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { BASIC_INFO_SUB, TOP_NAV } from "@/config/navigation";
+import { BASIC_INFO_SUB, DOCUMENT_SETUP_TOP, TOP_NAV } from "@/config/navigation";
 import UserSessionsModal from "./UserSessionsModal";
 
 const TimerCtx = createContext(null);
@@ -235,6 +235,7 @@ export default function Sidebar() {
       }
     }
 
+    traverse(DOCUMENT_SETUP_TOP, ["تنظیم اسناد"]);
     traverse(BASIC_INFO_SUB, ["اطلاعات پایه"]);
 
     for (const group of TOP_NAV) {
@@ -361,7 +362,8 @@ export default function Sidebar() {
             </div>
           ) : (
             <>
-              <SidebarItem num={1} label="اطلاعات پایه" to="/basic-info" subItems={BASIC_INFO_SUB} />
+              <SidebarItem num={1} label="تنظیم اسناد" to="/document-setup" subItems={DOCUMENT_SETUP_TOP} />
+              <SidebarItem num={2} label="اطلاعات پایه" to="/basic-info" subItems={BASIC_INFO_SUB} />
               {TOP_NAV.map(({ to, label, num, subItems }) => (
                 <SidebarItem key={to} num={num} label={label} to={to} subItems={subItems ?? null} />
               ))}

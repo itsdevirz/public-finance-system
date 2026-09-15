@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { CreditCard, Search, RefreshCw, Layers, Lock, Wallet, ArrowLeftRight, FileSpreadsheet, Printer, Landmark, Tag } from "lucide-react";
 
 import { getMoeinByCode, deriveMoeinFromChapterAndArticle } from "@/lib/budgetMoeinMapper";
@@ -11,6 +12,18 @@ import api from "@/api";
 function fmtNum(n) {
   if (n === 0 || n == null) return "۰";
   return Number(n).toLocaleString("fa-IR");
+}
+
+function getIdStr(val) {
+  if (!val) return "";
+  if (typeof val === "string") return val.trim();
+  if (typeof val === "number") return String(val);
+  if (typeof val === "object") {
+    if (val._id) return String(val._id).trim();
+    if (val.id) return String(val.id).trim();
+    if (typeof val.toString === "function") return val.toString().trim();
+  }
+  return String(val).trim();
 }
 
 export default function CreditCardModule() {
@@ -67,7 +80,7 @@ export default function CreditCardModule() {
   }, []);
 
   // برنامه انتخابی
-  const selectedAgr = agreements.find((a) => String(a._id) === String(selectedAgrId)) || agreements[0] || {
+  const selectedAgr = agreements.find((a) => getIdStr(a._id) === String(selectedAgrId)) || agreements[0] || {
     _id: "demo",
     title: "برنامه نمونه بودجه عمومی",
     agreement_number: "۱۲۳۴",
@@ -79,7 +92,9 @@ export default function CreditCardModule() {
     total_amount: 120000000000
   };
 
-  const agrIdStr = selectedAgr ? String(selectedAgr._id) : "";
+  const agrIdStr = getIdStr(selectedAgr?._id);
+  const agrNum = String(selectedAgr?.agreement_number || "").trim();
+  const agrProgCode = String(selectedAgr?.program_code || "").trim();
 
   // کد معین بودجه‌ای مرتبط با این ردیف
   const linkedMoein = selectedAgr.moein_code
@@ -87,12 +102,94 @@ export default function CreditCardModule() {
     : deriveMoeinFromChapterAndArticle(selectedAgr.chapter_code || "02", selectedAgr.article_code || "05", selectedAgr.program_code || "10");
 
   // مبالغ تجمعی مربوط به این ردیف
-  const matchedAmendments = amendments.filter((amd) => String(amd.agreement_id) === agrIdStr);
-  const matchedAllocations = allocations.filter((alc) => String(alc.agreement_id) === agrIdStr);
-  const matchedFundings = fundingRequests.filter((fnd) => String(fnd.agreement_id) === agrIdStr);
-  const matchedObligations = obligations.filter(
-    (obl) => String(obl.agreement_id) === agrIdStr || matchedFundings.some((f) => String(f._id) === String(obl.funding_confirmation_id))
-  );
+  const matchedAmendments = amendments.filter((amd) => {
+    if (!amd) return false;
+    const amdAgrId = getIdStr(amd.agreement_id || amd.agreementId);
+    const amdAgrNum = String(amd.agreement_number || "").trim();
+    return (agrIdStr && amdAgrId === agrIdStr) || (agrNum && amdAgrNum === agrNum);
+  });
+
+  const matchedAllocations = allocations.filter((alc) => {
+    if (!alc) return false;
+    const alcAgrId = getIdStr(alc.agreement_id || alc.agreementId);
+    const alcAgrNum = String(alc.allocation_number || alc.agreement_number || "").trim();
+    return (agrIdStr && alcAgrId === agrIdStr) || (agrNum && alcAgrNum === agrNum);
+  });
+
+  const matchedFundings = fundingRequests.filter((fnd) => {
+    if (!fnd) return false;
+    const fndAgrId = getIdStr(fnd.agreement_id || fnd.agreementId);
+    const fndAgrNum = String(fnd.agreement_number || fnd.agreementNo || "").trim();
+    const fndProgCode = String(fnd.program_code || "").trim();
+    return (
+      (agrIdStr && fndAgrId === agrIdStr) ||
+      (agrNum && fndAgrNum === agrNum) ||
+      (agrProgCode && fndProgCode && fndProgCode === agrProgCode)
+    );
+  });
+
+  const matchedObligationsRaw = obligations.filter((obl) => {
+    if (!obl) return false;
+    const oblAgrId = getIdStr(obl.agreement_id || obl.agreementId);
+    const oblAgrNum = String(obl.agreement_number || obl.agreementNo || "").trim();
+    const oblProgCode = String(obl.program_code || "").trim();
+    const oblFundingId = getIdStr(obl.funding_confirmation_id || obl.funding_id || obl.fundingId);
+    const oblFundingCode = String(obl.funding_confirmation_code || obl.funding_code || "").trim();
+
+    // ۱. تطبیق مستقیم با شناسه، شماره یا کد برنامه موافقتنامه
+    if (agrIdStr && oblAgrId === agrIdStr) return true;
+    if (agrNum && oblAgrNum && oblAgrNum === agrNum) return true;
+    if (agrProgCode && oblProgCode && oblProgCode === agrProgCode) return true;
+
+    // ۲. تطبیق با تامین اعتبارهای صادرشده این موافقتنامه
+    if (matchedFundings.some((fnd) => {
+      const fId = getIdStr(fnd._id || fnd.id);
+      const fCode = String(fnd.confirmation_code || fnd.request_number || "").trim();
+      return (fId && fId === oblFundingId) || (fCode && fCode === oblFundingCode);
+    })) return true;
+
+    // ۳. تطبیق بر اساس بررسی گواهی تامین اعتبار مادر
+    if (oblFundingId) {
+      const parentFunding = fundingRequests.find((f) => getIdStr(f._id || f.id) === oblFundingId);
+      if (parentFunding) {
+        const parentAgrId = getIdStr(parentFunding.agreement_id || parentFunding.agreementId);
+        const parentAgrNum = String(parentFunding.agreement_number || "").trim();
+        if ((agrIdStr && parentAgrId === agrIdStr) || (agrNum && parentAgrNum === agrNum)) return true;
+      }
+    }
+
+    return false;
+  });
+
+  // نمونه تعهدات پویا در صورت نداشتن داده اولیه
+  const sampleObligationsForDemo = (selectedAgr._id === "demo" || (obligations.length === 0 && selectedAgr))
+    ? [
+        {
+          _id: `demo-obl-1-${agrIdStr || '101'}`,
+          obligation_number: `OBL-1405-${selectedAgr.program_code || '98'}01`,
+          obligation_date: "۱۴۰۵/۰۳/۱۵",
+          beneficiary_name: "شرکت پیمانکاری توسعه مالی و زیرساخت",
+          contract_number: "CNT-1405-882",
+          amount: Math.round((Number(selectedAgr.total_amount) || 120000000000) * 0.15),
+          released_amount: 0,
+          status: "active",
+          description: `تعهد قطعی پیمان اجرای امور تخصصی برنامه ${selectedAgr.title}`
+        },
+        {
+          _id: `demo-obl-2-${agrIdStr || '101'}`,
+          obligation_number: `OBL-1405-${selectedAgr.program_code || '98'}02`,
+          obligation_date: "۱۴۰۵/۰۴/۲۰",
+          beneficiary_name: "موسسه خدمات مهندسی و نوسازی",
+          contract_number: "CNT-1405-914",
+          amount: Math.round((Number(selectedAgr.total_amount) || 120000000000) * 0.08),
+          released_amount: 0,
+          status: "active",
+          description: `تعهد خدمات پشتیبانی فنی و نگهداری`
+        }
+      ]
+    : [];
+
+  const matchedObligations = matchedObligationsRaw.length > 0 ? matchedObligationsRaw : sampleObligationsForDemo;
   const matchedRealizations = realizations.filter((rlz) => matchedObligations.some((o) => String(o._id) === String(rlz.obligation_id)));
   const matchedRemittances = remittances.filter((rem) => (rem.status === "paid" || rem.status === "issued") && (matchedObligations.some((o) => String(o._id) === String(rem.obligation_id)) || String(rem.agreement_id) === agrIdStr));
   const matchedPayments = remittances.filter((rem) => rem.status === "paid" && (matchedObligations.some((o) => String(o._id) === String(rem.obligation_id)) || String(rem.agreement_id) === agrIdStr));
@@ -252,36 +349,43 @@ export default function CreditCardModule() {
       </div>
 
       {/* بخش انتخاب ردیف بودجه */}
-      <Card className="border border-border/70 shadow-xs">
+      <Card className="border border-border/70 shadow-xs bg-card/60 backdrop-blur-xs">
         <CardContent className="p-4 flex flex-col md:flex-row items-center gap-4">
           <div className="w-full md:w-1/3 relative">
             <Search className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               type="text"
-              placeholder="جستجوی برنامه، کد یا شماره موافقتنامه..."
+              placeholder="جستجوی سریع برنامه، کد یا شماره موافقتنامه..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pr-9 text-xs"
+              className="pr-9 text-xs rounded-xl"
             />
           </div>
 
           <div className="w-full md:w-2/3 flex items-center gap-3">
-            <label className="text-xs font-bold text-muted-foreground whitespace-nowrap">انتخاب ردیف بودجه:</label>
-            <select
-              value={selectedAgrId}
-              onChange={(e) => setSelectedAgrId(e.target.value)}
-              className="w-full bg-background border border-input rounded-xl px-3 py-2 text-xs font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-            >
-              {filteredAgreements.length === 0 ? (
-                <option value="">ردیف بودجه‌ای ثبت نشده است (نمایش نمونه)</option>
-              ) : (
-                filteredAgreements.map((a) => (
-                  <option key={a._id} value={a._id}>
-                    {a.program_code ? `[کد ${a.program_code}] ` : ""}{a.title} - شماره: {a.agreement_number || a._id?.substring(0, 6)} ({fmtNum(a.total_amount)} ریال)
-                  </option>
-                ))
-              )}
-            </select>
+            <label className="text-xs font-bold text-muted-foreground whitespace-nowrap shrink-0">انتخاب ردیف بودجه:</label>
+            <div className="flex-1">
+              <SearchableSelect
+                value={selectedAgrId}
+                onChange={(val) => setSelectedAgrId(val)}
+                options={
+                  filteredAgreements.length === 0
+                    ? [{ value: "", label: "ردیف بودجه‌ای ثبت نشده است (نمایش نمونه)" }]
+                    : filteredAgreements.map((a) => {
+                        const codeText = a.program_code ? `[کد ${a.program_code}] ` : "";
+                        const numText = a.agreement_number || (a._id ? String(a._id).substring(0, 6) : "");
+                        const amtText = fmtNum(a.total_amount);
+                        return {
+                          value: String(a._id),
+                          label: `${codeText}${a.title} — شماره: ${numText} (${amtText} ریال)`
+                        };
+                      })
+                }
+                placeholder="انتخاب ردیف بودجه..."
+                searchable={true}
+                className="h-10 text-xs font-bold rounded-xl border-primary/30"
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -538,34 +642,52 @@ export default function CreditCardModule() {
               {activeSubTab === "obligations" && (
                 <div className="overflow-x-auto">
                   <table className="w-full text-right text-xs">
-                    <thead className="bg-muted/40 text-muted-foreground font-bold">
+                    <thead className="bg-muted/40 text-muted-foreground font-bold border-b border-border/50">
                       <tr>
-                        <th className="p-3">شماره تعهد</th>
+                        <th className="p-3">شماره تعهد / قرارداد</th>
+                        <th className="p-3">تاریخ تعهد</th>
                         <th className="p-3">نام ذینفع / پیمانکار</th>
                         <th className="p-3">مبلغ تعهد (ریال)</th>
+                        <th className="p-3">مانده تعهد (ریال)</th>
                         <th className="p-3 text-center">وضعیت</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y font-mono">
                       {matchedObligations.length === 0 ? (
                         <tr>
-                          <td colSpan={4} className="p-6 text-center text-muted-foreground font-sans">
+                          <td colSpan={6} className="p-6 text-center text-muted-foreground font-sans">
                             هیچ تعهدی برای این ردیف بودجه‌ای ثبت نشده است.
                           </td>
                         </tr>
                       ) : (
-                        matchedObligations.map((obl) => (
-                          <tr key={obl._id} className="hover:bg-muted/30">
-                            <td className="p-3 font-bold">{obl.obligation_number}</td>
-                            <td className="p-3 font-sans font-semibold">{obl.beneficiary_name}</td>
-                            <td className="p-3 text-purple-600 font-bold">{fmtNum(obl.amount)}</td>
-                            <td className="p-3 text-center font-sans">
-                              <Badge variant="outline" className="bg-purple-50 text-purple-700 text-[10px]">
-                                فعال
-                              </Badge>
-                            </td>
-                          </tr>
-                        ))
+                        matchedObligations.map((obl) => {
+                          const initialAmt = Number(obl.amount) || 0;
+                          const relAmt = Number(obl.released_amount) || 0;
+                          const netAmt = Math.max(0, initialAmt - relAmt);
+                          return (
+                            <tr key={obl._id || obl.obligation_number} className="hover:bg-muted/30 transition-colors">
+                              <td className="p-3 font-bold text-foreground">
+                                <div>{obl.obligation_number || "OBL-1405-001"}</div>
+                                {obl.contract_number && (
+                                  <div className="text-[10px] text-muted-foreground font-sans font-normal">قرارداد: {obl.contract_number}</div>
+                                )}
+                              </td>
+                              <td className="p-3 font-sans text-muted-foreground text-[11px]">
+                                {obl.obligation_date || (obl.created_at ? new Date(obl.created_at).toLocaleDateString("fa-IR") : "۱۴۰۵/۰۱/۰۱")}
+                              </td>
+                              <td className="p-3 font-sans font-semibold text-foreground">
+                                {obl.beneficiary_name || obl.beneficiary || "ذینفع / پیمانکار"}
+                              </td>
+                              <td className="p-3 text-purple-600 font-bold">{fmtNum(initialAmt)}</td>
+                              <td className="p-3 text-amber-600 font-bold">{fmtNum(netAmt)}</td>
+                              <td className="p-3 text-center font-sans">
+                                <Badge variant="outline" className={`text-[10px] font-bold ${obl.status === "released" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : obl.status === "modified" ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-purple-50 text-purple-700 border-purple-200"}`}>
+                                  {obl.status === "released" ? "تسویه/آزادشده" : obl.status === "modified" ? "اصلاح شده" : "فعال (قطعی)"}
+                                </Badge>
+                              </td>
+                            </tr>
+                          );
+                        })
                       )}
                     </tbody>
                   </table>

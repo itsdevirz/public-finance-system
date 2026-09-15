@@ -11,6 +11,7 @@ import Sidebar from "./components/Sidebar";
 import LoginSecurityNoticeModal from "./components/LoginSecurityNoticeModal";
 import Login from "./pages/Login";
 import Placeholder from "./pages/Placeholder";
+import NotFound from "./pages/NotFound";
 import Dashboard from "./pages/Dashboard";
 import { buildLayoutRoutes } from "./config/appRoutes";
 import { Button } from "./components/ui/button";
@@ -84,7 +85,7 @@ function AppRoutes({ routes }) {
       ))}
       <Route path="/guarantees/register/contract" element={<GuaranteeContractForm />} />
       <Route path="/deposits/manual-form" element={<DepositManualForm />} />
-      <Route path="*" element={<Placeholder label="صفحه یافت نشد" />} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }

@@ -56,11 +56,11 @@ export const DOCUMENT_SETUP_TOP = [
 
 // ─── TOP_NAV ─────────────────────────────────────────────────────────────────
 export const TOP_NAV = [
-  // ۲ — گزارشات
+  // ۳ — گزارشات
   {
     to: "/reports",
     label: "گزارشات",
-    num: 2,
+    num: 3,
     subItems: [
       // ۱. گزارش‌های درون‌سازمانی
       {
@@ -168,9 +168,9 @@ export const TOP_NAV = [
     ],
   },
 
-  // ۳ — امکانات
+  // ۴ — امکانات
   {
-    to: "/system-management", label: "امکانات", num: 3, subItems: [
+    to: "/system-management", label: "امکانات", num: 4, subItems: [
       { to: "/system-management/users", label: "تعریف کاربر" },
       { to: "/system-management/audit-logs", label: "ثبت نشان‌ها" },
       { to: "/system-management/financial-details", label: "مشخصات ذیحسابی" },
@@ -187,37 +187,26 @@ export const TOP_NAV = [
     ],
   },
 
-  // ۴ — حسابداری
+  // ۵ — حسابداری
   {
     to: "/accounting",
     label: "حسابداری",
-    num: 4,
+    num: 5,
     subItems: [
-      {
-        to: "/document-setup",
-        label: "تنظیم اسناد",
-        children: DOCUMENT_SETUP_TOP,
-      },
-      {
-        to: "/system-management/document-templates",
-        label: "الگوی سند",
-        children: [
-          { to: "/system-management/document-templates/current-operations", label: "حسابداری عملیات جاری" },
-          { to: "/system-management/document-templates/payroll", label: "حسابداری حقوق و مزایای مستمر کارکنان" },
-          { to: "/system-management/document-templates/capital-operations", label: "حسابداری عملیات سرمایه‌ای" },
-          { to: "/system-management/document-templates/revenues", label: "حسابداری درآمدها" },
-          { to: "/system-management/document-templates/deposits", label: "حسابداری وجوه سپرده" },
-          { to: "/system-management/document-templates/special-cases", label: "حسابداری موارد خاص" },
-        ],
-      },
+      { to: "/system-management/document-templates/current-operations", label: "حسابداری عملیات جاری" },
+      { to: "/system-management/document-templates/payroll", label: "حسابداری حقوق و مزایای مستمر کارکنان" },
+      { to: "/system-management/document-templates/capital-operations", label: "حسابداری عملیات سرمایه‌ای" },
+      { to: "/system-management/document-templates/revenues", label: "حسابداری درآمدها" },
+      { to: "/system-management/document-templates/deposits", label: "حسابداری وجوه سپرده" },
+      { to: "/system-management/document-templates/special-cases", label: "حسابداری موارد خاص" },
     ],
   },
 
-  // ۵ — مدیریت اعتبارات
+  // ۶ — مدیریت اعتبارات
   {
     to: "/credits",
     label: "مدیریت اعتبارات",
-    num: 5,
+    num: 6,
     subItems: [
       { to: "/credits", label: "📊 داشبورد اعتبارات" },
       {
@@ -227,63 +216,38 @@ export const TOP_NAV = [
           { to: "/credits/agreements", label: "ثبت موافقتنامه" },
         ],
       },
-      {
-        to: "/credits/allocations",
-        label: "تخصیص",
-        children: [
-          { to: "/credits/allocations/new", label: "درخواست تخصیص" },
-          { to: "/credits/allocations/edit", label: "تخصیص‌های ابلاغی" },
-          { to: "/credits/allocations/review", label: "مرور تخصیص" },
-        ],
-      },
-      {
-        to: "/credits/verification-realization",
-        label: "دریافت اعتبارات",
-        children: [
-          { to: "/credits/verification-realization", label: "ثبت و پایش دریافت اعتبارات" },
-        ],
-      },
+      { to: "/credits/allocations", label: "تخصیص" },
+      { to: "/credits/verification-realization", label: "دریافت اعتبارات" },
       {
         to: "/credits/commitments-funding",
         label: "تأمین اعتبار",
         children: [
           { to: "/credits/commitments-funding/request", label: "درخواست تأمین اعتبار" },
-          { to: "/credits/commitments-funding/confirm", label: "تأمین اعتبار" },
           { to: "/credits/commitments-funding/review", label: "مرور تأمین اعتبار" },
         ],
       },
-      {
-        to: "/credits/payments",
-        label: "پرداخت",
-        children: [
-          { to: "/credits/payments/request", label: "درخواست پرداخت" },
-          { to: "/credits/payments/remittance", label: "حواله پرداخت" },
-          { to: "/credits/payments/payment", label: "پرداخت قطعی" },
-        ],
-      },
+      { to: "/credits/payments", label: "پرداخت" },
       {
         to: "/credits/accounts-review",
         label: "مرور حساب‌ها",
         children: [
           { to: "/bookkeeping/ledger-reports/account-review", label: "مرور حساب" },
           { to: "/credits/card", label: "کارت اعتبار" },
-          { to: "/credits/ledger", label: "گردش اعتبار" },
-          { to: "/credits/control", label: "مانده اعتبار" },
         ],
       },
     ]
   },
 
-  // ۶ — دستیار هوش مصنوعی
+  // ۷ — دستیار هوش مصنوعی
   {
-    to: "/ai", label: "دستیار هوشمند مالی (AI)", num: 6, subItems: [
+    to: "/ai", label: "دستیار هوشمند مالی (AI)", num: 7, subItems: [
       { to: "/ai/chat", label: "گفتگو با دستیار" },
     ],
   },
 
-  // ۷ — سیستم حقوق و دستمزد
+  // ۸ — سیستم حقوق و دستمزد
   {
-    to: "/payroll", label: "سیستم حقوق و دستمزد", num: 7, subItems: [
+    to: "/payroll", label: "سیستم حقوق و دستمزد", num: 8, subItems: [
       { to: "/payroll/dashboard", label: "داشبورد حقوق" },
       {
         to: "/payroll/employees", label: "اطلاعات کارکنان", children: [
@@ -321,9 +285,9 @@ export const TOP_NAV = [
     ],
   },
 
-  // ۸ — سیستم انبار
+  // ۹ — سیستم انبار
   {
-    to: "/warehouse", label: "سیستم انبار", num: 8, subItems: [
+    to: "/warehouse", label: "سیستم انبار", num: 9, subItems: [
       { to: "/warehouse/dashboard", label: "داشبورد انبار" },
       { to: "/warehouse/items", label: "مدیریت کالاها" },
       { to: "/warehouse/stores", label: "مدیریت انبارها" },
@@ -338,9 +302,9 @@ export const TOP_NAV = [
     ],
   },
 
-  // ۹ — سیستم اموال
+  // ۱۰ — سیستم اموال
   {
-    to: "/assets", label: "سیستم اموال", num: 9, subItems: [
+    to: "/assets", label: "سیستم اموال", num: 10, subItems: [
       { to: "/assets/dashboard", label: "داشبورد اموال" },
       {
         to: "/assets/basic-info", label: "اطلاعات پایه", children: [
@@ -397,7 +361,11 @@ export function flattenMenuItems(items, acc = []) {
 }
 
 export function getAllMenuRoutes() {
-  const routes = [{ path: "/basic-info", label: "اطلاعات پایه" }];
+  const routes = [
+    { path: "/document-setup", label: "تنظیم اسناد" },
+    { path: "/basic-info", label: "اطلاعات پایه" }
+  ];
+  flattenMenuItems(DOCUMENT_SETUP_TOP, routes);
   flattenMenuItems(BASIC_INFO_SUB, routes);
 
   for (const item of TOP_NAV) {

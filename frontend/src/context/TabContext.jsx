@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { getTabTitle } from "@/config/tabTitles";
+import { getTabTitle, isRouteValid } from "@/config/tabTitles";
 import TabWarningModal from "@/components/layout/TabWarningModal";
 
 const TabContext = createContext(null);
@@ -19,14 +19,15 @@ export function TabProvider({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Load initial tabs from sessionStorage or default
+  // Load initial tabs from sessionStorage or default (filter out invalid/deleted routes)
   const [tabs, setTabs] = useState(() => {
     try {
       const saved = sessionStorage.getItem(STORAGE_KEY_TABS);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          const validTabs = parsed.filter((t) => isRouteValid(t.path));
+          if (validTabs.length > 0) return validTabs;
         }
       }
     } catch (err) {
@@ -38,9 +39,9 @@ export function TabProvider({ children }) {
   const [activeTabId, setActiveTabId] = useState(() => {
     try {
       const savedActive = sessionStorage.getItem(STORAGE_KEY_ACTIVE);
-      if (savedActive) return savedActive;
+      if (savedActive && isRouteValid(savedActive)) return savedActive;
     } catch (e) {}
-    return location.pathname || "/";
+    return location.pathname && isRouteValid(location.pathname) ? location.pathname : "/";
   });
 
   // State for 10-tab warning modal
@@ -68,6 +69,11 @@ export function TabProvider({ children }) {
   // Intercept location changes
   useEffect(() => {
     const currentPath = location.pathname;
+
+    // Do NOT create or add a new tab for invalid / 404 routes!
+    if (!isRouteValid(currentPath)) {
+      return;
+    }
 
     // Check if tab already exists
     const existingTab = tabs.find((t) => t.path === currentPath);
