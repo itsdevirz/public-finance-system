@@ -117,6 +117,7 @@ const ContractChangesReport = lazy(() => import("@/pages/ContractChangesReport")
 const ContractPartiesReport = lazy(() => import("@/pages/ContractPartiesReport"));
 const SanamaPerformanceControls = lazy(() => import("@/modules/accounting/pages/SanamaPerformanceControls"));
 const SanamaFormsViewer = lazy(() => import("@/modules/accounting/pages/SanamaFormsViewer"));
+const PerformanceStatementsReport = lazy(() => import("@/modules/reports/pages/PerformanceStatementsReport"));
 
 /** صفحاتی که پیاده‌سازی شده‌اند — بقیه خودکار Placeholder می‌شوند */
 export const PAGE_COMPONENTS = {
@@ -128,6 +129,7 @@ export const PAGE_COMPONENTS = {
   "/system-management/sanama-file-check/capital": SanamaPerformanceControls,
   "/system-management/sanama-file-check/financial-statements": SanamaPerformanceControls,
   "/reports/sanama-forms": SanamaFormsViewer,
+  "/reports/performance-statements-4way": PerformanceStatementsReport,
   "/accounting": DocumentSetup,
   // ─── گزارشات ─────────────────────────────────────────────────────────────
   "/reports": DocumentsReport,

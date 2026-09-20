@@ -2549,7 +2549,7 @@ export const INITIAL_TEMPLATES = [
     status: "active",
     lines: [
       { type: "debit",  accountCode: "11005", accountName: "بانک دریافت وجوه سپرده", ratio: "100%" },
-      { type: "credit", accountCode: "11007", accountName: "سپرده پرداختنی", ratio: "100%" }
+      { type: "credit", accountCode: "21007", accountName: "سپرده پرداختنی", ratio: "100%" }
     ]
   },
   {
@@ -2584,7 +2584,7 @@ export const INITIAL_TEMPLATES = [
     category: "deposits",
     status: "active",
     lines: [
-      { type: "debit",  accountCode: "11007", accountName: "بانک رد وجوه سپرده", ratio: "100%" },
+      { type: "debit",  accountCode: "11006", accountName: "بانک رد وجوه سپرده", ratio: "100%" },
       { type: "credit", accountCode: "11522", accountName: "مطالبات از خزانه", ratio: "100%" }
     ]
   },
@@ -2608,7 +2608,7 @@ export const INITIAL_TEMPLATES = [
     category: "deposits",
     status: "active",
     lines: [
-      { type: "debit",  accountCode: "11007", accountName: "سپرده پرداختنی", ratio: "100%" },
+      { type: "debit",  accountCode: "21007", accountName: "سپرده پرداختنی", ratio: "100%" },
       { type: "credit", accountCode: "11006", accountName: "بانک رد وجوه سپرده", ratio: "100%" }
     ]
   },
@@ -2633,7 +2633,7 @@ export const INITIAL_TEMPLATES = [
     status: "active",
     lines: [
       { type: "debit",  accountCode: "11006", accountName: "بانک رد وجوه سپرده", ratio: "**" },
-      { type: "debit",  accountCode: "11007", accountName: "سپرده پرداختنی", ratio: "**" },
+      { type: "debit",  accountCode: "21007", accountName: "سپرده پرداختنی", ratio: "**" },
       { type: "credit", accountCode: "11522", accountName: "مطالبات از خزانه", ratio: "**" },
       { type: "credit", accountCode: "45005", accountName: "درآمد حاصل از جرایم و خسارات", ratio: "**" }
     ]
@@ -2691,13 +2691,13 @@ export const INITIAL_TEMPLATES = [
   {
     id: 314,
     title: "ثبت شماره ۱۴ - وجوه سپرده",
-    description: "ثبت بستن حساب‌های وجوه سپرده (بستن و تصفیه پایان دوره مالی)",
+    description: "ثبت بستن حساب‌های وجوه سپرده (تصفیه و بستن پایان دوره مالی)",
     code: "DEP-14",
     category: "deposits",
     status: "active",
     lines: [
       { type: "debit",  accountCode: "11513", accountName: "دریافتی بابت تنخواه‌گردان رد وجوه سپرده", ratio: "**" },
-      { type: "debit",  accountCode: "11007", accountName: "سپرده پرداختنی", ratio: "**" },
+      { type: "debit",  accountCode: "21007", accountName: "سپرده پرداختنی", ratio: "**" },
       { type: "credit", accountCode: "11006", accountName: "بانک رد وجوه سپرده", ratio: "**" },
       { type: "credit", accountCode: "11023", accountName: "تنخواه‌گردان دریافتی رد وجوه سپرده عاملین", ratio: "**" },
       { type: "credit", accountCode: "11522", accountName: "مطالبات از خزانه", ratio: "**" },

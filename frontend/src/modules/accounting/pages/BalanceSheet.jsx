@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { PageShell, PageHeader } from "@/components/layout/PageShell";
 import { Card, CardContent } from "@/components/ui/card";
@@ -6,9 +6,21 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
-import { Table2, Search, Printer, FileDown, Loader2, AlertCircle } from "lucide-react";
+import {
+  Table2,
+  Search,
+  Printer,
+  FileDown,
+  Loader2,
+  AlertCircle,
+  ChevronDown,
+  ChevronLeft,
+  ChevronsUpDown,
+  FileSignature
+} from "lucide-react";
 import api from "@/api";
 import { printTable } from "@/lib/printUtils";
+import { validateEgressPermission } from "@/lib/egressValidator";
 
 // ─── تعریف صفحه بر اساس مسیر ────────────────────────────────────────────────
 const PAGE_CONFIG = {
@@ -83,6 +95,39 @@ function fmtNum(n) {
   return n.toLocaleString("fa-IR");
 }
 
+// ─── استخراج امضاهای گزارش از تنظیمات سیستم و امضاهای ذخیره‌شده ─────────────────
+function getReportSignatures() {
+  let settings = {};
+  let userSigs = [];
+  try {
+    settings = JSON.parse(localStorage.getItem("system_settings") || "{}");
+  } catch (_) {}
+  try {
+    userSigs = JSON.parse(localStorage.getItem("user_report_signatures") || "[]");
+  } catch (_) {}
+
+  const sig1User = userSigs.find((s) => String(s.slot) === "1");
+  const title1 = settings.signatureTitle1 || sig1User?.userRole || "تنظیم‌کننده / حسابدار";
+  const name1 = settings.signatureName1 || sig1User?.userName || "";
+  const img1 = sig1User?.signatureImage || null;
+
+  const sig2User = userSigs.find((s) => String(s.slot) === "2");
+  const title2 = settings.signatureTitle2 || sig2User?.userRole || "رئیس امور مالی و حسابداری";
+  const name2 = settings.signatureName2 || sig2User?.userName || "";
+  const img2 = sig2User?.signatureImage || null;
+
+  const sig3User = userSigs.find((s) => String(s.slot) === "3");
+  const title3 = settings.signatureTitle3 || sig3User?.userRole || "ذیحساب و مدیرکل امور مالی";
+  const name3 = settings.signatureName3 || sig3User?.userName || "";
+  const img3 = sig3User?.signatureImage || null;
+
+  return [
+    { slot: 1, title: title1, name: name1, image: img1 },
+    { slot: 2, title: title2, name: name2, image: img2 },
+    { slot: 3, title: title3, name: name3, image: img3 },
+  ];
+}
+
 // ─── خروجی Excel ─────────────────────────────────────────────────────────────
 async function exportToCSV(rows, totals, colDefs, title) {
   const check = await validateEgressPermission({ exportType: "CSV", recordCount: rows.length || 1 });
@@ -122,6 +167,33 @@ export default function BalanceSheet() {
   const [totals,    setTotals]    = useState({});
   const [queryMeta, setQueryMeta] = useState(null);  // { level, dateFrom, dateTo }
 
+  // مدیریت سطر‌های بازشده (زیرمنوی کشویی معین‌ها)
+  const [expandedRows, setExpandedRows] = useState({});
+
+  const signatures = useMemo(() => getReportSignatures(), []);
+
+  function toggleRow(code) {
+    setExpandedRows((prev) => ({
+      ...prev,
+      [code]: !prev[code],
+    }));
+  }
+
+  function expandAll() {
+    if (!rows) return;
+    const all = {};
+    rows.forEach((r) => {
+      if (r.children && r.children.length > 0) {
+        all[r.code] = true;
+      }
+    });
+    setExpandedRows(all);
+  }
+
+  function collapseAll() {
+    setExpandedRows({});
+  }
+
   function validate() {
     const e = {};
     if (!level)                             e.level    = "انتخاب نوع سطح الزامی است";
@@ -138,6 +210,7 @@ export default function BalanceSheet() {
     setFetchError("");
     setLoading(true);
     setRows(null);
+    setExpandedRows({});
 
     try {
       const params = new URLSearchParams({ level, dateFrom, dateTo });
@@ -163,10 +236,11 @@ export default function BalanceSheet() {
     setRows(null);
     setTotals({});
     setQueryMeta(null);
+    setExpandedRows({});
     setLoading(false);
   }
 
-  const levelLabel = LEVEL_OPTIONS.find((o) => o.value === level)?.label ?? "";
+  const levelLabel = LEVEL_OPTIONS.find((o) => o.value === queryMeta?.level || o.value === level)?.label ?? "";
 
   return (
     <PageShell>
@@ -282,7 +356,7 @@ export default function BalanceSheet() {
       {!loading && rows !== null && (
         <Card>
           <CardContent className="p-0">
-            {/* هدر جدول */}
+            {/* هدر اکشن‌های جدول */}
             <div
               className="flex items-center justify-between px-4 py-3 border-b flex-wrap gap-2"
               dir="rtl"
@@ -293,25 +367,48 @@ export default function BalanceSheet() {
                 {queryMeta && (
                   <>
                     <span className="text-xs text-muted-foreground border rounded px-2 py-0.5 bg-muted/50">
-                      {LEVEL_OPTIONS.find((o) => o.value === queryMeta.level)?.label}
+                      {levelLabel}
                     </span>
                     <span className="text-xs text-muted-foreground border rounded px-2 py-0.5 bg-muted/50">
                       {queryMeta.dateFrom} — {queryMeta.dateTo}
                     </span>
                     <span className="text-xs text-muted-foreground border rounded px-2 py-0.5 bg-muted/50">
-                      {rows.length} حساب
+                      {rows.length} سطر اصلی
                     </span>
                   </>
                 )}
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-center flex-wrap">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1 h-8 text-xs text-muted-foreground hover:text-foreground"
+                  onClick={expandAll}
+                  title="نمایش جزئیات تمامی حساب‌های معین"
+                >
+                  <ChevronsUpDown className="h-3.5 w-3.5 text-primary" /> باز کردن همه معین‌ها
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1 h-8 text-xs text-muted-foreground hover:text-foreground"
+                  onClick={collapseAll}
+                >
+                  بستن همه
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   className="gap-1 h-8 text-xs"
-                  onClick={() => printTable("#balance-print-area", `${config.title} — ${queryMeta?.dateFrom ?? ""} تا ${queryMeta?.dateTo ?? ""}`)}
+                  onClick={() =>
+                    printTable(
+                      "#balance-print-area",
+                      `${config.title} — ${queryMeta?.dateFrom ?? ""} تا ${queryMeta?.dateTo ?? ""}`,
+                      "landscape"
+                    )
+                  }
                 >
-                  <Printer className="h-3.5 w-3.5" /> چاپ
+                  <Printer className="h-3.5 w-3.5 text-indigo-600" /> چاپ رسمی A4
                 </Button>
                 <Button
                   variant="outline"
@@ -319,26 +416,49 @@ export default function BalanceSheet() {
                   className="gap-1 h-8 text-xs"
                   onClick={() => exportToCSV(rows, totals, config.colDefs, config.title)}
                 >
-                  <FileDown className="h-3.5 w-3.5" /> خروجی اکسل
+                  <FileDown className="h-3.5 w-3.5 text-emerald-600" /> خروجی اکسل
                 </Button>
               </div>
             </div>
 
-            {/* جدول */}
-            <div className="overflow-x-auto" id="balance-print-area">
-              <table className="w-full text-xs" dir="rtl">
+            {/* ─── ناحیه قابل چاپ شامل سربرگ رسمی، جدول و اسامی امضا کنندگان ─── */}
+            <div className="overflow-x-auto p-4" id="balance-print-area">
+              
+              {/* سربرگ رسمی مخصوص چاپ */}
+              <div className="hidden print:block mb-6 border-b pb-4 text-center" dir="rtl">
+                <div className="flex justify-between items-center mb-2">
+                  <div className="text-right text-xs text-slate-600">
+                    <p className="font-bold text-slate-900">جمهوری اسلامی ایران</p>
+                    <p>نظام حسابداری بخش عمومی (سناما)</p>
+                  </div>
+                  <div className="text-center">
+                    <h2 className="text-base font-bold text-slate-900">{config.title}</h2>
+                    <p className="text-xs text-slate-600 mt-1">{config.description}</p>
+                  </div>
+                  <div className="text-left text-xs text-slate-600">
+                    <p>تاریخ چاپ: {today}</p>
+                    <p>سطح گزارش: {levelLabel}</p>
+                  </div>
+                </div>
+                <div className="text-xs text-slate-700 bg-slate-100 p-1.5 rounded flex justify-center gap-6">
+                  <span>از تاریخ: <strong>{queryMeta?.dateFrom || "—"}</strong></span>
+                  <span>تا تاریخ: <strong>{queryMeta?.dateTo || "—"}</strong></span>
+                </div>
+              </div>
+
+              <table className="w-full text-xs border-collapse" dir="rtl">
                 <thead>
-                  <tr className="border-b bg-muted/40">
-                    <th className="px-3 py-2.5 text-right font-bold text-muted-foreground w-24 whitespace-nowrap">
+                  <tr className="border-b bg-muted/50 print:bg-slate-200">
+                    <th className="px-3 py-2.5 text-right font-bold text-foreground w-28 whitespace-nowrap border-b print:border-slate-400">
                       کد حساب
                     </th>
-                    <th className="px-3 py-2.5 text-right font-bold text-muted-foreground min-w-[160px]">
+                    <th className="px-3 py-2.5 text-right font-bold text-foreground min-w-[180px] border-b print:border-slate-400">
                       عنوان حساب
                     </th>
                     {config.colDefs.map((col) => (
                       <th
                         key={col.key}
-                        className={`px-3 py-2.5 text-left font-bold whitespace-nowrap ${col.cls} w-32`}
+                        className={`px-3 py-2.5 text-left font-bold whitespace-nowrap ${col.cls} w-32 border-b print:border-slate-400`}
                       >
                         {col.label}
                       </th>
@@ -363,43 +483,144 @@ export default function BalanceSheet() {
                       </td>
                     </tr>
                   ) : (
-                    rows.map((row, idx) => (
-                      <tr
-                        key={row.code}
-                        className={`border-b hover:bg-muted/30 transition-colors ${
-                          idx % 2 === 0 ? "bg-background" : "bg-muted/10"
-                        }`}
-                      >
-                        <td className="px-3 py-2 font-mono font-semibold text-foreground whitespace-nowrap">
-                          {row.code}
-                        </td>
-                        <td className="px-3 py-2 text-foreground max-w-[260px] truncate" title={row.name || ""}>
-                          {row.name || <span className="text-muted-foreground/50 italic">—</span>}
-                        </td>
-                        {config.colDefs.map((col) => (
-                          <td
-                            key={col.key}
-                            className={`px-3 py-2 text-left font-mono tabular-nums whitespace-nowrap ${col.cls}`}
+                    rows.map((row, idx) => {
+                      const hasChildren = row.children && row.children.length > 0;
+                      const isExpanded = !!expandedRows[row.code];
+
+                      return (
+                        <tr key={row.code} className="contents">
+                          {/* سطر اصلی حساب */}
+                          <tr
+                            className={`border-b transition-colors cursor-pointer select-none ${
+                              isExpanded
+                                ? "bg-primary/5 dark:bg-primary/10 font-semibold"
+                                : idx % 2 === 0
+                                ? "bg-background hover:bg-muted/30"
+                                : "bg-muted/10 hover:bg-muted/30"
+                            }`}
+                            onClick={() => hasChildren && toggleRow(row.code)}
                           >
-                            {fmtNum(row[col.key])}
-                          </td>
-                        ))}
-                      </tr>
-                    ))
+                            <td className="px-3 py-2.5 font-mono font-bold text-foreground whitespace-nowrap">
+                              <div className="flex items-center gap-1.5">
+                                {hasChildren ? (
+                                  isExpanded ? (
+                                    <ChevronDown className="h-3.5 w-3.5 text-primary shrink-0 transition-transform" />
+                                  ) : (
+                                    <ChevronLeft className="h-3.5 w-3.5 text-muted-foreground shrink-0 transition-transform" />
+                                  )
+                                ) : (
+                                  <span className="w-3.5 inline-block" />
+                                )}
+                                <span>{row.code}</span>
+                              </div>
+                            </td>
+                            <td className="px-3 py-2.5 text-foreground max-w-[280px]">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="font-semibold">{row.name || <span className="text-muted-foreground/50 italic">—</span>}</span>
+                                {hasChildren && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 shrink-0 print:hidden">
+                                    {row.children.length} کد زیرمجموعه
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            {config.colDefs.map((col) => (
+                              <td
+                                key={col.key}
+                                className={`px-3 py-2.5 text-left font-mono tabular-nums whitespace-nowrap ${col.cls} font-medium`}
+                              >
+                                {fmtNum(row[col.key])}
+                              </td>
+                            ))}
+                          </tr>
+
+                          {/* زیرمنوی کشویی: نمایش جزئیات حساب‌های معین / تفصیلی */}
+                          {hasChildren && isExpanded && (
+                            <tr className="bg-slate-50/90 dark:bg-slate-900/60 border-b border-primary/20">
+                              <td colSpan={2 + config.colDefs.length} className="p-0">
+                                <div className="mr-6 my-2 ml-2 p-3 bg-white dark:bg-slate-950 rounded-md border border-slate-200 dark:border-slate-800 shadow-sm">
+                                  <div className="flex items-center justify-between mb-2 text-xs font-bold text-primary border-b pb-1.5">
+                                    <span className="flex items-center gap-1">
+                                      <FileSignature className="h-3.5 w-3.5" />
+                                      {queryMeta?.level === "group" && `جزئیات کدهای معین و حساب‌های کل زیرمجموعه (${row.code} - ${row.name})`}
+                                      {queryMeta?.level === "main" && `جزئیات کدهای معین زیرمجموعه (${row.code} - ${row.name})`}
+                                      {queryMeta?.level === "moein" && `جزئیات کدهای تفصیلی و شرح ثبت‌ها (${row.code} - ${row.name})`}
+                                      {queryMeta?.level === "detail" && `جزئیات تراکنش‌ها و اسناد زیرمجموعه (${row.code} - ${row.name})`}
+                                    </span>
+                                    <span className="text-[11px] text-muted-foreground font-normal">
+                                      تعداد: {row.children.length} ردیف
+                                    </span>
+                                  </div>
+
+                                  <table className="w-full text-[11px] border-collapse" dir="rtl">
+                                    <thead>
+                                      <tr className="bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-semibold border-b">
+                                        <th className="px-2.5 py-1.5 text-right w-28">
+                                          {queryMeta?.level === "group" && "کد معین / کل"}
+                                          {queryMeta?.level === "main" && "کد معین"}
+                                          {queryMeta?.level === "moein" && "کد تفصیلی / کد ثبت"}
+                                          {queryMeta?.level === "detail" && "کد / شرح ثبت"}
+                                        </th>
+                                        <th className="px-2.5 py-1.5 text-right">
+                                          {queryMeta?.level === "group" && "عنوان حساب معین / کل"}
+                                          {queryMeta?.level === "main" && "عنوان حساب معین"}
+                                          {queryMeta?.level === "moein" && "عنوان تفصیلی / شرح ثبت"}
+                                          {queryMeta?.level === "detail" && "جزییات و شرح اسناد"}
+                                        </th>
+                                        {config.colDefs.map((col) => (
+                                          <th key={col.key} className={`px-2.5 py-1.5 text-left ${col.cls} w-28`}>
+                                            {col.label}
+                                          </th>
+                                        ))}
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {row.children.map((child, cIdx) => (
+                                        <tr
+                                          key={child.code}
+                                          className={`border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900/50 ${
+                                            cIdx % 2 === 0 ? "bg-white dark:bg-slate-950" : "bg-slate-50/40 dark:bg-slate-900/20"
+                                          }`}
+                                        >
+                                          <td className="px-2.5 py-1.5 font-mono font-semibold text-slate-800 dark:text-slate-200">
+                                            {child.code}
+                                          </td>
+                                          <td className="px-2.5 py-1.5 text-slate-700 dark:text-slate-300">
+                                            {child.name || "—"}
+                                          </td>
+                                          {config.colDefs.map((col) => (
+                                            <td
+                                              key={col.key}
+                                              className={`px-2.5 py-1.5 text-left font-mono tabular-nums ${col.cls}`}
+                                            >
+                                              {fmtNum(child[col.key])}
+                                            </td>
+                                          ))}
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
 
                 {/* ردیف جمع کل */}
                 {rows.length > 0 && (
                   <tfoot>
-                    <tr className="border-t-2 bg-muted/30 font-bold">
-                      <td className="px-3 py-2.5" colSpan={2}>
+                    <tr className="border-t-2 border-slate-400 bg-muted/40 font-bold print:bg-slate-100">
+                      <td className="px-3 py-3" colSpan={2}>
                         <span className="text-xs font-bold text-foreground">جمع کل</span>
                       </td>
                       {config.colDefs.map((col) => (
                         <td
                           key={col.key}
-                          className={`px-3 py-2.5 text-left font-mono font-bold tabular-nums ${col.cls}`}
+                          className={`px-3 py-3 text-left font-mono font-bold tabular-nums text-xs ${col.cls}`}
                         >
                           {fmtNum(totals[col.key])}
                         </td>
@@ -408,6 +629,43 @@ export default function BalanceSheet() {
                   </tfoot>
                 )}
               </table>
+
+              {/* ─── اسامی امضاء‌کنندگان گزارش زیر برگ چاپی ─── */}
+              {rows.length > 0 && (
+                <div className="mt-12 pt-6 border-t border-slate-300 print:mt-16 print:pt-6 print:border-slate-400 break-inside-avoid">
+                  <div className="grid grid-cols-3 gap-6 text-center text-xs" dir="rtl">
+                    {signatures.map((sig) => (
+                      <div
+                        key={sig.slot}
+                        className="flex flex-col items-center justify-between min-h-[110px] p-2 rounded-lg border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 print:bg-transparent print:border-none"
+                      >
+                        <div className="font-bold text-slate-800 dark:text-slate-200">
+                          {sig.title}
+                        </div>
+                        
+                        <div className="my-2 h-14 flex items-center justify-center">
+                          {sig.image ? (
+                            <img
+                              src={sig.image}
+                              alt={sig.title}
+                              className="max-h-12 object-contain"
+                            />
+                          ) : (
+                            <div className="text-[10px] text-slate-400 italic">
+                              محل امضاء و مهر
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="font-semibold text-slate-900 dark:text-slate-100 border-t border-dashed border-slate-300 pt-1 w-3/4">
+                          {sig.name || "………………………"}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
             </div>
           </CardContent>
         </Card>
@@ -415,3 +673,4 @@ export default function BalanceSheet() {
     </PageShell>
   );
 }
+

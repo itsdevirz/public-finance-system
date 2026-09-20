@@ -10,6 +10,8 @@ import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import api from "@/api";
 import { validateAndLogFileUpload } from "@/lib/fileUploadLogger";
 
+import PersonSearchSelect from "@/components/ui/person-search-select";
+
 function fmtNum(n) {
   if (n === 0 || n == null) return "۰";
   return Number(n).toLocaleString("fa-IR");
@@ -395,13 +397,23 @@ export default function ObligationModule() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">طرف حساب / پیمانکار / ذینفع</Label>
-                  <Input
+                  <Label className="text-xs font-semibold">طرف حساب / پیمانکار / ذینفع (نام یا شناسه ملی ۱۱ رقمی)</Label>
+                  <PersonSearchSelect
                     value={form.beneficiary_name}
-                    onChange={(e) => setForm({ ...form, beneficiary_name: e.target.value })}
-                    placeholder="نام شرکت، طرف حساب یا پیمانکار..."
-                    className="text-xs font-bold"
-                    required
+                    onChange={(selected) => {
+                      if (typeof selected === "string") {
+                        setForm((prev) => ({ ...prev, beneficiary_name: selected }));
+                      } else if (selected) {
+                        const personTitle = selected.title || `${selected.firstName || ""} ${selected.lastName || ""}`.trim();
+                        setForm((prev) => ({
+                          ...prev,
+                          beneficiary_name: personTitle,
+                          national_id: selected.nationalId || prev.national_id || "",
+                          contract_number: selected.contractNumber || prev.contract_number
+                        }));
+                      }
+                    }}
+                    placeholder="جستجو بر اساس نام شخص یا شناسه ملی ۱۱ رقمی..."
                   />
                 </div>
 

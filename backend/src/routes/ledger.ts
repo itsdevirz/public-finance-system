@@ -369,6 +369,15 @@ router.get("/trial-balance", async (c) => {
     .toArray();
 
   // ─── تجمیع گردش‌ها در یک نقشه: levelCode → accumulators ────────────────
+  interface SubAccountEntry {
+    name:          string;
+    debit_before:  number;
+    credit_before: number;
+    debit_turn:    number;
+    credit_turn:   number;
+    hasTurn:       boolean;
+  }
+
   const map = new Map<string, {
     name:          string;
     debit_before:  number;  // گردش قبل از بازه → برای مانده اول دوره
@@ -376,6 +385,7 @@ router.get("/trial-balance", async (c) => {
     debit_turn:    number;  // گردش طی دوره
     credit_turn:   number;
     hasTurn:       boolean; // آیا در بازه تراکنشی داشته
+    childrenMap:   Map<string, SubAccountEntry>;
   }>();
 
   for (const rawDoc of docs) {
@@ -383,6 +393,10 @@ router.get("/trial-balance", async (c) => {
     if (doc.status === "CANCELLED") continue;
 
     const docDateNum = dateToNum(doc.document_date ?? "");
+    const isInRange = docDateNum >= fromNum && docDateNum <= toNum;
+    const isBefore  = docDateNum < fromNum;
+
+    if (!isInRange && !isBefore) continue;
 
     for (const line of (doc.lines ?? []) as any[]) {
       const rawCode = (line.account_code ?? "") as string;
@@ -397,11 +411,11 @@ router.get("/trial-balance", async (c) => {
           debit_turn:    0,
           credit_turn:   0,
           hasTurn:       false,
+          childrenMap:   new Map(),
         });
       }
       const entry = map.get(code)!;
 
-      // اگر نام از مرجع پیدا نشد و سند نام دارد، ثبت کن
       if (!accountNameMap.has(code) && !entry.name && line.account_name) {
         entry.name = line.account_name;
       }
@@ -409,18 +423,88 @@ router.get("/trial-balance", async (c) => {
       const d  = (line.debit  ?? 0) as number;
       const cr = (line.credit ?? 0) as number;
 
-      if (docDateNum >= fromNum && docDateNum <= toNum) {
-        // فقط اسناد داخل بازه → گردش دوره
+      if (isInRange) {
         entry.debit_turn  += d;
         entry.credit_turn += cr;
         entry.hasTurn = true;
+      } else if (isBefore) {
+        entry.debit_before  += d;
+        entry.credit_before += cr;
+        entry.hasTurn = true;
       }
-      // قبل یا بعد از بازه: نادیده می‌گیریم
+
+      // ─── تعیین کد و نام زیرمجموعه (معین / تفصیلی / شرح ثبت) ───────────────────
+      const digitsOnly = rawCode.replace(/\D/g, "");
+      let subCode = "";
+      let subName = "";
+
+      if (level === "group") {
+        if (digitsOnly.length >= 5) {
+          subCode = digitsOnly.slice(0, 5);
+        } else if (digitsOnly.length >= 3) {
+          subCode = digitsOnly.slice(0, 3);
+        } else {
+          subCode = `${digitsOnly}-01`;
+        }
+        subName = accountNameMap.get(subCode) || line.account_name || "";
+      } else if (level === "main") {
+        if (digitsOnly.length >= 5) {
+          subCode = digitsOnly.slice(0, 5);
+        } else if (digitsOnly.length > 3) {
+          subCode = digitsOnly;
+        } else {
+          const detailDesc = line.description || line.account_name || "معین عمومی";
+          subCode = `${code}-${detailDesc.slice(0, 15)}`;
+          subName = detailDesc;
+        }
+        if (!subName) subName = accountNameMap.get(subCode) || line.account_name || "";
+      } else if (level === "moein") {
+        if (digitsOnly.length > 5) {
+          subCode = digitsOnly;
+          subName = accountNameMap.get(subCode) || line.account_name || "";
+        } else {
+          const detailDesc = line.description || line.person_name || line.account_name || "تفصیلی عمومی";
+          subCode = `${code}-${detailDesc.slice(0, 20)}`;
+          subName = detailDesc;
+        }
+      } else {
+        // level === "detail"
+        const detailDesc = line.description || line.person_name || line.account_name || `سند ${doc.document_number || ""}`;
+        subCode = `${code}-${detailDesc.slice(0, 20)}`;
+        subName = detailDesc;
+      }
+
+      if (subCode && subCode !== code) {
+        if (!entry.childrenMap.has(subCode)) {
+          entry.childrenMap.set(subCode, {
+            name:          subName || accountNameMap.get(subCode) || line.account_name || "",
+            debit_before:  0,
+            credit_before: 0,
+            debit_turn:    0,
+            credit_turn:   0,
+            hasTurn:       false,
+          });
+        }
+        const childEntry = entry.childrenMap.get(subCode)!;
+        if (!childEntry.name && subName) {
+          childEntry.name = subName;
+        }
+
+        if (isInRange) {
+          childEntry.debit_turn  += d;
+          childEntry.credit_turn += cr;
+          childEntry.hasTurn = true;
+        } else if (isBefore) {
+          childEntry.debit_before  += d;
+          childEntry.credit_before += cr;
+          childEntry.hasTurn = true;
+        }
+      }
     }
   }
 
   // ─── ساخت آرایه نتیجه ────────────────────────────────────────────────────
-  const rows: {
+  interface TrialRow {
     code:         string;
     name:         string;
     debit_begin:  number;
@@ -431,18 +515,20 @@ router.get("/trial-balance", async (c) => {
     credit_net:   number;
     debit_bal:    number;
     credit_bal:   number;
-  }[] = [];
+    children?:    TrialRow[];
+  }
+
+  const rows: TrialRow[] = [];
 
   for (const [code, e] of map.entries()) {
-    // فقط حساب‌هایی که در بازه گردش داشتند نمایش داده می‌شوند
     if (!e.hasTurn) continue;
 
-    // مانده اول دوره (خالص یک‌طرفه)
+    // مانده اول دوره
     const openNet      = e.debit_before - e.credit_before;
     const debit_begin  = openNet > 0 ? openNet  : 0;
     const credit_begin = openNet < 0 ? -openNet : 0;
 
-    // تجمعی = مانده اول دوره + گردش دوره (خالص)
+    // تجمعی
     const cumDebit  = e.debit_before  + e.debit_turn;
     const cumCredit = e.credit_before + e.credit_turn;
     const debit_net  = cumDebit  > cumCredit ? cumDebit  - cumCredit : 0;
@@ -452,6 +538,39 @@ router.get("/trial-balance", async (c) => {
     const finalNet   = cumDebit - cumCredit;
     const debit_bal  = finalNet > 0 ? finalNet  : 0;
     const credit_bal = finalNet < 0 ? -finalNet : 0;
+
+    // ساخت لیست زیرمجموعه‌ها (معین‌ها / تفصیلی‌ها)
+    const children: TrialRow[] = [];
+    for (const [cCode, cE] of e.childrenMap.entries()) {
+      if (!cE.hasTurn) continue;
+      const cOpenNet      = cE.debit_before - cE.credit_before;
+      const cDebitBegin   = cOpenNet > 0 ? cOpenNet  : 0;
+      const cCreditBegin  = cOpenNet < 0 ? -cOpenNet : 0;
+
+      const cCumDebit   = cE.debit_before  + cE.debit_turn;
+      const cCumCredit  = cE.credit_before + cE.credit_turn;
+      const cDebitNet   = cCumDebit  > cCumCredit ? cCumDebit  - cCumCredit : 0;
+      const cCreditNet  = cCumCredit > cCumDebit  ? cCumCredit - cCumDebit  : 0;
+
+      const cFinalNet   = cCumDebit - cCumCredit;
+      const cDebitBal   = cFinalNet > 0 ? cFinalNet  : 0;
+      const cCreditBal  = cFinalNet < 0 ? -cFinalNet : 0;
+
+      children.push({
+        code: cCode,
+        name: cE.name || accountNameMap.get(cCode) || "",
+        debit_begin: cDebitBegin,
+        credit_begin: cCreditBegin,
+        debit_turn: cE.debit_turn,
+        credit_turn: cE.credit_turn,
+        debit_net: cDebitNet,
+        credit_net: cCreditNet,
+        debit_bal: cDebitBal,
+        credit_bal: cCreditBal,
+      });
+    }
+
+    children.sort((a, b) => a.code.localeCompare(b.code, "en", { numeric: true }));
 
     rows.push({
       code,
@@ -464,6 +583,7 @@ router.get("/trial-balance", async (c) => {
       credit_net,
       debit_bal,
       credit_bal,
+      children,
     });
   }
 

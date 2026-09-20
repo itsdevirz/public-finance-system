@@ -220,33 +220,31 @@ function SectionTitle({ children }) {
   );
 }
 
+function formatNationalId11(personKind, nationalId) {
+  const kind = (personKind || "A").trim().substring(0, 1).toUpperCase();
+  const cleanId = String(nationalId || "").replace(/\D/g, "").trim();
+  if (!cleanId) return "";
+  if (kind === "A") {
+    return cleanId.length >= 11 ? cleanId.slice(0, 11) : cleanId.padStart(11, "0");
+  } else {
+    // حقیقی (B, C, D): طبق پروتکل، با قرار گرفتن عدد ۹ قبل از کد ملی ۱۰ رقمی، به ۱۱ رقم تبدیل می‌شود
+    if (cleanId.length === 10 && !cleanId.startsWith("9")) {
+      return `9${cleanId}`;
+    }
+    if (cleanId.length >= 11) {
+      return cleanId.slice(0, 11);
+    }
+    return cleanId;
+  }
+}
+
 // ─── تابع ساخت NomineeCode (الگوریتم ۱۶ کاراکتری سناما) ───
-// بخش اول: ۱ کاراکتر شامل حروف انگلیسی A, B, C, D
-// بخش دوم: ۴ کاراکتر (کد جزء‌طبقه)
-// بخش سوم: ۱۱ کاراکتر (اشخاص حقوقی: شناسه ملی ۱۱ رقمی / اشخاص حقیقی: کد ملی ۱۰ رقمی + عدد ۹ در انتها)
 function buildNomineeCode(personKind, detailClass, nationalId, exclusiveCode, suggestedCode) {
   const kind = (personKind || "A").trim().substring(0, 1).toUpperCase();
   const cls4 = String(detailClass || "").replace(/\D/g, "").padStart(4, "0").substring(0, 4);
 
   const rawId = String(nationalId || exclusiveCode || suggestedCode || "").replace(/\D/g, "").trim();
-
-  let id11 = "";
-  if (kind === "A") {
-    // حقوقی: ۱۱ کاراکتر (شناسه ملی)
-    if (rawId.length >= 11) {
-      id11 = rawId.substring(0, 11);
-    } else {
-      id11 = rawId.padStart(11, "0");
-    }
-  } else {
-    // حقیقی (B, C, D): ۱۱ کاراکتر شامل ۱۰ رقم کد ملی + عدد 9 در انتها
-    if (rawId.length === 11 && rawId.endsWith("9")) {
-      id11 = rawId;
-    } else {
-      const national10 = rawId.padStart(10, "0").slice(-10);
-      id11 = `${national10}9`;
-    }
-  }
+  const id11 = formatNationalId11(kind, rawId);
 
   return `${kind}${cls4}${id11}`;
 }
@@ -316,19 +314,25 @@ export default function PersonsForm() {
           k !== nationalIdKey && !/شناسه|کد\s*ملی|کد\s*طبقه/i.test(k) && /طرف\s*حساب|عنوان|نام|شخص|person|title|name/i.test(k)
         );
 
+        // 3. کلید طبقه / جزءطبقه (مانند: جزء طبقه، کد طبقه، detailClass)
+        const classKey = keys.find((k) =>
+          /جزء\s*طبقه|کد\s*طبقه|detailClass|classKey/i.test(k) || (/طبقه/i.test(k) && k !== titleKey && k !== nationalIdKey)
+        );
+
         // 4. کلید نوع شخص (مانند: نوع شخص، personKind)
         const kindKey = keys.find((k) => /نوع\s*شخص|personKind/i.test(k));
 
         const title = titleKey ? normalizePersianText(row[titleKey]) : "";
-        const nationalId = nationalIdKey ? normalizePersianText(row[nationalIdKey]) : "";
+        const rawNatId = nationalIdKey ? normalizePersianText(row[nationalIdKey]) : "";
         const detailClass = classKey ? normalizePersianText(row[classKey]) : "3237";
         
         let personKind = kindKey ? String(row[kindKey]).trim().toUpperCase() : "";
         if (!personKind || !["A", "B", "C", "D"].includes(personKind)) {
-          const cleanId = nationalId.replace(/\D/g, "");
+          const cleanId = rawNatId.replace(/\D/g, "");
           personKind = cleanId.length === 10 ? "B" : "A";
         }
 
+        const nationalId = formatNationalId11(personKind, rawNatId);
         const nomineeCode = buildNomineeCode(personKind, detailClass, nationalId);
 
         return {
@@ -480,11 +484,13 @@ export default function PersonsForm() {
 
   async function handleSave() {
     if (isLegal ? !form.title.trim() : !form.firstName.trim()) return;
+    const formattedNatId = formatNationalId11(form.personKind, form.nationalId);
     const displayTitle = isLegal
       ? form.title
       : `${form.firstName} ${form.lastName}`.trim();
     const record = {
       ...form,
+      nationalId: formattedNatId,
       nomineeCode,
       title: displayTitle,
     };

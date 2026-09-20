@@ -231,17 +231,36 @@ export default function AllocationModule() {
                   {selectedAgr && (
                     <div className="text-[11px] bg-background p-2.5 rounded-lg border border-border space-y-1 text-muted-foreground">
                       <div className="flex justify-between font-bold text-foreground">
-                        <span>عنوان: {selectedAgr.title}</span>
+                        <span>عنوان موافقتنامه: {selectedAgr.title}</span>
                         {selectedAgr.base_code && <Badge variant="outline" className="text-[10px] font-mono bg-primary/10 text-primary">کد مبنا: {selectedAgr.base_code}</Badge>}
                       </div>
                       <div className="grid grid-cols-2 gap-1 text-[10px] font-mono">
                         <div>نوع: {selectedAgr.credit_category === "capital" ? "تملک دارایی‌های سرمایه‌ای" : "اعتبارات هزینه‌ای"}</div>
-                        <div>سقف بودجه: {fmtNum(selectedAgr.total_amount)} ریال</div>
-                        <div>کد بدهکار: {selectedAgr.debtor_account || (selectedAgr.credit_category === "capital" ? "92002" : "92001")}</div>
-                        <div>کد بستانکار: {selectedAgr.creditor_account || (selectedAgr.credit_category === "capital" ? "91002" : "91001")}</div>
+                        <div>منبع: {String(selectedAgr.source_type || selectedAgr.sourceType || "1") === "2" ? "اختصاصی" : "عمومی"}</div>
+                        <div>سقف موافقتنامه: {fmtNum(selectedAgr.total_amount)} ریال</div>
+                        <div>مانده قابل تخصیص: {fmtNum(Math.max(0, (Number(selectedAgr.total_amount) || 0) - valAllocations))} ریال</div>
+                      </div>
+                      
+                      <div className="mt-2 pt-2 border-t flex flex-col gap-1 text-[10px]">
+                        <Badge variant="outline" className="bg-blue-50 text-blue-800 border-blue-200 justify-center">
+                          سند تخصیص: بدهکار {selectedAgr.credit_category === "capital" ? "۹۳۰۰۲" : "۹۳۰۰۱"} | بستانکار {selectedAgr.credit_category === "capital" ? "۹۲۰۰۲" : "۹۲۰۰۱"}
+                        </Badge>
+                        <Badge className="bg-indigo-600 text-white justify-center">
+                          مقصد عملکرد: صورتحساب {selectedAgr.credit_category === "capital" ? "تملک دارایی‌های سرمایه‌ای" : "اعتبارات هزینه‌ای"} ({String(selectedAgr.source_type || selectedAgr.sourceType || "1") === "2" ? "اختصاصی" : "عمومی"}) ⟵ فیلد اعتبارات تخصیص‌یافته
+                        </Badge>
                       </div>
                     </div>
                   )}
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-foreground">عنوان / ابلاغ تخصیص <span className="text-rose-500">*</span></Label>
+                  <Input
+                    value={form.title || ""}
+                    onChange={(e) => setForm({ ...form, title: e.target.value })}
+                    placeholder="مثال: تخصیص اعتبار سه ماهه اول ابلاغی سازمان مدیریت"
+                    className="text-xs font-bold"
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -250,7 +269,7 @@ export default function AllocationModule() {
                     <select
                       value={form.period}
                       onChange={(e) => setForm({ ...form, period: e.target.value })}
-                      className="w-full h-9 px-3 text-xs rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                      className="w-full h-9 px-3 text-xs rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
                     >
                       <option value="سه ماهه اول">سه ماهه اول</option>
                       <option value="سه ماهه دوم">سه ماهه دوم</option>
@@ -274,30 +293,30 @@ export default function AllocationModule() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">مبلغ تخصیص (ریال)</Label>
+                  <Label className="text-xs font-semibold">مبلغ تخصیص اعتبار (ریال) <span className="text-rose-500">*</span></Label>
                   <Input
                     type="number"
                     value={form.amount}
                     onChange={(e) => setForm({ ...form, amount: e.target.value })}
                     placeholder="0"
-                    className="text-xs font-mono"
+                    className="text-xs font-mono font-bold text-blue-700"
                     required
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">توضیحات</Label>
+                  <Label className="text-xs font-semibold">توضیحات و شماره مجوز</Label>
                   <Input
                     value={form.description}
                     onChange={(e) => setForm({ ...form, description: e.target.value })}
-                    placeholder="شماره مجوز تخصیص..."
+                    placeholder="شماره و تاریخ مجوز ابلاغ تخصیص سازمان مدیریت..."
                     className="text-xs"
                   />
                 </div>
 
-                <Button type="submit" size="sm" className="w-full text-xs font-bold gap-2" disabled={loading}>
+                <Button type="submit" size="sm" className="w-full text-xs font-bold gap-2 bg-blue-600 hover:bg-blue-700 text-white" disabled={loading}>
                   <TrendingUp className="h-4 w-4" />
-                  {editingAlloc ? "بروزرسانی تخصیص" : "صدور تخصیص اعتبار"}
+                  {editingAlloc ? "بروزرسانی تخصیص اعتبار" : "صدور تخصیص و سند حسابداری (۹۳۰۰۱/۹۳۰۰۲)"}
                 </Button>
               </form>
             </CardContent>

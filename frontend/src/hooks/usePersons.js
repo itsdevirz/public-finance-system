@@ -30,12 +30,18 @@ export function usePersons() {
     return () => { mounted = false; };
   }, []);
 
-  // ساخت options برای SearchableSelect
-  const options = persons.map((p) => ({
-    value: p.nomineeCode || p._id,
-    label: `${p.title || `${p.firstName || ""} ${p.lastName || ""}`.trim()} — ${p.nomineeCode || ""}`,
-    person: p,
-  }));
+  // ساخت options برای SearchableSelect همراه با نام شخص و شناسه ملی ۱۱ رقمی
+  const options = persons.map((p) => {
+    const name = p.title || `${p.firstName || ""} ${p.lastName || ""}`.trim();
+    const natIdStr = p.nationalId ? ` [شناسه ملی: ${p.nationalId}]` : "";
+    return {
+      value: p.nomineeCode || p._id,
+      label: `${name}${natIdStr} — ${p.nomineeCode || ""}`,
+      person: p,
+      name,
+      nationalId: p.nationalId,
+    };
+  });
 
   return { persons, options, loading, error };
 }

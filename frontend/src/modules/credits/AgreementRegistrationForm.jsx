@@ -244,8 +244,12 @@ export default function AgreementRegistrationForm({ onComplete }) {
           return false;
         }
       } else {
+        if (!item.programOrProjectNumber || String(item.programOrProjectNumber).trim() === "") {
+          setAlertMsg({ type: "error", text: `سطر ${rowNum}: در اعتبارات تملک دارایی‌های سرمایه‌ای (۹۲۰۰۲)، ورود کد تفصیلی طرح/پروژه الزامی است تا از ایجاد مغایرت در جدول تفکیک عملکرد پروژه‌ها جلوگیری شود.` });
+          return false;
+        }
         const expectedLen = item.capitalType === "provincial" ? 14 : 12;
-        if (item.programOrProjectNumber && item.programOrProjectNumber.length !== expectedLen) {
+        if (item.programOrProjectNumber.length !== expectedLen) {
           setAlertMsg({ type: "error", text: `سطر ${rowNum}: شماره طرح اعتبارات عمرانی ${item.capitalType === "provincial" ? "استانی (۱۴ رقم)" : "ملی (۱۲ رقم)"} معتبر نمی‌باشد.` });
           return false;
         }
@@ -520,9 +524,18 @@ export default function AgreementRegistrationForm({ onComplete }) {
               <p className="text-[11px] text-muted-foreground">ورود اطلاعات کنترلی موافقتنامه بودجه‌ای دستگاه</p>
             </div>
           </div>
-          <Badge variant="outline" className="bg-background text-primary border-primary/30 font-mono text-xs px-2.5 py-1">
-            کد حسابداری بدهکار: {accountingInfo.debtor} | بستانکار: {accountingInfo.creditor}
-          </Badge>
+          <div className="flex flex-col items-end gap-1">
+            <Badge variant="outline" className="bg-background text-primary border-primary/30 font-mono text-xs px-2.5 py-1">
+              کد حسابداری بدهکار: {accountingInfo.debtor} | بستانکار: {accountingInfo.creditor}
+            </Badge>
+            <Badge className="bg-indigo-600 text-white text-[11px] px-2.5 py-0.5">
+              محل انعکال: {
+                headerForm.creditCategory === "expense"
+                  ? (headerForm.sourceType === "2" ? "صورتحساب هزینه‌ای اختصاصی (۹۲۰۰۱)" : "صورتحساب هزینه‌ای عمومی (۹۲۰۰۱)")
+                  : (headerForm.sourceType === "2" ? "صورتحساب تملک دارایی‌های سرمایه‌ای اختصاصی (۹۲۰۰۲)" : "صورتحساب تملک دارایی‌های سرمایه‌ای عمومی (۹۲۰۰۲)")
+              }
+            </Badge>
+          </div>
         </CardHeader>
 
         <CardContent className="p-4 space-y-4">

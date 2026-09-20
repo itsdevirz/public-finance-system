@@ -81,29 +81,30 @@ function normalizePersianText(str: any): string {
     .trim();
 }
 
+function formatNationalId11(personKind?: string, nationalId?: string): string {
+  const kind = (personKind || "A").trim().substring(0, 1).toUpperCase();
+  const cleanId = String(nationalId || "").replace(/\D/g, "").trim();
+  if (!cleanId) return "";
+  if (kind === "A") {
+    return cleanId.length >= 11 ? cleanId.slice(0, 11) : cleanId.padStart(11, "0");
+  } else {
+    // اشخاص حقیقی (B, C, D): طبق پروتکل، با قرار گرفتن عدد ۹ قبل از کد ملی ۱۰ رقمی، به ۱۱ رقم تبدیل می‌شود
+    if (cleanId.length === 10 && !cleanId.startsWith("9")) {
+      return `9${cleanId}`;
+    }
+    if (cleanId.length >= 11) {
+      return cleanId.slice(0, 11);
+    }
+    return cleanId;
+  }
+}
+
 function buildNomineeCode(personKind?: string, detailClass?: string, nationalId?: string, exclusiveCode?: string, suggestedCode?: string): string {
   const kind = (personKind || "A").trim().substring(0, 1).toUpperCase();
   const cls4 = String(detailClass || "").replace(/\D/g, "").padStart(4, "0").substring(0, 4);
 
   const rawId = String(nationalId || exclusiveCode || suggestedCode || "").replace(/\D/g, "").trim();
-
-  let id11 = "";
-  if (kind === "A") {
-    // حقوقی: ۱۱ کاراکتر (شناسه ملی)
-    if (rawId.length >= 11) {
-      id11 = rawId.substring(0, 11);
-    } else {
-      id11 = rawId.padStart(11, "0");
-    }
-  } else {
-    // حقیقی (B, C, D): ۱۱ کاراکتر شامل ۱۰ رقم کد ملی + عدد 9 در انتها
-    if (rawId.length === 11 && rawId.endsWith("9")) {
-      id11 = rawId;
-    } else {
-      const national10 = rawId.padStart(10, "0").slice(-10);
-      id11 = `${national10}9`;
-    }
-  }
+  const id11 = formatNationalId11(kind, rawId);
 
   return `${kind}${cls4}${id11}`;
 }
@@ -122,15 +123,16 @@ router.post("/import", async (c) => {
     let updated = 0;
 
     for (const raw of items) {
-      const nationalId = normalizePersianText(raw.nationalId || raw["شناسه ملی"] || raw["شناسه ملی طرف حساب"] || raw["کد ملی"] || "");
+      let rawNatId = normalizePersianText(raw.nationalId || raw["شناسه ملی"] || raw["شناسه ملی طرف حساب"] || raw["کد ملی"] || "");
       const title = normalizePersianText(raw.title || raw["طرف حساب"] || raw["عنوان"] || raw["عنوان شخصیت حقوقی"] || "");
 
       let personKind = (raw.personKind || raw["نوع شخص"] || "").toString().trim().toUpperCase();
       if (!personKind || !["A", "B", "C", "D"].includes(personKind)) {
-        const cleanId = nationalId.replace(/\D/g, "");
+        const cleanId = rawNatId.replace(/\D/g, "");
         personKind = cleanId.length === 10 ? "B" : "A";
       }
 
+      const nationalId = formatNationalId11(personKind, rawNatId);
       const detailClass = normalizePersianText(raw.detailClass || raw["کد طبقه بندی"] || "3237");
       const personClass = raw.personClass || (detailClass ? detailClass.substring(0, 2) : "32");
       const subClass = raw.subClass || (detailClass ? detailClass.substring(0, 3) : "323");
@@ -212,7 +214,8 @@ router.post("/", async (c) => {
       }, 400);
     }
     
-    const nomineeCode = body.nomineeCode || buildNomineeCode(body.personKind, body.detailClass, body.nationalId, body.exclusiveCode, body.suggestedCode);
+    const nationalId = formatNationalId11(body.personKind, body.nationalId);
+    const nomineeCode = body.nomineeCode || buildNomineeCode(body.personKind, body.detailClass, nationalId, body.exclusiveCode, body.suggestedCode);
 
     // Check if nomineeCode already exists
     const existing = await db.collection("persons").findOne({ nomineeCode });
@@ -222,6 +225,7 @@ router.post("/", async (c) => {
 
     const doc = {
       ...body,
+      nationalId,
       nomineeCode,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -253,7 +257,8 @@ router.put("/:id", async (c) => {
       }, 400);
     }
 
-    const nomineeCode = body.nomineeCode || buildNomineeCode(body.personKind, body.detailClass, body.nationalId, body.exclusiveCode, body.suggestedCode);
+    const nationalId = formatNationalId11(body.personKind, body.nationalId);
+    const nomineeCode = body.nomineeCode || buildNomineeCode(body.personKind, body.detailClass, nationalId, body.exclusiveCode, body.suggestedCode);
 
     // Check if nomineeCode already exists for another person
     const existing = await db.collection("persons").findOne({ 
@@ -265,6 +270,7 @@ router.put("/:id", async (c) => {
     }
 
     const { _id, ...updateData } = body;
+    updateData.nationalId = nationalId;
     updateData.nomineeCode = nomineeCode;
     const result = await db.collection("persons").findOneAndUpdate(
       { _id: new ObjectId(id) },

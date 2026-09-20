@@ -152,6 +152,7 @@ export const TOP_NAV = [
             children: [
               { to: "/reports/sanama-export", label: "خروجی سناما (فایل/اکسل استاندارد سامانه)" },
               { to: "/reports/sanama-forms", label: "فرم‌های عملکرد" },
+              { to: "/reports/performance-statements-4way", label: "صورتحساب‌های ۴گانه عملکرد (دریافت و پرداخت)" },
             ],
           },
           {

@@ -59,10 +59,26 @@ router.post("/agreements", async (c) => {
   
   // کدهای اتوماتیک حسابداری طبق الزامات: هزینه‌ای (92001/91001) | عمرانی (92002/91002)
   const isCapital = body.credit_category === "capital";
+
+  // اعتبارسنجی سخت‌گیرانه تفصیلی پروژه‌ها در اعتبارات تملک (92002 / 91002)
+  if (isCapital && Array.isArray(body.items)) {
+    for (let i = 0; i < body.items.length; i++) {
+      const item = body.items[i];
+      if (!item.programOrProjectNumber || String(item.programOrProjectNumber).trim() === "") {
+        return c.json({
+          message: `سطر ${i + 1}: در اعتبارات تملک دارایی‌های سرمایه‌ای (۹۲۰۰۲)، ورود کد تفصیلی طرح/پروژه الزامی است تا از ایجاد مغایرت در جدول تفکیک عملکرد پروژه‌ها جلوگیری شود.`
+        }, 400);
+      }
+    }
+  }
+
   const debtorCode = isCapital ? "92002" : "92001";
   const creditorCode = isCapital ? "91002" : "91001";
   const debtorName = isCapital ? "اعتبارات تملک دارایی‌های سرمایه‌ای" : "اعتبارات هزینه‌ای";
   const creditorName = isCapital ? "طرف اعتبارات تملک دارایی‌های سرمایه‌ای" : "طرف اعتبارات هزینه‌ای";
+
+  const sourceType = String(body.source_type || body.sourceType || "1"); // 1: عمومی / 2: اختصاصی
+  const sourceTitle = sourceType === "2" ? "منبع اختصاصی" : "منبع عمومی";
 
   const result = await getDb().collection<Agreement>("agreements").insertOne({
     ...body,
@@ -84,12 +100,30 @@ router.post("/agreements", async (c) => {
         fiscal_year: Number(body.fiscal_year) || 1404,
         status: "CONFIRMED",
         document_date: new Date().toLocaleDateString("fa-IR"),
-        description: `سند حسابداری خودکار موافقتنامه بودجه: ${body.title || agreement_number}`,
+        description: `سند حسابداری خودکار موافقتنامه بودجه (${sourceTitle}): ${body.title || agreement_number}`,
         agreement_id: result.insertedId.toHexString(),
         base_code: body.base_code || "",
+        source_type: sourceType,
+        credit_category: body.credit_category || "expense",
         lines: [
-          { account_code: debtorCode, account_name: debtorName, debit: Number(body.total_amount) || 0, credit: 0, is_budgetary: true },
-          { account_code: creditorCode, account_name: creditorName, debit: 0, credit: Number(body.total_amount) || 0, is_budgetary: true }
+          {
+            account_code: debtorCode,
+            account_name: `${debtorName} (${sourceTitle})`,
+            debit: Number(body.total_amount) || 0,
+            credit: 0,
+            is_budgetary: true,
+            source_type: sourceType,
+            source_title: sourceTitle
+          },
+          {
+            account_code: creditorCode,
+            account_name: `${creditorName} (${sourceTitle})`,
+            debit: 0,
+            credit: Number(body.total_amount) || 0,
+            is_budgetary: true,
+            source_type: sourceType,
+            source_title: sourceTitle
+          }
         ],
         created_at: new Date().toISOString()
       });
@@ -117,6 +151,7 @@ router.post("/agreements", async (c) => {
         status: body.status || "draft",
         debtor_account: debtorCode,
         creditor_account: creditorCode,
+        source_type: sourceType,
         has_attachment: !!body.attachment_name,
         attachment_name: body.attachment_name || null
       }
@@ -137,13 +172,100 @@ router.put("/agreements/:id", async (c) => {
   const authUser = getAuthUser(c);
 
   const oldDoc = await getDb().collection<Agreement>("agreements").findOne({ _id: oid });
+  if (!oldDoc) return c.json({ message: "موافقتنامه یافت نشد" }, 404);
+
+  const isCapital = (body.credit_category || oldDoc.credit_category) === "capital";
+
+  // اعتبارسنجی تفصیلی پروژه در اعتبارات تملک
+  if (isCapital && Array.isArray(body.items)) {
+    for (let i = 0; i < body.items.length; i++) {
+      const item = body.items[i];
+      if (!item.programOrProjectNumber || String(item.programOrProjectNumber).trim() === "") {
+        return c.json({
+          message: `سطر ${i + 1}: در اعتبارات تملک دارایی‌های سرمایه‌ای (۹۲۰۰۲)، ورود کد تفصیلی طرح/پروژه الزامی است تا از ایجاد مغایرت در جدول تفکیک عملکرد پروژه‌ها جلوگیری شود.`
+        }, 400);
+      }
+    }
+  }
 
   const result = await getDb().collection<Agreement>("agreements").findOneAndUpdate(
     { _id: oid },
     { $set: { ...updateData } },
     { returnDocument: "after" }
   );
-  if (!result) return c.json({ message: "موافقتنامه یافت نشد" }, 404);
+
+  // انعکاس خودکار ابلاغ‌ها و اصلاحیه‌ها (ثبت معکوس در صورت کاهش اعتبار)
+  const oldAmount = Number(oldDoc.total_amount) || 0;
+  const newAmount = Number(body.total_amount) || 0;
+  const diff = newAmount - oldAmount;
+
+  if (diff !== 0 && (body.status === "confirmed" || oldDoc.status === "confirmed")) {
+    try {
+      const debtorCode = isCapital ? "92002" : "92001";
+      const creditorCode = isCapital ? "91002" : "91001";
+      const debtorName = isCapital ? "اعتبارات تملک دارایی‌های سرمایه‌ای" : "اعتبارات هزینه‌ای";
+      const creditorName = isCapital ? "طرف اعتبارات تملک دارایی‌های سرمایه‌ای" : "طرف اعتبارات هزینه‌ای";
+
+      const sourceType = String(body.source_type || oldDoc.source_type || "1");
+      const sourceTitle = sourceType === "2" ? "منبع اختصاصی" : "منبع عمومی";
+      const isReduction = diff < 0;
+      const absAmount = Math.abs(diff);
+
+      const docNum = `DOC-AMEND-${Date.now()}`;
+      await getDb().collection("journal_documents").insertOne({
+        document_number: docNum,
+        document_type: isReduction ? "AGREEMENT_REDUCTION" : "AGREEMENT_INCREASE",
+        fiscal_year: Number(body.fiscal_year || oldDoc.fiscal_year) || 1404,
+        status: "CONFIRMED",
+        document_date: new Date().toLocaleDateString("fa-IR"),
+        description: isReduction
+          ? `سند حسابداری معکوس اصلاحیه کاهش اعتبار موافقتنامه (${sourceTitle}): ${oldDoc.title || oldDoc.agreement_number}`
+          : `سند حسابداری اصلاحیه افزایش اعتبار موافقتنامه (${sourceTitle}): ${oldDoc.title || oldDoc.agreement_number}`,
+        agreement_id: oid.toHexString(),
+        base_code: body.base_code || oldDoc.base_code || "",
+        source_type: sourceType,
+        credit_category: body.credit_category || oldDoc.credit_category || "expense",
+        lines: isReduction ? [
+          {
+            account_code: creditorCode,
+            account_name: `${creditorName} (${sourceTitle}) - ثبت معکوس کاهش`,
+            debit: absAmount,
+            credit: 0,
+            is_budgetary: true,
+            source_type: sourceType
+          },
+          {
+            account_code: debtorCode,
+            account_name: `${debtorName} (${sourceTitle}) - ثبت معکوس کاهش`,
+            debit: 0,
+            credit: absAmount,
+            is_budgetary: true,
+            source_type: sourceType
+          }
+        ] : [
+          {
+            account_code: debtorCode,
+            account_name: `${debtorName} (${sourceTitle}) - اصلاحیه افزایش`,
+            debit: absAmount,
+            credit: 0,
+            is_budgetary: true,
+            source_type: sourceType
+          },
+          {
+            account_code: creditorCode,
+            account_name: `${creditorName} (${sourceTitle}) - اصلاحیه افزایش`,
+            debit: 0,
+            credit: absAmount,
+            is_budgetary: true,
+            source_type: sourceType
+          }
+        ],
+        created_at: new Date().toISOString()
+      });
+    } catch (amendErr) {
+      console.error("Amendment journal entry error:", amendErr);
+    }
+  }
 
   // ثبت‌نشان تغییر پیوست یا ویرایش موافقتنامه
   try {
@@ -160,25 +282,25 @@ router.put("/agreements/:id", async (c) => {
     await logAuditEvent({
       ...authUser,
       action: auditAction,
-      resource: `بودجه مصوب: ${oldDoc?.title || result.title || id}`,
+      resource: `بودجه مصوب: ${oldDoc?.title || result?.title || id}`,
       result: "SUCCESS",
       ip: extractClientIp(c),
       userAgent: c.req.header("user-agent") || "",
       eventType: attachmentChanged ? "USER_DATA_VALIDATION_SUCCESS" : "ADMIN_FUNCTION_USAGE",
       details: {
         agreement_id: id,
-        title: result.title,
+        title: result?.title,
         old_status: oldDoc?.status,
-        new_status: result.status,
-        has_attachment: !!result.attachment_name,
-        attachment_name: result.attachment_name || null
+        new_status: result?.status,
+        has_attachment: !!result?.attachment_name,
+        attachment_name: result?.attachment_name || null
       }
     });
   } catch (err) {
     console.error("Audit log error on agreement update:", err);
   }
 
-  return c.json({ message: "موافقتنامه با موفقیت ویرایش شد", data: serialize(result as Record<string, unknown>) });
+  return c.json({ message: "موافقتنامه با موفقیت ویرایش و سند اصلاحی مربوطه ثبت گردید", data: serialize(result as Record<string, unknown>) });
 });
 
 router.delete("/agreements/:id", async (c) => {
@@ -208,7 +330,7 @@ router.delete("/agreements/:id", async (c) => {
   return c.json({ message: "موافقتنامه با موفقیت حذف شد" });
 });
 
-// ─── Allocations ──────────────────────────────────────────────────────────────
+// ─── Allocations (تخصیص اعتبارات) ─────────────────────────────────────────────
 
 router.get("/allocations", async (c) => {
   const data = await getDb().collection<CreditAllocation>("credit_allocations").find().toArray();
@@ -217,15 +339,118 @@ router.get("/allocations", async (c) => {
 
 router.post("/allocations", async (c) => {
   const body = await c.req.json();
-  const allocation_number = `ALLOC-${body.fiscal_year}-${Date.now()}`;
-  const result = await getDb().collection<CreditAllocation>("credit_allocations").insertOne({
+  const db = getDb();
+  
+  // فراخوانی موافقتنامه مادر در صورت وجود
+  let parentAgr: any = null;
+  if (body.agreement_id) {
+    try {
+      parentAgr = await db.collection("agreements").findOne({ _id: new ObjectId(body.agreement_id) });
+    } catch (_) {}
+  }
+
+  const creditCategory = body.credit_category || parentAgr?.credit_category || "expense";
+  const isCapital = creditCategory === "capital";
+  const sourceType = String(body.source_type || parentAgr?.source_type || "1");
+  const sourceTitle = sourceType === "2" ? "منبع اختصاصی" : "منبع عمومی";
+
+  // کدهای معین اسناد حسابداری تخصیص: هزینه‌ای (93001 / 92001) | عمرانی (93002 / 92002)
+  const debtorCode = isCapital ? "93002" : "93001";
+  const creditorCode = isCapital ? "92002" : "92001";
+  const debtorName = isCapital ? "اعتبارات تملک دارایی‌های سرمایه‌ای تخصیص‌یافته" : "اعتبارات هزینه‌ای تخصیص‌یافته";
+  const creditorName = isCapital ? "تخصیص اعتبارات تملک (حساب مقابل)" : "تخصیص اعتبارات هزینه‌ای (حساب مقابل)";
+
+  // اعتبارسنجی کد تفصیلی طرح/پروژه در تخصیص اعتبارات تملک
+  if (isCapital && Array.isArray(body.items)) {
+    for (let i = 0; i < body.items.length; i++) {
+      const item = body.items[i];
+      if (!item.programOrProjectNumber || String(item.programOrProjectNumber).trim() === "") {
+        return c.json({
+          message: `سطر ${i + 1}: در تخصیص اعتبارات تملک دارایی‌های سرمایه‌ای (۹۳۰۰۲)، ورود کد تفصیلی طرح/پروژه الزامی است.`
+        }, 400);
+      }
+    }
+  }
+
+  const allocation_number = body.allocation_number || `ALLOC-${body.fiscal_year || 1404}-${Date.now()}`;
+  const totalAmount = Number(body.amount) || 0;
+
+  const result = await db.collection<CreditAllocation>("credit_allocations").insertOne({
     ...body,
     allocation_number,
-    status: body.status ?? "draft",
+    credit_category: creditCategory,
+    source_type: sourceType,
+    debtor_account: debtorCode,
+    creditor_account: creditorCode,
+    status: body.status ?? "allocated",
     agreement_id: body.agreement_id ? new ObjectId(body.agreement_id) : undefined,
   });
-  const inserted = await getDb().collection<CreditAllocation>("credit_allocations").findOne({ _id: result.insertedId });
-  return c.json({ message: "تخصیص ثبت شد", data: serialize(inserted as Record<string, unknown>) }, 201);
+  const inserted = await db.collection<CreditAllocation>("credit_allocations").findOne({ _id: result.insertedId });
+  const authUser = getAuthUser(c);
+
+  // صدور اتوماتیک سند حسابداری تعهدی بودجه‌ای تخصیص
+  try {
+    const docNum = `DOC-ALLOC-${Date.now()}`;
+    await db.collection("journal_documents").insertOne({
+      document_number: docNum,
+      document_type: "CREDIT_ALLOCATION",
+      fiscal_year: Number(body.fiscal_year) || 1404,
+      status: "CONFIRMED",
+      document_date: new Date().toLocaleDateString("fa-IR"),
+      description: `سند حسابداری خودکار تخصیص اعتبار (${sourceTitle}): ${body.title || allocation_number}`,
+      allocation_id: result.insertedId.toHexString(),
+      agreement_id: body.agreement_id ? String(body.agreement_id) : "",
+      base_code: body.base_code || parentAgr?.base_code || "",
+      source_type: sourceType,
+      credit_category: creditCategory,
+      lines: [
+        {
+          account_code: debtorCode,
+          account_name: `${debtorName} (${sourceTitle})`,
+          debit: totalAmount,
+          credit: 0,
+          is_budgetary: true,
+          source_type: sourceType,
+          source_title: sourceTitle
+        },
+        {
+          account_code: creditorCode,
+          account_name: `${creditorName} (${sourceTitle})`,
+          debit: 0,
+          credit: totalAmount,
+          is_budgetary: true,
+          source_type: sourceType,
+          source_title: sourceTitle
+        }
+      ],
+      created_at: new Date().toISOString()
+    });
+  } catch (docErr) {
+    console.error("Automated allocation ledger entry creation error:", docErr);
+  }
+
+  // ثبت‌نشان افتا (Audit Log)
+  try {
+    await logAuditEvent({
+      ...authUser,
+      action: "صدور تخصیص اعتبار جدید",
+      resource: `تخصیص اعتبار: ${body.title || allocation_number}`,
+      result: "SUCCESS",
+      ip: extractClientIp(c),
+      userAgent: c.req.header("user-agent") || "",
+      eventType: "ADMIN_FUNCTION_USAGE",
+      details: {
+        allocation_id: result.insertedId.toHexString(),
+        allocation_number,
+        totalAmount,
+        debtor_account: debtorCode,
+        creditor_account: creditorCode,
+        source_type: sourceType
+      }
+    });
+  } catch (_) {}
+
+  return c.json({ message: "تخصیص اعتبار ثبت و سند حسابداری مربوطه صادر گردید", data: serialize(inserted as Record<string, unknown>) }, 201);
 });
 
 router.put("/allocations/:id", async (c) => {
@@ -233,8 +458,10 @@ router.put("/allocations/:id", async (c) => {
   let oid: ObjectId;
   try { oid = new ObjectId(id); } catch { return c.json({ message: "شناسه نامعتبر است" }, 400); }
   const body = await c.req.json();
+  const db = getDb();
   const { _id, agreement_id, ...updateData } = body;
-  const result = await getDb().collection<CreditAllocation>("credit_allocations").findOneAndUpdate(
+
+  const result = await db.collection<CreditAllocation>("credit_allocations").findOneAndUpdate(
     { _id: oid },
     {
       $set: {
@@ -245,6 +472,7 @@ router.put("/allocations/:id", async (c) => {
     { returnDocument: "after" }
   );
   if (!result) return c.json({ message: "تخصیص یافت نشد" }, 404);
+
   return c.json({ message: "تخصیص با موفقیت ویرایش شد", data: serialize(result as Record<string, unknown>) });
 });
 
@@ -1458,6 +1686,247 @@ router.get("/dashboard-stats", async (c) => {
   }
 });
 
+// ─── 4-Way Performance Statements Endpoint (صورتحساب‌های ۴گانه عملکرد دریافت و پرداخت) ───
+router.get("/performance-statements-4way", async (c) => {
+  try {
+    const db = getDb();
+    const fiscalYearQuery = c.req.query("fiscal_year");
+    const periodQuery = c.req.query("period");
+
+    let agreementFilter: any = {};
+    let allocationFilter: any = {};
+    let realizationFilter: any = {};
+
+    if (fiscalYearQuery && fiscalYearQuery !== "all") {
+      const fy = Number(fiscalYearQuery) || 1404;
+      agreementFilter.fiscal_year = fy;
+      allocationFilter.fiscal_year = fy;
+      realizationFilter.fiscal_year = fy;
+    }
+
+    if (periodQuery && periodQuery !== "all") {
+      allocationFilter.period = periodQuery;
+    }
+
+    const agreements = await db.collection("agreements").find(agreementFilter).toArray();
+    const allocations = await db.collection("credit_allocations").find(allocationFilter).toArray();
+    const realizations = await db.collection("credit_realizations").find(realizationFilter).toArray();
+
+    // تابع نرمال‌سازی نوع منبع
+    const getSourceType = (doc: any) => {
+      const s = String(doc.source_type || doc.sourceType || "1").trim();
+      return (s === "2" || s === "special" || s === "specific") ? "2" : "1";
+    };
+
+    // ۱. صورتحساب هزینه‌ای عمومی (Moain: 92001 / 91001, Source: 1)
+    const expensePublicAgrs = agreements.filter(
+      (a) => a.credit_category !== "capital" && getSourceType(a) === "1"
+    );
+    const expensePublicBudget = expensePublicAgrs.reduce((sum, a) => sum + (Number(a.total_amount) || 0), 0);
+    const expensePublicAllocs = allocations.filter((al) => {
+      const parent = agreements.find((a) => String(a._id) === String(al.agreement_id));
+      return parent ? (parent.credit_category !== "capital" && getSourceType(parent) === "1") : (al.credit_category !== "capital" && getSourceType(al) === "1");
+    });
+    const expensePublicAlloc = expensePublicAllocs.reduce((sum, al) => sum + (Number(al.amount) || 0), 0);
+    const expensePublicConsumed = realizations
+      .filter((r) => r.credit_category !== "capital" && getSourceType(r) === "1")
+      .reduce((sum, r) => sum + (Number(r.verified_amount || r.amount) || 0), 0);
+
+    // تفکیک برنامه‌ها در هزینه‌ای عمومی
+    const expensePublicProgramsMap: Record<string, { programCode: string; title: string; budget: number; allocated: number }> = {};
+    expensePublicAgrs.forEach((agr) => {
+      (agr.items || []).forEach((item: any) => {
+        const pCode = item.programOrProjectNumber || agr.program_code || "برنامه عمومی";
+        if (!expensePublicProgramsMap[pCode]) {
+          expensePublicProgramsMap[pCode] = { programCode: pCode, title: `برنامه/فعالیت کد ${pCode}`, budget: 0, allocated: 0 };
+        }
+        expensePublicProgramsMap[pCode].budget += Number(item.amount) || 0;
+      });
+    });
+    expensePublicAllocs.forEach((al) => {
+      const pCode = al.program_code || "برنامه عمومی";
+      if (!expensePublicProgramsMap[pCode]) {
+        expensePublicProgramsMap[pCode] = { programCode: pCode, title: `برنامه/فعالیت کد ${pCode}`, budget: 0, allocated: 0 };
+      }
+      expensePublicProgramsMap[pCode].allocated += Number(al.amount) || 0;
+    });
+
+    // ۲. صورتحساب هزینه‌ای اختصاصی (Moain: 92001 / 91001, Source: 2)
+    const expenseDedicatedAgrs = agreements.filter(
+      (a) => a.credit_category !== "capital" && getSourceType(a) === "2"
+    );
+    const expenseDedicatedBudget = expenseDedicatedAgrs.reduce((sum, a) => sum + (Number(a.total_amount) || 0), 0);
+    const expenseDedicatedAllocs = allocations.filter((al) => {
+      const parent = agreements.find((a) => String(a._id) === String(al.agreement_id));
+      return parent ? (parent.credit_category !== "capital" && getSourceType(parent) === "2") : (al.credit_category !== "capital" && getSourceType(al) === "2");
+    });
+    const expenseDedicatedAlloc = expenseDedicatedAllocs.reduce((sum, al) => sum + (Number(al.amount) || 0), 0);
+    const expenseDedicatedConsumed = realizations
+      .filter((r) => r.credit_category !== "capital" && getSourceType(r) === "2")
+      .reduce((sum, r) => sum + (Number(r.verified_amount || r.amount) || 0), 0);
+
+    // تفکیک برنامه‌ها در هزینه‌ای اختصاصی
+    const expenseDedicatedProgramsMap: Record<string, { programCode: string; title: string; budget: number; allocated: number }> = {};
+    expenseDedicatedAgrs.forEach((agr) => {
+      (agr.items || []).forEach((item: any) => {
+        const pCode = item.programOrProjectNumber || agr.program_code || "برنامه اختصاصی";
+        if (!expenseDedicatedProgramsMap[pCode]) {
+          expenseDedicatedProgramsMap[pCode] = { programCode: pCode, title: `برنامه/فعالیت کد ${pCode}`, budget: 0, allocated: 0 };
+        }
+        expenseDedicatedProgramsMap[pCode].budget += Number(item.amount) || 0;
+      });
+    });
+    expenseDedicatedAllocs.forEach((al) => {
+      const pCode = al.program_code || "برنامه اختصاصی";
+      if (!expenseDedicatedProgramsMap[pCode]) {
+        expenseDedicatedProgramsMap[pCode] = { programCode: pCode, title: `برنامه/فعالیت کد ${pCode}`, budget: 0, allocated: 0 };
+      }
+      expenseDedicatedProgramsMap[pCode].allocated += Number(al.amount) || 0;
+    });
+
+    // ۳. صورتحساب تملک دارایی‌های سرمایه‌ای عمومی (Moain: 92002 / 91002, Source: 1)
+    const capitalPublicAgrs = agreements.filter(
+      (a) => a.credit_category === "capital" && getSourceType(a) === "1"
+    );
+    const capitalPublicBudget = capitalPublicAgrs.reduce((sum, a) => sum + (Number(a.total_amount) || 0), 0);
+    const capitalPublicAllocs = allocations.filter((al) => {
+      const parent = agreements.find((a) => String(a._id) === String(al.agreement_id));
+      return parent ? (parent.credit_category === "capital" && getSourceType(parent) === "1") : (al.credit_category === "capital" && getSourceType(al) === "1");
+    });
+    const capitalPublicAlloc = capitalPublicAllocs.reduce((sum, al) => sum + (Number(al.amount) || 0), 0);
+    const capitalPublicConsumed = realizations
+      .filter((r) => r.credit_category === "capital" && getSourceType(r) === "1")
+      .reduce((sum, r) => sum + (Number(r.verified_amount || r.amount) || 0), 0);
+
+    // تفکیک پروژه‌ها در تملک عمومی
+    const capitalPublicProjectsMap: Record<string, { projectCode: string; title: string; budget: number; allocated: number }> = {};
+    capitalPublicAgrs.forEach((agr) => {
+      (agr.items || []).forEach((item: any) => {
+        const pCode = item.programOrProjectNumber || "فاقد کد پروژه";
+        if (!capitalPublicProjectsMap[pCode]) {
+          capitalPublicProjectsMap[pCode] = { projectCode: pCode, title: `طرح/پروژه کد ${pCode}`, budget: 0, allocated: 0 };
+        }
+        capitalPublicProjectsMap[pCode].budget += Number(item.amount) || 0;
+      });
+    });
+    capitalPublicAllocs.forEach((al) => {
+      const parentAgr = agreements.find((a) => String(a._id) === String(al.agreement_id));
+      const pCode = al.program_code || (parentAgr?.items?.[0]?.programOrProjectNumber) || "فاقد کد پروژه";
+      if (!capitalPublicProjectsMap[pCode]) {
+        capitalPublicProjectsMap[pCode] = { projectCode: pCode, title: `طرح/پروژه کد ${pCode}`, budget: 0, allocated: 0 };
+      }
+      capitalPublicProjectsMap[pCode].allocated += Number(al.amount) || 0;
+    });
+
+    // ۴. صورتحساب تملک دارایی‌های سرمایه‌ای اختصاصی (Moain: 92002 / 91002, Source: 2)
+    const capitalDedicatedAgrs = agreements.filter(
+      (a) => a.credit_category === "capital" && getSourceType(a) === "2"
+    );
+    const capitalDedicatedBudget = capitalDedicatedAgrs.reduce((sum, a) => sum + (Number(a.total_amount) || 0), 0);
+    const capitalDedicatedAllocs = allocations.filter((al) => {
+      const parent = agreements.find((a) => String(a._id) === String(al.agreement_id));
+      return parent ? (parent.credit_category === "capital" && getSourceType(parent) === "2") : (al.credit_category === "capital" && getSourceType(al) === "2");
+    });
+    const capitalDedicatedAlloc = capitalDedicatedAllocs.reduce((sum, al) => sum + (Number(al.amount) || 0), 0);
+    const capitalDedicatedConsumed = realizations
+      .filter((r) => r.credit_category === "capital" && getSourceType(r) === "2")
+      .reduce((sum, r) => sum + (Number(r.verified_amount || r.amount) || 0), 0);
+
+    // تفکیک پروژه‌ها در تملک اختصاصی
+    const capitalDedicatedProjectsMap: Record<string, { projectCode: string; title: string; budget: number; allocated: number }> = {};
+    capitalDedicatedAgrs.forEach((agr) => {
+      (agr.items || []).forEach((item: any) => {
+        const pCode = item.programOrProjectNumber || "فاقد کد پروژه";
+        if (!capitalDedicatedProjectsMap[pCode]) {
+          capitalDedicatedProjectsMap[pCode] = { projectCode: pCode, title: `طرح/پروژه کد ${pCode}`, budget: 0, allocated: 0 };
+        }
+        capitalDedicatedProjectsMap[pCode].budget += Number(item.amount) || 0;
+      });
+    });
+    capitalDedicatedAllocs.forEach((al) => {
+      const parentAgr = agreements.find((a) => String(a._id) === String(al.agreement_id));
+      const pCode = al.program_code || (parentAgr?.items?.[0]?.programOrProjectNumber) || "فاقد کد پروژه";
+      if (!capitalDedicatedProjectsMap[pCode]) {
+        capitalDedicatedProjectsMap[pCode] = { projectCode: pCode, title: `طرح/پروژه کد ${pCode}`, budget: 0, allocated: 0 };
+      }
+      capitalDedicatedProjectsMap[pCode].allocated += Number(al.amount) || 0;
+    });
+
+    return c.json({
+      success: true,
+      data: {
+        // ۱. صورتحساب هزینه‌ای عمومی
+        expensePublic: {
+          statementTitle: "۱. صورتحساب هزینه‌ای عمومی",
+          debtorCode: "92001",
+          creditorCode: "91001",
+          allocationDebtorCode: "93001",
+          moeinName: "اعتبارات مصوب هزینه‌ای - منبع عمومی",
+          sourceType: "1",
+          approvedBudget: expensePublicBudget,
+          allocated: expensePublicAlloc,
+          consumed: expensePublicConsumed,
+          remaining: Math.max(0, expensePublicBudget - expensePublicConsumed),
+          agreementsCount: expensePublicAgrs.length,
+          agreements: expensePublicAgrs.map((a) => serialize(a as Record<string, unknown>)),
+          programsBreakdown: Object.values(expensePublicProgramsMap)
+        },
+        // ۲. صورتحساب هزینه‌ای اختصاصی
+        expenseDedicated: {
+          statementTitle: "۲. صورتحساب هزینه‌ای اختصاصی",
+          debtorCode: "92001",
+          creditorCode: "91001",
+          allocationDebtorCode: "93001",
+          moeinName: "اعتبارات مصوب هزینه‌ای - منبع اختصاصی",
+          sourceType: "2",
+          approvedBudget: expenseDedicatedBudget,
+          allocated: expenseDedicatedAlloc,
+          consumed: expenseDedicatedConsumed,
+          remaining: Math.max(0, expenseDedicatedBudget - expenseDedicatedConsumed),
+          agreementsCount: expenseDedicatedAgrs.length,
+          agreements: expenseDedicatedAgrs.map((a) => serialize(a as Record<string, unknown>)),
+          programsBreakdown: Object.values(expenseDedicatedProgramsMap)
+        },
+        // ۳. صورتحساب تملک عمومی
+        capitalPublic: {
+          statementTitle: "۳. صورتحساب تملک دارایی‌های سرمایه‌ای عمومی",
+          debtorCode: "92002",
+          creditorCode: "91002",
+          allocationDebtorCode: "93002",
+          moeinName: "اعتبارات مصوب تملک دارایی‌های سرمایه‌ای - منبع عمومی",
+          sourceType: "1",
+          approvedBudget: capitalPublicBudget,
+          allocated: capitalPublicAlloc,
+          consumed: capitalPublicConsumed,
+          remaining: Math.max(0, capitalPublicBudget - capitalPublicConsumed),
+          agreementsCount: capitalPublicAgrs.length,
+          agreements: capitalPublicAgrs.map((a) => serialize(a as Record<string, unknown>)),
+          projectsBreakdown: Object.values(capitalPublicProjectsMap)
+        },
+        // ۴. صورتحساب تملک اختصاصی
+        capitalDedicated: {
+          statementTitle: "۴. صورتحساب تملک دارایی‌های سرمایه‌ای اختصاصی",
+          debtorCode: "92002",
+          creditorCode: "91002",
+          allocationDebtorCode: "93002",
+          moeinName: "اعتبارات مصوب تملک دارایی‌های سرمایه‌ای - منبع اختصاصی",
+          sourceType: "2",
+          approvedBudget: capitalDedicatedBudget,
+          allocated: capitalDedicatedAlloc,
+          consumed: capitalDedicatedConsumed,
+          remaining: Math.max(0, capitalDedicatedBudget - capitalDedicatedConsumed),
+          agreementsCount: capitalDedicatedAgrs.length,
+          agreements: capitalDedicatedAgrs.map((a) => serialize(a as Record<string, unknown>)),
+          projectsBreakdown: Object.values(capitalDedicatedProjectsMap)
+        }
+      }
+    });
+  } catch (err: any) {
+    return c.json({ success: false, message: err.message }, 500);
+  }
+});
+
 router.get("/", (_c) => _c.json({ message: "اعتبارات" }));
 
 export default router;
+
