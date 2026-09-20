@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { FileSpreadsheet, Download, Save, AlertTriangle, Printer } from "lucide-react";
+import { FileSpreadsheet, Download, Save, AlertTriangle, Printer, RefreshCw, CheckCircle2 } from "lucide-react";
 import api from "@/api";
 import { PageShell, PageHeader } from "@/components/layout/PageShell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { validateSanamaPerformanceForms } from "@/lib/sanamaPerformanceValidation";
+import { fetchMoeinBalances, parseMoeinStringValue, updateSanamaFormsFromMoeinMap } from "@/lib/sanamaMoeinAutoSync";
 
 // ─── توابع کمکی تبدیل و نمایش اعداد به فارسی ──────────────────────────────────────────
 export function toPersianDigits(n) {
@@ -130,12 +131,57 @@ export default function SanamaFormsViewer() {
   const [form11Data, setForm11Data] = useState(INITIAL_FORM_11);
   const [form13Data, setForm13Data] = useState(INITIAL_FORM_13);
   const [auditErrors, setAuditErrors] = useState([]);
+  const [moeinBalancesMap, setMoeinBalancesMap] = useState({});
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState("");
 
-  // بارگذاری فرم‌های ذخیره‌شده از دیتابیس واقعی
+  const handleAutoSyncFromLedger = async (explicitMessage = true) => {
+    setIsSyncing(true);
+    try {
+      const moeinMap = await fetchMoeinBalances();
+      setMoeinBalancesMap(moeinMap);
+
+      const updated = updateSanamaFormsFromMoeinMap(moeinMap, {
+        form1Data,
+        form46Data,
+        form75Data,
+        form8Data,
+        form9Data,
+        form10Data,
+        form11Data,
+        form13Data,
+      });
+
+      if (updated.form1Data) setForm1Data(updated.form1Data);
+      if (updated.form46Data) setForm46Data(updated.form46Data);
+      if (updated.form75Data) setForm75Data(updated.form75Data);
+      if (updated.form8Data) setForm8Data(updated.form8Data);
+      if (updated.form9Data) setForm9Data(updated.form9Data);
+      if (updated.form10Data) setForm10Data(updated.form10Data);
+      if (updated.form11Data) setForm11Data(updated.form11Data);
+      if (updated.form13Data) setForm13Data(updated.form13Data);
+
+      setLastSyncTime(new Date().toLocaleTimeString("fa-IR"));
+
+      if (explicitMessage) {
+        alert("اطلاعات تمامی فرم‌های عملکردی سناما با موفقیت از کدهای معین اسناد مالی و بخش اعتبارات احصا و به روزرسانی شد.");
+      }
+    } catch (err) {
+      console.error("خطا در فراخوانی کدهای معین اسناد:", err);
+      if (explicitMessage) {
+        alert("خطا در به روزرسانی فرم‌ها از کدهای معین اسناد مالی");
+      }
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  // بارگذاری فرم‌های ذخیره‌شده و فراخوانی خودکار کدهای معین
   useEffect(() => {
-    const loadSavedForms = async () => {
+    const loadSavedFormsAndSync = async () => {
       try {
         const res = await api.get("/api/credits/sanama-forms");
+        let loadedForms = {};
         if (res.data?.data) {
           const d = res.data.data;
           if (d.form1Data && typeof d.form1Data === "object") setForm1Data(prev => ({ ...INITIAL_FORM1, ...d.form1Data }));
@@ -152,12 +198,38 @@ export default function SanamaFormsViewer() {
           if (Array.isArray(d.form10Data) && d.form10Data.length > 0) setForm10Data(d.form10Data);
           if (Array.isArray(d.form11Data) && d.form11Data.length > 0) setForm11Data(d.form11Data);
           if (Array.isArray(d.form13Data) && d.form13Data.length > 0) setForm13Data(d.form13Data);
+          loadedForms = d;
         }
+
+        // احصای خودکار کدهای معین اسناد
+        const moeinMap = await fetchMoeinBalances();
+        setMoeinBalancesMap(moeinMap);
+        const updated = updateSanamaFormsFromMoeinMap(moeinMap, {
+          form1Data: loadedForms.form1Data || INITIAL_FORM1,
+          form46Data: loadedForms.form46Data || INITIAL_FORM_4_6_EXPENSE,
+          form75Data: loadedForms.form75CapData || loadedForms.form75Data || INITIAL_FORM_7_5_CAPITAL,
+          form8Data: loadedForms.form8Data || INITIAL_FORM_8_RESOURCES,
+          form9Data: loadedForms.form9Data || INITIAL_FORM_9,
+          form10Data: loadedForms.form10Data || INITIAL_FORM_10,
+          form11Data: loadedForms.form11Data || INITIAL_FORM_11,
+          form13Data: loadedForms.form13Data || INITIAL_FORM_13,
+        });
+
+        if (updated.form1Data) setForm1Data(updated.form1Data);
+        if (updated.form46Data) setForm46Data(updated.form46Data);
+        if (updated.form75Data) setForm75Data(updated.form75Data);
+        if (updated.form8Data) setForm8Data(updated.form8Data);
+        if (updated.form9Data) setForm9Data(updated.form9Data);
+        if (updated.form10Data) setForm10Data(updated.form10Data);
+        if (updated.form11Data) setForm11Data(updated.form11Data);
+        if (updated.form13Data) setForm13Data(updated.form13Data);
+
+        setLastSyncTime(new Date().toLocaleTimeString("fa-IR"));
       } catch (e) {
-        console.error("خطا در دریافت فرم‌های سناما از دیتابیس:", e);
+        console.error("خطا در دریافت فرم‌های سناما و کدهای معین:", e);
       }
     };
-    loadSavedForms();
+    loadSavedFormsAndSync();
   }, []);
 
   // فرمول‌های محاسباتی فرم ۱
@@ -428,15 +500,31 @@ export default function SanamaFormsViewer() {
         description="مشاهده، تکمیل، محاسبه خودکار و ممیزی فرم‌های ۱، ۴-۶، ۵-۷، ۸، ۹، ۱۰، ۱۱ و ۱۳ سناما"
       />
 
-      {/* ─── نوار ابزار ذخیره، خروجی اکسل و پی‌دی‌اف ─── */}
+      {/* ─── نوار ابزار ذخیره، به روزرسانی از معین، خروجی اکسل و پی‌دی‌اف ─── */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-4 bg-slate-100 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
         <div className="flex items-center gap-2">
           <FileSpreadsheet className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-          <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-            عملیات خروجی و گزارش‌گیری فرم فعال سناما:
-          </span>
+          <div>
+            <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+              عملیات فرم‌های عملکردی سناما:
+            </span>
+            {lastSyncTime && (
+              <span className="text-[10px] text-emerald-700 dark:text-emerald-400 block font-medium">
+                آخرین به روزرسانی خودکار از کدهای معین: ساعت {lastSyncTime}
+              </span>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            size="sm"
+            onClick={() => handleAutoSyncFromLedger(true)}
+            disabled={isSyncing}
+            className="text-xs font-bold gap-1.5 h-8 bg-emerald-600 hover:bg-emerald-700 text-white shadow"
+          >
+            <RefreshCw className={cn("h-3.5 w-3.5", isSyncing && "animate-spin")} />
+            <span>{isSyncing ? "در حال فراخوانی اسناد..." : "فراخوانی خودکار از کدهای معین اسناد"}</span>
+          </Button>
           <Button
             size="sm"
             onClick={handleSaveForms}
@@ -625,7 +713,14 @@ export default function SanamaFormsViewer() {
                         <td className="p-3 font-semibold text-slate-800">{row.title}</td>
                         <td className="p-3 text-center font-mono">{row.accountType}</td>
                         <td className="p-3 text-center text-slate-600">{row.creditType}</td>
-                        <td className="p-3 font-mono text-blue-700 font-semibold">{toPersianDigits(row.moeinCodes)}</td>
+                        <td className="p-3 font-mono text-blue-700 font-semibold">
+                          <div>{toPersianDigits(row.moeinCodes)}</div>
+                          {moeinBalancesMap && parseMoeinStringValue(row.moeinCodes, moeinBalancesMap) > 0 && (
+                            <Badge variant="outline" className="text-[10px] mt-1 bg-amber-50 text-amber-900 border-amber-300 font-sans font-bold">
+                              احصا شده از اسناد: {formatPersianAmount(parseMoeinStringValue(row.moeinCodes, moeinBalancesMap))}
+                            </Badge>
+                          )}
+                        </td>
                         <td className="p-2">
                           {row.isCalculated ? (
                             <div className="p-2 font-mono font-black text-amber-900 bg-amber-200/50 rounded text-center">
@@ -675,7 +770,14 @@ export default function SanamaFormsViewer() {
                         <td className="p-3 font-semibold text-slate-800">{row.title}</td>
                         <td className="p-3 text-center font-mono">{row.accountType}</td>
                         <td className="p-3 text-center text-slate-600">{row.creditType}</td>
-                        <td className="p-3 font-mono text-emerald-700 font-semibold">{toPersianDigits(row.moeinCodes)}</td>
+                        <td className="p-3 font-mono text-emerald-700 font-semibold">
+                          <div>{toPersianDigits(row.moeinCodes)}</div>
+                          {moeinBalancesMap && parseMoeinStringValue(row.moeinCodes, moeinBalancesMap) > 0 && (
+                            <Badge variant="outline" className="text-[10px] mt-1 bg-emerald-50 text-emerald-900 border-emerald-300 font-sans font-bold">
+                              احصا شده از اسناد: {formatPersianAmount(parseMoeinStringValue(row.moeinCodes, moeinBalancesMap))}
+                            </Badge>
+                          )}
+                        </td>
                         <td className="p-2">
                           <PersianAmountInput
                             value={row.approvedAmount}

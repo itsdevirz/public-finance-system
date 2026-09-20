@@ -252,8 +252,8 @@ export const TOP_NAV = [
       { to: "/payroll/dashboard", label: "داشبورد حقوق" },
       {
         to: "/payroll/employees", label: "اطلاعات کارکنان", children: [
-          { to: "/payroll/employees/list", label: "لیست کارکنان" },
           { to: "/payroll/employees/new", label: "ثبت کارمند جدید" },
+          { to: "/payroll/employees/list", label: "لیست کارکنان" },
           { to: "/payroll/employees/contracts", label: "قراردادها" },
           { to: "/payroll/employees/decrees", label: "احکام حقوقی" },
         ]

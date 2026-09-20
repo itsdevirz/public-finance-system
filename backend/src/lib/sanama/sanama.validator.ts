@@ -9,12 +9,20 @@ import {
 } from "./sanama.types";
 import { SANAMA_CONSTANTS } from "./sanama.constants";
 import sanamaRequirementsData from "../../data/sanamaRequirements.json";
-import subAccountTitlesData from "../../data/subAccountTitles.json";
+import sanamaCodesData from "../../data/sanamaCodes.json";
 
 const sanamaRequirements: Record<string, { requiredRows: number[] }> = sanamaRequirementsData as any;
-const validMoeinCodesSet = new Set<string>(
-  Array.isArray(subAccountTitlesData) ? subAccountTitlesData.map((item: any) => String(item.code)) : []
-);
+
+const validMoeinCodesSet = new Set<string>();
+for (const group of (sanamaCodesData.groups ?? [])) {
+  for (const account of (group.accounts ?? [])) {
+    for (const child of (account.children ?? [])) {
+      if (child.code) {
+        validMoeinCodesSet.add(String(child.code).trim());
+      }
+    }
+  }
+}
 
 export class SanamaValidator {
   /**

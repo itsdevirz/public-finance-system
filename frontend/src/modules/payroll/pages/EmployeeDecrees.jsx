@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
@@ -12,26 +11,130 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Modal } from "@/components/ui/modal";
 import { FileText, Plus, Pencil, Trash2, Printer, Save, ShieldCheck, Info, X, Search, Settings } from "lucide-react";
 
+// Initial Form state based on official administrative decree specs
 const INITIAL_FORM = {
   decreeNo: "",
   employeeId: "",
+  decreeTitle: "حکم کارگزینی کارمند رسمی", // عنوان حکم
+  description: "تعیین حقوق، فوق‌العاده‌ها و مزایای مستمر حکم کارگزینی سالانه", // شرح حکم
   issueDate: "",
   effectiveDate: "",
-  employmentType: "contractual", // official_permanent, official_probation, contractual, labor
-  jobTitle: "",
-  jobGroup: "8",
-  jobBase: "3",
-  baseSalary: 166255500, // Monthly base salary (based on daily 5,541,850 * 30)
-  seniorityAllowance: 0,
-  housingAllowance: 30000000,
-  groceryAllowance: 22000000,
-  childAllowance: 0,
-  responsibilityAllowance: 0,
-  expertiseAllowance: 0,
-  transportAllowance: 0,
-  otherAllowances: 0,
+  issuingAuthority: "مدیرکل امور اداری و پشتیبانی", // مقام مسئول صادرکننده
+
+  // امتیازات و حقوق ثابت و مزایا (۲۲ ردیف حکم کارگزینی - بخش ۴)
+  jobPayPoints: 8300,                 // امتیاز ۱. حق شغل
+  jobPay: 120000000,                  // ۱. حق شغل
+  managementAllowancePoints: 2250,     // امتیاز ۲. فوق العاده مدیریت
+  managementAllowance: 15000000,      // ۲. فوق العاده مدیریت
+  employeePayPoints: 5900,             // امتیاز ۳. حق شاغل
+  employeePay: 45000000,              // ۳. حق شاغل
+                                      // - جمع حقوق ثابت (الف) = ۱ + ۲ + ۳
+  adaptationDiff: 0,                 // ۴. ب) تفاوت تطبیق
+  underdevelopedAreaAllowance: 0,     // ۵. ث) فوق العاده مناطق کمتر توسعه یافته
+  badWeatherAllowance: 0,             // ۶. ج) فوق العاده بدی آب و هوا
+  sacrificeAllowance: 0,              // ۷. ح) فوق العاده ایثارگری
+  warZoneAllowance: 0,                // ۸. خ) خدمت در مناطق جنگ زده
+  hardshipAllowance: 0,               // ۹. د) فوق العاده سختی شرایط کار
+  familyAllowance: 0,                 // ۱۰. ر) کمک هزینه عائله مندی
+  childAllowance: 0,                  // ۱۱. ز) کمک هزینه اولاد
+  locationAllowance: 0,               // ۱۲. س) فوق العاده محل خدمت
+  specialAllowance: 0,                // ۱۳. ع) فوق العاده ویژه
+  eliteSpecialAllowance: 0,           // ۱۴. ص) فوق العاده ویژه (نخبگان)
+  band5JobAllowance: 0,               // ۱۵. ش) فوق العاده شغل بند 5
+  article51Execution: 0,              // ۱۶. غ) اجرا ماده 51
+  attractionAllowance: 0,             // ۱۷. حق جذب
+  otherAllowances: 0,                 // ۱۸. سایر
+  item97and8Diff: 0,                  // ۱۹. جمع تفاوت های جزء (1) بند (الف) 97 و تفاوت بند (ی) 8
+  minContractDecreeDiff: 0,           // ۲۰. مابه التفاوت حداقل حکم قرارداد کارکنان
+  salaryRestoration: 0,               // ۲۱. ترمیم حقوق
+  particularSpecialAllowance: 0,      // ۲۲. فوق العاده خاص
   taxStatus: "taxable",
-  description: "اعمال افزایش ضریب حقوقی سالانه قانون کار"
+};
+
+export function calcFixedSalaryA(f) {
+  return (
+    Number(f.jobPay || 0) +
+    Number(f.managementAllowance || 0) +
+    Number(f.employeePay || 0)
+  );
+}
+
+export function calcTotalDecreeSalary(f) {
+  return (
+    calcFixedSalaryA(f) +
+    Number(f.adaptationDiff || 0) +
+    Number(f.underdevelopedAreaAllowance || 0) +
+    Number(f.badWeatherAllowance || 0) +
+    Number(f.sacrificeAllowance || 0) +
+    Number(f.warZoneAllowance || 0) +
+    Number(f.hardshipAllowance || 0) +
+    Number(f.familyAllowance || 0) +
+    Number(f.childAllowance || 0) +
+    Number(f.locationAllowance || 0) +
+    Number(f.specialAllowance || 0) +
+    Number(f.eliteSpecialAllowance || 0) +
+    Number(f.band5JobAllowance || 0) +
+    Number(f.article51Execution || 0) +
+    Number(f.attractionAllowance || 0) +
+    Number(f.otherAllowances || 0) +
+    Number(f.item97and8Diff || 0) +
+    Number(f.minContractDecreeDiff || 0) +
+    Number(f.salaryRestoration || 0) +
+    Number(f.particularSpecialAllowance || 0)
+  );
+}
+
+const DEGREE_LABELS = {
+  under_diploma: "زیر دیپلم",
+  diploma: "دیپلم",
+  associate: "فوق دیپلم",
+  bachelor: "لیسانس (کارشناسی)",
+  master: "فوق لیسانس (کارشناسی ارشد)",
+  phd: "دکترا",
+  post_phd: "فوق دکترا"
+};
+
+const MARITAL_LABELS = {
+  single: "مجرد",
+  married: "متأهل",
+  with_dependents: "معیل (دارای همسر و فرزند)",
+  widowed: "همسر متوفی",
+  divorced: "مطلقه"
+};
+
+const SACRIFICE_LABELS = {
+  none: "ندارد",
+  sacrificer: "ایثارگر",
+  disabled: "جانباز",
+  freed: "آزاده",
+  martyr_child: "فرزند شهید",
+  combatant: "رزمنده"
+};
+
+const EMPLOYMENT_LABELS = {
+  official: "رسمی قطعی",
+  official_probation: "رسمی آزمایشی",
+  probationary: "پیمانی",
+  contractual: "قراردادی کار معین",
+  company: "شرکتی",
+  hourly: "ساعتی",
+  daily: "روزمزد"
+};
+
+const PENSION_LABELS = {
+  civil: "صندوق بازنشستگی کشوری",
+  social_security: "تامین اجتماعی",
+  armed_forces: "نیروهای مسلح",
+  other: "سایر صندوق‌ها",
+  none: "فاقد صندوق"
+};
+
+const RANK_LABELS = {
+  preliminary: "مقدماتی",
+  base: "پایه",
+  senior: "ارشد",
+  expert: "خبره",
+  superior: "عالی"
 };
 
 export default function EmployeeDecrees() {
@@ -83,7 +186,7 @@ export default function EmployeeDecrees() {
   const employeeOptions = useMemo(() => {
     return (employees || []).map(e => ({
       value: e._id || e.id,
-      label: `${e.code} — ${e.firstName} ${e.lastName} (${e.jobTitle || "بدون سمت"})`
+      label: `${e.code || "—"} — ${e.firstName || ""} ${e.lastName || ""} (${e.jobTitle || e.role || "بدون سمت"})`
     }));
   }, [employees]);
 
@@ -95,32 +198,13 @@ export default function EmployeeDecrees() {
         ...f,
         employeeId: empId,
         jobTitle: emp.jobTitle || emp.role || "",
-        baseSalary: emp.dailyBaseSalary ? emp.dailyBaseSalary * 30 : 166255500,
-        housingAllowance: emp.housingAllowance || 30000000,
-        groceryAllowance: emp.groceryAllowance || 22000000,
         childAllowance: emp.childAllowance || 0,
-        responsibilityAllowance: emp.responsibilityAllowance || 0,
-        expertiseAllowance: emp.expertiseAllowance || 0,
-        transportAllowance: emp.transportAllowance || 0,
-        otherAllowances: emp.otherAllowances || 0,
         taxStatus: emp.taxStatus || "taxable",
       }));
     } else {
       setForm(f => ({ ...f, employeeId: empId }));
     }
   }
-
-  // Monthly total calculation
-  const totalSalary =
-    Number(form.baseSalary || 0) +
-    Number(form.seniorityAllowance || 0) +
-    Number(form.housingAllowance || 0) +
-    Number(form.groceryAllowance || 0) +
-    Number(form.childAllowance || 0) +
-    Number(form.responsibilityAllowance || 0) +
-    Number(form.expertiseAllowance || 0) +
-    Number(form.transportAllowance || 0) +
-    Number(form.otherAllowances || 0);
 
   // Filtered decrees
   const filteredDecrees = useMemo(() => {
@@ -134,6 +218,7 @@ export default function EmployeeDecrees() {
         d.decreeNo?.toLowerCase().includes(searchLower) ||
         empName.toLowerCase().includes(searchLower) ||
         empCode.toLowerCase().includes(searchLower) ||
+        d.decreeTitle?.toLowerCase().includes(searchLower) ||
         d.jobTitle?.toLowerCase().includes(searchLower)
       );
     });
@@ -206,14 +291,57 @@ export default function EmployeeDecrees() {
     const emp = (employees || []).find(e => (e._id === decree.employeeId || e.id === decree.employeeId));
     setSelectedDecreeForPrint({
       ...decree,
-      employeeName: emp ? `${emp.firstName} ${emp.lastName}` : "نامشخص",
-      employeeCode: emp ? emp.code : "—",
-      nationalId: emp ? emp.nationalId : "—",
-      fatherName: emp ? emp.fatherName : "—",
-      birthDate: emp ? emp.birthDate : "—",
-      insuranceNo: emp ? emp.retirementInsuranceNo || emp.insuranceNo || emp.insuranceCode || "—" : "—",
-      insuranceLabel: emp ? (emp.retirementInsuranceNo ? "شماره بیمه صندوق بازنشستگی کشوری" : "شماره بیمه تامین اجتماعی") : "شماره بیمه",
-      education: emp ? emp.education || "—" : "—"
+      // Section 1: Identity & Personnel
+      executiveOrg: emp?.executiveOrg || orgName || "وزارت امور اقتصادی و دارایی",
+      employeeName: emp ? `${emp.firstName || ""} ${emp.lastName || ""}` : "نامشخص",
+      firstName: emp?.firstName || "—",
+      lastName: emp?.lastName || "—",
+      fatherName: emp?.fatherName || "—",
+      nationalId: emp?.nationalId || "—",
+      certificateNo: emp?.certificateNo || "—",
+      birthPlace: emp?.birthPlace || "—",
+      birthDate: emp?.birthDate || "—",
+      genderLabel: emp?.gender === "female" ? "زن" : "مرد",
+      maritalStatusLabel: MARITAL_LABELS[emp?.maritalStatus] || "مجرد",
+      childrenCount: emp?.childrenCount || 0,
+      sacrificeStatusLabel: SACRIFICE_LABELS[emp?.sacrificeStatus] || "ندارد",
+      employmentTypeLabel: EMPLOYMENT_LABELS[emp?.employmentType] || "رسمی قطعی",
+      pensionFundLabel: PENSION_LABELS[emp?.pensionFund] || "صندوق بازنشستگی کشوری",
+
+      // Section 2: Job & Post
+      postTitle: emp?.postTitle || "—",
+      postRow: emp?.postRow || "—",
+      uniquePostId: emp?.uniquePostId || "—",
+      department: emp?.department || "—",
+      uniqueUnitId: emp?.uniqueUnitId || "—",
+      jobTitle: decree.jobTitle || emp?.jobTitle || "—",
+      jobGrade: emp?.jobGrade || "۸",
+      jobRankLabel: RANK_LABELS[emp?.jobRank] || "پایه",
+      serviceHistory: `${emp?.acceptedServiceYears || 0} سال و ${emp?.acceptedServiceMonths || 0} ماه`,
+      expHistory: `${emp?.acceptedExpYears || 0} سال و ${emp?.acceptedExpMonths || 0} ماه`,
+      serviceLocation: emp?.serviceLocation || emp?.branchName || "—",
+      highestDegreeLabel: DEGREE_LABELS[emp?.highestDegree] || "لیسانس",
+      fieldOfStudy: emp?.fieldOfStudy || "—",
+
+      // Points (امتیازات)
+      jobPayPoints: decree.jobPayPoints ?? emp?.jobPayPoints ?? 8300,
+      managementAllowancePoints: decree.managementAllowancePoints ?? emp?.managementAllowancePoints ?? 2250,
+      employeePayPoints: decree.employeePayPoints ?? emp?.employeePayPoints ?? 5900,
+      adaptationDiffPoints: decree.adaptationDiffPoints ?? emp?.adaptationDiffPoints ?? 0,
+      underdevelopedAreaAllowancePoints: decree.underdevelopedAreaAllowancePoints ?? emp?.underdevelopedAreaAllowancePoints ?? 0,
+      badWeatherAllowancePoints: decree.badWeatherAllowancePoints ?? emp?.badWeatherAllowancePoints ?? 0,
+      sacrificeAllowancePoints: decree.sacrificeAllowancePoints ?? emp?.sacrificeAllowancePoints ?? 0,
+      warZoneAllowancePoints: decree.warZoneAllowancePoints ?? emp?.warZoneAllowancePoints ?? 0,
+      hardshipAllowancePoints: decree.hardshipAllowancePoints ?? emp?.hardshipAllowancePoints ?? 0,
+      familyAllowancePoints: decree.familyAllowancePoints ?? emp?.familyAllowancePoints ?? 0,
+      childAllowancePoints: decree.childAllowancePoints ?? emp?.childAllowancePoints ?? 0,
+      locationAllowancePoints: decree.locationAllowancePoints ?? emp?.locationAllowancePoints ?? 0,
+      specialAllowancePoints: decree.specialAllowancePoints ?? emp?.specialAllowancePoints ?? 0,
+      eliteSpecialAllowancePoints: decree.eliteSpecialAllowancePoints ?? emp?.eliteSpecialAllowancePoints ?? 0,
+      band5JobAllowancePoints: decree.band5JobAllowancePoints ?? emp?.band5JobAllowancePoints ?? 0,
+      article51ExecutionPoints: decree.article51ExecutionPoints ?? emp?.article51ExecutionPoints ?? 0,
+      attractionAllowancePoints: decree.attractionAllowancePoints ?? emp?.attractionAllowancePoints ?? 0,
+      otherAllowancesPoints: decree.otherAllowancesPoints ?? emp?.otherAllowancesPoints ?? 0,
     });
   }
 
@@ -237,95 +365,63 @@ export default function EmployeeDecrees() {
   <style>
     @page {
       size: A4 portrait;
-      margin: 12mm 12mm;
+      margin: 8mm 8mm;
     }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       width: 100%;
       font-family: "Tahoma", "Arial", sans-serif;
-      font-size: 11px;
-      line-height: 1.6;
+      font-size: 10px;
+      line-height: 1.5;
       color: #111;
       direction: rtl;
       padding: 5px;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }
-
     .text-center { text-align: center !important; }
     .text-left { text-align: left !important; }
     .text-right { text-align: right !important; }
-    
-    .border { border: 1px solid #222; }
-    .border-b-2 { border-bottom: 2px solid #111; }
-    .border-b { border-bottom: 1px solid #555; }
-    .border-r { border-right: 1px solid #222; }
-    
-    .p-2 { padding: 0.5rem; }
-    .p-4 { padding: 1rem; }
-    .pt-12 { padding-top: 3rem; }
-    
     .font-bold { font-weight: 700; }
     .font-black { font-weight: 900; }
     .font-mono { font-family: Courier, monospace; }
-    
     .w-full { width: 100%; }
-    .grid { display: grid; }
-    .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-    .gap-4 { gap: 1rem; }
     
     .table-layout {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 10px;
+      margin-top: 6px;
     }
-    
     .table-layout th, .table-layout td {
-      border: 1px solid #222;
-      padding: 6px 10px;
+      border: 1px solid #111;
+      padding: 4px 6px;
       text-align: right;
     }
-    
     .table-layout thead th {
-      background-color: #eaeaea !important;
+      background-color: #f0f0f0 !important;
       font-weight: bold;
     }
-
-    .header-box {
-      border: 2px solid #222;
-      border-bottom: 0;
-      padding: 10px;
+    .section-header {
+      background-color: #e5e7eb !important;
+      font-weight: bold;
+      font-size: 10px;
+      padding: 4px 8px;
+      border: 1px solid #111;
+      margin-top: 6px;
     }
-    
-    .info-box {
-      border: 2px solid #222;
-      padding: 10px;
-      margin-bottom: 10px;
-    }
-
     .signature-area {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       text-align: center;
-      margin-top: 50px;
+      margin-top: 30px;
       page-break-inside: avoid;
     }
-
     .signature-box {
-      height: 90px;
+      height: 70px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
     }
-
     .no-print { display: none !important; }
   </style>
 </head>
@@ -350,10 +446,10 @@ export default function EmployeeDecrees() {
         <div className="text-right">
           <h2 className="text-md font-extrabold text-slate-800 dark:text-slate-100 flex items-center gap-2">
             <FileText className="h-5 w-5 text-indigo-600" />
-            احکام کارگزینی و حقوقی پرسنل
+            احکام حقوقی و کارگزینی پرسنل
           </h2>
           <p className="text-[11px] text-muted-foreground mt-1">
-            صدور و چاپ احکام تعیین حقوق، مزایا، سمت استخدامی و ردیف‌های قانون کار مستخدمین.
+            ثبت، صدور و چاپ حکم کارگزینی کارمند (شامل مشخصات حکم، حقوق ثابت و ۲۲ ردیف فوق‌العاده‌های قانونی).
           </p>
         </div>
         <div className="flex gap-2">
@@ -368,7 +464,7 @@ export default function EmployeeDecrees() {
           </Button>
           {!showForm && !selectedDecreeForPrint && (
             <Button size="sm" onClick={() => { setForm(INITIAL_FORM); setEditingId(null); setShowForm(true); }} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-9 text-xs gap-1.5 shadow">
-              <Plus className="h-4 w-4" /> صدور حکم جدید
+              <Plus className="h-4 w-4" /> صدور حکم کارگزینی جدید
             </Button>
           )}
         </div>
@@ -388,7 +484,7 @@ export default function EmployeeDecrees() {
         </div>
       )}
 
-      {/* ۱. پیش‌نمایش و چاپ حکم کارگزینی رسمی */}
+      {/* ۱. پیش‌نمایش و چاپ حکم کارگزینی رسمی (A4) */}
       {selectedDecreeForPrint && (
         <div className="space-y-4">
           <div className="flex justify-end gap-2 no-print">
@@ -396,147 +492,251 @@ export default function EmployeeDecrees() {
               <X className="h-4 w-4" /> بستن پیش‌نمایش
             </Button>
             <Button size="sm" onClick={printPage} className="bg-blue-600 hover:bg-blue-700 text-white font-bold h-9 text-xs gap-1.5 shadow">
-              <Printer className="h-4 w-4" /> چاپ حکم رسمی (A4)
+              <Printer className="h-4 w-4" /> چاپ حکم کارگزینی رسمی (A4)
             </Button>
           </div>
 
-          <Card className="border-slate-300 shadow-lg p-8 max-w-4xl mx-auto bg-white text-slate-900 font-sans" id="printable-decree-sheet">
-            {/* سربرگ حکم کارگزینی */}
-            <div className="border-2 border-slate-950 p-4">
+          <Card className="border-slate-900 shadow-xl p-6 max-w-4xl mx-auto bg-white text-slate-900 font-sans" id="printable-decree-sheet">
+            <div className="border-2 border-slate-950 p-4 space-y-3">
+              
+              {/* سربرگ رسمی حکم */}
               <div className="grid grid-cols-3 items-center text-center pb-2 border-b-2 border-slate-950">
-                <div className="text-right text-xs space-y-1">
-                  <div className="font-bold">{orgName || "وزارت امور اقتصادی و دارایی"}</div>
-                  <div className="text-[10px] text-slate-500">امور منابع انسانی و اداری</div>
+                <div className="text-right text-[11px] space-y-1">
+                  <div className="font-bold">{selectedDecreeForPrint.executiveOrg}</div>
+                  <div className="text-[10px] text-slate-600">امور اداری و کارگزینی</div>
                 </div>
                 <div className="space-y-1">
-                  <h1 className="text-sm font-black">حکم کارگزینی تعیین حقوق و مزایا</h1>
-                  <span className="text-[10px] text-slate-500">(موضوع ماده قانون کار جمهوری اسلامی ایران)</span>
+                  <h1 className="text-sm font-black text-slate-950">حکم کارگزینی کارمند رسمی</h1>
+                  <span className="text-[10px] text-slate-600">({selectedDecreeForPrint.decreeTitle || "تعیین حقوق و مزایا"})</span>
                 </div>
-                <div className="text-left text-xs space-y-1 font-mono">
+                <div className="text-left text-[11px] space-y-0.5 font-mono">
                   <div>شماره حکم: <strong>{selectedDecreeForPrint.decreeNo}</strong></div>
                   <div>تاریخ صدور: <strong>{selectedDecreeForPrint.issueDate || "—"}</strong></div>
                   <div>تاریخ اجرا: <strong>{selectedDecreeForPrint.effectiveDate || "—"}</strong></div>
                 </div>
               </div>
 
-              {/* جدول اطلاعات پرسنلی مستخدم */}
-              <div className="mt-4">
-                <h3 className="font-bold text-xs bg-slate-100 p-1.5 border border-slate-950 text-right">الف) مشخصات شناسنامه‌ای و استخدامی مستخدم</h3>
-                <div className="grid grid-cols-4 border-x border-b border-slate-950 text-xs">
-                  <div className="p-2 border-r border-slate-950">نام و نام خانوادگی: <strong className="font-bold">{selectedDecreeForPrint.employeeName}</strong></div>
-                  <div className="p-2 border-r border-slate-950">کد پرسنلی: <strong>{selectedDecreeForPrint.employeeCode}</strong></div>
-                  <div className="p-2 border-r border-slate-950">کد ملی: <strong>{selectedDecreeForPrint.nationalId}</strong></div>
-                  <div className="p-2">نام پدر: <strong>{selectedDecreeForPrint.fatherName}</strong></div>
-                  
-                  <div className="p-2 border-t border-r border-slate-950">تاریخ تولد: <strong>{selectedDecreeForPrint.birthDate}</strong></div>
-                  <div className="p-2 border-t border-r border-slate-950">{selectedDecreeForPrint.insuranceLabel || "شماره بیمه"}: <strong>{selectedDecreeForPrint.insuranceNo}</strong></div>
-                  <div className="p-2 border-t border-r border-slate-950">مدرک تحصیلی: <strong>{selectedDecreeForPrint.education}</strong></div>
-                  <div className="p-2 border-t">سمت شغلی: <strong className="font-bold">{selectedDecreeForPrint.jobTitle || "—"}</strong></div>
+              {/* بخش ۱: اطلاعات هویتی و پرسنلی (۱) */}
+              <div>
+                <div className="section-header">اطلاعات هویتی و پرسنلی (۱)</div>
+                <div className="grid grid-cols-4 border border-t-0 border-slate-950 text-[10.5px]">
+                  <div className="p-1.5 border-r border-slate-950">دستگاه اجرایی: <strong>{selectedDecreeForPrint.executiveOrg}</strong></div>
+                  <div className="p-1.5 border-r border-slate-950">نام: <strong>{selectedDecreeForPrint.firstName}</strong></div>
+                  <div className="p-1.5 border-r border-slate-950">نام خانوادگی: <strong>{selectedDecreeForPrint.lastName}</strong></div>
+                  <div className="p-1.5">نام پدر: <strong>{selectedDecreeForPrint.fatherName}</strong></div>
 
-                  <div className="p-2 border-t border-r border-slate-950">نوع استخدام: <strong>
-                    {selectedDecreeForPrint.employmentType === "official_permanent" ? "رسمی قطعی" :
-                     selectedDecreeForPrint.employmentType === "official_probation" ? "رسمی آزمایشی" :
-                     selectedDecreeForPrint.employmentType === "contractual" ? "قرارداد کار معین" : "قانون کار"}
-                  </strong></div>
-                  <div className="p-2 border-t border-r border-slate-950">گروه شغلی: <strong>{selectedDecreeForPrint.jobGroup}</strong></div>
-                  <div className="p-2 border-t border-r border-slate-950">پایه: <strong>{selectedDecreeForPrint.jobBase}</strong></div>
-                  <div className="p-2 border-t border-r border-slate-950">وضعیت مالیاتی: <strong>{selectedDecreeForPrint.taxStatus === "exempt" ? "معاف از مالیات حقوق (ماده ۹۱)" : "مشمول مالیات"}</strong></div>
-                  <div className="p-2 border-t">شرح حکم: <strong>{selectedDecreeForPrint.description || "—"}</strong></div>
+                  <div className="p-1.5 border-t border-r border-slate-950">شماره ملی: <strong>{selectedDecreeForPrint.nationalId}</strong></div>
+                  <div className="p-1.5 border-t border-r border-slate-950">شماره پرسنلی: <strong>{selectedDecreeForPrint.employeeCode}</strong></div>
+                  <div className="p-1.5 border-t border-r border-slate-950">شماره شناسنامه: <strong>{selectedDecreeForPrint.certificateNo}</strong></div>
+                  <div className="p-1.5 border-t">محل تولد: <strong>{selectedDecreeForPrint.birthPlace}</strong></div>
+
+                  <div className="p-1.5 border-t border-r border-slate-950">تاریخ تولد: <strong>{selectedDecreeForPrint.birthDate}</strong></div>
+                  <div className="p-1.5 border-t border-r border-slate-950">جنسیت: <strong>{selectedDecreeForPrint.genderLabel}</strong></div>
+                  <div className="p-1.5 border-t border-r border-slate-950">وضعیت تاهل: <strong>{selectedDecreeForPrint.maritalStatusLabel}</strong></div>
+                  <div className="p-1.5 border-t">تعداد فرزندان: <strong>{selectedDecreeForPrint.childrenCount}</strong></div>
+
+                  <div className="p-1.5 border-t border-r border-slate-950">وضعیت ایثارگری: <strong>{selectedDecreeForPrint.sacrificeStatusLabel}</strong></div>
+                  <div className="p-1.5 border-t border-r border-slate-950">نوع استخدام: <strong>{selectedDecreeForPrint.employmentTypeLabel}</strong></div>
+                  <div className="p-1.5 border-t border-r border-slate-950">صندوق بازنشستگی: <strong>{selectedDecreeForPrint.pensionFundLabel}</strong></div>
+                  <div className="p-1.5 border-t">دستگاه اجرایی: <strong>{selectedDecreeForPrint.executiveOrg}</strong></div>
                 </div>
               </div>
 
-              {/* جدول فوق‌العاده‌ها و اقلام حقوقی ماهانه */}
-              <div className="mt-4">
-                <h3 className="font-bold text-xs bg-slate-100 p-1.5 border border-slate-950 text-right">ب) جزئیات فوق‌العاده‌ها، حقوق و مزایای مستمر ماهانه مندرج در حکم (ریال)</h3>
-                <table className="w-full text-right text-xs table-layout border-slate-950">
+              {/* بخش ۲: اطلاعات شغلی و پستی (۲) */}
+              <div>
+                <div className="section-header">اطلاعات شغلی و پستی (۲)</div>
+                <div className="grid grid-cols-4 border border-t-0 border-slate-950 text-[10.5px]">
+                  <div className="p-1.5 border-r border-slate-950">عنوان پست سازمانی: <strong>{selectedDecreeForPrint.postTitle}</strong></div>
+                  <div className="p-1.5 border-r border-slate-950">ردیف پست سازمانی: <strong>{selectedDecreeForPrint.postRow}</strong></div>
+                  <div className="p-1.5 border-r border-slate-950">شناسه یکتای پست: <strong>{selectedDecreeForPrint.uniquePostId}</strong></div>
+                  <div className="p-1.5">واحد سازمانی: <strong>{selectedDecreeForPrint.department}</strong></div>
+
+                  <div className="p-1.5 border-t border-r border-slate-950">شناسه یکتای واحد: <strong>{selectedDecreeForPrint.uniqueUnitId}</strong></div>
+                  <div className="p-1.5 border-t border-r border-slate-950">عنوان شغل: <strong>{selectedDecreeForPrint.jobTitle}</strong></div>
+                  <div className="p-1.5 border-t border-r border-slate-950">طبقه: <strong>{selectedDecreeForPrint.jobGrade}</strong></div>
+                  <div className="p-1.5 border-t">رتبه: <strong>{selectedDecreeForPrint.jobRankLabel}</strong></div>
+
+                  <div className="p-1.5 border-t border-r border-slate-950">سابقه خدمت قابل قبول: <strong>{selectedDecreeForPrint.serviceHistory}</strong></div>
+                  <div className="p-1.5 border-t border-r border-slate-950">سابقه تجربی قابل قبول: <strong>{selectedDecreeForPrint.expHistory}</strong></div>
+                  <div className="p-1.5 border-t border-r border-slate-950">محل خدمت: <strong>{selectedDecreeForPrint.serviceLocation}</strong></div>
+                  <div className="p-1.5 border-t">بالاترین مدرک و رشته: <strong>{selectedDecreeForPrint.highestDegreeLabel} ({selectedDecreeForPrint.fieldOfStudy})</strong></div>
+                </div>
+              </div>
+
+              {/* بخش ۳: مشخصات حکم (۳) */}
+              <div>
+                <div className="section-header">مشخصات حکم (۳)</div>
+                <div className="grid grid-cols-3 border border-t-0 border-slate-950 text-[10.5px]">
+                  <div className="p-1.5 border-r border-slate-950">عنوان حکم: <strong>{selectedDecreeForPrint.decreeTitle}</strong></div>
+                  <div className="p-1.5 border-r border-slate-950">تاریخ صدور: <strong>{selectedDecreeForPrint.issueDate || "—"}</strong></div>
+                  <div className="p-1.5">تاریخ اجرا: <strong>{selectedDecreeForPrint.effectiveDate || "—"}</strong></div>
+
+                  <div className="p-1.5 border-t border-r border-slate-950">شماره حکم: <strong>{selectedDecreeForPrint.decreeNo}</strong></div>
+                  <div className="p-1.5 border-t border-r border-slate-950">مقام مسئول صادرکننده: <strong>{selectedDecreeForPrint.issuingAuthority || "مدیرکل امور اداری"}</strong></div>
+                  <div className="p-1.5 border-t">شرح حکم: <strong>{selectedDecreeForPrint.description || "—"}</strong></div>
+                </div>
+              </div>
+
+              {/* بخش ۴: حقوق ثابت و مزایا (۴ - ۲۲ ردیف حکم) */}
+              <div>
+                <div className="section-header">حقوق ثابت و مزایا (۴)</div>
+                <table className="table-layout border-slate-950 text-[10px]">
                   <thead>
                     <tr className="bg-slate-100 font-bold border-b border-slate-950">
-                      <th className="px-4 py-2 border-r border-slate-950">ردیف</th>
-                      <th className="px-4 py-2 border-r border-slate-950">شرح فوق‌العاده و مزایای مستمر حکم</th>
-                      <th className="px-4 py-2 text-left">مبلغ مقرر در حکم (ریال)</th>
+                      <th className="px-2 py-1 text-center w-10 border-r border-slate-950">ردیف</th>
+                      <th className="px-3 py-1 border-r border-slate-950">عنوان ردیف حکم کارگزینی</th>
+                      <th className="px-3 py-1 text-center border-r border-slate-950 w-24">امتیاز</th>
+                      <th className="px-3 py-1 text-left">مبلغ مقرر در حکم (ریال)</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr className="border-b border-slate-950">
-                      <td className="px-4 py-2 border-r border-slate-950 text-center">۱</td>
-                      <td className="px-4 py-2 border-r border-slate-950 font-bold">حقوق پایه ماهانه (مبنای حکم)</td>
-                      <td className="px-4 py-2 text-left font-mono font-bold">{Number(selectedDecreeForPrint.baseSalary || 0).toLocaleString("fa-IR")}</td>
+                    <tr>
+                      <td className="text-center font-bold">۱</td>
+                      <td className="font-bold">حق شغل</td>
+                      <td className="text-center font-mono font-bold border-r border-slate-950">{Number(selectedDecreeForPrint.jobPayPoints ?? 8300).toLocaleString("fa-IR")}</td>
+                      <td className="text-left font-mono font-bold">{Number(selectedDecreeForPrint.jobPay || 0).toLocaleString("fa-IR")}</td>
                     </tr>
-                    <tr className="border-b border-slate-950">
-                      <td className="px-4 py-2 border-r border-slate-950 text-center">۲</td>
-                      <td className="px-4 py-2 border-r border-slate-950">فوق‌العاده پایه سنوات (سابقه کار)</td>
-                      <td className="px-4 py-2 text-left font-mono">{Number(selectedDecreeForPrint.seniorityAllowance || 0).toLocaleString("fa-IR")}</td>
+                    <tr>
+                      <td className="text-center font-bold">۲</td>
+                      <td className="font-bold">فوق العاده مدیریت</td>
+                      <td className="text-center font-mono font-bold border-r border-slate-950">{Number(selectedDecreeForPrint.managementAllowancePoints ?? 2250).toLocaleString("fa-IR")}</td>
+                      <td className="text-left font-mono font-bold">{Number(selectedDecreeForPrint.managementAllowance || 0).toLocaleString("fa-IR")}</td>
                     </tr>
-                    <tr className="border-b border-slate-950">
-                      <td className="px-4 py-2 border-r border-slate-950 text-center">۳</td>
-                      <td className="px-4 py-2 border-r border-slate-950">کمک هزینه مسکن (حق مسکن)</td>
-                      <td className="px-4 py-2 text-left font-mono">{Number(selectedDecreeForPrint.housingAllowance || 0).toLocaleString("fa-IR")}</td>
+                    <tr>
+                      <td className="text-center font-bold">۳</td>
+                      <td className="font-bold">حق شاغل</td>
+                      <td className="text-center font-mono font-bold border-r border-slate-950">{Number(selectedDecreeForPrint.employeePayPoints ?? 5900).toLocaleString("fa-IR")}</td>
+                      <td className="text-left font-mono font-bold">{Number(selectedDecreeForPrint.employeePay || 0).toLocaleString("fa-IR")}</td>
                     </tr>
-                    <tr className="border-b border-slate-950">
-                      <td className="px-4 py-2 border-r border-slate-950 text-center">۴</td>
-                      <td className="px-4 py-2 border-r border-slate-950">کمک هزینه اقلام مصرفی (بن خواربار)</td>
-                      <td className="px-4 py-2 text-left font-mono">{Number(selectedDecreeForPrint.groceryAllowance || 0).toLocaleString("fa-IR")}</td>
+                    <tr className="bg-slate-100 font-bold">
+                      <td className="text-center">—</td>
+                      <td className="font-extrabold text-blue-900">- جمع حقوق ثابت (الف)</td>
+                      <td className="text-center font-mono font-extrabold text-blue-900 border-r border-slate-950">
+                        {((Number(selectedDecreeForPrint.jobPayPoints ?? 8300)) + (Number(selectedDecreeForPrint.managementAllowancePoints ?? 2250)) + (Number(selectedDecreeForPrint.employeePayPoints ?? 5900))).toLocaleString("fa-IR")}
+                      </td>
+                      <td className="text-left font-mono font-extrabold text-blue-900">{calcFixedSalaryA(selectedDecreeForPrint).toLocaleString("fa-IR")}</td>
                     </tr>
-                    <tr className="border-b border-slate-950">
-                      <td className="px-4 py-2 border-r border-slate-950 text-center">۵</td>
-                      <td className="px-4 py-2 border-r border-slate-950">حق عائله‌مندی و اولاد ماهانه</td>
-                      <td className="px-4 py-2 text-left font-mono">{Number(selectedDecreeForPrint.childAllowance || 0).toLocaleString("fa-IR")}</td>
+                    <tr>
+                      <td className="text-center">۴</td>
+                      <td>ب) تفاوت تطبیق</td>
+                      <td className="text-left font-mono">{Number(selectedDecreeForPrint.adaptationDiff || 0).toLocaleString("fa-IR")}</td>
                     </tr>
-                    <tr className="border-b border-slate-950">
-                      <td className="px-4 py-2 border-r border-slate-950 text-center">۶</td>
-                      <td className="px-4 py-2 border-r border-slate-950">فوق‌العاده مسئولیت و مدیریت</td>
-                      <td className="px-4 py-2 text-left font-mono">{Number(selectedDecreeForPrint.responsibilityAllowance || 0).toLocaleString("fa-IR")}</td>
+                    <tr>
+                      <td className="text-center">۵</td>
+                      <td>ث) فوق العاده مناطق کمتر توسعه یافته</td>
+                      <td className="text-left font-mono">{Number(selectedDecreeForPrint.underdevelopedAreaAllowance || 0).toLocaleString("fa-IR")}</td>
                     </tr>
-                    <tr className="border-b border-slate-950">
-                      <td className="px-4 py-2 border-r border-slate-950 text-center">۷</td>
-                      <td className="px-4 py-2 border-r border-slate-950">فوق‌العاده جذب و تخصصی حقوق</td>
-                      <td className="px-4 py-2 text-left font-mono">{Number(selectedDecreeForPrint.expertiseAllowance || 0).toLocaleString("fa-IR")}</td>
+                    <tr>
+                      <td className="text-center">۶</td>
+                      <td>ج) فوق العاده بدی آب و هوا</td>
+                      <td className="text-left font-mono">{Number(selectedDecreeForPrint.badWeatherAllowance || 0).toLocaleString("fa-IR")}</td>
                     </tr>
-                    <tr className="border-b border-slate-950">
-                      <td className="px-4 py-2 border-r border-slate-950 text-center">۸</td>
-                      <td className="px-4 py-2 border-r border-slate-950">فوق‌العاده ایاب و ذهاب</td>
-                      <td className="px-4 py-2 text-left font-mono">{Number(selectedDecreeForPrint.transportAllowance || 0).toLocaleString("fa-IR")}</td>
+                    <tr>
+                      <td className="text-center">۷</td>
+                      <td>ح) فوق العاده ایثارگری</td>
+                      <td className="text-left font-mono">{Number(selectedDecreeForPrint.sacrificeAllowance || 0).toLocaleString("fa-IR")}</td>
                     </tr>
-                    <tr className="border-b border-slate-950">
-                      <td className="px-4 py-2 border-r border-slate-950 text-center">۹</td>
-                      <td className="px-4 py-2 border-r border-slate-950">سایر فوق‌العاده‌ها و کمک‌هزینه‌های قانونی</td>
-                      <td className="px-4 py-2 text-left font-mono">{Number(selectedDecreeForPrint.otherAllowances || 0).toLocaleString("fa-IR")}</td>
+                    <tr>
+                      <td className="text-center">۸</td>
+                      <td>خ) خدمت در مناطق جنگ زده</td>
+                      <td className="text-left font-mono">{Number(selectedDecreeForPrint.warZoneAllowance || 0).toLocaleString("fa-IR")}</td>
                     </tr>
-                    <tr className="bg-slate-50 font-black border-slate-950 text-indigo-950 text-xs">
-                      <td colSpan={2} className="px-4 py-2.5 border-r border-slate-950">جمع کل ناخالص ماهانه حکم کارگزینی (ریال)</td>
-                      <td className="px-4 py-2.5 text-left font-mono text-sm">
-                        {(
-                          Number(selectedDecreeForPrint.baseSalary || 0) +
-                          Number(selectedDecreeForPrint.seniorityAllowance || 0) +
-                          Number(selectedDecreeForPrint.housingAllowance || 0) +
-                          Number(selectedDecreeForPrint.groceryAllowance || 0) +
-                          Number(selectedDecreeForPrint.childAllowance || 0) +
-                          Number(selectedDecreeForPrint.responsibilityAllowance || 0) +
-                          Number(selectedDecreeForPrint.expertiseAllowance || 0) +
-                          Number(selectedDecreeForPrint.transportAllowance || 0) +
-                          Number(selectedDecreeForPrint.otherAllowances || 0)
-                        ).toLocaleString("fa-IR")}
+                    <tr>
+                      <td className="text-center">۹</td>
+                      <td>د) فوق العاده سختی شرایط کار</td>
+                      <td className="text-left font-mono">{Number(selectedDecreeForPrint.hardshipAllowance || 0).toLocaleString("fa-IR")}</td>
+                    </tr>
+                    <tr>
+                      <td className="text-center">۱۰</td>
+                      <td>ر) کمک هزینه عائله مندی</td>
+                      <td className="text-left font-mono">{Number(selectedDecreeForPrint.familyAllowance || 0).toLocaleString("fa-IR")}</td>
+                    </tr>
+                    <tr>
+                      <td className="text-center">۱۱</td>
+                      <td>ز) کمک هزینه اولاد</td>
+                      <td className="text-left font-mono">{Number(selectedDecreeForPrint.childAllowance || 0).toLocaleString("fa-IR")}</td>
+                    </tr>
+                    <tr>
+                      <td className="text-center">۱۲</td>
+                      <td>س) فوق العاده محل خدمت</td>
+                      <td className="text-left font-mono">{Number(selectedDecreeForPrint.locationAllowance || 0).toLocaleString("fa-IR")}</td>
+                    </tr>
+                    <tr>
+                      <td className="text-center">۱۳</td>
+                      <td>ع) فوق العاده ویژه</td>
+                      <td className="text-left font-mono">{Number(selectedDecreeForPrint.specialAllowance || 0).toLocaleString("fa-IR")}</td>
+                    </tr>
+                    <tr>
+                      <td className="text-center">۱۴</td>
+                      <td>ص) فوق العاده ویژه (نخبگان)</td>
+                      <td className="text-left font-mono">{Number(selectedDecreeForPrint.eliteSpecialAllowance || 0).toLocaleString("fa-IR")}</td>
+                    </tr>
+                    <tr>
+                      <td className="text-center">۱۵</td>
+                      <td>ش) فوق العاده شغل بند 5</td>
+                      <td className="text-left font-mono">{Number(selectedDecreeForPrint.band5JobAllowance || 0).toLocaleString("fa-IR")}</td>
+                    </tr>
+                    <tr>
+                      <td className="text-center">۱۶</td>
+                      <td>غ) اجرا ماده 51</td>
+                      <td className="text-left font-mono">{Number(selectedDecreeForPrint.article51Execution || 0).toLocaleString("fa-IR")}</td>
+                    </tr>
+                    <tr>
+                      <td className="text-center">۱۷</td>
+                      <td>حق جذب</td>
+                      <td className="text-left font-mono">{Number(selectedDecreeForPrint.attractionAllowance || 0).toLocaleString("fa-IR")}</td>
+                    </tr>
+                    <tr>
+                      <td className="text-center">۱۸</td>
+                      <td>سایر</td>
+                      <td className="text-left font-mono">{Number(selectedDecreeForPrint.otherAllowances || 0).toLocaleString("fa-IR")}</td>
+                    </tr>
+                    <tr>
+                      <td className="text-center">۱۹</td>
+                      <td>جمع تفاوت های جزء (1) بند (الف) 97 و تفاوت بند (ی) 8</td>
+                      <td className="text-left font-mono">{Number(selectedDecreeForPrint.item97and8Diff || 0).toLocaleString("fa-IR")}</td>
+                    </tr>
+                    <tr>
+                      <td className="text-center">۲۰</td>
+                      <td>مابه التفاوت حداقل حکم قرارداد کارکنان</td>
+                      <td className="text-left font-mono">{Number(selectedDecreeForPrint.minContractDecreeDiff || 0).toLocaleString("fa-IR")}</td>
+                    </tr>
+                    <tr>
+                      <td className="text-center">۲۱</td>
+                      <td>ترمیم حقوق</td>
+                      <td className="text-left font-mono">{Number(selectedDecreeForPrint.salaryRestoration || 0).toLocaleString("fa-IR")}</td>
+                    </tr>
+                    <tr>
+                      <td className="text-center">۲۲</td>
+                      <td>فوق العاده خاص</td>
+                      <td className="text-left font-mono">{Number(selectedDecreeForPrint.particularSpecialAllowance || 0).toLocaleString("fa-IR")}</td>
+                    </tr>
+                    <tr className="bg-emerald-100 font-extrabold border-t-2 border-slate-950 text-slate-950">
+                      <td colSpan={2} className="px-3 py-1.5 border-r border-slate-950">جمع کل ناخالص ماهانه حکم کارگزینی (ریال)</td>
+                      <td className="px-3 py-1.5 text-left font-mono text-xs">
+                        {calcTotalDecreeSalary(selectedDecreeForPrint).toLocaleString("fa-IR")}
                       </td>
                     </tr>
                   </tbody>
                 </table>
               </div>
 
-              {/* کادر تایید و امضا */}
-              <div className="signature-area text-xs font-bold pt-8">
-                <div className="signature-box flex flex-col justify-between h-20">
-                  <span>تنظیم کننده (رئیس کارگزینی)</span>
-                  <span className="text-[10px] text-slate-400">امضا و تاریخ</span>
+              {/* کادر امضاها */}
+              <div className="signature-area text-[10.5px] font-bold pt-4">
+                <div className="signature-box">
+                  <span>تنظیم کننده (کارشناسی کارگزینی)</span>
+                  <span className="text-[9px] text-slate-400">امضا و تاریخ</span>
                 </div>
-                <div className="signature-box flex flex-col justify-between h-20">
-                  <span>تایید کننده (مدیر امور مالی)</span>
-                  <span className="text-[10px] text-slate-400">مهر و امضا</span>
+                <div className="signature-box">
+                  <span>تایید کننده (مدیرکل امور اداری)</span>
+                  <span className="text-[9px] text-slate-400">مهر و امضا</span>
                 </div>
-                <div className="signature-box flex flex-col justify-between h-20">
+                <div className="signature-box">
                   <span>مستند ابلاغ حکم (مستخدم)</span>
-                  <span className="text-[10px] text-slate-400">امضا و اثر انگشت</span>
+                  <span className="text-[9px] text-slate-400">امضا و اثر انگشت</span>
                 </div>
               </div>
+
             </div>
           </Card>
         </div>
@@ -550,14 +750,14 @@ export default function EmployeeDecrees() {
               <FileText className="h-4 w-4 text-indigo-600" />
               {editingId ? "ویرایش مشخصات حکم کارگزینی" : "صدور و تعریف حکم کارگزینی جدید پرسنل"}
             </CardTitle>
-            <CardDescription className="text-xs">اطلاعات هویتی استخدامی و ردیف‌های ریالی حکم مستخدم را وارد کنید.</CardDescription>
+            <CardDescription className="text-xs">اطلاعات مشخصات حکم و ۲۲ ردیف حقوق ثابت و مزایای قانونی را تکمیل نمایید.</CardDescription>
           </CardHeader>
           <CardContent className="pt-5">
             <form onSubmit={handleSave} className="space-y-6">
               
-              {/* تب هویتی */}
+              {/* بخش ۳: مشخصات حکم */}
               <div>
-                <h4 className="text-xs font-bold text-slate-700 mb-3 border-r-4 pr-2 border-blue-600">اطلاعات صدور و رده استخدامی</h4>
+                <h4 className="text-xs font-bold text-slate-700 mb-3 border-r-4 pr-2 border-blue-600">مشخصات حکم (۳)</h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <Label className="text-xs font-semibold">انتخاب پرسنل / مستخدم <span className="text-rose-500">*</span></Label>
@@ -576,12 +776,17 @@ export default function EmployeeDecrees() {
                     <Input value={form.decreeNo} onChange={e => handleChange("decreeNo", e.target.value)} className="h-9 text-xs mt-1.5 font-mono text-left" required />
                   </div>
                   <div>
-                    <Label className="text-xs font-semibold">نوع رابطه استخدامی</Label>
-                    <select value={form.employmentType} onChange={e => handleChange("employmentType", e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-xs shadow-sm mt-1.5">
-                      <option value="contractual">قرارداد کار معین</option>
-                      <option value="official_permanent">رسمی قطعی</option>
-                      <option value="official_probation">رسمی آزمایشی</option>
-                      <option value="labor">مشمول قانون کار (کارگری)</option>
+                    <Label className="text-xs font-semibold">عنوان حکم</Label>
+                    <select value={form.decreeTitle} onChange={e => handleChange("decreeTitle", e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm mt-1.5">
+                      <option value="حکم کارگزینی کارمند رسمی">حکم کارگزینی کارمند رسمی</option>
+                      <option value="انتصاب شغلی">انتصاب شغلی</option>
+                      <option value="تعیین حقوق و مزایای سالانه">تعیین حقوق و مزایای سالانه</option>
+                      <option value="افزایش ضریب سالانه">افزایش ضریب سالانه</option>
+                      <option value="ارتقاء طبقه و رتبه">ارتقاء طبقه و رتبه</option>
+                      <option value="ترفیع پایه">ترفیع پایه</option>
+                      <option value="تبدیل وضعیت استخدامی">تبدیل وضعیت استخدامی</option>
+                      <option value="تغییر محل خدمت">تغییر محل خدمت</option>
+                      <option value="سایر">سایر</option>
                     </select>
                   </div>
                   <div>
@@ -593,80 +798,125 @@ export default function EmployeeDecrees() {
                     <PersianDatePicker value={form.effectiveDate} onChange={e => handleChange("effectiveDate", e.target.value)} className="h-9 mt-1.5" placeholder="۱۴۰۵/۰۱/۰۱" />
                   </div>
                   <div>
-                    <Label className="text-xs font-semibold">سمت / عنوان شغلی در حکم</Label>
-                    <Input value={form.jobTitle} onChange={e => handleChange("jobTitle", e.target.value)} className="h-9 text-xs mt-1.5" />
+                    <Label className="text-xs font-semibold">مقام مسئول صادرکننده</Label>
+                    <Input value={form.issuingAuthority} onChange={e => handleChange("issuingAuthority", e.target.value)} className="h-9 text-xs mt-1.5" placeholder="مثال: مدیرکل امور اداری" />
                   </div>
-                  <div>
-                    <Label className="text-xs font-semibold">رسته / گروه شغلی</Label>
-                    <Input value={form.jobGroup} onChange={e => handleChange("jobGroup", e.target.value)} className="h-9 text-xs mt-1.5 font-mono text-left" />
-                  </div>
-                  <div>
-                    <Label className="text-xs font-semibold">پایه شغلی</Label>
-                    <Input value={form.jobBase} onChange={e => handleChange("jobBase", e.target.value)} className="h-9 text-xs mt-1.5 font-mono text-left" />
-                  </div>
-                  <div>
-                    <Label className="text-xs font-semibold">وضعیت مالیاتی کارمند در حکم</Label>
-                    <select value={form.taxStatus || "taxable"} onChange={e => handleChange("taxStatus", e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-xs shadow-sm mt-1.5">
-                      <option value="taxable">مشمول پرداخت مالیات حقوق</option>
-                      <option value="exempt">معاف از مالیات حقوق (ماده ۹۱)</option>
-                    </select>
-                  </div>
-                  <div>
+                  <div className="md:col-span-3">
                     <Label className="text-xs font-semibold">شرح / دلیل صدور حکم</Label>
-                    <Input value={form.description} onChange={e => handleChange("description", e.target.value)} className="h-9 text-xs mt-1.5" />
+                    <Input value={form.description} onChange={e => handleChange("description", e.target.value)} className="h-9 text-xs mt-1.5" placeholder="توضیحات و دلایل قانونی صدور حکم..." />
                   </div>
                 </div>
               </div>
 
               <Separator />
 
-              {/* تب حقوق و فوق‌العاده‌ها */}
+              {/* بخش ۴: حقوق ثابت و مزایا (۲۲ ردیف حکم) */}
               <div>
-                <h4 className="text-xs font-bold text-slate-700 mb-3 border-r-4 pr-2 border-emerald-600">جدول ردیف‌های ریالی مستمر حکم ماهانه (۱۴۰۵)</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <h4 className="text-xs font-bold text-slate-700 mb-3 border-r-4 pr-2 border-emerald-600">حقوق ثابت و مزایا (۴) — ۲۲ ردیف قانونی حکم کارگزینی</h4>
+                
+                <div className="bg-blue-50/50 p-3 rounded-xl border border-blue-100 mb-4 grid grid-cols-1 md:grid-cols-4 gap-3">
                   <div>
-                    <Label className="text-xs font-semibold">حقوق پایه ماهانه (ریال)</Label>
-                    <Input type="number" value={form.baseSalary} onChange={e => handleChange("baseSalary", Number(e.target.value))} className="h-9 text-xs mt-1.5 font-mono text-left font-bold" />
+                    <Label className="text-xs font-semibold text-blue-900">۱. حق شغل (ریال)</Label>
+                    <Input type="number" value={form.jobPay} onChange={e => handleChange("jobPay", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left font-bold" />
                   </div>
                   <div>
-                    <Label className="text-xs font-semibold">فوق‌العاده پایه سنوات (ریال)</Label>
-                    <Input type="number" value={form.seniorityAllowance} onChange={e => handleChange("seniorityAllowance", Number(e.target.value))} className="h-9 text-xs mt-1.5 font-mono text-left" />
+                    <Label className="text-xs font-semibold text-blue-900">۲. فوق العاده مدیریت (ریال)</Label>
+                    <Input type="number" value={form.managementAllowance} onChange={e => handleChange("managementAllowance", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left font-bold" />
                   </div>
                   <div>
-                    <Label className="text-xs font-semibold">کمک هزینه مسکن (ریال)</Label>
-                    <Input type="number" value={form.housingAllowance} onChange={e => handleChange("housingAllowance", Number(e.target.value))} className="h-9 text-xs mt-1.5 font-mono text-left" />
+                    <Label className="text-xs font-semibold text-blue-900">۳. حق شاغل (ریال)</Label>
+                    <Input type="number" value={form.employeePay} onChange={e => handleChange("employeePay", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left font-bold" />
+                  </div>
+                  <div className="bg-blue-600 text-white p-2 rounded-lg flex flex-col justify-center items-center">
+                    <span className="text-[10px]">جمع حقوق ثابت (الف)</span>
+                    <span className="font-mono font-black text-sm">{calcFixedSalaryA(form).toLocaleString("fa-IR")} <span className="text-[9px]">ریال</span></span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-right">
+                  <div>
+                    <Label className="text-xs font-semibold">۴. ب) تفاوت تطبیق (ریال)</Label>
+                    <Input type="number" value={form.adaptationDiff} onChange={e => handleChange("adaptationDiff", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
                   </div>
                   <div>
-                    <Label className="text-xs font-semibold">کمک هزینه بن خواربار (ریال)</Label>
-                    <Input type="number" value={form.groceryAllowance} onChange={e => handleChange("groceryAllowance", Number(e.target.value))} className="h-9 text-xs mt-1.5 font-mono text-left" />
+                    <Label className="text-xs font-semibold">۵. ث) فوق العاده مناطق کمتر توسعه یافته (ریال)</Label>
+                    <Input type="number" value={form.underdevelopedAreaAllowance} onChange={e => handleChange("underdevelopedAreaAllowance", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
                   </div>
                   <div>
-                    <Label className="text-xs font-semibold">حق اولاد و عائله‌مندی (ریال)</Label>
-                    <Input type="number" value={form.childAllowance} onChange={e => handleChange("childAllowance", Number(e.target.value))} className="h-9 text-xs mt-1.5 font-mono text-left" />
+                    <Label className="text-xs font-semibold">۶. ج) فوق العاده بدی آب و هوا (ریال)</Label>
+                    <Input type="number" value={form.badWeatherAllowance} onChange={e => handleChange("badWeatherAllowance", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
                   </div>
                   <div>
-                    <Label className="text-xs font-semibold">فوق‌العاده مسئولیت / مدیریت (ریال)</Label>
-                    <Input type="number" value={form.responsibilityAllowance} onChange={e => handleChange("responsibilityAllowance", Number(e.target.value))} className="h-9 text-xs mt-1.5 font-mono text-left" />
+                    <Label className="text-xs font-semibold">۷. ح) فوق العاده ایثارگری (ریال)</Label>
+                    <Input type="number" value={form.sacrificeAllowance} onChange={e => handleChange("sacrificeAllowance", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
                   </div>
                   <div>
-                    <Label className="text-xs font-semibold">فوق‌العاده جذب و تخصص (ریال)</Label>
-                    <Input type="number" value={form.expertiseAllowance} onChange={e => handleChange("expertiseAllowance", Number(e.target.value))} className="h-9 text-xs mt-1.5 font-mono text-left" />
+                    <Label className="text-xs font-semibold">۸. خ) خدمت در مناطق جنگ زده (ریال)</Label>
+                    <Input type="number" value={form.warZoneAllowance} onChange={e => handleChange("warZoneAllowance", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
                   </div>
                   <div>
-                    <Label className="text-xs font-semibold">فوق‌العاده ایاب و ذهاب (ریال)</Label>
-                    <Input type="number" value={form.transportAllowance} onChange={e => handleChange("transportAllowance", Number(e.target.value))} className="h-9 text-xs mt-1.5 font-mono text-left" />
+                    <Label className="text-xs font-semibold">۹. د) فوق العاده سختی شرایط کار (ریال)</Label>
+                    <Input type="number" value={form.hardshipAllowance} onChange={e => handleChange("hardshipAllowance", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
                   </div>
                   <div>
-                    <Label className="text-xs font-semibold">سایر فوق‌العاده‌های قانونی (ریال)</Label>
-                    <Input type="number" value={form.otherAllowances} onChange={e => handleChange("otherAllowances", Number(e.target.value))} className="h-9 text-xs mt-1.5 font-mono text-left" />
+                    <Label className="text-xs font-semibold">۱۰. ر) کمک هزینه عائله مندی (ریال)</Label>
+                    <Input type="number" value={form.familyAllowance} onChange={e => handleChange("familyAllowance", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold">۱۱. ز) کمک هزینه اولاد (ریال)</Label>
+                    <Input type="number" value={form.childAllowance} onChange={e => handleChange("childAllowance", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold">۱۲. س) فوق العاده محل خدمت (ریال)</Label>
+                    <Input type="number" value={form.locationAllowance} onChange={e => handleChange("locationAllowance", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold">۱۳. ع) فوق العاده ویژه (ریال)</Label>
+                    <Input type="number" value={form.specialAllowance} onChange={e => handleChange("specialAllowance", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold">۱۴. ص) فوق العاده ویژه (نخبگان) (ریال)</Label>
+                    <Input type="number" value={form.eliteSpecialAllowance} onChange={e => handleChange("eliteSpecialAllowance", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold">۱۵. ش) فوق العاده شغل بند 5 (ریال)</Label>
+                    <Input type="number" value={form.band5JobAllowance} onChange={e => handleChange("band5JobAllowance", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold">۱۶. غ) اجرا ماده 51 (ریال)</Label>
+                    <Input type="number" value={form.article51Execution} onChange={e => handleChange("article51Execution", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold">۱۷. حق جذب (ریال)</Label>
+                    <Input type="number" value={form.attractionAllowance} onChange={e => handleChange("attractionAllowance", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold">۱۸. سایر (ریال)</Label>
+                    <Input type="number" value={form.otherAllowances} onChange={e => handleChange("otherAllowances", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold">۱۹. جمع تفاوت های جزء (1) بند (الف) 97 و تفاوت بند (ی) 8</Label>
+                    <Input type="number" value={form.item97and8Diff} onChange={e => handleChange("item97and8Diff", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold">۲۰. مابه التفاوت حداقل حکم قرارداد کارکنان (ریال)</Label>
+                    <Input type="number" value={form.minContractDecreeDiff} onChange={e => handleChange("minContractDecreeDiff", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold">۲۱. ترمیم حقوق (ریال)</Label>
+                    <Input type="number" value={form.salaryRestoration} onChange={e => handleChange("salaryRestoration", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold">۲۲. فوق العاده خاص (ریال)</Label>
+                    <Input type="number" value={form.particularSpecialAllowance} onChange={e => handleChange("particularSpecialAllowance", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
                   </div>
                 </div>
 
                 <div className="bg-emerald-500/10 p-4 rounded-xl flex justify-between items-center border border-emerald-500/20 mt-4">
-                  <span className="text-xs font-bold text-slate-600">جمع کل ناخالص ماهانه حکم کارگزینی:</span>
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300">جمع کل ناخالص ماهانه حکم کارگزینی (مجموع ۲۲ ردیف فوق):</span>
                   <span className="font-mono text-base font-black text-emerald-800 dark:text-emerald-400">
-                    {(totalSalary / 10).toLocaleString("fa-IR")} <span className="text-xs font-semibold">تومان</span>
-                    <span className="block text-[10px] text-muted-foreground text-left">{totalSalary.toLocaleString("fa-IR")} ریال</span>
+                    {(calcTotalDecreeSalary(form) / 10).toLocaleString("fa-IR")} <span className="text-xs font-semibold">تومان</span>
+                    <span className="block text-[10px] text-muted-foreground text-left">{calcTotalDecreeSalary(form).toLocaleString("fa-IR")} ریال</span>
                   </span>
                 </div>
               </div>
@@ -707,40 +957,32 @@ export default function EmployeeDecrees() {
                   <TableRow className="bg-muted/40">
                     <TableHead className="text-right w-32">شماره حکم</TableHead>
                     <TableHead className="text-right">نام پرسنل</TableHead>
+                    <TableHead className="text-right">عنوان حکم</TableHead>
                     <TableHead className="text-right">عنوان شغلی</TableHead>
                     <TableHead className="text-center w-24">تاریخ صدور</TableHead>
                     <TableHead className="text-center w-24">تاریخ اجرا</TableHead>
-                    <TableHead className="text-right w-36">حقوق ناخالص ماهانه (ریال)</TableHead>
+                    <TableHead className="text-right w-36">حقوق ناخالص (ریال)</TableHead>
                     <TableHead className="text-center w-28">عملیات</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredDecrees.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="py-8 text-center text-xs text-muted-foreground font-semibold">
+                      <TableCell colSpan={8} className="py-8 text-center text-xs text-muted-foreground font-semibold">
                         هیچ حکم کارگزینی صادر شده‌ای یافت نشد.
                       </TableCell>
                     </TableRow>
                   ) : filteredDecrees.map(d => {
                     const emp = (employees || []).find(e => (e._id === d.employeeId || e.id === d.employeeId));
                     const empName = emp ? `${emp.firstName} ${emp.lastName}` : "—";
-
-                    const gross =
-                      Number(d.baseSalary || 0) +
-                      Number(d.seniorityAllowance || 0) +
-                      Number(d.housingAllowance || 0) +
-                      Number(d.groceryAllowance || 0) +
-                      Number(d.childAllowance || 0) +
-                      Number(d.responsibilityAllowance || 0) +
-                      Number(d.expertiseAllowance || 0) +
-                      Number(d.transportAllowance || 0) +
-                      Number(d.otherAllowances || 0);
+                    const gross = calcTotalDecreeSalary(d);
 
                     return (
                       <tr key={d._id || d.id} className="border-b last:border-0 hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors">
                         <td className="px-4 py-3 font-mono font-bold text-slate-800 dark:text-slate-300">{d.decreeNo}</td>
                         <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">{empName}</td>
-                        <td className="px-4 py-3 text-slate-600 font-semibold">{d.jobTitle || "—"}</td>
+                        <td className="px-4 py-3 text-slate-700 font-semibold">{d.decreeTitle || "حکم کارگزینی"}</td>
+                        <td className="px-4 py-3 text-slate-600 font-semibold">{d.jobTitle || emp?.jobTitle || "—"}</td>
                         <td className="px-4 py-3 font-mono text-center text-slate-500">{d.issueDate || "—"}</td>
                         <td className="px-4 py-3 font-mono text-center text-slate-500">{d.effectiveDate || "—"}</td>
                         <td className="px-4 py-3 font-mono font-bold text-left text-emerald-700 dark:text-emerald-400">{gross.toLocaleString("fa-IR")}</td>
@@ -799,19 +1041,19 @@ export default function EmployeeDecrees() {
             <Input
               value={tempOrgName}
               onChange={e => setTempOrgName(e.target.value)}
-              placeholder="مثال: اداره کل منابع طبیعی و آبخیزداری استان"
-              className="mt-1.5 text-xs h-9"
+              placeholder="مثال: اداره کل امور اقتصادی و دارایی"
+              className="mt-1.5 h-9 text-xs"
               required
             />
           </div>
-          <div className="flex justify-end gap-2 pt-2 border-t">
+          <div className="flex justify-end gap-2 pt-2">
             {orgName && (
-              <Button type="button" variant="outline" size="sm" onClick={() => setIsOpenOrgModal(false)} className="h-9 text-xs">
+              <Button type="button" variant="outline" size="sm" onClick={() => setIsOpenOrgModal(false)} className="h-8 text-xs">
                 انصراف
               </Button>
             )}
-            <Button type="submit" size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-9 text-xs px-6 shadow">
-              ذخیره و تایید
+            <Button type="submit" size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-8 text-xs">
+              ذخیره نام سازمان
             </Button>
           </div>
         </form>

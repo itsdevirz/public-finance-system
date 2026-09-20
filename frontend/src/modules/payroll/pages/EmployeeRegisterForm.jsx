@@ -20,20 +20,27 @@ const TABS = [
 ];
 
 const INITIAL_FORM = {
-  // Personal Info
+  // 1. اطلاعات هویتی و پرسنلی (Section 1)
+  executiveOrg: "وزارت امور اقتصادی و دارایی",
   firstName: "",
   lastName: "",
   fatherName: "",
   nationalId: "",
-  certificateNo: "",
-  gender: "male",
-  birthDate: "",
+  code: "", // شماره پرسنلی
+  certificateNo: "", // شماره شناسنامه
   birthPlace: "",
   issuePlace: "",
-  maritalStatus: "single",
+  birthDate: "",
+  gender: "male", // Dropdown: male / female
+  maritalStatus: "single", // Dropdown: single / married / with_dependents / widowed / divorced
   childrenCount: 0,
   dependentsCount: 0,
+  sacrificeStatus: "none", // Dropdown: none / sacrificer / disabled / freed / martyr_child / combatant
+  employmentType: "official", // Dropdown: official / official_probation / probationary / contractual / company / hourly / daily
+  pensionFund: "civil", // Dropdown: civil / social_security / armed_forces / other / none
   militaryStatus: "exempt",
+  highestDegree: "bachelor", // Dropdown: under_diploma / diploma / associate / bachelor / master / phd / post_phd
+  fieldOfStudy: "",
 
   // Contact Info
   mobile: "",
@@ -42,13 +49,24 @@ const INITIAL_FORM = {
   address: "",
   email: "",
 
-  // Employment Info
-  code: "",
+  // 2. اطلاعات شغلی و پستی (Section 2)
+  postTitle: "", // عنوان پست سازمانی
+  postRow: "", // ردیف پست سازمانی
+  uniquePostId: "", // شناسه یکتای پست سازمانی
+  department: "اداری", // واحد سازمانی
+  uniqueUnitId: "", // شناسه یکتای واحد سازمانی
+  jobTitle: "", // عنوان شغل
+  jobGrade: "8", // طبقه شغلی (Dropdown: 1 تا 20)
+  jobRank: "base", // رتبه شغلی (Dropdown: preliminary / base / senior / expert / superior)
+  acceptedServiceYears: 0,
+  acceptedServiceMonths: 0,
+  acceptedServiceDays: 0,
+  acceptedExpYears: 0,
+  acceptedExpMonths: 0,
+  acceptedExpDays: 0,
+  serviceLocation: "", // محل خدمت
   hireDate: "",
   status: "active",
-  employmentType: "contractual",
-  department: "اداری",
-  jobTitle: "",
   insuranceNo: "",
   retirementInsuranceNo: "",
   branchName: "شعبه مرکزی",
@@ -301,8 +319,12 @@ export default function EmployeeRegisterForm() {
             {activeTab === "personal" && (
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-xs font-bold text-slate-800 dark:text-slate-300 flex items-center gap-2 mb-4 border-r-4 border-blue-600 pr-2">اطلاعات شناسنامه‌ای و هویتی</h3>
+                  <h3 className="text-xs font-bold text-slate-800 dark:text-slate-300 flex items-center gap-2 mb-4 border-r-4 border-blue-600 pr-2">اطلاعات هویتی و پرسنلی (شناسنامه‌ای و فردی)</h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-right">
+                    <div>
+                      <Label className="text-xs font-semibold">دستگاه اجرایی</Label>
+                      <Input value={form.executiveOrg} onChange={e => handleChange("executiveOrg", e.target.value)} className="h-9 text-xs mt-1.5" placeholder="وزارت امور اقتصادی و دارایی" />
+                    </div>
                     <div>
                       <Label className="text-xs font-semibold">نام <span className="text-rose-500">*</span></Label>
                       <Input value={form.firstName} onChange={e => handleChange("firstName", e.target.value)} className="h-9 text-xs mt-1.5" placeholder="مثال: علی" required />
@@ -312,50 +334,102 @@ export default function EmployeeRegisterForm() {
                       <Input value={form.lastName} onChange={e => handleChange("lastName", e.target.value)} className="h-9 text-xs mt-1.5" placeholder="مثال: احمدی" required />
                     </div>
                     <div>
-                      <Label className="text-xs font-semibold">کد ملی (۱۰ رقم) <span className="text-rose-500">*</span></Label>
+                      <Label className="text-xs font-semibold">نام پدر</Label>
+                      <Input value={form.fatherName} onChange={e => handleChange("fatherName", e.target.value)} className="h-9 text-xs mt-1.5" placeholder="..." />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold">شماره ملی کارمند (۱۰ رقم) <span className="text-rose-500">*</span></Label>
                       <Input value={form.nationalId} onChange={e => handleChange("nationalId", e.target.value)} className="h-9 text-xs mt-1.5 font-mono text-left" placeholder="0012345678" maxLength={10} required />
                     </div>
                     <div>
-                      <Label className="text-xs font-semibold">نام پدر</Label>
-                      <Input value={form.fatherName} onChange={e => handleChange("fatherName", e.target.value)} className="h-9 text-xs mt-1.5" placeholder="..." />
+                      <Label className="text-xs font-semibold">شماره پرسنلی <span className="text-rose-500">*</span></Label>
+                      <Input value={form.code} onChange={e => handleChange("code", e.target.value)} className="h-9 text-xs mt-1.5 font-mono text-left" placeholder="EMP-001" required />
                     </div>
                     <div>
                       <Label className="text-xs font-semibold">شماره شناسنامه</Label>
                       <Input value={form.certificateNo} onChange={e => handleChange("certificateNo", e.target.value)} className="h-9 text-xs mt-1.5 font-mono text-left" placeholder="..." />
                     </div>
                     <div>
-                      <Label className="text-xs font-semibold">جنسیت</Label>
-                      <select value={form.gender} onChange={e => handleChange("gender", e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-xs shadow-sm mt-1.5">
-                        <option value="male">مرد</option>
-                        <option value="female">زن</option>
-                      </select>
+                      <Label className="text-xs font-semibold">محل تولد</Label>
+                      <Input value={form.birthPlace} onChange={e => handleChange("birthPlace", e.target.value)} className="h-9 text-xs mt-1.5" placeholder="مثال: تهران" />
                     </div>
                     <div>
                       <Label className="text-xs font-semibold">تاریخ تولد</Label>
                       <PersianDatePicker value={form.birthDate} onChange={e => handleChange("birthDate", e.target.value)} className="h-9 mt-1.5" placeholder="۱۳۷۰/۰۱/۰۱" />
                     </div>
                     <div>
-                      <Label className="text-xs font-semibold">محل تولد</Label>
-                      <Input value={form.birthPlace} onChange={e => handleChange("birthPlace", e.target.value)} className="h-9 text-xs mt-1.5" placeholder="مثال: تهران" />
-                    </div>
-                    <div>
-                      <Label className="text-xs font-semibold">محل صدور شناسنامه</Label>
-                      <Input value={form.issuePlace} onChange={e => handleChange("issuePlace", e.target.value)} className="h-9 text-xs mt-1.5" placeholder="مثال: شیراز" />
-                    </div>
-                    <div>
-                      <Label className="text-xs font-semibold">وضعیت تاهل</Label>
-                      <select value={form.maritalStatus} onChange={e => handleChange("maritalStatus", e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-xs shadow-sm mt-1.5">
-                        <option value="single">مجرد</option>
-                        <option value="married">متاهل</option>
+                      <Label className="text-xs font-semibold">جنسیت</Label>
+                      <select value={form.gender} onChange={e => handleChange("gender", e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm mt-1.5">
+                        <option value="male">مرد</option>
+                        <option value="female">زن</option>
                       </select>
                     </div>
                     <div>
-                      <Label className="text-xs font-semibold">تعداد فرزندان (جهت حق اولاد)</Label>
+                      <Label className="text-xs font-semibold">وضعیت تاهل</Label>
+                      <select value={form.maritalStatus} onChange={e => handleChange("maritalStatus", e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm mt-1.5">
+                        <option value="single">مجرد</option>
+                        <option value="married">متأهل</option>
+                        <option value="with_dependents">معیل (دارای همسر و فرزند)</option>
+                        <option value="widowed">همسر متوفی</option>
+                        <option value="divorced">مطلقه</option>
+                      </select>
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold">تعداد فرزندان</Label>
                       <Input type="number" min="0" value={form.childrenCount} onChange={e => handleChange("childrenCount", Number(e.target.value))} className="h-9 text-xs mt-1.5 font-mono" />
                     </div>
                     <div>
+                      <Label className="text-xs font-semibold">وضعیت ایثارگری</Label>
+                      <select value={form.sacrificeStatus} onChange={e => handleChange("sacrificeStatus", e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm mt-1.5">
+                        <option value="none">ندارد</option>
+                        <option value="sacrificer">ایثارگر</option>
+                        <option value="disabled">جانباز</option>
+                        <option value="freed">آزاده</option>
+                        <option value="martyr_child">فرزند شهید</option>
+                        <option value="combatant">رزمنده</option>
+                      </select>
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold">نوع استخدام</Label>
+                      <select value={form.employmentType} onChange={e => handleChange("employmentType", e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm mt-1.5">
+                        <option value="official">رسمی قطعی</option>
+                        <option value="official_probation">رسمی آزمایشی</option>
+                        <option value="probationary">پیمانی</option>
+                        <option value="contractual">قراردادی کار معین</option>
+                        <option value="company">شرکتی</option>
+                        <option value="hourly">ساعتی</option>
+                        <option value="daily">روزمزد</option>
+                      </select>
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold">صندوق بازنشستگی</Label>
+                      <select value={form.pensionFund} onChange={e => handleChange("pensionFund", e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm mt-1.5">
+                        <option value="civil">صندوق بازنشستگی کشوری</option>
+                        <option value="social_security">تامین اجتماعی</option>
+                        <option value="armed_forces">نیروهای مسلح</option>
+                        <option value="other">سایر صندوق‌ها</option>
+                        <option value="none">فاقد صندوق</option>
+                      </select>
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold">بالاترین مدرک تحصیلی</Label>
+                      <select value={form.highestDegree} onChange={e => handleChange("highestDegree", e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm mt-1.5">
+                        <option value="under_diploma">زیر دیپلم</option>
+                        <option value="diploma">دیپلم</option>
+                        <option value="associate">فوق دیپلم</option>
+                        <option value="bachelor">لیسانس (کارشناسی)</option>
+                        <option value="master">فوق لیسانس (کارشناسی ارشد)</option>
+                        <option value="phd">دکترا</option>
+                        <option value="post_phd">فوق دکترا / تخصصی</option>
+                      </select>
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold">رشته تحصیلی</Label>
+                      <Input value={form.fieldOfStudy} onChange={e => handleChange("fieldOfStudy", e.target.value)} className="h-9 text-xs mt-1.5" placeholder="مثال: حسابداری، مدیریت دولتی" />
+                    </div>
+                    <div>
                       <Label className="text-xs font-semibold">وضعیت نظام وظیفه (آقایان)</Label>
-                      <select value={form.militaryStatus} onChange={e => handleChange("militaryStatus", e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-xs shadow-sm mt-1.5" disabled={form.gender === "female"}>
+                      <select value={form.militaryStatus} onChange={e => handleChange("militaryStatus", e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm mt-1.5" disabled={form.gender === "female"}>
                         <option value="done">پایان خدمت</option>
                         <option value="exempt">معاف دائم</option>
                         <option value="medical-exempt">معاف پزشکی</option>
@@ -400,42 +474,95 @@ export default function EmployeeRegisterForm() {
             {activeTab === "employment" && (
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-xs font-bold text-slate-800 dark:text-slate-300 flex items-center gap-2 mb-4 border-r-4 border-teal-600 pr-2">اطلاعات سازمانی و قراردادی</h3>
+                  <h3 className="text-xs font-bold text-slate-800 dark:text-slate-300 flex items-center gap-2 mb-4 border-r-4 border-teal-600 pr-2">اطلاعات شغلی و پستی</h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-right">
                     <div>
-                      <Label className="text-xs font-semibold">کد پرسنلی <span className="text-rose-500">*</span></Label>
-                      <Input value={form.code} onChange={e => handleChange("code", e.target.value)} className="h-9 text-xs mt-1.5 font-mono text-left" placeholder="EMP-001" required />
+                      <Label className="text-xs font-semibold">عنوان پست سازمانی</Label>
+                      <Input value={form.postTitle} onChange={e => handleChange("postTitle", e.target.value)} className="h-9 text-xs mt-1.5" placeholder="مثال: کارشناس مسئول حقوق" />
                     </div>
+                    <div>
+                      <Label className="text-xs font-semibold">ردیف پست سازمانی</Label>
+                      <Input value={form.postRow} onChange={e => handleChange("postRow", e.target.value)} className="h-9 text-xs mt-1.5 font-mono text-left" placeholder="مثال: ۱۰۴" />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold">شناسه یکتای پست سازمانی</Label>
+                      <Input value={form.uniquePostId} onChange={e => handleChange("uniquePostId", e.target.value)} className="h-9 text-xs mt-1.5 font-mono text-left" placeholder="مثال: POS-9901" />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold">واحد سازمانی</Label>
+                      <Input value={form.department} onChange={e => handleChange("department", e.target.value)} className="h-9 text-xs mt-1.5" placeholder="مثال: مدیریت امور مالی" />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold">شناسه یکتای واحد سازمانی</Label>
+                      <Input value={form.uniqueUnitId} onChange={e => handleChange("uniqueUnitId", e.target.value)} className="h-9 text-xs mt-1.5 font-mono text-left" placeholder="مثال: UNT-102" />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold">عنوان شغل</Label>
+                      <Input value={form.jobTitle} onChange={e => handleChange("jobTitle", e.target.value)} className="h-9 text-xs mt-1.5" placeholder="مثال: حسابدار ارشد" />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold">طبقه شغلی</Label>
+                      <select value={form.jobGrade} onChange={e => handleChange("jobGrade", e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm mt-1.5 font-mono">
+                        {Array.from({ length: 20 }, (_, i) => (
+                          <option key={i + 1} value={String(i + 1)}>طبقه {i + 1}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold">رتبه شغلی</Label>
+                      <select value={form.jobRank} onChange={e => handleChange("jobRank", e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm mt-1.5">
+                        <option value="preliminary">مقدماتی</option>
+                        <option value="base">پایه</option>
+                        <option value="senior">ارشد</option>
+                        <option value="expert">خبره</option>
+                        <option value="superior">عالی</option>
+                      </select>
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold">محل خدمت</Label>
+                      <Input value={form.serviceLocation} onChange={e => handleChange("serviceLocation", e.target.value)} className="h-9 text-xs mt-1.5" placeholder="مثال: اداره کل استان تهران" />
+                    </div>
+
+                    <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-900 p-3 rounded-xl border">
+                      <div>
+                        <Label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-2">سابقه خدمت قابل قبول</Label>
+                        <div className="grid grid-cols-3 gap-2 text-center">
+                          <div>
+                            <Label className="text-[10px] text-muted-foreground">سال</Label>
+                            <Input type="number" min="0" value={form.acceptedServiceYears} onChange={e => handleChange("acceptedServiceYears", Number(e.target.value))} className="h-8 text-xs font-mono text-center" />
+                          </div>
+                          <div>
+                            <Label className="text-[10px] text-muted-foreground">ماه</Label>
+                            <Input type="number" min="0" max="11" value={form.acceptedServiceMonths} onChange={e => handleChange("acceptedServiceMonths", Number(e.target.value))} className="h-8 text-xs font-mono text-center" />
+                          </div>
+                          <div>
+                            <Label className="text-[10px] text-muted-foreground">روز</Label>
+                            <Input type="number" min="0" max="30" value={form.acceptedServiceDays} onChange={e => handleChange("acceptedServiceDays", Number(e.target.value))} className="h-8 text-xs font-mono text-center" />
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-2">سابقه تجربی قابل قبول</Label>
+                        <div className="grid grid-cols-3 gap-2 text-center">
+                          <div>
+                            <Label className="text-[10px] text-muted-foreground">سال</Label>
+                            <Input type="number" min="0" value={form.acceptedExpYears} onChange={e => handleChange("acceptedExpYears", Number(e.target.value))} className="h-8 text-xs font-mono text-center" />
+                          </div>
+                          <div>
+                            <Label className="text-[10px] text-muted-foreground">ماه</Label>
+                            <Input type="number" min="0" max="11" value={form.acceptedExpMonths} onChange={e => handleChange("acceptedExpMonths", Number(e.target.value))} className="h-8 text-xs font-mono text-center" />
+                          </div>
+                          <div>
+                            <Label className="text-[10px] text-muted-foreground">روز</Label>
+                            <Input type="number" min="0" max="30" value={form.acceptedExpDays} onChange={e => handleChange("acceptedExpDays", Number(e.target.value))} className="h-8 text-xs font-mono text-center" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
                     <div>
                       <Label className="text-xs font-semibold">تاریخ استخدام</Label>
                       <PersianDatePicker value={form.hireDate} onChange={e => handleChange("hireDate", e.target.value)} className="h-9 mt-1.5" placeholder="۱۴۰۳/۰۱/۰۱" />
-                    </div>
-                    <div>
-                      <Label className="text-xs font-semibold">نوع استخدام</Label>
-                      <select value={form.employmentType} onChange={e => handleChange("employmentType", e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-xs shadow-sm mt-1.5">
-                        <option value="official">رسمی قطعی</option>
-                        <option value="probationary">پیمانی</option>
-                        <option value="contractual">قراردادی کار معین</option>
-                        <option value="hourly">ساعتی</option>
-                        <option value="daily">روزمزد</option>
-                        <option value="consultant">مشاوره‌ای / پیمانکاری</option>
-                      </select>
-                    </div>
-                    <div>
-                      <Label className="text-xs font-semibold">واحد سازمانی / دپارتمان</Label>
-                      <select value={form.department} onChange={e => handleChange("department", e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-xs shadow-sm mt-1.5">
-                        <option value="مدیریت">مدیریت عاملی</option>
-                        <option value="مالی">امور مالی و حسابداری</option>
-                        <option value="اداری">اداری و منابع انسانی</option>
-                        <option value="فناوری اطلاعات">فناوری اطلاعات (IT)</option>
-                        <option value="فروش">فروش و بازاریابی</option>
-                        <option value="پشتیبانی">پشتیبانی و تدارکات</option>
-                        <option value="تولید">تولید و انبارداری</option>
-                      </select>
-                    </div>
-                    <div>
-                      <Label className="text-xs font-semibold">ردیف / عنوان شغلی</Label>
-                      <Input value={form.jobTitle} onChange={e => handleChange("jobTitle", e.target.value)} className="h-9 text-xs mt-1.5" placeholder="مثال: حسابدار ارشد" />
                     </div>
                     <div>
                       <Label className="text-xs font-semibold">شماره بیمه تامین اجتماعی</Label>
@@ -447,18 +574,18 @@ export default function EmployeeRegisterForm() {
                     </div>
                     <div>
                       <Label className="text-xs font-semibold">وضعیت مالیاتی کارمند</Label>
-                      <select value={form.taxStatus} onChange={e => handleChange("taxStatus", e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-xs shadow-sm mt-1.5">
+                      <select value={form.taxStatus} onChange={e => handleChange("taxStatus", e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm mt-1.5">
                         <option value="taxable">مشمول پرداخت مالیات حقوق</option>
                         <option value="exempt">معاف از مالیات حقوق (ماده ۹۱)</option>
                       </select>
                     </div>
                     <div>
-                      <Label className="text-xs font-semibold">محل خدمت / شعبه کاربری</Label>
+                      <Label className="text-xs font-semibold">شعبه / محل خدمت</Label>
                       <Input value={form.branchName} onChange={e => handleChange("branchName", e.target.value)} className="h-9 text-xs mt-1.5" placeholder="مثال: دفتر مرکزی تهران" />
                     </div>
                     <div>
                       <Label className="text-xs font-semibold">وضعیت اشتغال فعلی</Label>
-                      <select value={form.status} onChange={e => handleChange("status", e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-xs shadow-sm mt-1.5">
+                      <select value={form.status} onChange={e => handleChange("status", e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm mt-1.5">
                         <option value="active">شاغل (فعال)</option>
                         <option value="leave">مرخصی بدون حقوق / استعلاجی</option>
                         <option value="suspended">تعلیق موقت کارکرد</option>
