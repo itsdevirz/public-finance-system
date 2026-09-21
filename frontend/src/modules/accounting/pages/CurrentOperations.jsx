@@ -27,6 +27,64 @@ function matchesCurrentOp(t) {
   return typeof t.code === "string" && t.code.startsWith("OP-");
 }
 
+export const RANGE_ACCOUNT_OPTIONS_MAP = {
+  "5100": [
+    { code: "51001", name: "درآمد حاصل از مالیات (۵۱۰۰۱)" },
+    { code: "51002", name: "کمک‌های اجتماعی (۵۱۰۰۲)" },
+    { code: "51003", name: "درآمد حاصل از مالکیت دولت (۵۱۰۰۳)" },
+    { code: "51004", name: "درآمد حاصل از خدمات و فروش کالا (۵۱۰۰۴)" },
+    { code: "51005", name: "درآمد حاصل از جرایم و خسارات (۵۱۰۰۵)" },
+    { code: "51006", name: "درآمدهای متفرقه (۵۱۰۰۶)" },
+    { code: "51007", name: "درآمد حاصل از واگذاری دارایی‌های سرمایه‌ای/مالی (۵۱۰۰۷)" },
+  ],
+  "5200": [
+    { code: "52001", name: "درآمد حاصل از مالیات اختصاصی (۵۲۰۰۱)" },
+    { code: "52002", name: "کمک‌های اجتماعی اختصاصی (۵۲۰۰۲)" },
+    { code: "52003", name: "درآمد حاصل از مالکیت دولت / واحد (۵۲۰۰۳)" },
+    { code: "52004", name: "درآمد حاصل از خدمات و فروش کالا اختصاصی (۵۲۰۰۴)" },
+    { code: "52005", name: "درآمد حاصل از جرایم و خسارات اختصاصی (۵۲۰۰۵)" },
+    { code: "52006", name: "درآمدهای متفرقه اختصاصی (۵۲۰۰۶)" },
+    { code: "52007", name: "درآمد حاصل از واگذاری دارایی‌های سرمایه‌ای/مالی اختصاصی (۵۲۰۰۷)" },
+  ],
+  "4500": [
+    { code: "45001", name: "درآمدهای واحد - مالیات (۴۵۰۰۱)" },
+    { code: "45002", name: "درآمدهای واحد - کمک‌های اجتماعی (۴۵۰۰۲)" },
+    { code: "45003", name: "درآمدهای واحد - مالکیت (۴۵۰۰۳)" },
+    { code: "45004", name: "درآمدهای واحد - خدمات و فروش کالا (۴۵۰۰۴)" },
+    { code: "45005", name: "درآمدهای واحد - جرایم و خسارات (۴۵۰۰۵)" },
+    { code: "45006", name: "درآمدهای واحد - متفرقه (۴۵۰۰۶)" },
+    { code: "45007", name: "درآمدهای واحد - واگذاری دارایی‌ها / تخفیفات (۴۵۰۰۷)" },
+  ],
+  "6100": [
+    { code: "61001", name: "جبران خدمات کارکنان - فصل اول (۶۱۰۰۱)" },
+    { code: "61002", name: "استفاده از کالاها و خدمات - فصل دوم (۶۱۰۰۲)" },
+    { code: "61003", name: "هزینه‌های اموال و دارایی - فصل سوم (۶۱۰۰۳)" },
+    { code: "61004", name: "یارانه - فصل چهارم (۶۱۰۰۴)" },
+    { code: "61005", name: "کمک‌های بلاعوض - فصل پنجم (۶۱۰۰۵)" },
+    { code: "61006", name: "رفاه اجتماعی - فصل ششم (۶۱۰۰۶)" },
+    { code: "61007", name: "سایر هزینه‌ها - فصل هفتم (۶۱۰۰۷)" },
+    { code: "61008", name: "هزینه استهلاک و ذخایر (۶۱۰۰۸)" },
+  ],
+  "1500": [
+    { code: "15002", name: "ساختمان و تأسیسات (۱۵۰۰۲)" },
+    { code: "15003", name: "ماشین‌آلات و تجهیزات (۱۵۰۰۳)" },
+    { code: "15004", name: "وسایط نقلیه (۱۵۰۰۴)" },
+    { code: "15005", name: "ابزارآلات و تجهیزات اداری (۱۵۰۰۵)" },
+    { code: "15010", name: "دارایی‌های نامشهود و نرم‌افزارها (۱۵۰۱۰)" },
+  ]
+};
+
+export function getRangeOptions(accountCode) {
+  if (!accountCode) return null;
+  const clean = String(accountCode).trim();
+  if (clean.startsWith("510")) return RANGE_ACCOUNT_OPTIONS_MAP["5100"];
+  if (clean.startsWith("520")) return RANGE_ACCOUNT_OPTIONS_MAP["5200"];
+  if (clean.startsWith("450")) return RANGE_ACCOUNT_OPTIONS_MAP["4500"];
+  if (clean.startsWith("610")) return RANGE_ACCOUNT_OPTIONS_MAP["6100"];
+  if (clean.startsWith("1500") || clean.startsWith("15002")) return RANGE_ACCOUNT_OPTIONS_MAP["1500"];
+  return null;
+}
+
 export default function CurrentOperations({ categoryFilter = null, pageTitle = "حسابداری عملیات جاری", pageDescription = "لیست اسناد مالی صادر شده با استفاده از الگوهای ثبت جاری سیستم" }) {
   const today = new Date().toLocaleDateString("fa-IR").replace(/\//g, "/");
 
@@ -51,6 +109,8 @@ export default function CurrentOperations({ categoryFilter = null, pageTitle = "
   const [selectedWizardTemplateId, setSelectedWizardTemplateId] = useState("");
   const [postingTemplate, setPostingTemplate] = useState(null);
   const [lineAmounts, setLineAmounts] = useState({}); // ساختار: { [idx]: "1,000,000" }
+  const [selectedAccountCodes, setSelectedAccountCodes] = useState({});
+  const [selectedAccountNames, setSelectedAccountNames] = useState({});
   const [postFields, setPostFields] = useState({
     fiscalYear: "1405",
     documentDate: today,
@@ -263,10 +323,22 @@ export default function CurrentOperations({ categoryFilter = null, pageTitle = "
     setSelectedWizardTemplateId(String(tpl.id));
     setPostingTemplate(tpl);
     const initialAmounts = {};
-    tpl.lines.forEach((_, idx) => {
+    const initialCodes = {};
+    const initialNames = {};
+    tpl.lines.forEach((line, idx) => {
       initialAmounts[idx] = "";
+      const options = getRangeOptions(line.accountCode);
+      if (options && options.length > 0) {
+        initialCodes[idx] = options[0].code;
+        initialNames[idx] = options[0].name;
+      } else {
+        initialCodes[idx] = line.accountCode;
+        initialNames[idx] = line.accountName;
+      }
     });
     setLineAmounts(initialAmounts);
+    setSelectedAccountCodes(initialCodes);
+    setSelectedAccountNames(initialNames);
     setPostFields(p => ({
       ...p,
       description: `ثبت سند بابت ${tpl.description}`
@@ -297,11 +369,12 @@ export default function CurrentOperations({ categoryFilter = null, pageTitle = "
 
     try {
       // ساخت ردیف‌های مالی بر اساس مبالغ ردیفی وارد شده
-      const parsedLines = postingTemplate.lines.map((line, idx) => {
+      const allParsedLines = postingTemplate.lines.map((line, idx) => {
         const valStr = lineAmounts[idx] || "";
         const val = parseFloat(valStr.replace(/,/g, "")) || 0;
 
-        const code = line.accountCode;
+        const code = selectedAccountCodes[idx] || line.accountCode;
+        const name = selectedAccountNames[idx] || line.accountName;
         const group = code.charAt(0);
         const account = group === "9" ? code.substring(0, 2) : code.substring(0, 3);
 
@@ -310,12 +383,16 @@ export default function CurrentOperations({ categoryFilter = null, pageTitle = "
           group,
           account,
           subAccount: code,
-          account_name: line.accountName,
+          account_name: name,
           debit: line.type === "debit" ? String(val) : "0",
           credit: line.type === "credit" ? String(val) : "0",
           desc: `${line.type === "debit" ? "بدهکار" : "بستانکار"} بابت ${postingTemplate.description}`
         };
       });
+
+      // ردیف‌های غیر صفر جهت درج در سند (حذف ردیف‌های غیرفعال طیف کدهای انتخابی)
+      const activeLines = allParsedLines.filter(l => Number(l.debit) > 0 || Number(l.credit) > 0);
+      const parsedLines = activeLines.length > 0 ? activeLines : allParsedLines;
 
       const sensitiveState = {
         header: {

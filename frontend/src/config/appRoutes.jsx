@@ -93,6 +93,7 @@ const DocumentsList = lazy(() => import("@/modules/accounting/pages/DocumentsLis
 const PayrollOperations = lazy(() => import("@/modules/accounting/pages/PayrollOperations"));
 const CapitalOperations = lazy(() => import("@/modules/accounting/pages/CapitalOperations"));
 const DepositsOperations = lazy(() => import("@/modules/accounting/pages/DepositsOperations"));
+const RevenueOperations = lazy(() => import("@/modules/accounting/pages/RevenueOperations"));
 const AutoDocument = lazy(() => import("@/modules/accounting/pages/AutoDocument"));
 const CopyDocument = lazy(() => import("@/modules/accounting/pages/CopyDocument"));
 const BalanceSheet = lazy(() => import("@/modules/accounting/pages/BalanceSheet"));
@@ -312,7 +313,8 @@ export const PAGE_COMPONENTS = {
   "/system-management/document-templates/current-operations": CurrentOperations,
   "/system-management/document-templates/payroll": PayrollOperations,
   "/system-management/document-templates/capital-operations": CapitalOperations,
-  "/system-management/document-templates/revenues": SystemManagement,
+  "/system-management/document-templates/revenues": RevenueOperations,
+  "/accounting/revenues": RevenueOperations,
   "/system-management/document-templates/deposits": DepositsOperations,
   "/system-management/document-templates/special-cases": SystemManagement,
   "/system-management/update-manager": SystemManagement,

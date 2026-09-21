@@ -2703,5 +2703,523 @@ export const INITIAL_TEMPLATES = [
       { type: "credit", accountCode: "11522", accountName: "مطالبات از خزانه", ratio: "**" },
       { type: "credit", accountCode: "11005", accountName: "بانک دریافت وجوه سپرده", ratio: "**" }
     ]
+  },
+  {
+    id: 401,
+    title: "ثبت شماره ۱ - درآمد",
+    description: "به میزان منابع بودجه پیش‌بینی شده",
+    code: "REV-01",
+    category: "revenues",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "81008", accountName: "حساب انتظامی منابع پیش‌بینی شده", ratio: "100%" },
+      { type: "credit", accountCode: "82008", accountName: "طرف حساب انتظامی منابع پیش‌بینی شده", ratio: "100%" }
+    ]
+  },
+  {
+    id: 402,
+    title: "ثبت شماره ۲ - درآمد",
+    description: "تحقق درآمدهای عمومی به صورت نقد",
+    code: "REV-02",
+    category: "revenues",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "11007", accountName: "بانک دریافت", ratio: "100%" },
+      { type: "credit", accountCode: "51001", accountName: "درآمد حاصل از مالیات", ratio: "*" },
+      { type: "credit", accountCode: "51002", accountName: "کمک‌های اجتماعی", ratio: "*" },
+      { type: "credit", accountCode: "51003", accountName: "درآمد حاصل از مالکیت دولت", ratio: "*" },
+      { type: "credit", accountCode: "51004", accountName: "درآمد حاصل از خدمات و فروش کالا", ratio: "*" },
+      { type: "credit", accountCode: "51005", accountName: "درآمد حاصل از جرایم و خسارات", ratio: "*" },
+      { type: "credit", accountCode: "51006", accountName: "درآمدهای متفرقه", ratio: "*" },
+      { type: "credit", accountCode: "51007", accountName: "درآمد حاصل از واگذاری دارایی‌های سرمایه‌ای/مالی", ratio: "***" }
+    ]
+  },
+  {
+    id: 403,
+    title: "ثبت شماره ۳ - درآمد",
+    description: "در صورت تحقق درآمد عمومی به صورت نسیه",
+    code: "REV-03",
+    category: "revenues",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "11501", accountName: "حساب‌ها و اسناد دریافتنی", ratio: "100%" },
+      { type: "credit", accountCode: "51001", accountName: "درآمد حاصل از مالیات", ratio: "*" },
+      { type: "credit", accountCode: "51002", accountName: "کمک‌های اجتماعی", ratio: "*" },
+      { type: "credit", accountCode: "51003", accountName: "درآمد حاصل از مالکیت دولت", ratio: "*" },
+      { type: "credit", accountCode: "51004", accountName: "درآمد حاصل از خدمات و فروش کالا", ratio: "*" },
+      { type: "credit", accountCode: "51005", accountName: "درآمد حاصل از جرایم و خسارات", ratio: "*" },
+      { type: "credit", accountCode: "51006", accountName: "درآمدهای متفرقه", ratio: "*" },
+      { type: "credit", accountCode: "51007", accountName: "درآمد حاصل از واگذاری دارایی‌های سرمایه‌ای/مالی", ratio: "***" }
+    ]
+  },
+  {
+    id: 404,
+    title: "ثبت شماره ۴ - درآمد",
+    description: "تحقق درآمدهای اختصاصی (به صورت نقد)",
+    code: "REV-04",
+    category: "revenues",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "11007", accountName: "بانک دریافت", ratio: "100%" },
+      { type: "credit", accountCode: "52001", accountName: "درآمد حاصل از مالیات اختصاصی", ratio: "*" },
+      { type: "credit", accountCode: "52002", accountName: "کمک‌های اجتماعی اختصاصی", ratio: "*" },
+      { type: "credit", accountCode: "52003", accountName: "درآمد حاصل از مالکیت دولت / واحد", ratio: "*" },
+      { type: "credit", accountCode: "52004", accountName: "درآمد حاصل از خدمات و فروش کالا (اختصاصی)", ratio: "*" },
+      { type: "credit", accountCode: "52005", accountName: "درآمد حاصل از جرایم و خسارات (اختصاصی)", ratio: "*" },
+      { type: "credit", accountCode: "52006", accountName: "درآمدهای متفرقه اختصاصی", ratio: "*" },
+      { type: "credit", accountCode: "52007", accountName: "درآمد حاصل از واگذاری دارایی‌های سرمایه‌ای/مالی (اختصاصی)", ratio: "***" }
+    ]
+  },
+  {
+    id: 405,
+    title: "ثبت شماره ۵ - درآمد",
+    description: "انتقال مازاد درآمد اختصاصی به حساب درآمد عمومی (بستن/تعدیل درآمد اختصاصی و شناسایی درآمد عمومی)",
+    code: "REV-05",
+    category: "revenues",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "45001", accountName: "درآمدهای واحد - مالیات اختصاصی (۴۵۰۰۱)", ratio: "*" },
+      { type: "debit",  accountCode: "45002", accountName: "درآمدهای واحد - کمک‌های اجتماعی اختصاصی (۴۵۰۰۲)", ratio: "*" },
+      { type: "debit",  accountCode: "45003", accountName: "درآمدهای واحد - مالکیت (۴۵۰۰۳)", ratio: "*" },
+      { type: "debit",  accountCode: "45004", accountName: "درآمدهای واحد - خدمات و فروش کالا (۴۵۰۰۴)", ratio: "*" },
+      { type: "debit",  accountCode: "45005", accountName: "درآمدهای واحد - جرایم و خسارات (۴۵۰۰۵)", ratio: "*" },
+      { type: "debit",  accountCode: "45006", accountName: "درآمدهای واحد - متفرقه اختصاصی (۴۵۰۰۶)", ratio: "*" },
+      { type: "debit",  accountCode: "45007", accountName: "درآمدهای واحد - واگذاری دارایی‌ها (۴۵۰۰۷)", ratio: "*" },
+      { type: "credit", accountCode: "51001", accountName: "درآمدهای دولت - مالیات (۵۱۰۰۱)", ratio: "*" },
+      { type: "credit", accountCode: "51002", accountName: "درآمدهای دولت - کمک‌های اجتماعی (۵۱۰۰۲)", ratio: "*" },
+      { type: "credit", accountCode: "51003", accountName: "درآمدهای دولت - مالکیت دولت (۵۱۰۰۳)", ratio: "*" },
+      { type: "credit", accountCode: "51004", accountName: "درآمدهای دولت - خدمات و فروش کالا (۵۱۰۰۴)", ratio: "*" },
+      { type: "credit", accountCode: "51005", accountName: "درآمدهای دولت - جرایم و خسارات (۵۱۰۰۵)", ratio: "*" },
+      { type: "credit", accountCode: "51006", accountName: "درآمدهای دولت - متفرقه (۵۱۰۰۶)", ratio: "*" },
+      { type: "credit", accountCode: "51007", accountName: "درآمدهای دولت - واگذاری دارایی‌ها (۵۱۰۰۷)", ratio: "***" }
+    ]
+  },
+  {
+    id: 406,
+    title: "ثبت شماره ۶ - درآمد",
+    description: "ثبت تسویه و انتقال وجوه (ارسال به درآمد عمومی / خزانه)",
+    code: "REV-06",
+    category: "revenues",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "71001", accountName: "وجوه ارسالی بابت درآمد عمومی", ratio: "100%" },
+      { type: "credit", accountCode: "11522", accountName: "مطالبه از خزانه", ratio: "100%" }
+    ]
+  },
+  {
+    id: 407,
+    title: "ثبت شماره ۷ - درآمد",
+    description: "وجوه شهرداری که توسط دولت وصول می‌شود (وجوه امانی/سایر بستانکاران)",
+    code: "REV-07",
+    category: "revenues",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "11007", accountName: "بانک دریافت", ratio: "100%" },
+      { type: "credit", accountCode: "24008", accountName: "سایر حساب‌ها و اسناد پرداختنی", ratio: "100%" }
+    ]
+  },
+  {
+    id: 408,
+    title: "ثبت شماره ۸ - درآمد",
+    description: "درآمدهای غیر از درآمدهای عمومی و اختصاصی (هدایا و کمک‌ها)",
+    code: "REV-08",
+    category: "revenues",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "11007", accountName: "بانک دریافت", ratio: "100%" },
+      { type: "credit", accountCode: "43001", accountName: "هدایا و کمک‌ها", ratio: "100%" }
+    ]
+  },
+  {
+    id: 409,
+    title: "ثبت شماره ۹ - درآمد",
+    description: "در صورت ارائه تخفیف و بخشودگی به اشخاص",
+    code: "REV-09",
+    category: "revenues",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "45007", accountName: "تخفیف و بخشودگی", ratio: "100%" },
+      { type: "credit", accountCode: "11501", accountName: "حساب‌ها و اسناد دریافتنی", ratio: "100%" }
+    ]
+  },
+  {
+    id: 410,
+    title: "ثبت شماره ۱۰ - درآمد",
+    description: "شناسایی هزینه مطالبات مشکوک‌الوصول بر اساس درصدی از مطالبات",
+    code: "REV-10",
+    category: "revenues",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "61001", accountName: "هزینه به تفکیک طبقه‌بندی اقتصادی دولت (۶۱۰۰۱ الی ۶۱۰۰۸)", ratio: "100%" },
+      { type: "credit", accountCode: "12004", accountName: "ذخیره مطالبات مشکوک‌الوصول", ratio: "100%" }
+    ]
+  },
+  {
+    id: 411,
+    title: "ثبت شماره ۱۱ - درآمد",
+    description: "چنانچه مطالبات واحد گزارشگر به طور قطعی غیرقابل‌وصول تشخیص داده شود (سوخت مطالبات)",
+    code: "REV-11",
+    category: "revenues",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "12004", accountName: "ذخیره مطالبات مشکوک‌الوصول", ratio: "100%" },
+      { type: "credit", accountCode: "11501", accountName: "حساب‌ها و اسناد دریافتنی", ratio: "100%" }
+    ]
+  },
+  {
+    id: 412,
+    title: "ثبت شماره ۱۲ - درآمد",
+    description: "در صورت وصول مطالبات سوخت‌شده (مرحله اول: احیا)",
+    code: "REV-12",
+    category: "revenues",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "11501", accountName: "حساب‌ها و اسناد دریافتنی", ratio: "100%" },
+      { type: "credit", accountCode: "12004", accountName: "ذخیره مطالبات مشکوک‌الوصول", ratio: "100%" }
+    ]
+  },
+  {
+    id: 413,
+    title: "ثبت شماره ۱۳ - درآمد",
+    description: "وصول نقدی مطالبات (مرحله دوم وصول سوخت‌شده یا وصول جاری)",
+    code: "REV-13",
+    category: "revenues",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "11007", accountName: "بانک دریافت", ratio: "100%" },
+      { type: "credit", accountCode: "11501", accountName: "حساب‌ها و اسناد دریافتنی", ratio: "100%" }
+    ]
+  },
+  {
+    id: 414,
+    title: "ثبت شماره ۱۴ - درآمد",
+    description: "به هنگام وصول پیش‌دریافت درآمد",
+    code: "REV-14",
+    category: "revenues",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "11007", accountName: "بانک دریافت", ratio: "100%" },
+      { type: "credit", accountCode: "23003", accountName: "پیش‌دریافت درآمد", ratio: "100%" }
+    ]
+  },
+  {
+    id: 415,
+    title: "ثبت شماره ۱۵ - درآمد",
+    description: "به هنگام ارائه خدمات یا تحویل کالا توسط واحد گزارشگر و تحقق درآمد (تسویه پیش‌دریافت)",
+    code: "REV-15",
+    category: "revenues",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "23003", accountName: "پیش‌دریافت درآمد", ratio: "100%" },
+      { type: "credit", accountCode: "51001", accountName: "درآمدهای دولت به تفکیک طبقه‌بندی مربوط (۵۱۰۰۱ تا ۵۱۰۰۷ - عمومی)", ratio: "*", section: "عمومی" },
+      { type: "credit", accountCode: "52001", accountName: "درآمدهای واحد به تفکیک طبقه‌بندی مربوط (۵۲۰۰۱ تا ۵۲۰۰۷ - اختصاصی)", ratio: "***", section: "اختصاصی" }
+    ]
+  },
+  {
+    id: 416,
+    title: "ثبت شماره ۱۶ - درآمد",
+    description: "به هنگام تحقق درآمد مربوط به سایر واحدهای گزارشگر (نقدی یا نسیه)",
+    code: "REV-16",
+    category: "revenues",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "11007", accountName: "بانک دریافت (وصول نقدی)", ratio: "*" },
+      { type: "debit",  accountCode: "11501", accountName: "حساب‌ها و اسناد دریافتنی (نسیه)", ratio: "*" },
+      { type: "credit", accountCode: "22002", accountName: "بدهی به سایر واحدها", ratio: "100%" }
+    ]
+  },
+  {
+    id: 417,
+    title: "ثبت شماره ۱۷ - درآمد",
+    description: "واریز وجوه درآمد مربوط به سایر واحدهای گزارشگر به حساب ذیربط خزانه و ارسال اعلامیه آن به واحد گزارشگر اصلی",
+    code: "REV-17",
+    category: "revenues",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "22002", accountName: "بدهی به سایر واحدها", ratio: "100%" },
+      { type: "credit", accountCode: "11007", accountName: "بانک دریافت", ratio: "100%" }
+    ]
+  },
+  {
+    id: 418,
+    title: "ثبت شماره ۱۸ - درآمد",
+    description: "به هنگام دریافت فهرست درآمد تحقق‌یافته از سایر واحدهای گزارشگر (در دفاتر واحد اصلی)",
+    code: "REV-18",
+    category: "revenues",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "12003", accountName: "مطالبات از سایر واحدها", ratio: "100%" },
+      { type: "credit", accountCode: "51001", accountName: "درآمدهای دولت به تفکیک طبقه‌بندی مربوط (۵۱۰۰۱ تا ۵۱۰۰۷ - عمومی)", ratio: "*" },
+      { type: "credit", accountCode: "45001", accountName: "درآمدهای واحد به تفکیک طبقه‌بندی مربوط (۴۵۰۰۱ تا ۴۵۰۰۷ - اختصاصی)", ratio: "*" },
+      { type: "credit", accountCode: "43001", accountName: "هدایا و کمک‌ها (۴۳۰۰۱)", ratio: "*" }
+    ]
+  },
+  {
+    id: 419,
+    title: "ثبت شماره ۱۹ - درآمد",
+    description: "در صورت واریز درآمد وصول‌شده توسط سایر واحدهای گزارشگر به حساب بانک دریافت واحد اصلی",
+    code: "REV-19",
+    category: "revenues",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "11007", accountName: "بانک دریافت", ratio: "100%" },
+      { type: "credit", accountCode: "12003", accountName: "مطالبات از سایر واحدها", ratio: "100%" }
+    ]
+  },
+  {
+    id: 420,
+    title: "ثبت شماره ۲۰ - درآمد",
+    description: "در صورت واریز مستقیم درآمد عمومی سایر واحدها به حساب خزانه و دریافت تأییدیه",
+    code: "REV-20",
+    category: "revenues",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "71001", accountName: "وجوه ارسالی بابت درآمد عمومی", ratio: "100%" },
+      { type: "credit", accountCode: "12003", accountName: "مطالبات از سایر واحدها", ratio: "100%" }
+    ]
+  },
+  {
+    id: 421,
+    title: "ثبت شماره ۲۱ - درآمد",
+    description: "در صورت واریز مستقیم درآمد اختصاصی سایر واحدها به حساب خزانه",
+    code: "REV-21",
+    category: "revenues",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "11522", accountName: "مطالبه از خزانه بابت درآمد اختصاصی", ratio: "100%" },
+      { type: "credit", accountCode: "12003", accountName: "مطالبات از سایر واحدها", ratio: "100%" }
+    ]
+  },
+  {
+    id: 422,
+    title: "ثبت شماره ۲۲ - درآمد",
+    description: "ثبت همزمان حساب‌های انتظامی کنترل منابع بودجه‌ای (برای درآمد اختصاصی)",
+    code: "REV-22",
+    category: "revenues",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "81013", accountName: "حساب انتظامی کنترل منابع بودجه‌ای", ratio: "100%" },
+      { type: "credit", accountCode: "82013", accountName: "طرف حساب انتظامی کنترل منابع بودجه‌ای", ratio: "100%" }
+    ]
+  },
+  {
+    id: 423,
+    title: "ثبت شماره ۲۳ - درآمد",
+    description: "وصول مبلغ پیش از ارائه خدمات یا فعالیت (وجوه امانی/سپرده نزد واحد)",
+    code: "REV-23",
+    category: "revenues",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "11007", accountName: "بانک دریافت", ratio: "100%" },
+      { type: "credit", accountCode: "24008", accountName: "سایر حساب‌ها و اسناد پرداختنی", ratio: "100%" }
+    ]
+  },
+  {
+    id: 424,
+    title: "ثبت شماره ۲۴ - درآمد",
+    description: "تسویه پیش‌دریافت/حساب‌های پرداختنی و شناسایی درآمد مربوط به سهم واحد (محول شدن خدمت به خارج)",
+    code: "REV-24",
+    category: "revenues",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "23003", accountName: "پیش‌دریافت درآمد", ratio: "*" },
+      { type: "debit",  accountCode: "24008", accountName: "سایر حساب‌ها و اسناد پرداختنی (بابت تسویه بدهی)", ratio: "*" },
+      { type: "credit", accountCode: "52001", accountName: "درآمدهای واحد به تفکیک طبقه‌بندی مربوط (۵۲۰۰۱ تا ۵۲۰۰۷ / ۴۵۰۰۱ تا ۴۵۰۰۷)", ratio: "100%" }
+    ]
+  },
+  {
+    id: 425,
+    title: "ثبت شماره ۲۵ - درآمد",
+    description: "اریز درآمدهای عمومی وصول‌شده به حساب تمرکز وجوه خزانه و دریافت تأییدیه",
+    code: "REV-25",
+    category: "revenues",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "71001", accountName: "وجوه ارسالی بابت درآمد عمومی", ratio: "100%" },
+      { type: "credit", accountCode: "11007", accountName: "بانک دریافت", ratio: "100%" }
+    ]
+  },
+  {
+    id: 426,
+    title: "ثبت شماره ۲۶ - درآمد",
+    description: "در صورت واریز درآمد اختصاصی به حساب خزانه",
+    code: "REV-26",
+    category: "revenues",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "11522", accountName: "مطالبه از خزانه بابت درآمد اختصاصی", ratio: "100%" },
+      { type: "credit", accountCode: "11003", accountName: "بانک اعتبارات اختصاصی / بانک دریافت", ratio: "100%" }
+    ]
+  },
+  {
+    id: 427,
+    title: "ثبت شماره ۲۷ - درآمد",
+    description: "ثبت همزمان حساب‌های انتظامی کنترل منابع بودجه‌ای (درآمد اختصاصی)",
+    code: "REV-27",
+    category: "revenues",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "81013", accountName: "حساب انتظامی کنترل منابع بودجه‌ای", ratio: "100%" },
+      { type: "credit", accountCode: "82013", accountName: "طرف حساب انتظامی کنترل منابع بودجه‌ای", ratio: "100%" }
+    ]
+  },
+  {
+    id: 428,
+    title: "ثبت شماره ۲۸ - درآمد",
+    description: "فروش و واگذاری دارایی‌ها (شناسایی فروش دارایی‌ها و حذف دارایی از دفاتر)",
+    code: "REV-28",
+    category: "revenues",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "11007", accountName: "بانک دریافت (ثمن نقد)", ratio: "*" },
+      { type: "debit",  accountCode: "11501", accountName: "حساب‌ها و اسناد دریافتنی (ثمن نسیه)", ratio: "*" },
+      { type: "debit",  accountCode: "15050", accountName: "ذخیره کاهش ارزش دارایی‌ها", ratio: "*" },
+      { type: "debit",  accountCode: "16040", accountName: "استهلاک انباشته دارایی‌ها", ratio: "*" },
+      { type: "credit", accountCode: "15002", accountName: "دارایی‌ها به تفکیک طبقه‌بندی مربوط (۱۵۰۰۲ تا ۱۵۰۳۶)", ratio: "*" },
+      { type: "credit", accountCode: "52001", accountName: "درآمدهای واحد ناشی از واگذاری دارایی‌ها (۵۲۰۰۱ تا ۵۲۰۰۷)", ratio: "*" }
+    ]
+  },
+  {
+    id: 429,
+    title: "ثبت شماره ۲۹ - درآمد",
+    description: "انتقال مازاد تجدید ارزیابی دارایی فروخته‌شده به ارزش خالص",
+    code: "REV-29",
+    category: "revenues",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "32001", accountName: "مازاد تجدید ارزیابی", ratio: "100%" },
+      { type: "credit", accountCode: "31001", accountName: "ارزش خالص / اندوخته خالص", ratio: "100%" }
+    ]
+  },
+  {
+    id: 430,
+    title: "ثبت شماره ۳۰ - درآمد",
+    description: "به هنگام واریز منابع حاصل از فروش دارایی به حساب خزانه (درآمد عمومی دولت)",
+    code: "REV-30",
+    category: "revenues",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "63001", accountName: "انتقال به خزانه", ratio: "100%" },
+      { type: "credit", accountCode: "11007", accountName: "بانک دریافت", ratio: "100%" }
+    ]
+  },
+  {
+    id: 431,
+    title: "ثبت شماره ۳۱ - درآمد",
+    description: "در صورتی که منابع حاصل از فروش، درآمد/اعتبار اختصاصی واحد باشد",
+    code: "REV-31",
+    category: "revenues",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "11522", accountName: "مطالبات از خزانه", ratio: "100%" },
+      { type: "credit", accountCode: "11007", accountName: "بانک دریافت", ratio: "100%" }
+    ]
+  },
+  {
+    id: 432,
+    title: "ثبت شماره ۳۲ - درآمد",
+    description: "ثبت حساب‌های انتظامی بودجه‌ای (کنترل منابع حاصل از فروش دارایی اختصاصی)",
+    code: "REV-32",
+    category: "revenues",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "81013", accountName: "حساب انتظامی کنترل منابع بودجه‌ای", ratio: "100%" },
+      { type: "credit", accountCode: "82013", accountName: "طرف حساب انتظامی کنترل منابع بودجه‌ای", ratio: "100%" }
+    ]
+  },
+  {
+    id: 433,
+    title: "ثبت شماره ۳۳ - درآمد",
+    description: "بستن حساب‌های موقت درآمدی، هزینه‌ای و انتقالی به حساب «خالص تغییر در وضعیت مالی»",
+    code: "REV-33",
+    category: "revenues",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "51001", accountName: "درآمدهای دولت به تفکیک طبقه‌بندی مربوط (۵۱۰۰۱ تا ۵۱۰۰۷)", ratio: "*" },
+      { type: "debit",  accountCode: "52001", accountName: "درآمدهای واحد به تفکیک طبقه‌بندی مربوط (۵۲۰۰۱ تا ۵۲۰۰۷ / ۴۵۰۰۱ تا ۴۵۰۰۷)", ratio: "*" },
+      { type: "debit",  accountCode: "43001", accountName: "هدایا و کمک‌ها (۴۳۰۰۱)", ratio: "*" },
+      { type: "credit", accountCode: "45007", accountName: "تخفیفات و بخشودگی (۴۵۰۰۷)", ratio: "*" },
+      { type: "credit", accountCode: "71001", accountName: "وجوه ارسالی بابت درآمد عمومی (۷۱۰۰۱)", ratio: "*" },
+      { type: "credit", accountCode: "63001", accountName: "انتقال به خزانه (۶۳۰۰۱)", ratio: "*" },
+      { type: "credit", accountCode: "61001", accountName: "هزینه‌ها به تفکیک طبقه‌بندی اقتصادی دولت (۶۱۰۰۱ تا ۶۱۰۰۸)", ratio: "*" },
+      { type: "credit", accountCode: "31007", accountName: "خالص تغییر در وضعیت مالی (۳۱۰۰۷)", ratio: "*" }
+    ]
+  },
+  {
+    id: 434,
+    title: "ثبت شماره ۳۴ - درآمد",
+    description: "بستن حساب «خالص تغییر در وضعیت مالی» به حساب «ارزش خالص انباشته»",
+    code: "REV-34",
+    category: "revenues",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "31007", accountName: "خالص تغییر در وضعیت مالی (۳۱۰۰۷)", ratio: "*" },
+      { type: "debit",  accountCode: "31010", accountName: "انتقال از سایر اقلام ارزش خالص (۳۱۰۱۰)", ratio: "*" },
+      { type: "credit", accountCode: "31001", accountName: "ارزش خالص انباشته (۳۱۰۰۱)", ratio: "100%" }
+    ]
+  },
+  {
+    id: 435,
+    title: "ثبت شماره ۳۵ - درآمد",
+    description: "بستن حساب‌های انتظامی منابع پیش‌بینی‌شده پایان دوره مالی",
+    code: "REV-35",
+    category: "revenues",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "82008", accountName: "طرف حساب انتظامی منابع پیش‌بینی‌شده (۸۲۰۰۸)", ratio: "100%" },
+      { type: "credit", accountCode: "81008", accountName: "حساب انتظامی منابع پیش‌بینی‌شده (۸۱۰۰۸)", ratio: "100%" }
+    ]
+  },
+  {
+    id: 436,
+    title: "ثبت شماره ۳۶ - درآمد",
+    description: "بستن حساب‌های انتظامی کنترل منابع بودجه‌ای پایان دوره مالی",
+    code: "REV-36",
+    category: "revenues",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "82013", accountName: "طرف حساب انتظامی کنترل منابع بودجه‌ای (۸۲۰۱۳)", ratio: "100%" },
+      { type: "credit", accountCode: "81013", accountName: "حساب انتظامی کنترل منابع بودجه‌ای (۸۱۰۱۳)", ratio: "100%" }
+    ]
+  },
+  {
+    id: 437,
+    title: "ثبت شماره ۳۷ - درآمد",
+    description: "بستن حساب‌های دائمی (ترازنامه‌ای) در پایان سال مالی (سند اختتامیه)",
+    code: "REV-37",
+    category: "revenues",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "23003", accountName: "پیش‌دریافت درآمد (۲۳۰۰۳)", ratio: "*" },
+      { type: "debit",  accountCode: "22002", accountName: "بدهی به سایر واحدها (۲۲۰۰۲)", ratio: "*" },
+      { type: "debit",  accountCode: "24008", accountName: "سایر حساب‌ها و اسناد پرداختنی (۲۴۰۰۸)", ratio: "*" },
+      { type: "debit",  accountCode: "12004", accountName: "ذخیره مطالبات مشکوک‌الوصول (۱۲۰۰۴)", ratio: "*" },
+      { type: "debit",  accountCode: "31001", accountName: "ارزش خالص انباشته (۳۱۰۰۱)", ratio: "*" },
+      { type: "credit", accountCode: "11007", accountName: "بانک دریافت (۱۱۰۰۷)", ratio: "*" },
+      { type: "credit", accountCode: "11004", accountName: "بانک وجوه سایر منابع (۱۱۰۰۴)", ratio: "*" },
+      { type: "credit", accountCode: "11501", accountName: "حساب‌ها و اسناد دریافتنی (۱۱۵۰۱)", ratio: "*" },
+      { type: "credit", accountCode: "11522", accountName: "مطالبات از خزانه (۱۱۵۲۲)", ratio: "*" },
+      { type: "credit", accountCode: "12003", accountName: "مطالبات از سایر واحدها (۱۲۰۰۳)", ratio: "*" }
+    ]
+  },
+  {
+    id: 438,
+    title: "ثبت شماره ۳۸ - درآمد",
+    description: "ثبت افتتاحیه: افتتاح حساب‌های دائمی در ابتدای دوره مالی جدید",
+    code: "REV-38",
+    category: "revenues",
+    status: "active",
+    lines: [
+      { type: "debit",  accountCode: "11007", accountName: "بانک دریافت (۱۱۰۰۷)", ratio: "*" },
+      { type: "debit",  accountCode: "11004", accountName: "بانک وجوه سایر منابع (۱۱۰۰۴)", ratio: "*" },
+      { type: "debit",  accountCode: "11501", accountName: "حساب‌ها و اسناد دریافتنی (۱۱۵۰۱)", ratio: "*" },
+      { type: "debit",  accountCode: "12003", accountName: "مطالبات از سایر واحدها (۱۲۰۰۳)", ratio: "*" },
+      { type: "debit",  accountCode: "11522", accountName: "مطالبات از خزانه (۱۱۵۲۲)", ratio: "*" },
+      { type: "credit", accountCode: "23003", accountName: "پیش‌دریافت درآمد (۲۳۰۰۳)", ratio: "*" },
+      { type: "credit", accountCode: "22002", accountName: "بدهی به سایر واحدها (۲۲۰۰۲)", ratio: "*" },
+      { type: "credit", accountCode: "24008", accountName: "سایر حساب‌ها و اسناد پرداختنی (۲۴۰۰۸)", ratio: "*" },
+      { type: "credit", accountCode: "12004", accountName: "ذخیره مطالبات مشکوک‌الوصول (۱۲۰۰۴)", ratio: "*" },
+      { type: "credit", accountCode: "31001", accountName: "ارزش خالص انباشته (۳۱۰۰۱)", ratio: "*" }
+    ]
   }
 ];

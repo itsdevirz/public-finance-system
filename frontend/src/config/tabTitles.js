@@ -73,6 +73,8 @@ const EXTRA_TITLES = {
   "/bookkeeping/ledger-reports/account-review": "مرور حساب‌ها",
   "/bookkeeping/operations-balance": "تراز عملیات",
   "/bookkeeping/bank-reconciliation": "مغایرت بانکی",
+  "/system-management/document-templates/revenues": "حسابداری درآمد",
+  "/accounting/revenues": "حسابداری درآمد",
 };
 
 export function isRouteValid(pathname) {
