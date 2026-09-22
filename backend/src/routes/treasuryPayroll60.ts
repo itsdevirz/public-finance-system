@@ -13,7 +13,7 @@ router.post("/export-treasury-60", async (c) => {
       isArrears = false,
       yearMonth = "0307",
       serial = "001",
-      executiveOrgCode = "127500"
+      executiveOrgCode = "140567" // ۴ رقم سال + ۶۷ کد استان ایلام
     } = options;
 
     const prefix = String(platform).toUpperCase() === "D" ? "D" : "W";
@@ -99,7 +99,7 @@ router.post("/export-treasury-60", async (c) => {
       const cleanBankName = String(emp.bankName || "بانک سپه").replace(/[\u0640]/g, "").trim();
 
       const record = [
-        String(emp.executiveOrgCode || executiveOrgCode || "127500"),
+        String(emp.executiveOrgCode || executiveOrgCode || "140567"),
         String(emp.nationalId || "").trim(),
         String(emp.code || "").trim(),
         String(birthYear),

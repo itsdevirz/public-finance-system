@@ -46,7 +46,7 @@ export default function PayrollReports() {
   const [treasuryPlatform, setTreasuryPlatform] = useState("W"); // W = וیندوز UTF-8, D = داس Iran-System
   const [treasuryIsArrears, setTreasuryIsArrears] = useState(false); // false = حقوق ماه جاری, true = معوقات M
   const [treasurySerial, setTreasurySerial] = useState("001");
-  const [treasuryExecOrgCode, setTreasuryExecOrgCode] = useState("127500");
+  const [treasuryExecOrgCode, setTreasuryExecOrgCode] = useState("140567");
 
   // فیلترهای گزارش تجمیعی
   const [cumEmpId, setCumEmpId] = useState("");       // شناسه کارمند انتخاب شده

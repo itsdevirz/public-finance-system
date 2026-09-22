@@ -22,7 +22,7 @@ const TABS = [
 const INITIAL_FORM = {
   // 1. اطلاعات هویتی و پرسنلی (Section 1)
   executiveOrg: "وزارت امور اقتصادی و دارایی",
-  executiveOrgCode: "127500", // کد دستگاه اجرایی اختصاصی خزانه
+  executiveOrgCode: "140567", // کد دستگاه اجرایی ۶ رقمی (۴ رقم سال + ۶۷ کد استان ایلام)
   firstName: "",
   lastName: "",
   fatherName: "",
@@ -175,7 +175,11 @@ export default function EmployeeRegisterForm() {
   ]);
 
   function handleChange(field, val) {
-    setForm(f => ({ ...f, [field]: val }));
+    if (field === "maritalStatus" && val === "single") {
+      setForm(f => ({ ...f, maritalStatus: val, childrenCount: 0, childAllowance: 0 }));
+    } else {
+      setForm(f => ({ ...f, [field]: val }));
+    }
     setErrorMsg("");
   }
 
@@ -456,8 +460,11 @@ export default function EmployeeRegisterForm() {
                       </select>
                     </div>
                     <div>
-                      <Label className="text-xs font-semibold">تعداد فرزندان</Label>
-                      <Input type="number" min="0" value={form.childrenCount} onChange={e => handleChange("childrenCount", Number(e.target.value))} className="h-9 text-xs mt-1.5 font-mono" />
+                      <Label className="text-xs font-semibold">تعداد فرزندان (فیلد ۱۰ خزانه)</Label>
+                      <Input type="number" min="0" value={form.childrenCount} onChange={e => handleChange("childrenCount", Number(e.target.value))} disabled={form.maritalStatus === "single"} className="h-9 text-xs mt-1.5 font-mono" />
+                      {form.maritalStatus === "single" && (
+                        <span className="text-[10px] text-amber-600 block mt-1 font-semibold">مطابق بند ۱۰ خزانه، برای مجرد تعداد اولاد ۰ است.</span>
+                      )}
                     </div>
                     <div>
                       <Label className="text-xs font-semibold">وضعیت ایثارگری</Label>

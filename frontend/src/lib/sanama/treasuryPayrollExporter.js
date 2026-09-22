@@ -227,9 +227,13 @@ export function buildTreasury60Fields(emp, calc = {}, options = {}) {
   const totalSumField56 = fields15to55.reduce((sum, val) => sum + Math.abs(val), 0);
 
   // آرایه کامل ۶۰ فیلد
+  const fallbackYear = options.selectedYear || options.year || "1405";
+  const defaultOrgCode = `${fallbackYear}67`; // کد ۶ رقمی دستگاه اجرایی: سال ۴ رقمی + کد ۶۷ استان ایلام
+  const finalExecutiveOrgCode = String(emp.executiveOrgCode || executiveOrgCode || defaultOrgCode).trim();
+
   const record = [
     // 1..14
-    String(emp.executiveOrgCode || executiveOrgCode || "127500"),
+    finalExecutiveOrgCode,
     String(emp.nationalId || "").trim(),
     String(emp.code || "").trim(),
     String(birthYear),
