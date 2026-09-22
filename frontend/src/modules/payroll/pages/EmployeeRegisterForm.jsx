@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import ShebaInput from "@/components/ui/sheba-input";
 import { Badge } from "@/components/ui/badge";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
-import { User, Briefcase, CreditCard, DollarSign, Save, Plus, ArrowRight, ShieldCheck, AlertCircle, Info, Pencil } from "lucide-react";
+import { User, Briefcase, CreditCard, DollarSign, Save, Plus, ArrowRight, ShieldCheck, AlertCircle, Info, Pencil, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TABS = [
@@ -22,6 +22,7 @@ const TABS = [
 const INITIAL_FORM = {
   // 1. اطلاعات هویتی و پرسنلی (Section 1)
   executiveOrg: "وزارت امور اقتصادی و دارایی",
+  executiveOrgCode: "127500", // کد دستگاه اجرایی اختصاصی خزانه
   firstName: "",
   lastName: "",
   fatherName: "",
@@ -31,15 +32,16 @@ const INITIAL_FORM = {
   birthPlace: "",
   issuePlace: "",
   birthDate: "",
-  gender: "male", // Dropdown: male / female
-  maritalStatus: "single", // Dropdown: single / married / with_dependents / widowed / divorced
+  gender: "male", // Dropdown: male / female (کد 2 و 4 خزانه)
+  maritalStatus: "single", // Dropdown: single (1) / married (3) / other (2)
   childrenCount: 0,
   dependentsCount: 0,
   sacrificeStatus: "none", // Dropdown: none / sacrificer / disabled / freed / martyr_child / combatant
-  employmentType: "official", // Dropdown: official / official_probation / probationary / contractual / company / hourly / daily
-  pensionFund: "civil", // Dropdown: civil / social_security / armed_forces / other / none
+  employmentType: "official", // Dropdown: official (5) / probationary (6) / contractual (7)
+  pensionFund: "civil", // Dropdown: civil (7) / social_security (8) / other (9)
+  healthInsuranceStatus: "1", // Dropdown: 1=خدمات درمانی، 2=تامین اجتماعی، 3=سایر
   militaryStatus: "exempt",
-  highestDegree: "bachelor", // Dropdown: under_diploma / diploma / associate / bachelor / master / phd / post_phd
+  highestDegree: "bachelor", // Dropdown: phd(1) / master(2) / bachelor(3) / associate(4) / diploma(5) / under_diploma(6)
   fieldOfStudy: "",
 
   // Contact Info
@@ -70,6 +72,7 @@ const INITIAL_FORM = {
   insuranceNo: "",
   retirementInsuranceNo: "",
   branchName: "شعبه مرکزی",
+  bankBranchCode: "101", // کد شعبه بانک
   taxStatus: "taxable",
 
   // Salary & Allowances
@@ -83,7 +86,7 @@ const INITIAL_FORM = {
   otherAllowances: 0,
 
   // Bank Info
-  bankName: "",
+  bankName: "بانک سپه",
   accountNo: "",
   cardNumber: "",
   shebaNo: "",
@@ -108,6 +111,7 @@ export default function EmployeeRegisterForm() {
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showTreasuryGuide, setShowTreasuryGuide] = useState(false);
 
   const editingId = location.state?.employee?._id || location.state?.employee?.id || null;
 
@@ -182,8 +186,9 @@ export default function EmployeeRegisterForm() {
       setActiveTab("personal");
       return;
     }
-    if (!form.nationalId.trim() || form.nationalId.length !== 10) {
-      setErrorMsg("کد ملی باید دقیقاً ۱۰ رقم باشد.");
+    const cleanNationalId = String(form.nationalId || "").trim();
+    if (!cleanNationalId || cleanNationalId.length !== 10 || !/^\d{10}$/.test(cleanNationalId)) {
+      setErrorMsg("کد ملی کارمند باید دقیقاً ۱۰ رقم عددی بدون فاصله و خط تیره باشد (مطابق فیلد ۲ خزانه).");
       setActiveTab("personal");
       return;
     }
@@ -192,6 +197,16 @@ export default function EmployeeRegisterForm() {
       setActiveTab("employment");
       return;
     }
+
+    // اعتبارسنجی حیاتی خزانه (بند ۱۰): اگر مجرد باشد، تعداد اولاد حتماً باید صفر باشد
+    if (form.maritalStatus === "single" && Number(form.childrenCount || 0) > 0) {
+      setErrorMsg("خطای اعتبارسنجی خزانه: وضعیت تأهل کارمند «مجرد» انتخاب شده است، بنابراین تعداد اولاد باید حتماً ۰ باشد.");
+      setActiveTab("personal");
+      return;
+    }
+
+    // پاکسازی نام بانک از کشیدگی حروف
+    const cleanedBankName = String(form.bankName || "بانک سپه").replace(/[\u0640]/g, "").trim();
 
     try {
       setIsSubmitting(true);
@@ -273,10 +288,76 @@ export default function EmployeeRegisterForm() {
           </h2>
           <p className="text-[11px] text-muted-foreground mt-1">اطلاعات پرونده استخدامی و مالی پرسنل را جهت انجام محاسبات حقوق و دستمزد وارد نمایید.</p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => navigate("/payroll/employees/list")} className="gap-1.5 text-xs">
-          <ArrowRight className="h-4 w-4" /> لیست کارکنان
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => setShowTreasuryGuide(!showTreasuryGuide)}
+            className="gap-1.5 text-xs bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-200"
+          >
+            <Info className="h-4 w-4" />
+            {showTreasuryGuide ? "بستن راهنمای فایل ۶۰ ستونه خزانه" : "راهنمای فایل ۶۰ ستونه خزانه (سینا)"}
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => navigate("/payroll/employees/list")} className="gap-1.5 text-xs">
+            <ArrowRight className="h-4 w-4" /> لیست کارکنان
+          </Button>
+        </div>
       </div>
+
+      {/* راهنمای تعاملی استاندارد ۶۰ ستونه خزانه کل کشور */}
+      {showTreasuryGuide && (
+        <Card className="bg-gradient-to-br from-indigo-50/70 via-slate-50 to-blue-50/50 dark:from-slate-900 dark:to-indigo-950/40 border-indigo-200 dark:border-indigo-800 text-right shadow-sm">
+          <CardContent className="p-5 space-y-4 text-xs">
+            <div className="flex items-center justify-between border-b border-indigo-100 dark:border-indigo-800 pb-3">
+              <h3 className="font-black text-indigo-900 dark:text-indigo-200 flex items-center gap-2 text-sm">
+                <ShieldCheck className="h-5 w-5 text-indigo-600" />
+                مشخصات و استانداردهای فنی خروجی فایل ۶۰ ستونه حقوق و دستمزد خزانه (سامانه سینا)
+              </h3>
+              <Badge className="bg-indigo-600 text-white">استاندارد ۶۰ ستونه Comma-Delimited</Badge>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-indigo-100 dark:border-slate-700">
+                <h4 className="font-bold text-slate-800 dark:text-slate-200 mb-1.5 flex items-center gap-1.5">
+                  <FileText className="h-4 w-4 text-indigo-500" /> ۱. فرمت و نام‌گذاری فایل
+                </h4>
+                <ul className="space-y-1 text-[11px] text-slate-600 dark:text-slate-400 list-disc list-inside leading-relaxed">
+                  <li>فرمت متنی بدون هدر با جداکننده کاما (CSV/TXT).</li>
+                  <li>انتهای سطر با خط‌شکن استاندارد <code className="bg-slate-100 px-1 font-mono text-[10px] text-rose-600">{`\\r\\n`}</code>.</li>
+                  <li>نام‌گذاری ویندوز: <code className="font-mono text-indigo-600">W[MONTH][SERIAL].TXT</code> (مثال: W9903001.TXT).</li>
+                  <li>نام‌گذاری معوقات: <code className="font-mono text-indigo-600">WM[MONTH][SERIAL].TXT</code> (مثال: WM9903001.TXT).</li>
+                </ul>
+              </div>
+
+              <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-indigo-100 dark:border-slate-700">
+                <h4 className="font-bold text-slate-800 dark:text-slate-200 mb-1.5 flex items-center gap-1.5">
+                  <AlertCircle className="h-4 w-4 text-rose-500" /> ۲. قواعد حیاتی اعتبارسنجی
+                </h4>
+                <ul className="space-y-1 text-[11px] text-slate-600 dark:text-slate-400 list-disc list-inside leading-relaxed">
+                  <li><strong>قانون تاهل و اولاد:</strong> برای کارمند مجرد (کد ۱)، تعداد اولاد حتماً باید صفر (<code className="font-mono">0</code>) باشد.</li>
+                  <li><strong>کد ملی:</strong> دقیقاً ۱۰ رقم عددی بدون فاصله و خط تیره.</li>
+                  <li><strong>نام بانک:</strong> بدون کشیدگی حروف (تطویل) مانند <code className="font-mono text-rose-600 font-bold">بانـک</code>.</li>
+                  <li><strong>فیلد ۵۶ (جمع کل):</strong> مجموع قدرمطلق مبالغ فیلدهای ۱۵ تا ۵۵ جهت کنترل صحت.</li>
+                </ul>
+              </div>
+
+              <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-indigo-100 dark:border-slate-700">
+                <h4 className="font-bold text-slate-800 dark:text-slate-200 mb-1.5 flex items-center gap-1.5">
+                  <Briefcase className="h-4 w-4 text-emerald-500" /> ۳. نگاشت کدگذاری‌های عددی
+                </h4>
+                <ul className="space-y-1 text-[11px] text-slate-600 dark:text-slate-400 list-disc list-inside leading-relaxed">
+                  <li><strong>جنسیت:</strong> ۲ = مرد | ۴ = زن</li>
+                  <li><strong>تاهل:</strong> ۱ = مجرد | ۲ = سایر | ۳ = متاهل</li>
+                  <li><strong>نوع استخدام:</strong> ۵ = رسمی | ۶ = پیمانی | ۷ = سایر</li>
+                  <li><strong>صندوق بازنشستگی:</strong> ۷ = کشوری | ۸ = تامین اجتماعی | ۹ = سایر</li>
+                  <li><strong>بیمه درمانی:</strong> ۱ = خدمات درمانی | ۲ = تامین اجتماعی | ۳ = سایر</li>
+                </ul>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {errorMsg && (
         <div className="bg-rose-50 border border-rose-100 text-rose-700 text-xs p-3 rounded-xl flex items-center gap-2">
@@ -402,13 +483,19 @@ export default function EmployeeRegisterForm() {
                       </select>
                     </div>
                     <div>
-                      <Label className="text-xs font-semibold">صندوق بازنشستگی</Label>
+                      <Label className="text-xs font-semibold">صندوق بازنشستگی (فیلد ۱۳ خزانه)</Label>
                       <select value={form.pensionFund} onChange={e => handleChange("pensionFund", e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm mt-1.5">
-                        <option value="civil">صندوق بازنشستگی کشوری</option>
-                        <option value="social_security">تامین اجتماعی</option>
-                        <option value="armed_forces">نیروهای مسلح</option>
-                        <option value="other">سایر صندوق‌ها</option>
-                        <option value="none">فاقد صندوق</option>
+                        <option value="civil">۷ - صندوق بازنشستگی کشوری</option>
+                        <option value="social_security">۸ - تامین اجتماعی</option>
+                        <option value="other">۹ - سایر صندوق‌ها</option>
+                      </select>
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold">وضعیت بیمه درمانی (فیلد ۱۴ خزانه)</Label>
+                      <select value={form.healthInsuranceStatus || "1"} onChange={e => handleChange("healthInsuranceStatus", e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm mt-1.5">
+                        <option value="1">۱ - خدمات درمانی (بیمه سلامت)</option>
+                        <option value="2">۲ - تامین اجتماعی</option>
+                        <option value="3">۳ - سایر بیمه‌ها</option>
                       </select>
                     </div>
                     <div>
@@ -682,11 +769,19 @@ export default function EmployeeRegisterForm() {
                   <h3 className="text-xs font-bold text-slate-800 dark:text-slate-300 flex items-center gap-2 mb-4 border-r-4 border-amber-600 pr-2">اطلاعات حساب بانکی اول (حساب اصلی)</h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-right">
                     <div>
-                      <Label className="text-xs font-semibold">نام بانک اول</Label>
-                      <Input value={form.bankName || ""} onChange={e => handleChange("bankName", e.target.value)} className="h-9 text-xs mt-1.5" placeholder="مثال: بانک ملی، بانک ملت" />
+                      <Label className="text-xs font-semibold">نام بانک اول (فیلد ۵۸ خزانه)</Label>
+                      <Input value={form.bankName || ""} onChange={e => handleChange("bankName", e.target.value)} className="h-9 text-xs mt-1.5" placeholder="مثال: بانک سپه" />
                     </div>
                     <div>
-                      <Label className="text-xs font-semibold">شماره حساب بانکی اول</Label>
+                      <Label className="text-xs font-semibold">نام شعبه بانک (فیلد ۵۹ خزانه)</Label>
+                      <Input value={form.branchName || ""} onChange={e => handleChange("branchName", e.target.value)} className="h-9 text-xs mt-1.5" placeholder="مثال: مرکزی" />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold">کد شعبه بانک (فیلد ۶۰ خزانه)</Label>
+                      <Input value={form.bankBranchCode || ""} onChange={e => handleChange("bankBranchCode", e.target.value)} className="h-9 text-xs mt-1.5 font-mono text-left" placeholder="101" />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold">شماره حساب بانکی اول (فیلد ۵۷ خزانه)</Label>
                       <Input value={form.accountNo || ""} onChange={e => handleChange("accountNo", e.target.value)} className="h-9 text-xs mt-1.5 font-mono text-left" placeholder="مثال: ۰۱۰۲۳۴۵۶۷۸" />
                     </div>
                     <div>

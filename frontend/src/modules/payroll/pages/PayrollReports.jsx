@@ -5,8 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { FileText, Printer, Search, ShieldCheck, DollarSign, Calendar, Clock, Percent, Award, HelpCircle as HelpIcon, FileDown, BarChart2, User } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { FileText, Printer, Search, ShieldCheck, DollarSign, Calendar, Clock, Percent, Award, HelpCircle as HelpIcon, FileDown, BarChart2, User, AlertCircle, CheckCircle2 } from "lucide-react";
 import { toPersianDigits } from "./InsuranceSettings";
+import { generateTreasury60TextFile, generateTreasuryFilename, validateEmployeeForTreasury, buildTreasury60Fields } from "@/lib/sanama/treasuryPayrollExporter";
 
 const MONTHS = [
   { value: "01", label: "فروردین" }, { value: "02", label: "اردیبهشت" }, { value: "03", label: "خرداد" },
@@ -17,6 +19,7 @@ const MONTHS = [
 
 const REPORT_TYPES = [
   { id: "list",         label: "لیست حقوق ماهانه",  desc: "مشاهده جامع دریافتی، کسورات و خالص پرسنل", icon: FileText,      color: "text-indigo-600 border-indigo-200" },
+  { id: "treasury60",   label: "فایل ۶۰ ستونه خزانه (سینا)", desc: "تولید فایل متنی ۶۰ ستونه Comma-Delimited جهت ارسال به خزانه کل کشور", icon: FileDown, color: "text-emerald-700 border-emerald-300" },
   { id: "insurance",    label: "لیست بیمه",         desc: "سهم ۷٪ کارمند، ۲۰٪ کارفرما و ۳٪ بیکاری",   icon: ShieldCheck,   color: "text-blue-600 border-blue-200" },
   { id: "tax",          label: "لیست مالیات",        desc: "درآمد مشمول مالیات و مالیات کسر شده پرسنل", icon: Percent,       color: "text-rose-600 border-rose-200" },
   { id: "overtime",     label: "گزارش اضافه‌کاری",    desc: "ساعات و مبالغ پرداختی اضافه‌کاری کارکنان", icon: Clock,         color: "text-amber-600 border-amber-200" },
@@ -38,6 +41,12 @@ export default function PayrollReports() {
   const [selectedYear, setSelectedYear] = useState("1405");
   const [selectedMonth, setSelectedMonth] = useState("01");
   const [search, setSearch] = useState("");
+
+  // فیلترها و تنظیمات خروجی ۶۰ ستونه خزانه
+  const [treasuryPlatform, setTreasuryPlatform] = useState("W"); // W = וیندوز UTF-8, D = داس Iran-System
+  const [treasuryIsArrears, setTreasuryIsArrears] = useState(false); // false = حقوق ماه جاری, true = معوقات M
+  const [treasurySerial, setTreasurySerial] = useState("001");
+  const [treasuryExecOrgCode, setTreasuryExecOrgCode] = useState("127500");
 
   // فیلترهای گزارش تجمیعی
   const [cumEmpId, setCumEmpId] = useState("");       // شناسه کارمند انتخاب شده
@@ -289,6 +298,38 @@ export default function PayrollReports() {
 
     return { rows, totals, emp: selEmp };
   }, [activeReport, cumEmpId, cumFromYear, cumFromMonth, cumToYear, cumToMonth, employees, payrollCalculations]);
+
+  // دانلود مستقیم فایل ۶۰ ستونه متنی خزانه
+  function handleDownloadTreasury60() {
+    const periodStr = `${selectedYear.slice(-2)}${selectedMonth}`;
+    const targetEmps = (employees || []).filter(
+      emp => !search ||
+        `${emp.firstName} ${emp.lastName}`.toLowerCase().includes(search.toLowerCase()) ||
+        emp.code?.toLowerCase().includes(search.toLowerCase())
+    );
+
+    const { filename, fileContent, validationResults, hasCriticalErrors } = generateTreasury60TextFile(
+      targetEmps,
+      currentMonthCalcs,
+      {
+        platform: treasuryPlatform,
+        isArrears: treasuryIsArrears,
+        yearMonth: periodStr,
+        serial: treasurySerial,
+        executiveOrgCode: treasuryExecOrgCode
+      }
+    );
+
+    const blob = new Blob([fileContent], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
 
   // پرینت گزارش بر اساس استایل رسمی مرورگر
   function handlePrint() {
@@ -841,16 +882,75 @@ export default function PayrollReports() {
               </div>
 
               <div className="flex gap-2">
-                <Button onClick={handleExcelExport}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-9 text-xs gap-1.5 shadow w-full">
-                  <FileDown className="h-4 w-4" /> خروجی اکسل
-                </Button>
-                <Button onClick={handlePrint}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-9 text-xs gap-1.5 shadow w-full">
-                  <Printer className="h-4 w-4" /> چاپ گزارش
-                </Button>
+                {activeReport === "treasury60" ? (
+                  <Button onClick={handleDownloadTreasury60}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-9 text-xs gap-1.5 shadow w-full">
+                    <FileDown className="h-4 w-4" /> دانلود فایل ۶۰ ستونه (.TXT)
+                  </Button>
+                ) : (
+                  <>
+                    <Button onClick={handleExcelExport}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-9 text-xs gap-1.5 shadow w-full">
+                      <FileDown className="h-4 w-4" /> خروجی اکسل
+                    </Button>
+                    <Button onClick={handlePrint}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-9 text-xs gap-1.5 shadow w-full">
+                      <Printer className="h-4 w-4" /> چاپ گزارش
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
+
+            {/* تنظیمات اختصاصی فایل ۶۰ ستونه خزانه */}
+            {activeReport === "treasury60" && (
+              <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800 grid grid-cols-1 md:grid-cols-4 gap-3 bg-slate-100/60 dark:bg-slate-900/60 p-3 rounded-xl">
+                <div>
+                  <Label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">نسخه و پلتفرم فایل (فرمت [W|D])</Label>
+                  <select
+                    value={treasuryPlatform}
+                    onChange={e => setTreasuryPlatform(e.target.value)}
+                    className="flex h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-xs shadow-sm mt-1"
+                  >
+                    <option value="W">W - نسخه ویندوز (UTF-8 Unicode)</option>
+                    <option value="D">D - نسخه داس (Iran-System)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <Label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">نوع فایل (فرمت [O])</Label>
+                  <select
+                    value={treasuryIsArrears ? "M" : "O"}
+                    onChange={e => setTreasuryIsArrears(e.target.value === "M")}
+                    className="flex h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-xs shadow-sm mt-1"
+                  >
+                    <option value="O">حقوق ماه جاری (بدون حرف میانی)</option>
+                    <option value="M">معوقات مجزا (پیشوند M)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <Label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">شماره سریال فایل (۳ رقم)</Label>
+                  <Input
+                    value={treasurySerial}
+                    onChange={e => setTreasurySerial(e.target.value)}
+                    className="h-8 text-xs font-mono mt-1 text-left"
+                    placeholder="001"
+                    maxLength={3}
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">کد دستگاه اجرایی (فیلد ۱)</Label>
+                  <Input
+                    value={treasuryExecOrgCode}
+                    onChange={e => setTreasuryExecOrgCode(e.target.value)}
+                    className="h-8 text-xs font-mono mt-1 text-left"
+                    placeholder="127500"
+                  />
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -858,9 +958,21 @@ export default function PayrollReports() {
       {/* جدول نمایش گزارش */}
       <Card className="border-slate-100 shadow-sm overflow-hidden">
         <CardHeader className="border-b pb-3.5 bg-slate-50/50 dark:bg-slate-900/50">
-          <CardTitle className="text-xs font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-            <FileText className="h-4 w-4 text-indigo-600" />
-            پیش‌نمایش داده‌های گزارش: {REPORT_TYPES.find(r => r.id === activeReport)?.label}
+          <CardTitle className="text-xs font-bold text-slate-800 dark:text-slate-100 flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-indigo-600" />
+              پیش‌نمایش داده‌های گزارش: {REPORT_TYPES.find(r => r.id === activeReport)?.label}
+            </span>
+            {activeReport === "treasury60" && (
+              <Badge className="bg-indigo-600 text-white font-mono text-[11px]">
+                {generateTreasuryFilename({
+                  platform: treasuryPlatform,
+                  isArrears: treasuryIsArrears,
+                  yearMonth: `${selectedYear.slice(-2)}${selectedMonth}`,
+                  serial: treasurySerial
+                })}
+              </Badge>
+            )}
           </CardTitle>
           <CardDescription className="text-[10px]">
             {activeReport === "annual" || activeReport === "eid"
@@ -869,6 +981,76 @@ export default function PayrollReports() {
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-3 overflow-x-auto">
+          
+          {/* گزارش ۶۰ ستونه خزانه (سامانه سینا) */}
+          {activeReport === "treasury60" && (
+            <div className="space-y-4 text-right">
+              <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs p-3 rounded-xl flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                  <span>ساختار ۶۰ ستونه متنی بدون هدر با جداکننده کاما (Comma-Delimited) آماده دریافت است.</span>
+                </div>
+                <Button size="sm" onClick={handleDownloadTreasury60} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8 gap-1.5 font-bold">
+                  <FileDown className="h-4 w-4" /> ذخیره فایل متنی (.TXT)
+                </Button>
+              </div>
+
+              <Table>
+                <TableHeader className="bg-slate-800 dark:bg-slate-950">
+                  <TableRow className="text-[10px] hover:bg-slate-800">
+                    <TableHead className="text-right text-white font-bold">نام و کد پرسنلی</TableHead>
+                    <TableHead className="text-center text-white font-bold">کد ملی (فیلد ۲)</TableHead>
+                    <TableHead className="text-center text-white font-bold">تاهل/اولاد (فیلد ۹-۱۰)</TableHead>
+                    <TableHead className="text-center text-white font-bold">جمع ۵۶ (مبالغ ۱۵-۵۵)</TableHead>
+                    <TableHead className="text-center text-white font-bold">بانک / شعبه (فیلد ۵۷-۶۰)</TableHead>
+                    <TableHead className="text-center text-white font-bold">وضعیت اعتبارسنجی</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody className="text-[10px]">
+                  {reportData.map(r => {
+                    const empObj = employees.find(e => (e._id || e.id) === r.empId) || {};
+                    const vRes = validateEmployeeForTreasury(empObj, r.calc);
+                    const fields = buildTreasury60Fields(empObj, r.calc, { executiveOrgCode: treasuryExecOrgCode });
+                    
+                    return (
+                      <TableRow key={r.empId} className="h-10">
+                        <TableCell className="text-right">
+                          <div className="font-bold text-slate-800 dark:text-slate-200">{r.name}</div>
+                          <div className="text-[9px] text-slate-400 font-mono">{r.code}</div>
+                        </TableCell>
+                        <TableCell className="text-center font-mono">{fields[1]}</TableCell>
+                        <TableCell className="text-center font-mono">
+                          تاهل: {fields[8]} | فرزند: {fields[9]}
+                        </TableCell>
+                        <TableCell className="text-center font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                          {fmt(fields[55])} ریال
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <div className="font-bold">{fields[57]}</div>
+                          <div className="text-[9px] text-slate-400 font-mono">{fields[58]} (کد {fields[59]})</div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {vRes.isValid ? (
+                            <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] font-bold gap-1">
+                              <CheckCircle2 className="h-3 w-3" /> معتبر برای ارسال
+                            </Badge>
+                          ) : (
+                            <div className="space-y-1">
+                              {vRes.errors.map((err, idx) => (
+                                <Badge key={idx} variant="outline" className="bg-rose-50 text-rose-700 border-rose-200 text-[9px] font-bold block">
+                                  {err}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
           {/* لیست حقوق ماهانه */}
           {activeReport === "list" && (
             <Table>
