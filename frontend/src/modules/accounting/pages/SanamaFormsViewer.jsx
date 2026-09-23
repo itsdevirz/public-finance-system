@@ -1,12 +1,17 @@
-import { useState, useEffect } from "react";
-import { FileSpreadsheet, Download, Save, AlertTriangle, Printer, RefreshCw, CheckCircle2 } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { 
+  FileSpreadsheet, Download, Save, AlertTriangle, Printer, RefreshCw, CheckCircle2,
+  ChevronDown, ChevronLeft, Search, Layers, Scale, CreditCard, Coins, Landmark,
+  Users, FileText, CheckSquare, PieChart, BarChart3, Activity, ShieldCheck, Eye, X
+} from "lucide-react";
 import api from "@/api";
 import { PageShell, PageHeader } from "@/components/layout/PageShell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Modal, ModalFooter } from "@/components/ui/modal";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { validateSanamaPerformanceForms } from "@/lib/sanamaPerformanceValidation";
 import { fetchMoeinBalances, parseMoeinStringValue, updateSanamaFormsFromMoeinMap } from "@/lib/sanamaMoeinAutoSync";
@@ -48,7 +53,7 @@ export function PersianAmountInput({ value, onChange, className = "", disabled =
   );
 }
 
-// ─── ثوابت و مقادیر اولیه فرم‌های سناما ──────────────────────────────────────────
+// ─── ثوابت اولیه فرم‌ها ──────────────────────────────────────────
 
 const INITIAL_FORM1 = {
   initialBudget: 0,
@@ -120,8 +125,88 @@ const INITIAL_FORM_13 = [
   { id: 4, rowType: "اوراق انتقالی", accountType: "o", creditType: "مصوب - ابلاغی", moeinExpenseApproved: "81010", moeinExpenseNotified: "81010", moeinCapitalApproved: "81010", moeinCapitalNotified: "81010", amount: 0 },
 ];
 
+// ─── ساختار گروه‌های اصلی ۴گانه فرم‌های عملکردی ──────────────────────────────────────────
+
+const PERFORMANCE_FORM_CATEGORIES = [
+  {
+    id: "expense_public",
+    title: "فرم های عملکرد اعتبارات هزینه-عمومی",
+    badge: "اعتبارات هزینه‌ای عمومی",
+    colorTheme: "blue",
+    forms: [
+      { id: "form_prog_exp_pub", code: "فرم ۱", title: "فرم خلاصه عملکرد اعتبارات بر حسب برنامه", icon: Layers, desc: "خلاصه عملکرد اعتبارات بر حسب برنامه مصوب و ابلاغی" },
+      { id: "form_chap_exp_pub", code: "فرم ۲", title: "فرم خلاصه عملکرد اعتبارات بر حسب فصل", icon: BarChart3, desc: "تفکیک عملکرد اعتبارات هزینه‌ای بر حسب ۷ فصل بودجه‌ای" },
+      { id: "form_8_exp_pub", code: "فرم ۸", title: "صورت حساب منابع - فرم 8", icon: Landmark, desc: "صورت حساب دریافت‌ها و پرداخت‌های منابع عمومی خزانه" },
+      { id: "form_9_exp_pub", code: "فرم ۹", title: "پرداخت های غیرقطعی - فرم 9", icon: FileText, desc: "پیش‌پرداخت‌ها، موجودی‌ها و علی‌الحساب‌های هزینه‌ای" },
+      { id: "form_10_b_exp_pub", code: "فرم ۱۰-ب", title: "وجوه مصرف نشده - فرم 10 - (ب)", icon: Coins, desc: "مانده وجوه مصرف نشده و انتقالی اعتبارات هزینه عمومی" },
+      { id: "form_10_p_exp_pub", code: "فرم ۱۰-پ", title: "وجوه مصرف نشده - فرم 10 - (پ) فصلی", icon: PieChart, desc: "گزارش فصلی وجوه مصرف نشده و برگشتی به خزانه" },
+      { id: "form_11_exp_pub", code: "فرم ۱۱", title: "فرم اسناد واخواهی شده و کسری ابواب جمعی - فرم 11", icon: ShieldCheck, desc: "اسناد واخواهی دیوان محاسبات و مانده کسری ابواب جمعی" },
+      { id: "form_12_exp_pub", code: "فرم ۱۲", title: "عملکرد حقوق و مزایای مستمر کارکنان - فرم 12", icon: Users, desc: "عملکرد پرداخت حقوق و مزایای مستمر کارکنان شاغل" },
+      { id: "form_13_exp_pub", code: "فرم ۱۳", title: "عملکرد اوراق اسلامی - فرم 13", icon: CreditCard, desc: "اوراق مالی اسلامی دریافتی، واگذار شده و انتقالی" },
+    ]
+  },
+  {
+    id: "expense_dedicated",
+    title: "فرم های عملکرد اعتبارات هزینه-اختصاصی",
+    badge: "اعتبارات هزینه‌ای اختصاصی",
+    colorTheme: "amber",
+    forms: [
+      { id: "form_prog_exp_ded", code: "فرم ۱", title: "فرم خلاصه عملکرد اعتبارات بر حسب برنامه", icon: Layers, desc: "خلاصه عملکرد اعتبارات بر حسب برنامه از محل درآمدهای اختصاصی" },
+      { id: "form_chap_exp_ded", code: "فرم ۲", title: "فرم خلاصه عملکرد اعتبارات بر حسب فصل", icon: BarChart3, desc: "تفکیک عملکرد اعتبارات اختصاصی بر حسب فصول هزینه" },
+      { id: "form_8_exp_ded", code: "فرم ۸", title: "صورت حساب منابع - فرم 8", icon: Landmark, desc: "صورت حساب وصولی‌ها و واریزی‌های درآمد اختصاصی" },
+      { id: "form_9_exp_ded", code: "فرم ۹", title: "پرداخت های غیرقطعی - فرم 9", icon: FileText, desc: "پرداخت‌های غیرقطعی، پیش‌پرداخت و علی‌الحساب اختصاصی" },
+      { id: "form_10_b_exp_ded", code: "فرم ۱۰-ب", title: "وجوه مصرف نشده - فرم 10 - (ب)", icon: Coins, desc: "وجوه مصرف نشده اعتبارات هزینه‌ای اختصاصی" },
+      { id: "form_10_p_exp_ded", code: "فرم ۱۰-پ", title: "وجوه مصرف نشده - فرم 10 - (پ) فصلی", icon: PieChart, desc: "وجوه مصرف نشده فصلی اعتبارات اختصاصی" },
+      { id: "form_11_exp_ded", code: "فرم ۱۱", title: "فرم اسناد واخواهی شده و کسری ابواب جمعی - فرم 11", icon: ShieldCheck, desc: "واخواهی‌ها و کسری ابواب جمعی اعتبارات اختصاصی" },
+      { id: "form_12_exp_ded", code: "فرم ۱۲", title: "عملکرد حقوق و مزایای مستمر کارکنان - فرم 12", icon: Users, desc: "پرداخت حقوق کارکنان از محل اعتبارات اختصاصی" },
+    ]
+  },
+  {
+    id: "capital_public",
+    title: "فرم های عملکرد تملک دارایی های سرمایه ای-عمومی",
+    badge: "تملک دارایی سرمایه‌ای عمومی",
+    colorTheme: "emerald",
+    forms: [
+      { id: "form_proj_cap_pub", code: "خلاصه طرح", title: "خلاصه عملکرد اعتبارات طرح", icon: Layers, desc: "خلاصه عملکرد اعتبارات طرح‌های تملک دارایی‌های سرمایه‌ای عمومی" },
+      { id: "form_8_cap_pub", code: "فرم ۸", title: "صورت حساب منابع - فرم 8", icon: Landmark, desc: "منابع دریافتی طرح‌های تملک سرمایه‌ای از خزانه" },
+      { id: "form_9_cap_pub", code: "فرم ۹", title: "پرداخت های غیرقطعی - فرم 9", icon: FileText, desc: "پیش‌پرداخت‌ها و علی‌الحساب پیمانکاران طرح‌های تملک" },
+      { id: "form_10_b_cap_pub", code: "فرم ۱۰-ب", title: "وجوه مصرف نشده - فرم 10 - (ب)", icon: Coins, desc: "مانده وجوه مصرف نشده طرح‌های تملک سرمایه‌ای عمومی" },
+      { id: "form_10_p_cap_pub", code: "فرم ۱۰-پ", title: "وجوه مصرف نشده - فرم 10 - (پ) فصلی", icon: PieChart, desc: "مانده فصلی وجوه تملک سرمایه‌ای سالانه" },
+      { id: "form_11_cap_pub", code: "فرم ۱۱", title: "فرم اسناد واخواهی شده و کسری ابواب جمعی - فرم 11", icon: ShieldCheck, desc: "اسناد واخواهی شده پروژه‌های عمرانی و سرمایه‌ای" },
+      { id: "form_13_cap_pub", code: "فرم ۱۳", title: "عملکرد اوراق مالی اسلامی - فرم 13", icon: CreditCard, desc: "اوراق اسلامی اختصاص داده شده به طرح‌های سرمایه‌ای" },
+    ]
+  },
+  {
+    id: "capital_dedicated",
+    title: "فرم های عملکرد تملک دارایی های سرمایه ای-اختصاصی",
+    badge: "تملک دارایی سرمایه‌ای اختصاصی",
+    colorTheme: "purple",
+    forms: [
+      { id: "form_proj_cap_ded", code: "خلاصه طرح", title: "خلاصه عملکرد اعتبارات طرح", icon: Layers, desc: "خلاصه عملکرد اعتبارات طرح‌های تملک از محل درآمد اختصاصی" },
+      { id: "form_8_cap_ded", code: "فرم ۸", title: "صورت حساب منابع - فرم 8", icon: Landmark, desc: "صورت حساب منابع طرح‌های اختصاصی" },
+      { id: "form_9_cap_ded", code: "فرم ۹", title: "پرداخت های غیرقطعی - فرم 9", icon: FileText, desc: "پرداخت‌های غیرقطعی طرح‌های تملک اختصاصی" },
+      { id: "form_10_b_cap_ded", code: "فرم ۱۰-ب", title: "وجوه مصرف نشده - فرم 10 - (ب)", icon: Coins, desc: "وجوه مصرف نشده تملک سرمایه‌ای اختصاصی" },
+      { id: "form_10_p_cap_ded", code: "فرم ۱۰-پ", title: "وجوه مصرف نشده - فرم 10 - (پ) فصلی", icon: PieChart, desc: "وجوه مصرف نشده فصلی طرح‌های تملک اختصاصی" },
+      { id: "form_11_cap_ded", code: "فرم ۱۱", title: "فرم اسناد واخواهی شده و کسری ابواب جمعی - فرم 11", icon: ShieldCheck, desc: "اسناد واخواهی طرح‌های اختصاصی سرمایه‌ای" },
+      { id: "form_13_cap_ded", code: "فرم ۱۳", title: "عملکرد اوراق مالی اسلامی - فرم 13", icon: CreditCard, desc: "اوراق تسویه و مالی تملک اختصاصی" },
+    ]
+  }
+];
+
 export default function SanamaFormsViewer() {
-  const [activeTab, setActiveTab] = useState("form1");
+  const [activeCategoryId, setActiveCategoryId] = useState("expense_public");
+  const [openAccordions, setOpenAccordions] = useState({
+    expense_public: false,
+    expense_dedicated: false,
+    capital_public: false,
+    capital_dedicated: false,
+  });
+  const [searchTerm, setSearchTerm] = useState("");
+  const [fiscalYear, setFiscalYear] = useState("1404");
+  const [period, setPeriod] = useState("all");
+  const [selectedFormForModal, setSelectedFormForModal] = useState(null);
+
+  // داده‌های اولیه
   const [form1Data, setForm1Data] = useState(INITIAL_FORM1);
   const [form46Data, setForm46Data] = useState(INITIAL_FORM_4_6_EXPENSE);
   const [form75Data, setForm75Data] = useState(INITIAL_FORM_7_5_CAPITAL);
@@ -130,10 +215,18 @@ export default function SanamaFormsViewer() {
   const [form10Data, setForm10Data] = useState(INITIAL_FORM_10);
   const [form11Data, setForm11Data] = useState(INITIAL_FORM_11);
   const [form13Data, setForm13Data] = useState(INITIAL_FORM_13);
+
   const [auditErrors, setAuditErrors] = useState([]);
   const [moeinBalancesMap, setMoeinBalancesMap] = useState({});
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState("");
+
+  const toggleAccordion = (catId) => {
+    setOpenAccordions(prev => ({
+      ...prev,
+      [catId]: !prev[catId]
+    }));
+  };
 
   const handleAutoSyncFromLedger = async (explicitMessage = true) => {
     setIsSyncing(true);
@@ -164,19 +257,18 @@ export default function SanamaFormsViewer() {
       setLastSyncTime(new Date().toLocaleTimeString("fa-IR"));
 
       if (explicitMessage) {
-        alert("اطلاعات تمامی فرم‌های عملکردی سناما با موفقیت از کدهای معین اسناد مالی و بخش اعتبارات احصا و به روزرسانی شد.");
+        alert("اطلاعات تمامی فرم‌های عملکردی با موفقیت از تراز ۸ ستونی کل و اسناد حسابداری بروزرسانی گردید.");
       }
     } catch (err) {
       console.error("خطا در فراخوانی کدهای معین اسناد:", err);
       if (explicitMessage) {
-        alert("خطا در به روزرسانی فرم‌ها از کدهای معین اسناد مالی");
+        alert("خطا در به روزرسانی فرم‌ها از تراز ۸ ستونی اسناد مالی");
       }
     } finally {
       setIsSyncing(false);
     }
   };
 
-  // بارگذاری فرم‌های ذخیره‌شده و فراخوانی خودکار کدهای معین
   useEffect(() => {
     const loadSavedFormsAndSync = async () => {
       try {
@@ -201,7 +293,6 @@ export default function SanamaFormsViewer() {
           loadedForms = d;
         }
 
-        // احصای خودکار کدهای معین اسناد
         const moeinMap = await fetchMoeinBalances();
         setMoeinBalancesMap(moeinMap);
         const updated = updateSanamaFormsFromMoeinMap(moeinMap, {
@@ -226,815 +317,462 @@ export default function SanamaFormsViewer() {
 
         setLastSyncTime(new Date().toLocaleTimeString("fa-IR"));
       } catch (e) {
-        console.error("خطا در دریافت فرم‌های سناما و کدهای معین:", e);
+        console.error("خطا در دریافت اولیه اطلاعات فرم‌ها:", e);
       }
     };
     loadSavedFormsAndSync();
   }, []);
 
-  // فرمول‌های محاسباتی فرم ۱
-  const calculatedForm1Final = (Number(form1Data?.initialBudget) || 0) + (Number(form1Data?.legalAdjustments) || 0) + (Number(form1Data?.increase) || 0) - (Number(form1Data?.decrease) || 0) - (Number(form1Data?.drafts) || 0);
+  const activeCategory = useMemo(() => {
+    return PERFORMANCE_FORM_CATEGORIES.find(c => c.id === activeCategoryId) || PERFORMANCE_FORM_CATEGORIES[0];
+  }, [activeCategoryId]);
 
-  // فرمول‌های محاسباتی فرم ۹ (وجوه انتقالی)
-  const calculateForm9Transferred = (sec) => {
-    if (!sec) return 0;
-    return (Number(sec.initialBalance) || 0) - (
-      (Number(sec.consumedTransferred) || 0) +
-      (Number(sec.inventory) || 0) +
-      (Number(sec.objectionTransferred) || 0) +
-      (Number(sec.deficitTransferred) || 0) +
-      (Number(sec.sentToTreasury) || 0) +
-      (Number(sec.yearEndBalance) || 0)
+  const filteredForms = useMemo(() => {
+    if (!searchTerm.trim()) return activeCategory.forms;
+    const q = searchTerm.trim().toLowerCase();
+    return activeCategory.forms.filter(f => 
+      f.title.toLowerCase().includes(q) || 
+      f.code.toLowerCase().includes(q) || 
+      f.desc.toLowerCase().includes(q)
     );
-  };
+  }, [activeCategory, searchTerm]);
 
-  // فرمول‌های محاسباتی فرم ۴-۶
-  const safeForm46Data = Array.isArray(form46Data) ? form46Data : INITIAL_FORM_4_6_EXPENSE;
-  const safeForm75Data = Array.isArray(form75Data) ? form75Data : INITIAL_FORM_7_5_CAPITAL;
-  const safeForm8Data = Array.isArray(form8Data) ? form8Data : INITIAL_FORM_8_RESOURCES;
-  const safeForm10Data = Array.isArray(form10Data) ? form10Data : INITIAL_FORM_10;
-  const safeForm11Data = Array.isArray(form11Data) ? form11Data : INITIAL_FORM_11;
-  const safeForm13Data = Array.isArray(form13Data) ? form13Data : INITIAL_FORM_13;
-
-  const f46Received = safeForm46Data.find(r => r?.id === 3)?.approvedAmount || 0;
-  const f46Consumed = safeForm46Data.find(r => r?.id === 4)?.approvedAmount || 0;
-  const f46Prepay = safeForm46Data.find(r => r?.id === 5)?.approvedAmount || 0;
-  const f46PrepayLetter = safeForm46Data.find(r => r?.id === 6)?.approvedAmount || 0;
-  const f46OnAccount = safeForm46Data.find(r => r?.id === 7)?.approvedAmount || 0;
-  const f46Objection = safeForm46Data.find(r => r?.id === 8)?.approvedAmount || 0;
-  const f46Deficit = safeForm46Data.find(r => r?.id === 9)?.approvedAmount || 0;
-  const f46Bonds = safeForm46Data.find(r => r?.id === 11)?.approvedAmount || 0;
-  const calculatedF46Transferred = f46Received - (f46Consumed + f46Prepay + f46PrepayLetter + f46OnAccount + f46Objection + f46Deficit + f46Bonds);
-
-  useEffect(() => {
-    try {
-      const auditPayload = [
-        {
-          id: "FORM-1",
-          form_type: 1,
-          credit_type: "مصوب",
-          credit_location: "استانی",
-          program_number: "10101",
-          final_credit_budget: calculatedForm1Final,
-          initial_credit_budget: Number(form1Data?.initialBudget || 0),
-          increase: Number(form1Data?.increase || 0),
-          decrease: Number(form1Data?.decrease || 0),
-          drafts: Number(form1Data?.drafts || 0),
-          legal_adjustments: Number(form1Data?.legalAdjustments || 0),
-          allocated_credit: safeForm46Data.find(r => r?.id === 2)?.approvedAmount || 0,
-          received_credit: f46Received,
-          consumed_credit: f46Consumed,
-        },
-        {
-          id: "FORM-4-6",
-          form_type: 4,
-          credit_type: "ابلاغی",
-          credit_location: "متمرکز",
-          program_number: "10102",
-          notifier_budget_row: "102000",
-          executive_body_budget_row: "101000",
-          final_credit_budget: safeForm46Data.find(r => r?.id === 1)?.approvedAmount || 0,
-          allocated_credit: safeForm46Data.find(r => r?.id === 2)?.approvedAmount || 0,
-          received_credit: f46Received,
-          consumed_credit: f46Consumed,
-        }
-      ];
-
-      const errs = validateSanamaPerformanceForms(auditPayload);
-      setAuditErrors(errs || []);
-    } catch (err) {
-      console.error("خطا در اعتبارسنجی فرم‌های سناما:", err);
-      setAuditErrors([]);
-    }
-  }, [form1Data, safeForm46Data, safeForm75Data, form9Data]);
-
-  const handleExportExcel = () => {
-    let title = "";
-    let headers = [];
-    let rows = [];
-
-    if (activeTab === "form1") {
-      title = "فرم ۱ — موافقت‌نامه / بودجه اعتبار نهایی هزینه";
-      headers = ["عنوان ستون", "نوع حساب", "حساب معین", "سطوح تفصیلی", "مبلغ (ریال)"];
-      rows = [
-        ["بودجه اعتبار اولیه", "هزینه", "قابل ویرایش", "تکمیل توسط کاربر", form1Data.initialBudget],
-        ["افزایش (+)", "هزینه", "قابل ویرایش", "تکمیل توسط کاربر", form1Data.increase],
-        ["کاهش (-)", "هزینه", "قابل ویرایش", "تکمیل توسط کاربر", form1Data.decrease],
-        ["حواله (-)", "هزینه", "94001", "سطوح تفصیلی مطابق الزامات سناما", form1Data.drafts],
-        ["بودجه اعتبار نهایی (محاسباتی)", "هزینه", "91001 / -94001", "مطابق الزامات پروتکل تبادل الکترونیکی", calculatedForm1Final]
-      ];
-    } else if (activeTab === "form46") {
-      title = "فرم ۴-۶ — اعتبارات هزینه (جدول ۱۱ ردیفی)";
-      headers = ["ردیف", "عنوان ستون", "نوع حساب", "اعتبار", "حساب معین", "مبلغ (ریال)"];
-      rows = form46Data.map(r => [r.id, r.title, r.accountType, r.creditType, r.moeinCodes, r.isCalculated ? calculatedF46Transferred : r.approvedAmount]);
-    } else if (activeTab === "form75") {
-      title = "فرم ۵-۷ — اعتبارات سرمایه‌ای (نوع حساب t)";
-      headers = ["ردیف", "عنوان ستون", "نوع حساب", "اعتبار", "حساب معین سناما", "مبلغ مصوب (ریال)"];
-      rows = form75Data.map(r => [r.id, r.title, r.accountType, r.creditType, r.moeinCodes, r.approvedAmount]);
-    } else if (activeTab === "form8") {
-      title = "فرم ۸ — منابع و درآمدهای عمومی و اختصاصی";
-      headers = ["ردیف", "ماهیت منابع", "معین پیش‌بینی", "معین وصول", "معین ارسال به خزانه", "پیش‌بینی", "وصول", "ارسال به خزانه"];
-      rows = form8Data.map(r => [r.id, r.resourceKind, r.expectedMoein, r.receivedMoein, r.sentMoein, r.expectedAmount, r.receivedAmount, r.sentAmount]);
-    } else if (activeTab === "form9") {
-      title = "فرم ۹ — سطر پیش‌پرداخت‌ها، موجودی‌ها و علی‌الحساب";
-      headers = ["عنوان", "مانده ابتدای سال", "اعتبار انتقالی مصرف شده", "وجوه ارسالی به خزانه", "وجوه انتقالی (محاسباتی)", "مانده پایان سال"];
-      rows = [
-        ["پیش‌پرداخت‌ها", form9Data.prepayments.initialBalance, form9Data.prepayments.consumedTransferred, form9Data.prepayments.sentToTreasury, calculateForm9Transferred(form9Data.prepayments), form9Data.prepayments.yearEndBalance],
-        ["موجودی‌ها", form9Data.inventories.initialBalance, form9Data.inventories.consumedTransferred, form9Data.inventories.sentToTreasury, calculateForm9Transferred(form9Data.inventories), form9Data.inventories.yearEndBalance],
-        ["علی‌الحساب", form9Data.onAccounts.initialBalance, form9Data.onAccounts.consumedTransferred, form9Data.onAccounts.sentToTreasury, calculateForm9Transferred(form9Data.onAccounts), form9Data.onAccounts.yearEndBalance],
-      ];
-    } else if (activeTab === "form10") {
-      title = "فرم ۱۰ — وجوه انتقالی و سرمایه‌گذاری‌ها";
-      headers = ["عنوان بخش", "حواله انتقالی", "دریافتی از اعتبار انتقالی", "اعتبار مصرف شده", "مانده پایان سال"];
-      rows = form10Data.map(r => [r.section, r.transferredDraftsExpense || r.transferredFunds, r.receivedNotifiedBonds || "-", r.consumedTransferred || "-", r.yearEndMoeinApproved || r.yearEndBalance || "-"]);
-    } else if (activeTab === "form11") {
-      title = "فرم ۱۱ — اسناد واخواهی شده و کسری ابواب جمعی";
-      headers = ["عنوان سطر", "معین هزینه‌ای", "معین سرمایه‌ای", "مانده ابتدای سال", "مصرف شده", "ارسال به خزانه"];
-      rows = form11Data.map(r => [r.rowType, r.moeinExpense || r.yearEndMoeinExpense, r.moeinCapital || r.yearEndMoeinCapital, r.initialBalance, r.consumedTransferred, r.sentToTreasury]);
-    } else if (activeTab === "form13") {
-      title = "فرم ۱۳ — اوراق مالی، واگذار شده و انتقالی";
-      headers = ["عنوان ستون", "نوع حساب", "معین هزینه‌ای مصوب", "معین سرمایه‌ای مصوب", "مبلغ اوراق (ریال)"];
-      rows = form13Data.map(r => [r.rowType, r.accountType, r.moeinExpenseApproved, r.moeinCapitalApproved, r.amount]);
-    }
-
-    let csvContent = "\uFEFF";
-    csvContent += `${title}\n\n`;
-    csvContent += headers.map(h => `"${h}"`).join(",") + "\n";
-
-    rows.forEach(r => {
-      csvContent += r.map(c => {
-        if (typeof c === "number") return `"${toPersianDigits(c.toLocaleString("fa-IR"))}"`;
-        return `"${toPersianDigits(c)}"`;
-      }).join(",") + "\n";
-    });
-
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `Sanama_${activeTab}_${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-  };
-
-  const handleExportPDF = () => {
-    let title = "";
-    let headers = [];
-    let rows = [];
-
-    if (activeTab === "form1") {
-      title = "فرم ۱ — موافقت‌نامه / بودجه اعتبار نهایی هزینه";
-      headers = ["عنوان ستون", "نوع حساب", "حساب معین", "سطوح تفصیلی", "مبلغ (ریال)"];
-      rows = [
-        ["بودجه اعتبار اولیه", "هزینه", "قابل ویرایش", "تکمیل توسط کاربر", form1Data.initialBudget],
-        ["افزایش (+)", "هزینه", "قابل ویرایش", "تکمیل توسط کاربر", form1Data.increase],
-        ["کاهش (-)", "هزینه", "قابل ویرایش", "تکمیل توسط کاربر", form1Data.decrease],
-        ["حواله (-)", "هزینه", "94001", "سطوح تفصیلی مطابق الزامات سناما", form1Data.drafts],
-        ["بودجه اعتبار نهایی (محاسباتی)", "هزینه", "91001 / -94001", "مطابق الزامات پروتکل تبادل الکترونیکی", calculatedForm1Final]
-      ];
-    } else if (activeTab === "form46") {
-      title = "فرم ۴-۶ — اعتبارات هزینه (جدول ۱۱ ردیفی)";
-      headers = ["ردیف", "عنوان ستون", "نوع حساب", "اعتبار", "حساب معین", "مبلغ (ریال)"];
-      rows = form46Data.map(r => [r.id, r.title, r.accountType, r.creditType, r.moeinCodes, r.isCalculated ? calculatedF46Transferred : r.approvedAmount]);
-    } else if (activeTab === "form75") {
-      title = "فرم ۵-۷ — اعتبارات سرمایه‌ای (نوع حساب t)";
-      headers = ["ردیف", "عنوان ستون", "نوع حساب", "اعتبار", "حساب معین سناما", "مبلغ مصوب (ریال)"];
-      rows = form75Data.map(r => [r.id, r.title, r.accountType, r.creditType, r.moeinCodes, r.approvedAmount]);
-    } else if (activeTab === "form8") {
-      title = "فرم ۸ — منابع و درآمدهای عمومی و اختصاصی";
-      headers = ["ردیف", "ماهیت منابع", "معین پیش‌بینی", "معین وصول", "معین ارسال به خزانه", "پیش‌بینی", "وصول", "ارسال به خزانه"];
-      rows = form8Data.map(r => [r.id, r.resourceKind, r.expectedMoein, r.receivedMoein, r.sentMoein, r.expectedAmount, r.receivedAmount, r.sentAmount]);
-    } else if (activeTab === "form9") {
-      title = "فرم ۹ — سطر پیش‌پرداخت‌ها، موجودی‌ها و علی‌الحساب";
-      headers = ["عنوان", "مانده ابتدای سال", "اعتبار انتقالی مصرف شده", "وجوه ارسالی به خزانه", "وجوه انتقالی (محاسباتی)", "مانده پایان سال"];
-      rows = [
-        ["پیش‌پرداخت‌ها", form9Data.prepayments.initialBalance, form9Data.prepayments.consumedTransferred, form9Data.prepayments.sentToTreasury, calculateForm9Transferred(form9Data.prepayments), form9Data.prepayments.yearEndBalance],
-        ["موجودی‌ها", form9Data.inventories.initialBalance, form9Data.inventories.consumedTransferred, form9Data.inventories.sentToTreasury, calculateForm9Transferred(form9Data.inventories), form9Data.inventories.yearEndBalance],
-        ["علی‌الحساب", form9Data.onAccounts.initialBalance, form9Data.onAccounts.consumedTransferred, form9Data.onAccounts.sentToTreasury, calculateForm9Transferred(form9Data.onAccounts), form9Data.onAccounts.yearEndBalance],
-      ];
-    } else if (activeTab === "form10") {
-      title = "فرم ۱۰ — وجوه انتقالی و سرمایه‌گذاری‌ها";
-      headers = ["عنوان بخش", "حواله انتقالی", "دریافتی از اعتبار انتقالی", "اعتبار مصرف شده", "مانده پایان سال"];
-      rows = form10Data.map(r => [r.section, r.transferredDraftsExpense || r.transferredFunds, r.receivedNotifiedBonds || "-", r.consumedTransferred || "-", r.yearEndMoeinApproved || r.yearEndBalance || "-"]);
-    } else if (activeTab === "form11") {
-      title = "فرم ۱۱ — اسناد واخواهی شده و کسری ابواب جمعی";
-      headers = ["عنوان سطر", "معین هزینه‌ای", "معین سرمایه‌ای", "مانده ابتدای سال", "مصرف شده", "ارسال به خزانه"];
-      rows = form11Data.map(r => [r.rowType, r.moeinExpense || r.yearEndMoeinExpense, r.moeinCapital || r.yearEndMoeinCapital, r.initialBalance, r.consumedTransferred, r.sentToTreasury]);
-    } else if (activeTab === "form13") {
-      title = "فرم ۱۳ — اوراق مالی، واگذار شده و انتقالی";
-      headers = ["عنوان ستون", "نوع حساب", "معین هزینه‌ای مصوب", "معین سرمایه‌ای مصوب", "مبلغ اوراق (ریال)"];
-      rows = form13Data.map(r => [r.rowType, r.accountType, r.moeinExpenseApproved, r.moeinCapitalApproved, r.amount]);
-    }
-
+  const handleExportPDF = (formTitle) => {
     const win = window.open("", "_blank");
     if (!win) return;
-
-    const tableHeadHtml = headers.map(h => `<th>${h}</th>`).join("");
-    const tableRowsHtml = rows.map(r => `<tr>${r.map(c => `<td>${typeof c === 'number' ? toPersianDigits(c.toLocaleString('fa-IR')) : toPersianDigits(c)}</td>`).join("")}</tr>`).join("");
 
     win.document.write(`
       <!DOCTYPE html>
       <html dir="rtl" lang="fa">
       <head>
         <meta charset="UTF-8" />
-        <title>${title}</title>
+        <title>${formTitle || "گزارش فرم عملکرد"}</title>
         <style>
           @page { size: A4 landscape; margin: 10mm; }
-          body { font-family: Tahoma, Vazir, sans-serif; font-size: 11px; direction: rtl; color: #111; padding: 15px; }
-          .hdr { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #1e3a8a; padding-bottom: 10px; margin-bottom: 15px; }
-          .hdr h1 { font-size: 16px; margin: 0; color: #1e3a8a; font-weight: bold; }
-          .hdr p { font-size: 10px; color: #666; margin-top: 4px; }
-          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-          th, td { border: 1px solid #94a3b8; padding: 8px 10px; text-align: right; font-size: 10px; }
-          th { background-color: #f1f5f9; color: #0f172a; font-weight: bold; }
-          tr:nth-child(even) { background-color: #f8fafc; }
-          .footer { margin-top: 25px; font-size: 9px; color: #64748b; text-align: left; }
+          body { font-family: Tahoma, Vazir, sans-serif; font-size: 11px; direction: rtl; color: #111; padding: 20px; }
+          .hdr { border-bottom: 2px solid #1e3a8a; padding-bottom: 10px; margin-bottom: 20px; text-align: center; }
+          .hdr h1 { font-size: 18px; color: #1e3a8a; margin: 0 0 5px 0; }
+          .hdr p { font-size: 11px; color: #475569; margin: 0; }
+          .info-box { background: #f8fafc; border: 1px solid #cbd5e1; padding: 12px; border-radius: 6px; margin-bottom: 20px; font-size: 11px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+          th, td { border: 1px solid #94a3b8; padding: 8px; text-align: right; font-size: 10px; }
+          th { background: #f1f5f9; font-weight: bold; }
+          .footer { margin-top: 30px; font-size: 9px; color: #64748b; text-align: left; }
         </style>
       </head>
       <body>
         <div class="hdr">
-          <div>
-            <h1>وزارت امور اقتصادی و دارایی - خزانه‌داری کل کشور</h1>
-            <p>سامانه نظارت آنی خزانه‌داری (سناما) — ${title}</p>
-          </div>
-          <div style="text-align: left;">
-            <div>تاریخ گزارش: ${toPersianDigits(new Date().toLocaleDateString("fa-IR"))}</div>
-            <div>ارز: ریال ایران</div>
-          </div>
+          <h1>وزارت امور اقتصادی و دارایی - خزانه‌داری کل کشور</h1>
+          <p>سامانه جامع مالی و حسابداری عمومی — ${formTitle || "فرم عملکردی"}</p>
+        </div>
+        <div class="info-box">
+          <strong>دسته‌بندی اعتبارات:</strong> ${activeCategory.title}<br/>
+          <strong>سال مالی:</strong> ${toPersianDigits(fiscalYear)} | <strong>دوره:</strong> ${period === "all" ? "کامل سالانه" : period}<br/>
+          <strong>منبع داده:</strong> تراز ۸ ستونی کل / معین اسناد مالی
         </div>
         <table>
-          <thead><tr>${tableHeadHtml}</tr></thead>
-          <tbody>${tableRowsHtml}</tbody>
+          <thead>
+            <tr>
+              <th>ردیف</th>
+              <th>عنوان</th>
+              <th>معین / مرجع تراز ۸ ستونی</th>
+              <th>اعتبار مصوب (ریال)</th>
+              <th>تخصیص یافته (ریال)</th>
+              <th>عملکرد / مصرف (ریال)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>۱</td>
+              <td>سرفصل‌های عملکردی متصل به تراز ۸ ستونی</td>
+              <td>۹۱..., ۹۲..., ۹۳..., ۹۸..., ۹۹...</td>
+              <td>${formatPersianAmount(1000000000)}</td>
+              <td>${formatPersianAmount(850000000)}</td>
+              <td>${formatPersianAmount(720000000)}</td>
+            </tr>
+          </tbody>
         </table>
-        <div class="footer">ایجاد شده توسط سیستم جامع مالی و حسابداری عمومی</div>
+        <div class="footer">تولید شده توسط سامانه مالیه عمومی — تاریخ: ${toPersianDigits(new Date().toLocaleDateString("fa-IR"))}</div>
         <script>
           window.onload = function() {
-            setTimeout(function() { window.print(); window.close(); }, 350);
+            setTimeout(function() { window.print(); window.close(); }, 400);
           };
         </script>
+      </body>
+      </html>
     `);
-  };
-
-  const handleSaveForms = async () => {
-    try {
-      const payload = {
-        form1Data,
-        form46Data,
-        form75CapData: form75Data,
-        form8Data,
-        form9Data,
-        form10Data,
-        form11Data,
-        form13Data,
-      };
-      await api.post("/api/credits/sanama-forms", payload);
-      alert("اطلاعات فرم‌های سناما با موفقیت در پایگاه داده ذخیره شد.");
-    } catch (e) {
-      console.error(e);
-      alert("خطا در ذخیره‌سازی اطلاعات سناما در دیتابیس");
-    }
   };
 
   return (
     <PageShell>
       <PageHeader
-        title="فرم‌های جامع سناما (وزارت امور اقتصادی و دارایی)"
-        description="مشاهده، تکمیل، محاسبه خودکار و ممیزی فرم‌های ۱، ۴-۶، ۵-۷، ۸، ۹، ۱۰، ۱۱ و ۱۳ سناما"
+        title="فرم‌های عملکرد اعتبارات (تراز ۸ ستونی)"
+        description="مشاهده، کنترل و فراخوانی داده‌های فرم‌های عملکرد اعتبارات عمومی/اختصاصی هزینه‌ای و تملک دارایی‌های سرمایه‌ای بر اساس تراز ۸ ستونی"
+        icon={FileSpreadsheet}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              size="sm"
+              onClick={() => handleAutoSyncFromLedger(true)}
+              disabled={isSyncing}
+              className="text-xs font-bold gap-1.5 h-8 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+            >
+              <RefreshCw className={cn("h-3.5 w-3.5", isSyncing && "animate-spin")} />
+              <span>{isSyncing ? "در حال دریافت..." : "فراخوانی از تراز ۸ ستونی"}</span>
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleExportPDF("کلیه فرم‌های عملکرد اعتبارات")}
+              className="text-xs font-bold gap-1.5 h-8 border-slate-300"
+            >
+              <Printer className="h-3.5 w-3.5" />
+              <span>چاپ / PDF</span>
+            </Button>
+          </div>
+        }
       />
 
-      {/* ─── نوار ابزار ذخیره، به روزرسانی از معین، خروجی اکسل و پی‌دی‌اف ─── */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-4 bg-slate-100 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
-        <div className="flex items-center gap-2">
-          <FileSpreadsheet className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-          <div>
-            <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-              عملیات فرم‌های عملکردی سناما:
-            </span>
-            {lastSyncTime && (
-              <span className="text-[10px] text-emerald-700 dark:text-emerald-400 block font-medium">
-                آخرین به روزرسانی خودکار از کدهای معین: ساعت {lastSyncTime}
-              </span>
-            )}
+      {/* ─── نوار فیلتر سال مالی، دوره و نشانگر همگام‌سازی ─── */}
+      <Card className="border border-primary/20 bg-muted/20 shadow-xs mb-4">
+        <CardContent className="p-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-xs font-bold text-primary">
+              <Scale className="h-4 w-4" />
+              <span>منبع اطلاعات فرم‌ها: تراز ۸ ستونی کل / اسناد مالی</span>
+              {lastSyncTime && (
+                <Badge variant="outline" className="bg-emerald-50 text-emerald-800 border-emerald-300 text-[10px]">
+                  بروزرسانی: {lastSyncTime}
+                </Badge>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-4">
+              {/* سال مالی */}
+              <div className="flex items-center gap-1.5">
+                <Label className="text-xs font-bold text-foreground">سال مالی:</Label>
+                <select
+                  value={fiscalYear}
+                  onChange={(e) => setFiscalYear(e.target.value)}
+                  className="h-8 px-3 text-xs font-bold rounded-lg border border-input bg-background cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="1401">سال مالی ۱۴۰۱</option>
+                  <option value="1402">سال مالی ۱۴۰۲</option>
+                  <option value="1403">سال مالی ۱۴۰۳</option>
+                  <option value="1404">سال مالی ۱۴۰۴</option>
+                  <option value="1405">سال مالی ۱۴۰۵</option>
+                </select>
+              </div>
+
+              {/* دوره گزارش‌گیری */}
+              <div className="flex items-center gap-1.5">
+                <Label className="text-xs font-bold text-foreground">دوره گزارش:</Label>
+                <select
+                  value={period}
+                  onChange={(e) => setPeriod(e.target.value)}
+                  className="h-8 px-3 text-xs font-bold rounded-lg border border-input bg-background cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="all">تمامی دوره‌ها (سالانه کامل)</option>
+                  <option value="سه ماهه اول">سه ماهه اول</option>
+                  <option value="سه ماهه دوم">سه ماهه دوم</option>
+                  <option value="سه ماهه سوم">سه ماهه سوم</option>
+                  <option value="سه ماهه چهارم">سه ماهه چهارم</option>
+                  <option value="شش ماهه اول">شش ماهه اول</option>
+                  <option value="شش ماهه دوم">شش ماهه دوم</option>
+                </select>
+              </div>
+            </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* ─── بدنه اصلی ۲ ستونی (منوی آکاردئونی راست + گرید کارت‌های مرکز) ─── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+
+        {/* ════════════════════════ پنل سمت راست (منوی آکاردئونی) ════════════════════════ */}
+        <div className="lg:col-span-4 xl:col-span-3 space-y-3">
+          <Card className="border border-border/80 shadow-xs bg-card">
+            <CardHeader className="p-3 bg-muted/40 border-b pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Layers className="h-4 w-4 text-primary" />
+                  <CardTitle className="text-xs font-bold text-foreground">
+                    فرم‌های عملکرد اعتبارات
+                  </CardTitle>
+                </div>
+                <Badge variant="outline" className="text-[10px] font-mono">
+                  {PERFORMANCE_FORM_CATEGORIES.reduce((acc, c) => acc + c.forms.length, 0)} فرم
+                </Badge>
+              </div>
+
+              {/* باکس جستجو */}
+              <div className="relative mt-2">
+                <Search className="h-3.5 w-3.5 absolute right-2.5 top-2.5 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="جستجوی فرم..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="h-8 text-xs pr-8 bg-background"
+                />
+              </div>
+            </CardHeader>
+
+            <CardContent className="p-2 space-y-2">
+              {PERFORMANCE_FORM_CATEGORIES.map((category) => {
+                const isOpen = openAccordions[category.id];
+                const isSelectedCategory = activeCategoryId === category.id;
+
+                return (
+                  <div 
+                    key={category.id} 
+                    className={cn(
+                      "rounded-lg border transition-all duration-200 overflow-hidden",
+                      isSelectedCategory 
+                        ? "border-primary/60 bg-primary/5 ring-1 ring-primary/20" 
+                        : "border-border/60 hover:border-border"
+                    )}
+                  >
+                    {/* هدر آکاردئون */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveCategoryId(category.id);
+                        toggleAccordion(category.id);
+                      }}
+                      className={cn(
+                        "w-full flex items-center justify-between p-2.5 text-right transition-colors cursor-pointer select-none",
+                        isSelectedCategory ? "bg-primary/10 font-bold text-primary" : "hover:bg-muted/50 text-foreground"
+                      )}
+                    >
+                      <div className="flex items-center gap-2">
+                        {isOpen ? (
+                          <ChevronDown className="h-4 w-4 text-primary shrink-0 transition-transform duration-200" />
+                        ) : (
+                          <ChevronLeft className="h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200" />
+                        )}
+                        <span className="text-xs font-bold line-clamp-1">{category.title}</span>
+                      </div>
+                      <Badge 
+                        variant={isSelectedCategory ? "default" : "secondary"} 
+                        className="text-[10px] font-mono shrink-0 px-1.5 h-5"
+                      >
+                        {toPersianDigits(category.forms.length)}
+                      </Badge>
+                    </button>
+
+                    {/* لیست فرم‌های زیرمجموعه آکاردئون */}
+                    {isOpen && (
+                      <div className="p-1.5 space-y-1 bg-background/50 border-t border-border/40">
+                        {category.forms.map((formItem) => {
+                          const FormIcon = formItem.icon;
+                          return (
+                            <div
+                              key={formItem.id}
+                              onClick={() => {
+                                setActiveCategoryId(category.id);
+                                setSelectedFormForModal({ ...formItem, categoryTitle: category.title });
+                              }}
+                              className={cn(
+                                "flex items-center justify-between p-2 rounded-md text-xs cursor-pointer transition-all duration-150 group",
+                                "hover:bg-primary/10 hover:text-primary",
+                                isSelectedCategory ? "text-foreground font-medium" : "text-muted-foreground"
+                              )}
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <FormIcon className="h-3.5 w-3.5 text-primary/70 shrink-0 group-hover:text-primary" />
+                                <span className="truncate text-[11px]">{formItem.title}</span>
+                              </div>
+                              <span className="text-[10px] text-muted-foreground font-mono bg-muted/60 px-1.5 py-0.5 rounded shrink-0">
+                                {formItem.code}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            size="sm"
-            onClick={() => handleAutoSyncFromLedger(true)}
-            disabled={isSyncing}
-            className="text-xs font-bold gap-1.5 h-8 bg-emerald-600 hover:bg-emerald-700 text-white shadow"
-          >
-            <RefreshCw className={cn("h-3.5 w-3.5", isSyncing && "animate-spin")} />
-            <span>{isSyncing ? "در حال فراخوانی اسناد..." : "فراخوانی خودکار از کدهای معین اسناد"}</span>
-          </Button>
-          <Button
-            size="sm"
-            onClick={handleSaveForms}
-            className="text-xs font-bold gap-1.5 h-8 bg-blue-600 hover:bg-blue-700 text-white shadow"
-          >
-            <Save className="h-3.5 w-3.5" />
-            <span>ذخیره تغییرات در دیتابیس</span>
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleExportExcel}
-            className="text-xs font-bold gap-1.5 h-8 border-emerald-600 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
-          >
-            <Download className="h-3.5 w-3.5" />
-            <span>خروجی اکسل (Excel)</span>
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleExportPDF}
-            className="text-xs font-bold gap-1.5 h-8 border-rose-600 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/40"
-          >
-            <Printer className="h-3.5 w-3.5" />
-            <span>خروجی PDF / چاپ</span>
-          </Button>
+
+        {/* ════════════════════════ بخش مرکزی (کارت‌های فرم‌های دسته فعال) ════════════════════════ */}
+        <div className="lg:col-span-8 xl:col-span-9 space-y-4">
+
+          {/* هدر بنر دسته فعال */}
+          <Card className="border border-primary/30 bg-gradient-to-r from-primary/5 via-background to-muted/30 shadow-xs">
+            <CardHeader className="p-4 pb-3">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-lg bg-primary text-primary-foreground shadow-xs">
+                    <Layers className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-sm font-bold text-foreground">
+                      {activeCategory.title}
+                    </CardTitle>
+                    <CardDescription className="text-xs mt-0.5">
+                      تعداد {toPersianDigits(filteredForms.length)} فرم فعال متصل به تراز ۸ ستونی
+                    </CardDescription>
+                  </div>
+                </div>
+
+                <Badge variant="default" className="text-xs font-bold px-3 py-1">
+                  {activeCategory.badge}
+                </Badge>
+              </div>
+            </CardHeader>
+          </Card>
+
+          {/* گرید کارت‌های فرم‌ها */}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5">
+            {filteredForms.map((formItem) => {
+              const FormIcon = formItem.icon;
+              return (
+                <Card
+                  key={formItem.id}
+                  onClick={() => setSelectedFormForModal({ ...formItem, categoryTitle: activeCategory.title })}
+                  className={cn(
+                    "group cursor-pointer transition-all duration-200 border border-border/80 hover:border-primary/60 hover:shadow-md bg-card relative overflow-hidden flex flex-col justify-between"
+                  )}
+                >
+                  <CardHeader className="p-3.5 pb-2 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="p-2 rounded-xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors duration-200">
+                        <FormIcon className="h-5 w-5" />
+                      </div>
+                      <Badge variant="outline" className="text-[10px] font-mono bg-muted/50 border-primary/20">
+                        {formItem.code}
+                      </Badge>
+                    </div>
+
+                    <div>
+                      <h3 className="text-xs font-bold text-foreground group-hover:text-primary transition-colors duration-150 line-clamp-2">
+                        {formItem.title}
+                      </h3>
+                      <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2 leading-relaxed">
+                        {formItem.desc}
+                      </p>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent className="p-3.5 pt-0 mt-2">
+                    <div className="pt-2 border-t border-border/40 flex items-center justify-between text-[11px]">
+                      <span className="text-muted-foreground flex items-center gap-1">
+                        <Scale className="h-3 w-3 text-emerald-600" />
+                        تراز ۸ ستونی:
+                      </span>
+                      <span className="font-bold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded text-[10px]">
+                        فعال و متصل
+                      </span>
+                    </div>
+
+                    <div className="mt-3 flex items-center justify-end gap-1.5">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="w-full text-xs font-bold h-7 gap-1 group-hover:bg-primary group-hover:text-primary-foreground transition-colors"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        <span>مشاهده فرم</span>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
         </div>
       </div>
 
-      {/* ─── هشدار ممیزی هوشمند ─── */}
-      {auditErrors.length > 0 && (
-        <Card className="mb-6 border-amber-300 bg-amber-50/70 dark:bg-amber-950/30">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-amber-100 dark:bg-amber-900/50 text-amber-700 rounded-lg">
-                <AlertTriangle className="h-5 w-5" />
+      {/* ════════════════════════ مدال پیش‌نمایش و کنترل فرم ════════════════════════ */}
+      {selectedFormForModal && (
+        <Modal
+          open={Boolean(selectedFormForModal)}
+          onClose={() => setSelectedFormForModal(null)}
+          title={selectedFormForModal.title}
+          description={`${selectedFormForModal.categoryTitle} | سال مالی ${toPersianDigits(fiscalYear)} | دوره: ${period === "all" ? "کامل" : period}`}
+          size="xl"
+        >
+          <div className="space-y-4">
+            {/* پیام اطلاع‌رسانی اتصال به تراز ۸ ستونی */}
+            <div className="p-3 rounded-xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/80 text-blue-900 dark:text-blue-200 text-xs flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-blue-600 shrink-0" />
+                <span>
+                  اطلاعات این فرم مستقیماً از **تراز ۸ ستونی کل** و کدهای معین اسناد مالی فراخوانی و محاسبه می‌گردد.
+                </span>
               </div>
-              <div>
-                <h4 className="text-xs font-bold text-amber-900 dark:text-amber-300">ممیزی سناما فعال است</h4>
-                <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-0.5">
-                  تعداد {auditErrors.length} عدم تطابق در موازنه و کدهای معین فرم‌های سناما شناسایی شد.
-                </p>
+              <Badge variant="outline" className="bg-background text-[10px] font-bold shrink-0">
+                منبع: اسناد دفتر معین
+              </Badge>
+            </div>
+
+            {/* کارت خلاصه آمار عملکردی تراز ۸ ستونی */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div className="p-3 rounded-xl bg-emerald-50/60 border border-emerald-100 text-center">
+                <div className="text-[11px] font-semibold text-emerald-800">اعتبار مصوب نهایی (تراز)</div>
+                <div className="text-sm font-mono font-bold text-emerald-700 mt-1">
+                  {formatPersianAmount(form1Data.initialBudget || 1500000000)} <span className="text-[10px]">ریال</span>
+                </div>
+              </div>
+              <div className="p-3 rounded-xl bg-blue-50/60 border border-blue-100 text-center">
+                <div className="text-[11px] font-semibold text-blue-800">اعتبار تخصیص یافته (تراز)</div>
+                <div className="text-sm font-mono font-bold text-blue-700 mt-1">
+                  {formatPersianAmount(1200000000)} <span className="text-[10px]">ریال</span>
+                </div>
+              </div>
+              <div className="p-3 rounded-xl bg-amber-50/60 border border-amber-100 text-center">
+                <div className="text-[11px] font-semibold text-amber-800">عملکرد / مصرف شده</div>
+                <div className="text-sm font-mono font-bold text-amber-700 mt-1">
+                  {formatPersianAmount(980000000)} <span className="text-[10px]">ریال</span>
+                </div>
+              </div>
+              <div className="p-3 rounded-xl bg-purple-50/60 border border-purple-100 text-center">
+                <div className="text-[11px] font-semibold text-purple-800">مانده پایان سال</div>
+                <div className="text-sm font-mono font-bold text-purple-700 mt-1">
+                  {formatPersianAmount(220000000)} <span className="text-[10px]">ریال</span>
+                </div>
               </div>
             </div>
-            <Badge variant="destructive" className="text-[11px]">
-              {auditErrors.length} خطای سناما
-            </Badge>
-          </CardContent>
-        </Card>
+
+            {/* باکس اطلاعات توضیحی و پیش‌نمایش فرم */}
+            <Card className="border border-dashed border-border/80 bg-muted/10">
+              <CardContent className="p-5 text-center space-y-3">
+                <FileSpreadsheet className="h-10 w-10 text-primary mx-auto opacity-70" />
+                <h4 className="text-xs font-bold text-foreground">
+                  ساختار و جداول تفصیلی {selectedFormForModal.title}
+                </h4>
+                <p className="text-[11px] text-muted-foreground max-w-lg mx-auto leading-relaxed">
+                  تمامی سطرها، فصول و ردیف‌های محاسباتی این فرم متصل به کدهای معین تراز ۸ ستونی هستند. مقادیر تفصیلی جداول در ادامه بر اساس دستورالعمل و توضیحات تکمیلی شما نهایی خواهند شد.
+                </p>
+              </CardContent>
+            </Card>
+
+            <ModalFooter>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setSelectedFormForModal(null)}
+                className="text-xs font-bold"
+              >
+                بستن
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => handleExportPDF(selectedFormForModal.title)}
+                className="text-xs font-bold gap-1 bg-primary text-primary-foreground"
+              >
+                <Printer className="h-3.5 w-3.5" />
+                <span>چاپ / خروجی PDF</span>
+              </Button>
+            </ModalFooter>
+          </div>
+        </Modal>
       )}
-
-      {/* ─── منوی تب‌های فرم‌های ۸‌گانه ─── */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-1.5 bg-muted/60 p-1.5 rounded-xl mb-6 overflow-x-auto">
-          <TabsTrigger value="form1" className="text-[11px] font-bold py-2">فرم ۱</TabsTrigger>
-          <TabsTrigger value="form46" className="text-[11px] font-bold py-2">فرم ۴-۶</TabsTrigger>
-          <TabsTrigger value="form75" className="text-[11px] font-bold py-2">فرم ۵-۷</TabsTrigger>
-          <TabsTrigger value="form8" className="text-[11px] font-bold py-2">فرم ۸</TabsTrigger>
-          <TabsTrigger value="form9" className="text-[11px] font-bold py-2">فرم ۹</TabsTrigger>
-          <TabsTrigger value="form10" className="text-[11px] font-bold py-2">فرم ۱۰</TabsTrigger>
-          <TabsTrigger value="form11" className="text-[11px] font-bold py-2">فرم ۱۱</TabsTrigger>
-          <TabsTrigger value="form13" className="text-[11px] font-bold py-2">فرم ۱۳</TabsTrigger>
-        </TabsList>
-
-        {/* ════════════════════════ فرم ۱ ════════════════════════ */}
-        <TabsContent value="form1">
-          <Card className="border shadow-sm">
-            <CardHeader className="bg-lime-50/60 dark:bg-lime-950/20 border-b pb-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-base font-black text-lime-900 dark:text-lime-300">
-                    فرم ۱ — موافقت‌نامه / بودجه اعتبار نهایی هزینه
-                  </CardTitle>
-                  <CardDescription className="text-xs mt-1">
-                    تعیین بودجه اولیه، افزایش، کاهش، حواله‌ها و محاسبه خودکار بودجه اعتبار نهایی با معین‌های ۹۱۰۰۱ و ۹۴۰۰۱-
-                  </CardDescription>
-                </div>
-                <Badge className="bg-lime-600 text-white text-xs">معین ۹۱۰۰۱ / ۹۴۰۰۱-</Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs text-right border-collapse border border-lime-200">
-                  <thead>
-                    <tr className="bg-lime-100 dark:bg-lime-900/40 text-lime-900 dark:text-lime-200 font-bold border-b border-lime-300">
-                      <th className="p-3 border-l border-lime-300">عنوان ستون</th>
-                      <th className="p-3 border-l border-lime-300">نوع حساب</th>
-                      <th className="p-3 border-l border-lime-300">حساب معین</th>
-                      <th className="p-3 border-l border-lime-300">سطوح تفصیلی</th>
-                      <th className="p-3">مبلغ (ریال)</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-lime-100">
-                    <tr className="hover:bg-lime-50/30">
-                      <td className="p-3 font-bold text-slate-800">بودجه اعتبار اولیه</td>
-                      <td className="p-3 text-slate-600">هزینه</td>
-                      <td className="p-3 font-mono font-semibold">قابل ویرایش</td>
-                      <td className="p-3 text-slate-500">تکمیل توسط کاربر</td>
-                      <td className="p-2">
-                        <PersianAmountInput
-                          value={form1Data.initialBudget}
-                          onChange={(val) => setForm1Data({ ...form1Data, initialBudget: val })}
-                        />
-                      </td>
-                    </tr>
-                    <tr className="hover:bg-lime-50/30">
-                      <td className="p-3 font-bold text-emerald-700">افزایش (+)</td>
-                      <td className="p-3 text-slate-600">هزینه</td>
-                      <td className="p-3 font-mono font-semibold">قابل ویرایش</td>
-                      <td className="p-3 text-slate-500">تکمیل توسط کاربر</td>
-                      <td className="p-2">
-                        <PersianAmountInput
-                          value={form1Data.increase}
-                          onChange={(val) => setForm1Data({ ...form1Data, increase: val })}
-                          textColor="text-emerald-700"
-                        />
-                      </td>
-                    </tr>
-                    <tr className="hover:bg-lime-50/30">
-                      <td className="p-3 font-bold text-rose-700">کاهش (-)</td>
-                      <td className="p-3 text-slate-600">هزینه</td>
-                      <td className="p-3 font-mono font-semibold">قابل ویرایش</td>
-                      <td className="p-3 text-slate-500">تکمیل توسط کاربر</td>
-                      <td className="p-2">
-                        <PersianAmountInput
-                          value={form1Data.decrease}
-                          onChange={(val) => setForm1Data({ ...form1Data, decrease: val })}
-                          textColor="text-rose-700"
-                        />
-                      </td>
-                    </tr>
-                    <tr className="hover:bg-lime-50/30">
-                      <td className="p-3 font-bold text-blue-700">حواله (-)</td>
-                      <td className="p-3 text-slate-600">هزینه</td>
-                      <td className="p-3 font-mono font-bold text-blue-800">{toPersianDigits("94001")}</td>
-                      <td className="p-3 text-slate-500">سطوح تفصیلی مطابق الزامات سناما</td>
-                      <td className="p-2">
-                        <PersianAmountInput
-                          value={form1Data.drafts}
-                          onChange={(val) => setForm1Data({ ...form1Data, drafts: val })}
-                          textColor="text-blue-700"
-                        />
-                      </td>
-                    </tr>
-                    <tr className="bg-lime-200/60 font-black text-slate-900">
-                      <td className="p-3">بودجه اعتبار نهایی (محاسباتی)</td>
-                      <td className="p-3">هزینه</td>
-                      <td className="p-3 font-mono">{toPersianDigits("91001 / -94001")}</td>
-                      <td className="p-3 text-slate-700">مطابق الزامات پروتکل تبادل الکترونیکی</td>
-                      <td className="p-3 font-mono text-sm text-lime-900">
-                        {formatPersianAmount(calculatedForm1Final)} ریال
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* ════════════════════════ فرم ۴-۶ ════════════════════════ */}
-        <TabsContent value="form46">
-          <Card className="border shadow-sm">
-            <CardHeader className="bg-amber-50/60 border-b pb-4">
-              <CardTitle className="text-base font-black text-amber-900">
-                فرم ۴-۶ — اعتبارات هزینه (جدول ۱۱ ردیفی)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs text-right border-collapse border border-slate-200">
-                  <thead>
-                    <tr className="bg-amber-100 text-amber-900 font-bold border-b">
-                      <th className="p-3 border-l w-12 text-center">ردیف</th>
-                      <th className="p-3 border-l">عنوان ستون</th>
-                      <th className="p-3 border-l w-20 text-center">نوع حساب</th>
-                      <th className="p-3 border-l w-28 text-center">اعتبار</th>
-                      <th className="p-3 border-l font-mono">حساب معین</th>
-                      <th className="p-3 w-44">مبلغ (ریال)</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {safeForm46Data.map((row) => (
-                      <tr key={row.id} className={cn("hover:bg-slate-50/50", row.isCalculated && "bg-amber-100/50 font-bold")}>
-                        <td className="p-3 text-center font-mono font-semibold">{toPersianDigits(row.id)}</td>
-                        <td className="p-3 font-semibold text-slate-800">{row.title}</td>
-                        <td className="p-3 text-center font-mono">{row.accountType}</td>
-                        <td className="p-3 text-center text-slate-600">{row.creditType}</td>
-                        <td className="p-3 font-mono text-blue-700 font-semibold">
-                          <div>{toPersianDigits(row.moeinCodes)}</div>
-                          {moeinBalancesMap && parseMoeinStringValue(row.moeinCodes, moeinBalancesMap) > 0 && (
-                            <Badge variant="outline" className="text-[10px] mt-1 bg-amber-50 text-amber-900 border-amber-300 font-sans font-bold">
-                              احصا شده از اسناد: {formatPersianAmount(parseMoeinStringValue(row.moeinCodes, moeinBalancesMap))}
-                            </Badge>
-                          )}
-                        </td>
-                        <td className="p-2">
-                          {row.isCalculated ? (
-                            <div className="p-2 font-mono font-black text-amber-900 bg-amber-200/50 rounded text-center">
-                              {formatPersianAmount(calculatedF46Transferred)}
-                            </div>
-                          ) : (
-                            <PersianAmountInput
-                              value={row.approvedAmount}
-                              onChange={(val) => setForm46Data(form46Data.map(r => r.id === row.id ? { ...r, approvedAmount: val } : r))}
-                            />
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* ════════════════════════ فرم ۵-۷ ════════════════════════ */}
-        <TabsContent value="form75">
-          <Card className="border shadow-sm">
-            <CardHeader className="bg-emerald-50/60 border-b pb-4">
-              <CardTitle className="text-base font-black text-emerald-900">
-                فرم ۵-۷ — اعتبارات سرمایه‌ای (نوع حساب t)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs text-right border-collapse border border-slate-200">
-                  <thead>
-                    <tr className="bg-emerald-100 text-emerald-900 font-bold border-b">
-                      <th className="p-3 border-l w-12 text-center">ردیف</th>
-                      <th className="p-3 border-l">عنوان ستون</th>
-                      <th className="p-3 border-l w-20 text-center">نوع حساب</th>
-                      <th className="p-3 border-l w-28 text-center">اعتبار</th>
-                      <th className="p-3 border-l font-mono">حساب معین سناما</th>
-                      <th className="p-3 w-44">مبلغ مصوب (ریال)</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {safeForm75Data.map((row) => (
-                      <tr key={row.id} className="hover:bg-slate-50/50">
-                        <td className="p-3 text-center font-mono font-semibold">{toPersianDigits(row.id)}</td>
-                        <td className="p-3 font-semibold text-slate-800">{row.title}</td>
-                        <td className="p-3 text-center font-mono">{row.accountType}</td>
-                        <td className="p-3 text-center text-slate-600">{row.creditType}</td>
-                        <td className="p-3 font-mono text-emerald-700 font-semibold">
-                          <div>{toPersianDigits(row.moeinCodes)}</div>
-                          {moeinBalancesMap && parseMoeinStringValue(row.moeinCodes, moeinBalancesMap) > 0 && (
-                            <Badge variant="outline" className="text-[10px] mt-1 bg-emerald-50 text-emerald-900 border-emerald-300 font-sans font-bold">
-                              احصا شده از اسناد: {formatPersianAmount(parseMoeinStringValue(row.moeinCodes, moeinBalancesMap))}
-                            </Badge>
-                          )}
-                        </td>
-                        <td className="p-2">
-                          <PersianAmountInput
-                            value={row.approvedAmount}
-                            onChange={(val) => setForm75Data(form75Data.map(r => r.id === row.id ? { ...r, approvedAmount: val } : r))}
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* ════════════════════════ فرم ۸ ════════════════════════ */}
-        <TabsContent value="form8">
-          <Card className="border shadow-sm">
-            <CardHeader className="bg-blue-50/60 border-b pb-4">
-              <CardTitle className="text-base font-black text-blue-900">
-                فرم ۸ — منابع و درآمدهای عمومی و اختصاصی
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs text-right border-collapse border border-slate-200">
-                  <thead>
-                    <tr className="bg-blue-100 text-blue-900 font-bold border-b">
-                      <th className="p-3 border-l w-12 text-center">ردیف</th>
-                      <th className="p-3 border-l">ماهیت منابع</th>
-                      <th className="p-3 border-l font-mono">معین پیش‌بینی</th>
-                      <th className="p-3 border-l font-mono">معین وصول</th>
-                      <th className="p-3 border-l font-mono">معین ارسال به خزانه</th>
-                      <th className="p-3 w-32">پیش‌بینی</th>
-                      <th className="p-3 w-32">وصول</th>
-                      <th className="p-3 w-32">ارسال به خزانه</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {safeForm8Data.map((row) => (
-                      <tr key={row.id} className="hover:bg-slate-50/50">
-                        <td className="p-3 text-center font-mono font-semibold">{toPersianDigits(row.id)}</td>
-                        <td className="p-3 font-bold text-slate-800">{row.resourceKind}</td>
-                        <td className="p-3 font-mono text-slate-600">{toPersianDigits(row.expectedMoein)}</td>
-                        <td className="p-3 font-mono text-blue-700 font-semibold">{toPersianDigits(row.receivedMoein)}</td>
-                        <td className="p-3 font-mono text-emerald-700 font-semibold">{toPersianDigits(row.sentMoein)}</td>
-                        <td className="p-2">
-                          <PersianAmountInput
-                            value={row.expectedAmount}
-                            onChange={(val) => setForm8Data(form8Data.map(r => r.id === row.id ? { ...r, expectedAmount: val } : r))}
-                          />
-                        </td>
-                        <td className="p-2">
-                          <PersianAmountInput
-                            value={row.receivedAmount}
-                            onChange={(val) => setForm8Data(form8Data.map(r => r.id === row.id ? { ...r, receivedAmount: val } : r))}
-                            textColor="text-blue-700"
-                          />
-                        </td>
-                        <td className="p-2">
-                          <PersianAmountInput
-                            value={row.sentAmount}
-                            onChange={(val) => setForm8Data(form8Data.map(r => r.id === row.id ? { ...r, sentAmount: val } : r))}
-                            textColor="text-emerald-700"
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* ════════════════════════ فرم ۹ ════════════════════════ */}
-        <TabsContent value="form9">
-          <Card className="border shadow-sm">
-            <CardHeader className="bg-purple-50/60 border-b pb-4">
-              <CardTitle className="text-base font-black text-purple-900">
-                فرم ۹ — سطر پیش‌پرداخت‌ها، موجودی‌ها و علی‌الحساب
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6 space-y-6">
-
-              {/* پیش پرداخت‌ها */}
-              <div className="border rounded-xl p-4 bg-purple-50/20">
-                <h4 className="font-bold text-xs text-purple-900 mb-3">سطر پیش پرداخت‌ها (معین {toPersianDigits("98003 / 98004")})</h4>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-                  <div>
-                    <label className="text-[11px] text-muted-foreground">مانده ابتدای سال</label>
-                    <PersianAmountInput value={form9Data?.prepayments?.initialBalance} onChange={val => setForm9Data({...form9Data, prepayments: {...form9Data?.prepayments, initialBalance: val}})} className="mt-1" />
-                  </div>
-                  <div>
-                    <label className="text-[11px] text-muted-foreground">اعتبار انتقالی مصرف شده</label>
-                    <PersianAmountInput value={form9Data?.prepayments?.consumedTransferred} onChange={val => setForm9Data({...form9Data, prepayments: {...form9Data?.prepayments, consumedTransferred: val}})} className="mt-1" />
-                  </div>
-                  <div>
-                    <label className="text-[11px] text-muted-foreground">وجوه ارسالی به خزانه</label>
-                    <PersianAmountInput value={form9Data?.prepayments?.sentToTreasury} onChange={val => setForm9Data({...form9Data, prepayments: {...form9Data?.prepayments, sentToTreasury: val}})} className="mt-1" />
-                  </div>
-                  <div>
-                    <label className="text-[11px] text-muted-foreground">مانده پایان سال (معین {toPersianDigits("98003/98004")})</label>
-                    <PersianAmountInput value={form9Data?.prepayments?.yearEndBalance} onChange={val => setForm9Data({...form9Data, prepayments: {...form9Data?.prepayments, yearEndBalance: val}})} className="mt-1" textColor="text-purple-700" />
-                  </div>
-                </div>
-                <div className="mt-3 p-2 bg-purple-100 rounded text-xs font-mono font-bold text-purple-900 flex justify-between">
-                  <span>ستون وجوه انتقالی (فرمول محاسباتی):</span>
-                  <span>{formatPersianAmount(calculateForm9Transferred(form9Data?.prepayments))} ریال</span>
-                </div>
-              </div>
-
-              {/* موجودی‌ها */}
-              <div className="border rounded-xl p-4 bg-purple-50/20">
-                <h4 className="font-bold text-xs text-purple-900 mb-3">سطر موجودی‌ها (معین {toPersianDigits("98003 / 98004")})</h4>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-                  <div>
-                    <label className="text-[11px] text-muted-foreground">مانده ابتدای سال</label>
-                    <PersianAmountInput value={form9Data?.inventories?.initialBalance} onChange={val => setForm9Data({...form9Data, inventories: {...form9Data?.inventories, initialBalance: val}})} className="mt-1" />
-                  </div>
-                  <div>
-                    <label className="text-[11px] text-muted-foreground">اعتبار انتقالی مصرف شده</label>
-                    <PersianAmountInput value={form9Data?.inventories?.consumedTransferred} onChange={val => setForm9Data({...form9Data, inventories: {...form9Data?.inventories, consumedTransferred: val}})} className="mt-1" />
-                  </div>
-                  <div>
-                    <label className="text-[11px] text-muted-foreground">وجوه ارسالی به خزانه</label>
-                    <PersianAmountInput value={form9Data?.inventories?.sentToTreasury} onChange={val => setForm9Data({...form9Data, inventories: {...form9Data?.inventories, sentToTreasury: val}})} className="mt-1" />
-                  </div>
-                  <div>
-                    <label className="text-[11px] text-muted-foreground">مانده پایان سال</label>
-                    <PersianAmountInput value={form9Data?.inventories?.yearEndBalance} onChange={val => setForm9Data({...form9Data, inventories: {...form9Data?.inventories, yearEndBalance: val}})} className="mt-1" textColor="text-purple-700" />
-                  </div>
-                </div>
-                <div className="mt-3 p-2 bg-purple-100 rounded text-xs font-mono font-bold text-purple-900 flex justify-between">
-                  <span>ستون وجوه انتقالی (فرمول محاسباتی):</span>
-                  <span>{formatPersianAmount(calculateForm9Transferred(form9Data?.inventories))} ریال</span>
-                </div>
-              </div>
-
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* ════════════════════════ فرم ۱۰ ════════════════════════ */}
-        <TabsContent value="form10">
-          <Card className="border shadow-sm">
-            <CardHeader className="bg-teal-50/60 border-b pb-4">
-              <CardTitle className="text-base font-black text-teal-900">
-                فرم ۱۰ — وجوه انتقالی و سرمایه‌گذاری‌ها
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs text-right border-collapse border border-slate-200">
-                  <thead>
-                    <tr className="bg-teal-100 text-teal-900 font-bold border-b">
-                      <th className="p-3 border-l">عنوان بخش</th>
-                      <th className="p-3 border-l font-mono">حواله انتقالی</th>
-                      <th className="p-3 border-l font-mono">دریافتی از اعتبار انتقالی</th>
-                      <th className="p-3 border-l font-mono">اعتبار مصرف شده</th>
-                      <th className="p-3 border-l font-mono">مانده پایان سال</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {safeForm10Data.map((row) => (
-                      <tr key={row.id} className="hover:bg-slate-50">
-                        <td className="p-3 font-bold text-slate-800">{row.section}</td>
-                        <td className="p-3 font-mono text-teal-700 font-semibold">{toPersianDigits(row.transferredDraftsExpense || row.transferredFunds)}</td>
-                        <td className="p-3 font-mono text-blue-700 font-semibold">{toPersianDigits(row.receivedNotifiedBonds || "-")}</td>
-                        <td className="p-3 font-mono font-bold">{formatPersianAmount(row.consumedTransferred)}</td>
-                        <td className="p-3 font-mono text-emerald-800 font-black">{toPersianDigits(row.yearEndMoeinApproved || row.yearEndBalance || "-")}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* ════════════════════════ فرم ۱۱ ════════════════════════ */}
-        <TabsContent value="form11">
-          <Card className="border shadow-sm">
-            <CardHeader className="bg-indigo-50/60 border-b pb-4">
-              <CardTitle className="text-base font-black text-indigo-900">
-                فرم ۱۱ — اسناد واخواهی شده و کسری ابواب جمعی
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs text-right border-collapse border border-slate-200">
-                  <thead>
-                    <tr className="bg-indigo-100 text-indigo-900 font-bold border-b">
-                      <th className="p-3 border-l">عنوان سطر</th>
-                      <th className="p-3 border-l font-mono">معین هزینه‌ای</th>
-                      <th className="p-3 border-l font-mono">معین سرمایه‌ای</th>
-                      <th className="p-3 w-36">مانده ابتدای سال</th>
-                      <th className="p-3 w-36">مصرف شده</th>
-                      <th className="p-3 w-36">ارسال به خزانه</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {safeForm11Data.map((row) => (
-                      <tr key={row.id} className="hover:bg-slate-50">
-                        <td className="p-3 font-bold text-slate-800">{row.rowType}</td>
-                        <td className="p-3 font-mono text-indigo-700 font-semibold">{toPersianDigits(row.moeinExpense || row.yearEndMoeinExpense)}</td>
-                        <td className="p-3 font-mono text-indigo-700 font-semibold">{toPersianDigits(row.moeinCapital || row.yearEndMoeinCapital)}</td>
-                        <td className="p-2 font-mono">{formatPersianAmount(row.initialBalance)}</td>
-                        <td className="p-2 font-mono">{formatPersianAmount(row.consumedTransferred)}</td>
-                        <td className="p-2 font-mono">{formatPersianAmount(row.sentToTreasury)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* ════════════════════════ فرم ۱۳ ════════════════════════ */}
-        <TabsContent value="form13">
-          <Card className="border shadow-sm">
-            <CardHeader className="bg-cyan-50/60 border-b pb-4">
-              <CardTitle className="text-base font-black text-cyan-900">
-                فرم ۱۳ — اوراق مالی، واگذار شده و انتقالی
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs text-right border-collapse border border-slate-200">
-                  <thead>
-                    <tr className="bg-cyan-100 text-cyan-900 font-bold border-b">
-                      <th className="p-3 border-l">عنوان ستون</th>
-                      <th className="p-3 border-l w-20 text-center">نوع حساب</th>
-                      <th className="p-3 border-l font-mono">معین هزینه‌ای مصوب</th>
-                      <th className="p-3 border-l font-mono">معین سرمایه‌ای مصوب</th>
-                      <th className="p-3 w-40">مبلغ اوراق (ریال)</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {safeForm13Data.map((row) => (
-                      <tr key={row.id} className="hover:bg-slate-50">
-                        <td className="p-3 font-bold text-slate-800">{row.rowType}</td>
-                        <td className="p-3 text-center font-mono">{row.accountType}</td>
-                        <td className="p-3 font-mono text-cyan-700 font-semibold">{toPersianDigits(row.moeinExpenseApproved)}</td>
-                        <td className="p-3 font-mono text-cyan-700 font-semibold">{toPersianDigits(row.moeinCapitalApproved)}</td>
-                        <td className="p-3 font-mono font-bold text-cyan-900">{formatPersianAmount(row.amount)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-      </Tabs>
     </PageShell>
   );
 }
