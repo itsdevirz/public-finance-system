@@ -20,6 +20,8 @@ export function Modal({ open, onClose, title, description, children, size = "md"
     md: "max-w-lg",
     lg: "max-w-2xl",
     xl: "max-w-3xl",
+    "2xl": "max-w-5xl",
+    full: "max-w-[96vw]",
   };
 
   return (

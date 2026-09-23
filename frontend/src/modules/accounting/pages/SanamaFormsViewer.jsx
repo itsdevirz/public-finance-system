@@ -15,6 +15,16 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { validateSanamaPerformanceForms } from "@/lib/sanamaPerformanceValidation";
 import { fetchMoeinBalances, parseMoeinStringValue, updateSanamaFormsFromMoeinMap } from "@/lib/sanamaMoeinAutoSync";
+import SanamaForm1ProgramExpense, { DEFAULT_PROGRAM_ROWS } from "../components/SanamaForm1ProgramExpense";
+import SanamaForm2ChapterExpense, { INITIAL_CHAPTER_ROWS } from "../components/SanamaForm2ChapterExpense";
+import SanamaForm8Resources, { INITIAL_FORM_8_ROWS } from "../components/SanamaForm8Resources";
+import SanamaForm9NonDefinitePayments, { INITIAL_FORM_9_ROWS } from "../components/SanamaForm9NonDefinitePayments";
+import SanamaForm10BUnconsumedFunds, { INITIAL_FORM_10B_ROWS } from "../components/SanamaForm10BUnconsumedFunds";
+import SanamaForm10PChapterUnconsumed, { INITIAL_FORM_10P_ROWS } from "../components/SanamaForm10PChapterUnconsumed";
+import SanamaForm11ObjectedAndDeficit, { INITIAL_FORM_11_ROWS } from "../components/SanamaForm11ObjectedAndDeficit";
+import SanamaForm12StaffSalaries, { INITIAL_FORM_12_ROWS } from "../components/SanamaForm12StaffSalaries";
+import SanamaForm13IslamicBonds, { INITIAL_FORM_13_ROWS } from "../components/SanamaForm13IslamicBonds";
+import SanamaFormCapitalProjectSummary, { INITIAL_PROJECT_SUMMARY_ROWS } from "../components/SanamaFormCapitalProjectSummary";
 
 // ─── توابع کمکی تبدیل و نمایش اعداد به فارسی ──────────────────────────────────────────
 export function toPersianDigits(n) {
@@ -207,6 +217,16 @@ export default function SanamaFormsViewer() {
   const [selectedFormForModal, setSelectedFormForModal] = useState(null);
 
   // داده‌های اولیه
+  const [form1ProgramRows, setForm1ProgramRows] = useState(DEFAULT_PROGRAM_ROWS);
+  const [form2ChapterRows, setForm2ChapterRows] = useState(INITIAL_CHAPTER_ROWS);
+  const [form8ResourceRows, setForm8ResourceRows] = useState(INITIAL_FORM_8_ROWS);
+  const [form9PaymentRows, setForm9PaymentRows] = useState(INITIAL_FORM_9_ROWS);
+  const [form10BRows, setForm10BRows] = useState(INITIAL_FORM_10B_ROWS);
+  const [form10PRows, setForm10PRows] = useState(INITIAL_FORM_10P_ROWS);
+  const [form11ObjectedRows, setForm11ObjectedRows] = useState(INITIAL_FORM_11_ROWS);
+  const [form12SalaryRows, setForm12SalaryRows] = useState(INITIAL_FORM_12_ROWS);
+  const [form13BondRows, setForm13BondRows] = useState(INITIAL_FORM_13_ROWS);
+  const [formProjCapRows, setFormProjCapRows] = useState(INITIAL_PROJECT_SUMMARY_ROWS);
   const [form1Data, setForm1Data] = useState(INITIAL_FORM1);
   const [form46Data, setForm46Data] = useState(INITIAL_FORM_4_6_EXPENSE);
   const [form75Data, setForm75Data] = useState(INITIAL_FORM_7_5_CAPITAL);
@@ -689,90 +709,436 @@ export default function SanamaFormsViewer() {
       </div>
 
       {/* ════════════════════════ مدال پیش‌نمایش و کنترل فرم ════════════════════════ */}
-      {selectedFormForModal && (
-        <Modal
-          open={Boolean(selectedFormForModal)}
-          onClose={() => setSelectedFormForModal(null)}
-          title={selectedFormForModal.title}
-          description={`${selectedFormForModal.categoryTitle} | سال مالی ${toPersianDigits(fiscalYear)} | دوره: ${period === "all" ? "کامل" : period}`}
-          size="xl"
-        >
-          <div className="space-y-4">
-            {/* پیام اطلاع‌رسانی اتصال به تراز ۸ ستونی */}
-            <div className="p-3 rounded-xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/80 text-blue-900 dark:text-blue-200 text-xs flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-blue-600 shrink-0" />
-                <span>
-                  اطلاعات این فرم مستقیماً از **تراز ۸ ستونی کل** و کدهای معین اسناد مالی فراخوانی و محاسبه می‌گردد.
-                </span>
-              </div>
-              <Badge variant="outline" className="bg-background text-[10px] font-bold shrink-0">
-                منبع: اسناد دفتر معین
-              </Badge>
-            </div>
+      {selectedFormForModal && (() => {
+        const isForm1 = selectedFormForModal.id === "form_prog_exp_pub" || 
+                        selectedFormForModal.id === "form_prog_exp_ded" || 
+                        (selectedFormForModal.code === "فرم ۱" && selectedFormForModal.title.includes("برنامه"));
 
-            {/* کارت خلاصه آمار عملکردی تراز ۸ ستونی */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-              <div className="p-3 rounded-xl bg-emerald-50/60 border border-emerald-100 text-center">
-                <div className="text-[11px] font-semibold text-emerald-800">اعتبار مصوب نهایی (تراز)</div>
-                <div className="text-sm font-mono font-bold text-emerald-700 mt-1">
-                  {formatPersianAmount(form1Data.initialBudget || 1500000000)} <span className="text-[10px]">ریال</span>
-                </div>
-              </div>
-              <div className="p-3 rounded-xl bg-blue-50/60 border border-blue-100 text-center">
-                <div className="text-[11px] font-semibold text-blue-800">اعتبار تخصیص یافته (تراز)</div>
-                <div className="text-sm font-mono font-bold text-blue-700 mt-1">
-                  {formatPersianAmount(1200000000)} <span className="text-[10px]">ریال</span>
-                </div>
-              </div>
-              <div className="p-3 rounded-xl bg-amber-50/60 border border-amber-100 text-center">
-                <div className="text-[11px] font-semibold text-amber-800">عملکرد / مصرف شده</div>
-                <div className="text-sm font-mono font-bold text-amber-700 mt-1">
-                  {formatPersianAmount(980000000)} <span className="text-[10px]">ریال</span>
-                </div>
-              </div>
-              <div className="p-3 rounded-xl bg-purple-50/60 border border-purple-100 text-center">
-                <div className="text-[11px] font-semibold text-purple-800">مانده پایان سال</div>
-                <div className="text-sm font-mono font-bold text-purple-700 mt-1">
-                  {formatPersianAmount(220000000)} <span className="text-[10px]">ریال</span>
-                </div>
-              </div>
-            </div>
+        const isForm2 = selectedFormForModal.id === "form_chap_exp_pub" || 
+                        selectedFormForModal.id === "form_chap_exp_ded" || 
+                        (selectedFormForModal.code === "فرم ۲" && selectedFormForModal.title.includes("فصل"));
 
-            {/* باکس اطلاعات توضیحی و پیش‌نمایش فرم */}
-            <Card className="border border-dashed border-border/80 bg-muted/10">
-              <CardContent className="p-5 text-center space-y-3">
-                <FileSpreadsheet className="h-10 w-10 text-primary mx-auto opacity-70" />
-                <h4 className="text-xs font-bold text-foreground">
-                  ساختار و جداول تفصیلی {selectedFormForModal.title}
-                </h4>
-                <p className="text-[11px] text-muted-foreground max-w-lg mx-auto leading-relaxed">
-                  تمامی سطرها، فصول و ردیف‌های محاسباتی این فرم متصل به کدهای معین تراز ۸ ستونی هستند. مقادیر تفصیلی جداول در ادامه بر اساس دستورالعمل و توضیحات تکمیلی شما نهایی خواهند شد.
-                </p>
-              </CardContent>
-            </Card>
+        const isForm8 = selectedFormForModal.id === "form_8_exp_pub" || 
+                        selectedFormForModal.id === "form_8_exp_ded" || 
+                        selectedFormForModal.id === "form_8_cap_pub" || 
+                        selectedFormForModal.id === "form_8_cap_ded" || 
+                        (selectedFormForModal.code === "فرم ۸" && selectedFormForModal.title.includes("منابع"));
 
-            <ModalFooter>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setSelectedFormForModal(null)}
-                className="text-xs font-bold"
-              >
-                بستن
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => handleExportPDF(selectedFormForModal.title)}
-                className="text-xs font-bold gap-1 bg-primary text-primary-foreground"
-              >
-                <Printer className="h-3.5 w-3.5" />
-                <span>چاپ / خروجی PDF</span>
-              </Button>
-            </ModalFooter>
-          </div>
-        </Modal>
-      )}
+        const isForm9 = selectedFormForModal.id === "form_9_exp_pub" || 
+                        selectedFormForModal.id === "form_9_exp_ded" || 
+                        selectedFormForModal.id === "form_9_cap_pub" || 
+                        selectedFormForModal.id === "form_9_cap_ded" || 
+                        (selectedFormForModal.code === "فرم ۹" && selectedFormForModal.title.includes("غیرقطعی"));
+
+        const isForm10B = selectedFormForModal.id === "form_10_b_exp_pub" || 
+                          selectedFormForModal.id === "form_10_b_exp_ded" || 
+                          selectedFormForModal.id === "form_10_b_cap_pub" || 
+                          selectedFormForModal.id === "form_10_b_cap_ded" || 
+                          (selectedFormForModal.code === "فرم ۱۰-ب" && selectedFormForModal.title.includes("مصرف نشده"));
+
+        const isForm10P = selectedFormForModal.id === "form_10_p_exp_pub" || 
+                          selectedFormForModal.id === "form_10_p_exp_ded" || 
+                          selectedFormForModal.id === "form_10_p_cap_pub" || 
+                          selectedFormForModal.id === "form_10_p_cap_ded" || 
+                          (selectedFormForModal.code === "فرم ۱۰-پ" && selectedFormForModal.title.includes("فصلی"));
+
+        const isForm11 = selectedFormForModal.id === "form_11_exp_pub" || 
+                         selectedFormForModal.id === "form_11_exp_ded" || 
+                         selectedFormForModal.id === "form_11_cap_pub" || 
+                         selectedFormForModal.id === "form_11_cap_ded" || 
+                         (selectedFormForModal.code === "فرم ۱۱" && selectedFormForModal.title.includes("واخواهی"));
+
+        const isForm12 = selectedFormForModal.id === "form_12_exp_pub" || 
+                         selectedFormForModal.id === "form_12_exp_ded" || 
+                         (selectedFormForModal.code === "فرم ۱۲" && selectedFormForModal.title.includes("حقوق"));
+
+        const isForm13 = selectedFormForModal.id === "form_13_exp_pub" || 
+                         selectedFormForModal.id === "form_13_exp_ded" || 
+                         selectedFormForModal.id === "form_13_cap_pub" || 
+                         selectedFormForModal.id === "form_13_cap_ded" || 
+                         (selectedFormForModal.code === "فرم ۱۳" && selectedFormForModal.title.includes("اوراق"));
+
+        const isFormProjCap = selectedFormForModal.id === "form_proj_cap_pub" || 
+                              selectedFormForModal.id === "form_proj_cap_ded" || 
+                              (selectedFormForModal.code === "خلاصه طرح" && selectedFormForModal.title.includes("طرح"));
+
+        return (
+          <Modal
+            open={Boolean(selectedFormForModal)}
+            onClose={() => setSelectedFormForModal(null)}
+            title={selectedFormForModal.title}
+            description={`${selectedFormForModal.categoryTitle} | سال مالی ${toPersianDigits(fiscalYear)} | دوره: ${period === "all" ? "کامل" : period}`}
+            size={isForm1 || isForm2 || isForm8 || isForm9 || isForm10B || isForm10P || isForm11 || isForm12 || isForm13 || isFormProjCap ? "full" : "xl"}
+          >
+            {isForm1 ? (
+              <div className="space-y-4">
+                <SanamaForm1ProgramExpense
+                  rows={form1ProgramRows}
+                  onChange={setForm1ProgramRows}
+                  moeinBalancesMap={moeinBalancesMap}
+                  onSyncMoein={handleAutoSyncFromLedger}
+                  fiscalYear={fiscalYear}
+                  period={period}
+                />
+                <ModalFooter>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setSelectedFormForModal(null)}
+                    className="text-xs font-bold"
+                  >
+                    بستن
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => handleExportPDF(selectedFormForModal.title)}
+                    className="text-xs font-bold gap-1 bg-primary text-primary-foreground"
+                  >
+                    <Printer className="h-3.5 w-3.5" />
+                    <span>چاپ / خروجی PDF</span>
+                  </Button>
+                </ModalFooter>
+              </div>
+            ) : isForm2 ? (
+              <div className="space-y-4">
+                <SanamaForm2ChapterExpense
+                  rows={form2ChapterRows}
+                  onChange={setForm2ChapterRows}
+                  moeinBalancesMap={moeinBalancesMap}
+                  onSyncMoein={handleAutoSyncFromLedger}
+                  fiscalYear={fiscalYear}
+                  period={period}
+                />
+                <ModalFooter>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setSelectedFormForModal(null)}
+                    className="text-xs font-bold"
+                  >
+                    بستن
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => handleExportPDF(selectedFormForModal.title)}
+                    className="text-xs font-bold gap-1 bg-primary text-primary-foreground"
+                  >
+                    <Printer className="h-3.5 w-3.5" />
+                    <span>چاپ / خروجی PDF</span>
+                  </Button>
+                </ModalFooter>
+              </div>
+            ) : isForm8 ? (
+              <div className="space-y-4">
+                <SanamaForm8Resources
+                  rows={form8ResourceRows}
+                  onChange={setForm8ResourceRows}
+                  moeinBalancesMap={moeinBalancesMap}
+                  onSyncMoein={handleAutoSyncFromLedger}
+                  fiscalYear={fiscalYear}
+                  period={period}
+                />
+                <ModalFooter>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setSelectedFormForModal(null)}
+                    className="text-xs font-bold"
+                  >
+                    بستن
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => handleExportPDF(selectedFormForModal.title)}
+                    className="text-xs font-bold gap-1 bg-primary text-primary-foreground"
+                  >
+                    <Printer className="h-3.5 w-3.5" />
+                    <span>چاپ / خروجی PDF</span>
+                  </Button>
+                </ModalFooter>
+              </div>
+            ) : isForm9 ? (
+              <div className="space-y-4">
+                <SanamaForm9NonDefinitePayments
+                  rows={form9PaymentRows}
+                  onChange={setForm9PaymentRows}
+                  moeinBalancesMap={moeinBalancesMap}
+                  onSyncMoein={handleAutoSyncFromLedger}
+                  fiscalYear={fiscalYear}
+                  period={period}
+                />
+                <ModalFooter>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setSelectedFormForModal(null)}
+                    className="text-xs font-bold"
+                  >
+                    بستن
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => handleExportPDF(selectedFormForModal.title)}
+                    className="text-xs font-bold gap-1 bg-primary text-primary-foreground"
+                  >
+                    <Printer className="h-3.5 w-3.5" />
+                    <span>چاپ / خروجی PDF</span>
+                  </Button>
+                </ModalFooter>
+              </div>
+            ) : isForm10B ? (
+              <div className="space-y-4">
+                <SanamaForm10BUnconsumedFunds
+                  rows={form10BRows}
+                  onChange={setForm10BRows}
+                  moeinBalancesMap={moeinBalancesMap}
+                  onSyncMoein={handleAutoSyncFromLedger}
+                  fiscalYear={fiscalYear}
+                  period={period}
+                />
+                <ModalFooter>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setSelectedFormForModal(null)}
+                    className="text-xs font-bold"
+                  >
+                    بستن
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => handleExportPDF(selectedFormForModal.title)}
+                    className="text-xs font-bold gap-1 bg-primary text-primary-foreground"
+                  >
+                    <Printer className="h-3.5 w-3.5" />
+                    <span>چاپ / خروجی PDF</span>
+                  </Button>
+                </ModalFooter>
+              </div>
+            ) : isForm10P ? (
+              <div className="space-y-4">
+                <SanamaForm10PChapterUnconsumed
+                  rows={form10PRows}
+                  onChange={setForm10PRows}
+                  moeinBalancesMap={moeinBalancesMap}
+                  onSyncMoein={handleAutoSyncFromLedger}
+                  fiscalYear={fiscalYear}
+                  period={period}
+                />
+                <ModalFooter>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setSelectedFormForModal(null)}
+                    className="text-xs font-bold"
+                  >
+                    بستن
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => handleExportPDF(selectedFormForModal.title)}
+                    className="text-xs font-bold gap-1 bg-primary text-primary-foreground"
+                  >
+                    <Printer className="h-3.5 w-3.5" />
+                    <span>چاپ / خروجی PDF</span>
+                  </Button>
+                </ModalFooter>
+              </div>
+            ) : isForm11 ? (
+              <div className="space-y-4">
+                <SanamaForm11ObjectedAndDeficit
+                  rows={form11ObjectedRows}
+                  onChange={setForm11ObjectedRows}
+                  moeinBalancesMap={moeinBalancesMap}
+                  onSyncMoein={handleAutoSyncFromLedger}
+                  fiscalYear={fiscalYear}
+                  period={period}
+                />
+                <ModalFooter>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setSelectedFormForModal(null)}
+                    className="text-xs font-bold"
+                  >
+                    بستن
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => handleExportPDF(selectedFormForModal.title)}
+                    className="text-xs font-bold gap-1 bg-primary text-primary-foreground"
+                  >
+                    <Printer className="h-3.5 w-3.5" />
+                    <span>چاپ / خروجی PDF</span>
+                  </Button>
+                </ModalFooter>
+              </div>
+            ) : isForm12 ? (
+              <div className="space-y-4">
+                <SanamaForm12StaffSalaries
+                  rows={form12SalaryRows}
+                  onChange={setForm12SalaryRows}
+                  moeinBalancesMap={moeinBalancesMap}
+                  onSyncMoein={handleAutoSyncFromLedger}
+                  fiscalYear={fiscalYear}
+                  period={period}
+                />
+                <ModalFooter>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setSelectedFormForModal(null)}
+                    className="text-xs font-bold"
+                  >
+                    بستن
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => handleExportPDF(selectedFormForModal.title)}
+                    className="text-xs font-bold gap-1 bg-primary text-primary-foreground"
+                  >
+                    <Printer className="h-3.5 w-3.5" />
+                    <span>چاپ / خروجی PDF</span>
+                  </Button>
+                </ModalFooter>
+              </div>
+            ) : isForm13 ? (
+              <div className="space-y-4">
+                <SanamaForm13IslamicBonds
+                  rows={form13BondRows}
+                  onChange={setForm13BondRows}
+                  moeinBalancesMap={moeinBalancesMap}
+                  onSyncMoein={handleAutoSyncFromLedger}
+                  fiscalYear={fiscalYear}
+                  period={period}
+                />
+                <ModalFooter>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setSelectedFormForModal(null)}
+                    className="text-xs font-bold"
+                  >
+                    بستن
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => handleExportPDF(selectedFormForModal.title)}
+                    className="text-xs font-bold gap-1 bg-primary text-primary-foreground"
+                  >
+                    <Printer className="h-3.5 w-3.5" />
+                    <span>چاپ / خروجی PDF</span>
+                  </Button>
+                </ModalFooter>
+              </div>
+            ) : isFormProjCap ? (
+              <div className="space-y-4">
+                <SanamaFormCapitalProjectSummary
+                  rows={formProjCapRows}
+                  onChange={setFormProjCapRows}
+                  moeinBalancesMap={moeinBalancesMap}
+                  onSyncMoein={handleAutoSyncFromLedger}
+                  fiscalYear={fiscalYear}
+                  period={period}
+                />
+                <ModalFooter>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setSelectedFormForModal(null)}
+                    className="text-xs font-bold"
+                  >
+                    بستن
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => handleExportPDF(selectedFormForModal.title)}
+                    className="text-xs font-bold gap-1 bg-primary text-primary-foreground"
+                  >
+                    <Printer className="h-3.5 w-3.5" />
+                    <span>چاپ / خروجی PDF</span>
+                  </Button>
+                </ModalFooter>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* پیام اطلاع‌رسانی اتصال به تراز ۸ ستونی */}
+                <div className="p-3 rounded-xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/80 text-blue-900 dark:text-blue-200 text-xs flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-blue-600 shrink-0" />
+                    <span>
+                      اطلاعات این فرم مستقیماً از **تراز ۸ ستونی کل** و کدهای معین اسناد مالی فراخوانی و محاسبه می‌گردد.
+                    </span>
+                  </div>
+                  <Badge variant="outline" className="bg-background text-[10px] font-bold shrink-0">
+                    منبع: اسناد دفتر معین
+                  </Badge>
+                </div>
+
+                {/* کارت خلاصه آمار عملکردی تراز ۸ ستونی */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <div className="p-3 rounded-xl bg-emerald-50/60 border border-emerald-100 text-center">
+                    <div className="text-[11px] font-semibold text-emerald-800">اعتبار مصوب نهایی (تراز)</div>
+                    <div className="text-sm font-mono font-bold text-emerald-700 mt-1">
+                      {formatPersianAmount(moeinBalancesMap["91001"] || form1Data.initialBudget || 0)} <span className="text-[10px]">ریال</span>
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-xl bg-blue-50/60 border border-blue-100 text-center">
+                    <div className="text-[11px] font-semibold text-blue-800">اعتبار تخصیص یافته (تراز)</div>
+                    <div className="text-sm font-mono font-bold text-blue-700 mt-1">
+                      {formatPersianAmount(moeinBalancesMap["93001"] || 0)} <span className="text-[10px]">ریال</span>
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-xl bg-amber-50/60 border border-amber-100 text-center">
+                    <div className="text-[11px] font-semibold text-amber-800">عملکرد / مصرف شده</div>
+                    <div className="text-sm font-mono font-bold text-amber-700 mt-1">
+                      {formatPersianAmount(moeinBalancesMap["99001"] || 0)} <span className="text-[10px]">ریال</span>
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-xl bg-purple-50/60 border border-purple-100 text-center">
+                    <div className="text-[11px] font-semibold text-purple-800">مانده پایان سال</div>
+                    <div className="text-sm font-mono font-bold text-purple-700 mt-1">
+                      {formatPersianAmount((moeinBalancesMap["91001"] || 0) - (moeinBalancesMap["99001"] || 0))} <span className="text-[10px]">ریال</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* باکس اطلاعات توضیحی و پیش‌نمایش فرم */}
+                <Card className="border border-dashed border-border/80 bg-muted/10">
+                  <CardContent className="p-5 text-center space-y-3">
+                    <FileSpreadsheet className="h-10 w-10 text-primary mx-auto opacity-70" />
+                    <h4 className="text-xs font-bold text-foreground">
+                      ساختار و جداول تفصیلی {selectedFormForModal.title}
+                    </h4>
+                    <p className="text-[11px] text-muted-foreground max-w-lg mx-auto leading-relaxed">
+                      تمامی سطرها، فصول و ردیف‌های محاسباتی این فرم متصل به کدهای معین تراز ۸ ستونی هستند. مقادیر تفصیلی جداول در ادامه بر اساس دستورالعمل و توضیحات تکمیلی شما نهایی خواهند شد.
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <ModalFooter>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setSelectedFormForModal(null)}
+                    className="text-xs font-bold"
+                  >
+                    بستن
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => handleExportPDF(selectedFormForModal.title)}
+                    className="text-xs font-bold gap-1 bg-primary text-primary-foreground"
+                  >
+                    <Printer className="h-3.5 w-3.5" />
+                    <span>چاپ / خروجی PDF</span>
+                  </Button>
+                </ModalFooter>
+              </div>
+            )}
+          </Modal>
+        );
+      })()}
     </PageShell>
   );
 }

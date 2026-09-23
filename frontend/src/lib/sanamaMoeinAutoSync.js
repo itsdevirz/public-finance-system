@@ -4,14 +4,47 @@ import api from "@/api";
  * دریافت و محاسبه خودکار مانده تمام کدهای معین از روی اسناد حسابداری و اعتبارات
  */
 export async function fetchMoeinBalances() {
-  const moeinMap = {}; // { '91001': number, '91002': number, ... }
+  const moeinMap = {}; // { '91001': number, '91002': number, '81008': number, ... }
 
   const addVal = (code, val) => {
     if (!code) return;
-    const clean = String(code).trim();
+    const num = Number(val) || 0;
+    if (num === 0) return;
+    const clean = String(code).trim().replace(/[^\d]/g, "");
     if (!clean) return;
-    moeinMap[clean] = (moeinMap[clean] || 0) + (Number(val) || 0);
+
+    moeinMap[clean] = (moeinMap[clean] || 0) + num;
+
+    if (clean.length > 5) {
+      const moein5 = clean.slice(0, 5);
+      moeinMap[moein5] = (moeinMap[moein5] || 0) + num;
+    }
+    if (clean.length > 3) {
+      const kol3 = clean.slice(0, 3);
+      moeinMap[kol3] = (moeinMap[kol3] || 0) + num;
+    }
   };
+
+  // ۰. خواندن تراز آزمایشی / تراز ۸ ستونی کل (اصلی‌ترین منبع اطلاعات مالی)
+  try {
+    const tbRes = await api.get("/api/ledger/trial-balance?level=moein");
+    const rows = tbRes.data?.data || [];
+    if (Array.isArray(rows)) {
+      rows.forEach((row) => {
+        const code = row.code;
+        const bal = Math.max(
+          Math.abs(Number(row.debit_bal) || 0),
+          Math.abs(Number(row.credit_bal) || 0),
+          Math.abs(Number(row.debit_net) || 0),
+          Math.abs(Number(row.credit_net) || 0),
+          Math.abs((Number(row.debit_turn) || 0) - (Number(row.credit_turn) || 0))
+        );
+        addVal(code, bal);
+      });
+    }
+  } catch (e) {
+    console.warn("خطا در دریافت تراز آزمایشی معین:", e);
+  }
 
   // ۱. خواندن اسناد حسابداری ثبت‌شده (اسناد دفتر روزنامه / معین)
   try {
@@ -25,9 +58,6 @@ export async function fetchMoeinBalances() {
           if (!code) return;
           const debit = Number(line.debit) || 0;
           const credit = Number(line.credit) || 0;
-          
-          // برای کدهای معین بودجه‌ای و انتظامی سناما (۹۱..., ۹۲..., ۹۳..., ۹۴..., ۹۸..., ۹۹..., ۴۱..., ۸۱... و غیره)
-          // مقدار مانده مؤثر محاسبه می‌شود
           const amount = (debit > 0 || credit > 0) ? Math.max(debit, credit) : Math.abs(debit - credit);
           addVal(code, amount);
         });
@@ -46,6 +76,10 @@ export async function fetchMoeinBalances() {
         const isCapital = agr.credit_category === "capital";
         const code = isCapital ? "91002" : "91001";
         addVal(code, agr.total_amount || agr.amount || 0);
+
+        if (agr.source_type === "resources" || agr.sourceType === "resources") {
+          addVal("81008", agr.total_amount || agr.amount || 0);
+        }
       });
     }
   } catch (e) {
@@ -65,6 +99,23 @@ export async function fetchMoeinBalances() {
     }
   } catch (e) {
     console.warn("تخصیص‌های اعتبار دریافت نشد:", e);
+  }
+
+  // ۴. خواندن دریافتی‌ها و واریزی‌های اعتبارات/منابع
+  try {
+    const recRes = await api.get("/api/credits/receipts");
+    const recs = recRes.data?.data || recRes.data || [];
+    if (Array.isArray(recs)) {
+      recs.forEach((r) => {
+        const code = r.moein_code || (r.credit_category === "capital" ? "41003" : "41001");
+        addVal(code, r.amount || 0);
+        if (r.treasury_deposit_amount) {
+          addVal("63001", r.treasury_deposit_amount);
+        }
+      });
+    }
+  } catch (e) {
+    console.warn("دریافتی‌های خزانه دریافت نشد:", e);
   }
 
   return moeinMap;
