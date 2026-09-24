@@ -1,10 +1,9 @@
 import { useState, useMemo, useEffect } from "react";
 import { 
-  Plus, Trash2, RefreshCw, CreditCard, Calculator, CheckCircle2, 
-  Info, TrendingUp, Coins, ShieldCheck, Scale, Landmark, FileSpreadsheet, Percent
+  Plus, Trash2, RefreshCw, CreditCard, Calculator, 
+  Info
 } from "lucide-react";
 import api from "@/api";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -18,9 +17,9 @@ export const INITIAL_FORM_13_ROWS = [
     bondTitle: "اسناد خزانه اسلامی (اخزا)",
     bondSymbol: "اخزا - سال جاری",
     issueDate: "1404/01/01",
-    receivedBonds: 0, // کدهای ۴۱۰۰۱ ، ۴۱۰۰۶ ، ۸۱۰۱۰ ، ۸۱۰۱۷
-    assignedBonds: 0, // کدهای ۹۹۰۰۱ ، ۹۸۰۰۱ ، ۹۲۵۰۱ ، ۹۳۵۰۱
-    transferredBonds: 0, // کدهای ۸۱۰۱۰ ، ۸۱۰۱۹
+    receivedBonds: 0, // کدهای ۴۱۰۰۳ ، ۸۱۰۱۰ ، ۸۱۰۱۷
+    assignedBonds: 0, // کدهای ۹۹۰۰۲ ، ۹۸۰۰۲ ، ۹۲۵۰۲ ، ۹۳۵۰۲
+    transferredBonds: 0, // کد ۸۱۰۱۰
     remarks: "",
   },
   {
@@ -29,9 +28,9 @@ export const INITIAL_FORM_13_ROWS = [
     bondTitle: "اوراق مرابحه و صکوک اسلامی",
     bondSymbol: "مرابحه - عمومی",
     issueDate: "1404/02/15",
-    receivedBonds: 0, // کدهای ۴۱۰۰۱ ، ۴۱۰۰۶ ، ۸۱۰۱۰ ، ۸۱۰۱۷
-    assignedBonds: 0, // کدهای ۹۹۰۰۱ ، ۹۸۰۰۱ ، ۹۲۵۰۱ ، ۹۳۵۰۱
-    transferredBonds: 0, // کدهای ۸۱۰۱۰ ، ۸۱۰۱۹
+    receivedBonds: 0, // کدهای ۴۱۰۰۳ ، ۸۱۰۱۰ ، ۸۱۰۱۷
+    assignedBonds: 0, // کدهای ۹۹۰۰۲ ، ۹۸۰۰۲ ، ۹۲۵۰۲ ، ۹۳۵۰۲
+    transferredBonds: 0, // کد ۸۱۰۱۰
     remarks: "",
   },
   {
@@ -42,7 +41,7 @@ export const INITIAL_FORM_13_ROWS = [
     issueDate: "1404/03/01",
     receivedBonds: 0, // کدهای ۴۱۰۰۳ ، ۸۱۰۱۰ ، ۸۱۰۱۷
     assignedBonds: 0, // کدهای ۹۹۰۰۲ ، ۹۸۰۰۲ ، ۹۲۵۰۲ ، ۹۳۵۰۲
-    transferredBonds: 0, // کدهای ۸۱۰۱۰ ، ۸۱۰۱۹
+    transferredBonds: 0, // کد ۸۱۰۱۰
     remarks: "",
   },
 ];
@@ -63,15 +62,15 @@ export default function SanamaForm13IslamicBonds({
     if (onChange) onChange(newRows);
   };
 
-  // فراخوانی اتوماتیک کدهای معین از تراز ۸ ستونی اسناد مالی
+  // فراخوانی اتوماتیک کدهای معین از تراز ۸ ستونی اسناد مالی (پشتیبانی از کدهای ۴۱۰۰۳، ۹۹۰۰۲، ۹۸۰۰۲، ۹۲۵۰۲، ۹۳۵۰۲، ۸۱۰۱۰، ۸۱۰۱۷)
   useEffect(() => {
     if (!moeinBalancesMap || Object.keys(moeinBalancesMap).length === 0) return;
 
-    // اوراق دریافتی: ۴۱۰۰۱ + ۴۱۰۰۶ + ۸۱۰۱۰ + ۸۱۰۱۷ (+ ۴۱۰۰۳)
-    const mRecBonds = (moeinBalancesMap["41001"] || 0) + (moeinBalancesMap["41006"] || 0) + (moeinBalancesMap["81010"] || 0) + (moeinBalancesMap["81017"] || 0) + (moeinBalancesMap["41003"] || 0);
-    // اوراق واگذار شده: ۹۹۰۰۱ + ۹۸۰۰۱ + ۹۲۵۰۱ + ۹۳۵۰۱
-    const mAssignedBonds = (moeinBalancesMap["99001"] || 0) + (moeinBalancesMap["98001"] || 0) + (moeinBalancesMap["92501"] || 0) + (moeinBalancesMap["93501"] || 0);
-    // اوراق انتقالی: ۸۱۰۱۰ + ۸۱۰۱۹
+    // اوراق دریافتی: ۴۱۰۰۳ + ۸۱۰۱۰ + ۸۱۰۱۷ (و پشتیبانی از کدهای هزینه‌ای)
+    const mRecBonds = (moeinBalancesMap["41003"] || moeinBalancesMap["41001"] || moeinBalancesMap["41006"] || 0) + (moeinBalancesMap["81010"] || 0) + (moeinBalancesMap["81017"] || 0);
+    // اوراق واگذار شده: ۹۹۰۰۲ + ۹۸۰۰۲ + ۹۲۵۰۲ + ۹۳۵۰۲ (و پشتیبانی از کدهای هزینه‌ای)
+    const mAssignedBonds = (moeinBalancesMap["99002"] || moeinBalancesMap["99001"] || 0) + (moeinBalancesMap["98002"] || moeinBalancesMap["98001"] || 0) + (moeinBalancesMap["92502"] || moeinBalancesMap["92501"] || 0) + (moeinBalancesMap["93502"] || moeinBalancesMap["93501"] || 0);
+    // اوراق انتقالی: ۸۱۰۱۰
     const mTransferredBonds = (moeinBalancesMap["81010"] || 0) + (moeinBalancesMap["81019"] || 0);
 
     if (bondRows.length > 0 && (mRecBonds > 0 || mAssignedBonds > 0 || mTransferredBonds > 0)) {
@@ -175,7 +174,7 @@ export default function SanamaForm13IslamicBonds({
           <div className="flex items-center justify-between text-[11px] font-bold text-blue-700 dark:text-blue-400">
             <span>اوراق دریافتی</span>
             <Badge variant="outline" className="text-[9px] font-mono bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/30">
-              ۴۱۰۰۱ | ۴۱۰۰۶ | ۸۱۰۱۰ | ۸۱۰۱۷
+              ۴۱۰۰۳ | ۸۱۰۱۰ | ۸۱۰۱۷
             </Badge>
           </div>
           <div className="text-sm font-mono font-bold text-blue-800 dark:text-blue-200 mt-1.5">
@@ -187,7 +186,7 @@ export default function SanamaForm13IslamicBonds({
           <div className="flex items-center justify-between text-[11px] font-bold text-amber-700 dark:text-amber-400">
             <span>اوراق واگذار شده</span>
             <Badge variant="outline" className="text-[9px] font-mono bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30">
-              ۹۹۰۰۱ | ۹۸۰۰۱ | ۹۲۵۰۱ | ۹۳۵۰۱
+              ۹۹۰۰۲ | ۹۸۰۰۲ | ۹۲۵۰۲ | ۹۳۵۰۲
             </Badge>
           </div>
           <div className="text-sm font-mono font-bold text-amber-800 dark:text-amber-200 mt-1.5">
@@ -284,11 +283,11 @@ export default function SanamaForm13IslamicBonds({
 
                 <th className="p-2 min-w-[160px] bg-blue-50/40 dark:bg-blue-950/20 text-blue-800">
                   اوراق دریافتی <br/>
-                  <span className="text-[9px] font-mono bg-blue-100 text-blue-800 px-1 rounded">۴۱۰۰۱ | ۴۱۰۰۶ | ۸۱۰۱۰ | ۸۱۰۱۷</span>
+                  <span className="text-[9px] font-mono bg-blue-100 text-blue-800 px-1 rounded">۴۱۰۰۳ | ۸۱۰۱۰ | ۸۱۰۱۷</span>
                 </th>
                 <th className="p-2 min-w-[160px] bg-amber-50/40 dark:bg-amber-950/20 text-amber-800">
                   اوراق واگذار شده <br/>
-                  <span className="text-[9px] font-mono bg-amber-100 text-amber-800 px-1 rounded">۹۹۰۰۱ | ۹۸۰۰۱ | ۹۲۵۰۱ | ۹۳۵۰۱</span>
+                  <span className="text-[9px] font-mono bg-amber-100 text-amber-800 px-1 rounded">۹۹۰۰۲ | ۹۸۰۰۲ | ۹۲۵۰۲ | ۹۳۵۰۲</span>
                 </th>
                 <th className="p-2 min-w-[160px] bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-800">
                   اوراق مصرف نشده <br/>
@@ -374,7 +373,7 @@ export default function SanamaForm13IslamicBonds({
                       />
                     </td>
 
-                    {/* اوراق دریافتی (۴۱۰۰۱ ، ۴۱۰۰۶ ، ۸۱۰۱۰ ، ۸۱۰۱۷) */}
+                    {/* اوراق دریافتی (۴۱۰۰۳ ، ۸۱۰۱۰ ، ۸۱۰۱۷) */}
                     <td className="p-1.5 bg-blue-50/20 dark:bg-blue-950/10">
                       <PersianAmountInput
                         value={row.receivedBonds}
@@ -383,7 +382,7 @@ export default function SanamaForm13IslamicBonds({
                       />
                     </td>
 
-                    {/* اوراق واگذار شده (۹۹۰۰۱ ، ۹۸۰۰۱ ، ۹۲۵۰۱ ، ۹۳۵۰۱) */}
+                    {/* اوراق واگذار شده (۹۹۰۰۲ ، ۹۸۰۰۲ ، ۹۲۵۰۲ ، ۹۳۵۰۲) */}
                     <td className="p-1.5 bg-amber-50/20 dark:bg-amber-950/10">
                       <PersianAmountInput
                         value={row.assignedBonds}
@@ -480,10 +479,10 @@ export default function SanamaForm13IslamicBonds({
         <div className="space-y-1">
           <p className="font-bold">راهنمای استانداردهای خزانه‌داری (سناما) در عملکرد اوراق اسلامی (فرم ۱۳):</p>
           <ul className="list-disc list-inside space-y-0.5 text-[11px] text-muted-foreground leading-relaxed">
-            <li><b>اوراق دریافتی</b> متصل به کدهای معین <b>۴۱۰۰۱، ۴۱۰۰۶، ۸۱۰۱۰ و ۸۱۰۱۷</b> (و ۴۱۰۰۳ در تملک) می‌باشد.</li>
-            <li><b>اوراق واگذار شده</b> متصل به کدهای معین <b>۹۹۰۰۱، ۹۸۰۰۱، ۹۲۵۰۱ و ۹۳۵۰۱</b> می‌باشد.</li>
-            <li><b>اوراق انتقالی</b> متصل به کد معین <b>۸۱۰۱۰</b> (و ۸۱۰۱۹) می‌باشد.</li>
-            <li>ستون <b>اوراق مصرف نشده</b> حاصل فرمول محاسباتی `دریافتی + انتقالی - واگذار شده` می‌باشد.</li>
+            <li><b>اوراق دریافتی</b> متصل به کدهای معین <b>۴۱۰۰۳، ۸۱۰۱۰ و ۸۱۰۱۷</b> می‌باشد.</li>
+            <li><b>اوراق واگذار شده</b> متصل به کدهای معین <b>۹۹۰۰۲، ۹۸۰۰۲، ۹۲۵۰۲ و ۹۳۵۰۲</b> می‌باشد.</li>
+            <li><b>اوراق انتقالی</b> متصل به کد معین <b>۸۱۰۱۰</b> می‌باشد.</li>
+            <li>ستون <b>اوراق مصرف نشده</b> حاصل فرمول محاسباتی `(دریافتی + انتقالی) - واگذار شده` می‌باشد.</li>
           </ul>
         </div>
       </div>

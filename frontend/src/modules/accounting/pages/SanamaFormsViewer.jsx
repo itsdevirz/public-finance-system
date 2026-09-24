@@ -591,7 +591,7 @@ export default function SanamaFormsViewer() {
                               key={formItem.id}
                               onClick={() => {
                                 setActiveCategoryId(category.id);
-                                setSelectedFormForModal({ ...formItem, categoryTitle: category.title });
+                                setSelectedFormForModal({ ...formItem, categoryTitle: category.title, categoryId: category.id });
                               }}
                               className={cn(
                                 "flex items-center justify-between p-2 rounded-md text-xs cursor-pointer transition-all duration-150 group",
@@ -866,6 +866,9 @@ export default function SanamaFormsViewer() {
                   onSyncMoein={handleAutoSyncFromLedger}
                   fiscalYear={fiscalYear}
                   period={period}
+                  categoryId={selectedFormForModal?.categoryId || activeCategoryId}
+                  categoryTitle={selectedFormForModal?.categoryTitle || activeCategory?.title}
+                  formId={selectedFormForModal?.id}
                 />
                 <ModalFooter>
                   <Button

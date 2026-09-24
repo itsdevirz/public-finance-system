@@ -1,10 +1,9 @@
 import { useState, useMemo, useEffect } from "react";
 import { 
-  Plus, Trash2, RefreshCw, BarChart3, Calculator, CheckCircle2, 
-  Info, TrendingUp, Coins, ShieldCheck, Scale, Landmark, FileSpreadsheet
+  Plus, Trash2, RefreshCw, BarChart3, Calculator, 
+  Info, Coins
 } from "lucide-react";
 import api from "@/api";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -31,18 +30,20 @@ export const INITIAL_FORM_10P_ROWS = BUDGET_CHAPTERS_LIST.map((chapterTitle, ind
   transferredFromNonDefinite: 0,
   transferredFromObjectionsAndDeficit: 0,
   transferredFromInvestments: 0,
-  transferredDrafts: 0, // کد معین ۹۴۰۰۳
+  transferredDrafts: 0, // کد معین ۹۴۰۰۴
   receivedNotifiedTransferred: 0, // کدهای ۸۱۰۱۰ ، ۸۱۰۱۷ ، ۸۱۰۱۹
-  usableTransferredResources: 0, // کد معین ۹۱۰۰۳
-  consumedTransferredCredit: 0, // کد معین ۹۹۰۰۳
-  inventories: 0, // کد معین ۹۸۰۰۳
-  prepayments: 0, // کد معین ۹۸۰۰۳
-  materialPrepayments: 0, // کد معین ۹۸۰۰۳
-  lcPrepayments: 0, // کد معین ۹۸۰۰۳
-  onAccounts: 0, // کد معین ۹۸۰۰۳
+  usableTransferredResources: 0, // کد معین ۹۱۰۰۴
+  consumedTransferredCredit: 0, // کد معین ۹۹۰۰۴
+  inventories: 0, // کد معین ۹۸۰۰۴
+  prepayments: 0, // کد معین ۹۸۰۰۴
+  materialPrepayments: 0, // کد معین ۹۸۰۰۴
+  lcPrepayments: 0, // کد معین ۹۸۰۰۴
+  onAccounts: 0, // کد معین ۹۸۰۰۴
   investments: 0, // دستی
-  objectedDocuments: 0, // کد معین ۹۲۵۰۳
-  transferredCashierDeficit: 0, // کدهای ۹۳۵۰۳ ، ۸۱۰۰۷
+  sentToTreasury: 0, // محاسباتی
+  transferredFunds: 0, // محاسباتی
+  objectedDocuments: 0, // کد معین ۹۲۵۰۴
+  transferredCashierDeficit: 0, // کدهای ۹۳۵۰۴ ، ۸۱۰۰۷
   unconsumedBonds: 0, // کدهای ۸۱۰۱۰ ، ۸۱۰۱۹
 }));
 
@@ -62,36 +63,36 @@ export default function SanamaForm10PChapterUnconsumed({
     if (onChange) onChange(newRows);
   };
 
-  // فراخوانی اتوماتیک کدهای معین از تراز ۸ ستونی اسناد مالی
+  // فراخوانی اتوماتیک کدهای معین از تراز ۸ ستونی اسناد مالی (پشتیبانی از ۹۱۰۰۴، ۹۹۰۰۴، ۹۸۰۰۴، ۹۲۵۰۴، ۹۳۵۰۴، ۹۴۰۰۴ و کدهای هزینه‌ای)
   useEffect(() => {
     if (!moeinBalancesMap || Object.keys(moeinBalancesMap).length === 0) return;
 
-    const m94003 = moeinBalancesMap["94003"] || moeinBalancesMap["94001"] || 0; // حواله انتقالی
-    const mNotifiedRec = (moeinBalancesMap["81010"] || 0) + (moeinBalancesMap["81017"] || 0) + (moeinBalancesMap["81019"] || 0); // دریافتی اعتبارات ابلاغی
-    const m91003 = moeinBalancesMap["91003"] || 0; // منابع انتقالی قابل مصرف
-    const m99003 = moeinBalancesMap["99003"] || 0; // اعتبار انتقالی مصرف شده
-    const m98003 = moeinBalancesMap["98003"] || moeinBalancesMap["98001"] || 0; // موجودی‌ها، پیش‌پرداخت و علی‌الحساب
-    const m92503 = moeinBalancesMap["92503"] || moeinBalancesMap["92501"] || 0; // اسناد واخواهی
-    const m93503 = (moeinBalancesMap["93503"] || 0) + (moeinBalancesMap["81007"] || 0); // کسری ابواب جمعی
+    const m94004 = moeinBalancesMap["94004"] || moeinBalancesMap["94003"] || moeinBalancesMap["94001"] || 0; // حواله انتقالی
+    const mNotifiedRec = (moeinBalancesMap["81010"] || 0) + (moeinBalancesMap["81017"] || 0) + (moeinBalancesMap["81019"] || 0); // دریافتی اعتبار ابلاغی
+    const m91004 = moeinBalancesMap["91004"] || moeinBalancesMap["91003"] || 0; // منابع انتقالی قابل مصرف
+    const m99004 = moeinBalancesMap["99004"] || moeinBalancesMap["99003"] || 0; // اعتبار انتقالی مصرف شده
+    const m98004 = moeinBalancesMap["98004"] || moeinBalancesMap["98003"] || moeinBalancesMap["98001"] || 0; // موجودی‌ها، پیش‌پرداخت و علی‌الحساب
+    const m92504 = moeinBalancesMap["92504"] || moeinBalancesMap["92503"] || moeinBalancesMap["92501"] || 0; // اسناد واخواهی شده
+    const m93504 = (moeinBalancesMap["93504"] || moeinBalancesMap["93503"] || 0) + (moeinBalancesMap["81007"] || 0); // کسری ابواب جمعی
     const mBonds = (moeinBalancesMap["81010"] || 0) + (moeinBalancesMap["81019"] || 0); // اوراق مصرف نشده
 
-    if (formRows.length > 0 && (m94003 > 0 || mNotifiedRec > 0 || m91003 > 0 || m99003 > 0 || m98003 > 0)) {
+    if (formRows.length > 0 && (m94004 > 0 || mNotifiedRec > 0 || m91004 > 0 || m99004 > 0 || m98004 > 0)) {
       setFormRows((prevRows) => {
         const count = prevRows.length || 1;
         const updated = prevRows.map((r) => {
           return {
             ...r,
-            transferredDrafts: m94003 > 0 ? Math.round(m94003 / count) : r.transferredDrafts,
+            transferredDrafts: m94004 > 0 ? Math.round(m94004 / count) : r.transferredDrafts,
             receivedNotifiedTransferred: mNotifiedRec > 0 ? Math.round(mNotifiedRec / count) : r.receivedNotifiedTransferred,
-            usableTransferredResources: m91003 > 0 ? Math.round(m91003 / count) : r.usableTransferredResources,
-            consumedTransferredCredit: m99003 > 0 ? Math.round(m99003 / count) : r.consumedTransferredCredit,
-            inventories: m98003 > 0 ? Math.round(m98003 / (count * 5)) : r.inventories,
-            prepayments: m98003 > 0 ? Math.round(m98003 / (count * 5)) : r.prepayments,
-            materialPrepayments: m98003 > 0 ? Math.round(m98003 / (count * 5)) : r.materialPrepayments,
-            lcPrepayments: m98003 > 0 ? Math.round(m98003 / (count * 5)) : r.lcPrepayments,
-            onAccounts: m98003 > 0 ? Math.round(m98003 / (count * 5)) : r.onAccounts,
-            objectedDocuments: m92503 > 0 ? Math.round(m92503 / count) : r.objectedDocuments,
-            transferredCashierDeficit: m93503 > 0 ? Math.round(m93503 / count) : r.transferredCashierDeficit,
+            usableTransferredResources: m91004 > 0 ? Math.round(m91004 / count) : r.usableTransferredResources,
+            consumedTransferredCredit: m99004 > 0 ? Math.round(m99004 / count) : r.consumedTransferredCredit,
+            inventories: m98004 > 0 ? Math.round(m98004 / (count * 5)) : r.inventories,
+            prepayments: m98004 > 0 ? Math.round(m98004 / (count * 5)) : r.prepayments,
+            materialPrepayments: m98004 > 0 ? Math.round(m98004 / (count * 5)) : r.materialPrepayments,
+            lcPrepayments: m98004 > 0 ? Math.round(m98004 / (count * 5)) : r.lcPrepayments,
+            onAccounts: m98004 > 0 ? Math.round(m98004 / (count * 5)) : r.onAccounts,
+            objectedDocuments: m92504 > 0 ? Math.round(m92504 / count) : r.objectedDocuments,
+            transferredCashierDeficit: m93504 > 0 ? Math.round(m93504 / count) : r.transferredCashierDeficit,
             unconsumedBonds: mBonds > 0 ? Math.round(mBonds / count) : r.unconsumedBonds,
           };
         });
@@ -146,6 +147,8 @@ export default function SanamaForm10PChapterUnconsumed({
       lcPrepayments: 0,
       onAccounts: 0,
       investments: 0,
+      sentToTreasury: 0,
+      transferredFunds: 0,
       objectedDocuments: 0,
       transferredCashierDeficit: 0,
       unconsumedBonds: 0,
@@ -174,23 +177,23 @@ export default function SanamaForm10PChapterUnconsumed({
         const tNonDef = Number(r.transferredFromNonDefinite) || 0;
         const tObjDef = Number(r.transferredFromObjectionsAndDeficit) || 0;
         const tInv = Number(r.transferredFromInvestments) || 0;
-        const drafts = Number(r.transferredDrafts) || 0; // ۹۴۰۰۳
+        const drafts = Number(r.transferredDrafts) || 0; // ۹۴۰۰۴
         const recNotified = Number(r.receivedNotifiedTransferred) || 0; // ۸۱۰۱۰ / ۸۱۰۱۷ / ۸۱۰۱۹
 
-        // منابع انتقالی قابل مصرف (۹۱۰۰۳)
+        // منابع انتقالی قابل مصرف (۹۱۰۰۴)
         const calcUsable = (r.usableTransferredResources > 0)
           ? Number(r.usableTransferredResources)
           : (init + tNonDef + tObjDef + tInv + drafts + recNotified);
 
-        const consumed = Number(r.consumedTransferredCredit) || 0; // ۹۹۰۰۳
-        const inv = Number(r.inventories) || 0; // ۹۸۰۰۳
-        const prepay = Number(r.prepayments) || 0; // ۹۸۰۰۳
-        const matPrepay = Number(r.materialPrepayments) || 0; // ۹۸۰۰۳
-        const lcPrepay = Number(r.lcPrepayments) || 0; // ۹۸۰۰۳
-        const onAcc = Number(r.onAccounts) || 0; // ۹۸۰۰۳
+        const consumed = Number(r.consumedTransferredCredit) || 0; // ۹۹۰۰۴
+        const inv = Number(r.inventories) || 0; // ۹۸۰۰۴
+        const prepay = Number(r.prepayments) || 0; // ۹۸۰۰۴
+        const matPrepay = Number(r.materialPrepayments) || 0; // ۹۸۰۰۴
+        const lcPrepay = Number(r.lcPrepayments) || 0; // ۹۸۰۰۴
+        const onAcc = Number(r.onAccounts) || 0; // ۹۸۰۰۴
         const invest = Number(r.investments) || 0;
-        const objDocs = Number(r.objectedDocuments) || 0; // ۹۲۵۰۳
-        const cashierDef = Number(r.transferredCashierDeficit) || 0; // ۹۳۵۰۳ / ۸۱۰۰۷
+        const objDocs = Number(r.objectedDocuments) || 0; // ۹۲۵۰۴
+        const cashierDef = Number(r.transferredCashierDeficit) || 0; // ۹۳۵۰۴ / ۸۱۰۰۷
         const bonds = Number(r.unconsumedBonds) || 0; // ۸۱۰۱۰ / ۸۱۰۱۹
 
         // وجوه ارسالی به خزانه (محاسباتی)
@@ -259,7 +262,7 @@ export default function SanamaForm10PChapterUnconsumed({
           <div className="flex items-center justify-between text-[11px] font-bold text-purple-700 dark:text-purple-400">
             <span>منابع انتقالی قابل مصرف (فصلی)</span>
             <Badge variant="outline" className="text-[9px] font-mono bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30">
-              کد ۹۱۰۰۳
+              کد ۹۱۰۰۴
             </Badge>
           </div>
           <div className="text-sm font-mono font-bold text-purple-800 dark:text-purple-200 mt-1.5">
@@ -271,7 +274,7 @@ export default function SanamaForm10PChapterUnconsumed({
           <div className="flex items-center justify-between text-[11px] font-bold text-blue-700 dark:text-blue-400">
             <span>اعتبار انتقالی مصرف شده</span>
             <Badge variant="outline" className="text-[9px] font-mono bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/30">
-              کد ۹۹۰۰۳
+              کد ۹۹۰۰۴
             </Badge>
           </div>
           <div className="text-sm font-mono font-bold text-blue-800 dark:text-blue-200 mt-1.5">
@@ -340,10 +343,10 @@ export default function SanamaForm10PChapterUnconsumed({
         </div>
       </div>
 
-      {/* ─── جدول تفصیلی و ۲۳ ستونی وجوه مصرف نشده فصلی - فرم ۱۰-پ ─── */}
+      {/* ─── جدول تفصیلی و ۲۴ ستونی وجوه مصرف نشده فصلی - فرم ۱۰-پ ─── */}
       <div className="relative rounded-xl border border-border/80 bg-card overflow-hidden shadow-xs">
         <div className="overflow-x-auto max-w-full">
-          <table className="w-full text-[11px] border-collapse min-w-[2700px]">
+          <table className="w-full text-[11px] border-collapse min-w-[3200px]">
             <thead>
               {/* سطر ۱: سرگروه‌های اصلی */}
               <tr className="bg-muted/80 text-muted-foreground text-center font-bold border-b border-border/80">
@@ -364,7 +367,7 @@ export default function SanamaForm10PChapterUnconsumed({
                 </th>
               </tr>
 
-              {/* سطر ۲: ۲۳ ستون کامل طبق درخواست دقیق کاربر */}
+              {/* سطر ۲: ۲۴ ستون کامل طبق درخواست دقیق کاربر */}
               <tr className="bg-muted/50 text-foreground font-bold text-center border-b border-border/80 divide-x divide-x-reverse divide-border/60">
                 <th className="p-2 w-10">#</th>
                 <th className="p-2 min-w-[90px]">نوع اعتبار</th>
@@ -372,26 +375,26 @@ export default function SanamaForm10PChapterUnconsumed({
                 <th className="p-2 min-w-[210px]">فصل اعتبار</th>
 
                 <th className="p-2 min-w-[130px]">مانده ابتدای سال <br/><span className="text-[9px] font-normal text-muted-foreground">(دستی)</span></th>
-                <th className="p-2 min-w-[140px]">وجوه انتقالی غیرقطعی سال قبل <br/><span className="text-[9px] font-normal text-muted-foreground">(دستی)</span></th>
-                <th className="p-2 min-w-[140px]">وجوه انتقالی واخواهی/کسری <br/><span className="text-[9px] font-normal text-muted-foreground">(دستی)</span></th>
-                <th className="p-2 min-w-[130px]">وجوه انتقالی سرمایه‌گذاری <br/><span className="text-[9px] font-normal text-muted-foreground">(دستی)</span></th>
-                <th className="p-2 min-w-[130px]">حواله انتقالی <br/><span className="text-[9px] font-mono bg-purple-100 text-purple-800 px-1 rounded">۹۴۰۰۳</span></th>
-                <th className="p-2 min-w-[140px]">دریافتی اعتبار ابلاغی <br/><span className="text-[9px] font-mono bg-purple-100 text-purple-800 px-1 rounded">۸۱۰۱۰/۸۱۰۱۷/۸۱۰۱۹</span></th>
-                <th className="p-2 min-w-[150px] bg-purple-50/50 dark:bg-purple-950/20 text-purple-800">منابع انتقالی قابل مصرف <br/><span className="text-[9px] font-mono bg-purple-200 text-purple-900 px-1 rounded">۹۱۰۰۳</span></th>
+                <th className="p-2 min-w-[180px]">وجوه انتقالی از محل پرداختهای غیر قطعی سال های قبل <br/><span className="text-[9px] font-normal text-muted-foreground">(دستی)</span></th>
+                <th className="p-2 min-w-[190px]">وجوه انتقالی از محل اسناد واخواهی و کسری ابواب جمعی سال های قبل <br/><span className="text-[9px] font-normal text-muted-foreground">(دستی)</span></th>
+                <th className="p-2 min-w-[160px]">وجوه انتقالی از محل سرمایه گذاری ها <br/><span className="text-[9px] font-normal text-muted-foreground">(دستی)</span></th>
+                <th className="p-2 min-w-[130px]">حواله انتقالی <br/><span className="text-[9px] font-mono bg-purple-100 text-purple-800 px-1 rounded">۹۴۰۰۴</span></th>
+                <th className="p-2 min-w-[180px]">دریافتی از محل اعتبار انتقالی ابلاغی <br/><span className="text-[9px] font-mono bg-purple-100 text-purple-800 px-1 rounded">۸۱۰۱۰ ۸۱۰۱۷ ۸۱۰۱۹</span></th>
+                <th className="p-2 min-w-[160px] bg-purple-50/50 dark:bg-purple-950/20 text-purple-800">منابع انتقالی قابل مصرف <br/><span className="text-[9px] font-mono bg-purple-200 text-purple-900 px-1 rounded">۹۱۰۰۴</span></th>
 
-                <th className="p-2 min-w-[150px] bg-blue-50/50 dark:bg-blue-950/20 text-blue-800">اعتبار انتقالی مصرف شده <br/><span className="text-[9px] font-mono bg-blue-100 text-blue-800 px-1 rounded">۹۹۰۰۳</span></th>
-                <th className="p-2 min-w-[130px]">موجودی‌ها <br/><span className="text-[9px] font-mono bg-muted text-muted-foreground px-1 rounded">۹۸۰۰۳</span></th>
-                <th className="p-2 min-w-[130px]">پیش پرداخت <br/><span className="text-[9px] font-mono bg-muted text-muted-foreground px-1 rounded">۹۸۰۰۳</span></th>
-                <th className="p-2 min-w-[130px]">پیش پرداخت مواد و کالا <br/><span className="text-[9px] font-mono bg-muted text-muted-foreground px-1 rounded">۹۸۰۰۳</span></th>
-                <th className="p-2 min-w-[130px]">پیش پرداخت اعتبار اسنادی <br/><span className="text-[9px] font-mono bg-muted text-muted-foreground px-1 rounded">۹۸۰۰۳</span></th>
-                <th className="p-2 min-w-[130px]">علی الحساب <br/><span className="text-[9px] font-mono bg-muted text-muted-foreground px-1 rounded">۹۸۰۰۳</span></th>
+                <th className="p-2 min-w-[160px] bg-blue-50/50 dark:bg-blue-950/20 text-blue-800">اعتبار انتقالی مصرف شده <br/><span className="text-[9px] font-mono bg-blue-100 text-blue-800 px-1 rounded">۹۹۰۰۴</span></th>
+                <th className="p-2 min-w-[130px]">موجودی ها <br/><span className="text-[9px] font-mono bg-muted text-muted-foreground px-1 rounded">۹۸۰۰۴</span></th>
+                <th className="p-2 min-w-[130px]">پیش پرداخت <br/><span className="text-[9px] font-mono bg-muted text-muted-foreground px-1 rounded">۹۸۰۰۴</span></th>
+                <th className="p-2 min-w-[140px]">پیش پرداخت مواد و کالا <br/><span className="text-[9px] font-mono bg-muted text-muted-foreground px-1 rounded">۹۸۰۰۴</span></th>
+                <th className="p-2 min-w-[150px]">پیش پرداخت اعتبار اسنادی <br/><span className="text-[9px] font-mono bg-muted text-muted-foreground px-1 rounded">۹۸۰۰۴</span></th>
+                <th className="p-2 min-w-[130px]">علی الحساب <br/><span className="text-[9px] font-mono bg-muted text-muted-foreground px-1 rounded">۹۸۰۰۴</span></th>
 
-                <th className="p-2 min-w-[120px]">سرمایه‌گذاری‌ها <br/><span className="text-[9px] font-normal text-muted-foreground">(دستی)</span></th>
+                <th className="p-2 min-w-[130px]">سرمایه گذاری ها <br/><span className="text-[9px] font-normal text-muted-foreground">(دستی)</span></th>
                 <th className="p-2 min-w-[140px] bg-teal-50/50 dark:bg-teal-950/20 text-teal-800">وجوه ارسالی به خزانه <br/><span className="text-[9px] font-normal text-muted-foreground">(محاسباتی)</span></th>
                 <th className="p-2 min-w-[140px] bg-indigo-50/50 dark:bg-indigo-950/20 text-indigo-800">وجوه انتقالی <br/><span className="text-[9px] font-normal text-muted-foreground">(محاسباتی)</span></th>
-                <th className="p-2 min-w-[130px]">اسناد واخواهی شده <br/><span className="text-[9px] font-mono bg-muted text-muted-foreground px-1 rounded">۹۲۵۰۳</span></th>
-                <th className="p-2 min-w-[140px]">کسری ابواب جمعی انتقالی <br/><span className="text-[9px] font-mono bg-muted text-muted-foreground px-1 rounded">۹۳۵۰۳ / ۸۱۰۰۷</span></th>
-                <th className="p-2 min-w-[140px]">اوراق مصرف نشده <br/><span className="text-[9px] font-mono bg-muted text-muted-foreground px-1 rounded">۸۱۰۱۰ / ۸۱۰۱۹</span></th>
+                <th className="p-2 min-w-[140px]">اسناد واخواهی شده <br/><span className="text-[9px] font-mono bg-muted text-muted-foreground px-1 rounded">۹۲۵۰۴</span></th>
+                <th className="p-2 min-w-[160px]">کسری ابواب جمعی انتقالی <br/><span className="text-[9px] font-mono bg-muted text-muted-foreground px-1 rounded">۹۳۵۰۴ ۸۱۰۰۷</span></th>
+                <th className="p-2 min-w-[150px]">اوراق مصرف نشده <br/><span className="text-[9px] font-mono bg-muted text-muted-foreground px-1 rounded">۸۱۰۱۰ ۸۱۰۱۹</span></th>
                 <th className="p-2 min-w-[150px] bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-800">مانده پایان سال <br/><span className="text-[9px] font-normal text-muted-foreground">(محاسباتی)</span></th>
 
                 <th className="p-2 w-12 text-center">حذف</th>
@@ -497,7 +500,7 @@ export default function SanamaForm10PChapterUnconsumed({
                       />
                     </td>
 
-                    {/* وجوه انتقالی غیرقطعی سال قبل (دستی) */}
+                    {/* وجوه انتقالی از محل پرداختهای غیر قطعی سال های قبل (دستی) */}
                     <td className="p-1.5">
                       <PersianAmountInput
                         value={row.transferredFromNonDefinite}
@@ -505,7 +508,7 @@ export default function SanamaForm10PChapterUnconsumed({
                       />
                     </td>
 
-                    {/* وجوه انتقالی واخواهی/کسری (دستی) */}
+                    {/* وجوه انتقالی از محل اسناد واخواهی و کسری ابواب جمعی سال های قبل (دستی) */}
                     <td className="p-1.5">
                       <PersianAmountInput
                         value={row.transferredFromObjectionsAndDeficit}
@@ -513,7 +516,7 @@ export default function SanamaForm10PChapterUnconsumed({
                       />
                     </td>
 
-                    {/* وجوه انتقالی سرمایه‌گذاری (دستی) */}
+                    {/* وجوه انتقالی از محل سرمایه گذاری ها (دستی) */}
                     <td className="p-1.5">
                       <PersianAmountInput
                         value={row.transferredFromInvestments}
@@ -521,7 +524,7 @@ export default function SanamaForm10PChapterUnconsumed({
                       />
                     </td>
 
-                    {/* حواله انتقالی (۹۴۰۰۳) */}
+                    {/* حواله انتقالی (۹۴۰۰۴) */}
                     <td className="p-1.5">
                       <PersianAmountInput
                         value={row.transferredDrafts}
@@ -530,7 +533,7 @@ export default function SanamaForm10PChapterUnconsumed({
                       />
                     </td>
 
-                    {/* دریافتی اعتبار ابلاغی (۸۱۰۱۰/۸۱۰۱۷/۸۱۰۱۹) */}
+                    {/* دریافتی از محل اعتبار انتقالی ابلاغی (۸۱۰۱۰ ۸۱۰۱۷ ۸۱۰۱۹) */}
                     <td className="p-1.5">
                       <PersianAmountInput
                         value={row.receivedNotifiedTransferred}
@@ -539,7 +542,7 @@ export default function SanamaForm10PChapterUnconsumed({
                       />
                     </td>
 
-                    {/* منابع انتقالی قابل مصرف (۹۱۰۰۳) */}
+                    {/* منابع انتقالی قابل مصرف (۹۱۰۰۴) */}
                     <td className="p-1.5 bg-purple-50/20 dark:bg-purple-950/10">
                       <PersianAmountInput
                         value={usable}
@@ -548,7 +551,7 @@ export default function SanamaForm10PChapterUnconsumed({
                       />
                     </td>
 
-                    {/* اعتبار انتقالی مصرف شده (۹۹۰۰۳) */}
+                    {/* اعتبار انتقالی مصرف شده (۹۹۰۰۴) */}
                     <td className="p-1.5 bg-blue-50/20 dark:bg-blue-950/10">
                       <PersianAmountInput
                         value={row.consumedTransferredCredit}
@@ -557,7 +560,7 @@ export default function SanamaForm10PChapterUnconsumed({
                       />
                     </td>
 
-                    {/* موجودی‌ها (۹۸۰۰۳) */}
+                    {/* موجودی ها (۹۸۰۰۴) */}
                     <td className="p-1.5">
                       <PersianAmountInput
                         value={row.inventories}
@@ -565,7 +568,7 @@ export default function SanamaForm10PChapterUnconsumed({
                       />
                     </td>
 
-                    {/* پیش پرداخت (۹۸۰۰۳) */}
+                    {/* پیش پرداخت (۹۸۰۰۴) */}
                     <td className="p-1.5">
                       <PersianAmountInput
                         value={row.prepayments}
@@ -573,7 +576,7 @@ export default function SanamaForm10PChapterUnconsumed({
                       />
                     </td>
 
-                    {/* پیش پرداخت مواد و کالا (۹۸۰۰۳) */}
+                    {/* پیش پرداخت مواد و کالا (۹۸۰۰۴) */}
                     <td className="p-1.5">
                       <PersianAmountInput
                         value={row.materialPrepayments}
@@ -581,7 +584,7 @@ export default function SanamaForm10PChapterUnconsumed({
                       />
                     </td>
 
-                    {/* پیش پرداخت اعتبار اسنادی (۹۸۰۰۳) */}
+                    {/* پیش پرداخت اعتبار اسنادی (۹۸۰۰۴) */}
                     <td className="p-1.5">
                       <PersianAmountInput
                         value={row.lcPrepayments}
@@ -589,7 +592,7 @@ export default function SanamaForm10PChapterUnconsumed({
                       />
                     </td>
 
-                    {/* علی الحساب (۹۸۰۰۳) */}
+                    {/* علی الحساب (۹۸۰۰۴) */}
                     <td className="p-1.5">
                       <PersianAmountInput
                         value={row.onAccounts}
@@ -597,7 +600,7 @@ export default function SanamaForm10PChapterUnconsumed({
                       />
                     </td>
 
-                    {/* سرمایه‌گذاری‌ها (دستی) */}
+                    {/* سرمایه گذاری ها (دستی) */}
                     <td className="p-1.5">
                       <PersianAmountInput
                         value={row.investments}
@@ -615,7 +618,7 @@ export default function SanamaForm10PChapterUnconsumed({
                       {formatPersianAmount(calcTransferred)}
                     </td>
 
-                    {/* اسناد واخواهی شده (۹۲۵۰۳) */}
+                    {/* اسناد واخواهی شده (۹۲۵۰۴) */}
                     <td className="p-1.5">
                       <PersianAmountInput
                         value={row.objectedDocuments}
@@ -623,7 +626,7 @@ export default function SanamaForm10PChapterUnconsumed({
                       />
                     </td>
 
-                    {/* کسری ابواب جمعی انتقالی (۹۳۵۰۳ / ۸۱۰۰۷) */}
+                    {/* کسری ابواب جمعی انتقالی (۹۳۵۰۴ ۸۱۰۰۷) */}
                     <td className="p-1.5">
                       <PersianAmountInput
                         value={row.transferredCashierDeficit}
@@ -631,7 +634,7 @@ export default function SanamaForm10PChapterUnconsumed({
                       />
                     </td>
 
-                    {/* اوراق مصرف نشده (۸۱۰۱۰ / ۸۱۰۱۹) */}
+                    {/* اوراق مصرف نشده (۸۱۰۱۰ ۸۱۰۱۹) */}
                     <td className="p-1.5">
                       <PersianAmountInput
                         value={row.unconsumedBonds}
@@ -710,9 +713,10 @@ export default function SanamaForm10PChapterUnconsumed({
         <div className="space-y-1">
           <p className="font-bold">راهنمای استانداردهای خزانه‌داری (سناما) در وجوه مصرف نشده فصلی (فرم ۱۰ - پ):</p>
           <ul className="list-disc list-inside space-y-0.5 text-[11px] text-muted-foreground leading-relaxed">
-            <li><b>فصول ۷ گانه اعتبارات</b> هزینه‌ای شامل عملکرد جبران خدمات، کالا و خدمات، اموال، یارانه، کمک‌های بلاعوض، رفاه اجتماعی و سایر هزینه‌ها می‌باشد.</li>
+            <li><b>فصول ۷ گانه اعتبارات</b> شامل عملکرد فصول بودجه‌ای می‌باشد.</li>
             <li><b>ردیف ابلاغی دستگاه (ابلاغ دهنده)</b> در اعتبارات ابلاغی الزامی است.</li>
-            <li><b>منابع انتقالی قابل مصرف</b> متصل به کد معین <b>۹۱۰۰۳</b>، <b>اعتبار مصرف شده</b> متصل به <b>۹۹۰۰۳</b> و <b>مانده پایان سال</b> به‌صورت محاسباتی نگاشت شده است.</li>
+            <li><b>منابع انتقالی قابل مصرف</b> متصل به کد معین <b>۹۱۰۰۴</b>، <b>اعتبار مصرف شده</b> متصل به <b>۹۹۰۰۴</b>، <b>موجودی‌ها، پیش‌پرداخت‌ها و علی‌الحساب</b> متصل به <b>۹۸۰۰۴</b>، <b>اسناد واخواهی</b> متصل به <b>۹۲۵۰۴</b> و <b>کسری ابواب جمعی</b> متصل به <b>۹۳۵۰۴</b> و <b>۸۱۰۰۷</b> می‌باشد.</li>
+            <li>ستون‌های <b>وجوه ارسالی به خزانه، وجوه انتقالی و مانده پایان سال</b> کاملاً به‌صورت خودکار و محاسباتی رقم می‌خورند.</li>
           </ul>
         </div>
       </div>
@@ -720,3 +724,4 @@ export default function SanamaForm10PChapterUnconsumed({
     </div>
   );
 }
+

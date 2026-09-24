@@ -1,10 +1,9 @@
 import { useState, useMemo, useEffect } from "react";
 import { 
-  Plus, Trash2, RefreshCw, ShieldCheck, Calculator, CheckCircle2, 
-  Info, TrendingUp, Coins, Scale, Landmark, FileSpreadsheet, AlertTriangle
+  Plus, Trash2, RefreshCw, ShieldCheck, Calculator, 
+  Info
 } from "lucide-react";
 import api from "@/api";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -20,8 +19,8 @@ export const INITIAL_FORM_11_ROWS = [
     transferredCreditConsumed: 0,
     sentToTreasury: 0,
     transferredFunds: 0,
-    cashierDeficit: 0, // کد معین ۹۳۵۰۳
-    objectedDocuments: 0, // کد معین ۹۲۵۰۳
+    cashierDeficit: 0, // کد معین ۹۳۵۰۴
+    objectedDocuments: 0, // کد معین ۹۲۵۰۴
     yearEndBalance: 0, // کد معین ۸۱۰۰۷
   },
   {
@@ -32,8 +31,8 @@ export const INITIAL_FORM_11_ROWS = [
     transferredCreditConsumed: 0,
     sentToTreasury: 0,
     transferredFunds: 0,
-    cashierDeficit: 0, // کد معین ۹۳۵۰۳
-    objectedDocuments: 0, // کد معین ۹۲۵۰۳
+    cashierDeficit: 0, // کد معین ۹۳۵۰۴
+    objectedDocuments: 0, // کد معین ۹۲۵۰۴
     yearEndBalance: 0, // کد معین ۸۱۰۰۷
   },
   {
@@ -44,8 +43,8 @@ export const INITIAL_FORM_11_ROWS = [
     transferredCreditConsumed: 0,
     sentToTreasury: 0,
     transferredFunds: 0,
-    cashierDeficit: 0, // کد معین ۹۳۵۰۳
-    objectedDocuments: 0, // کد معین ۹۲۵۰۳
+    cashierDeficit: 0, // کد معین ۹۳۵۰۴
+    objectedDocuments: 0, // کد معین ۹۲۵۰۴
     yearEndBalance: 0, // کد معین ۸۱۰۰۷
   },
 ];
@@ -66,15 +65,15 @@ export default function SanamaForm11ObjectedAndDeficit({
     if (onChange) onChange(newRows);
   };
 
-  // فراخوانی اتوماتیک کدهای معین تراز اسناد (کدهای ۹۳۵۰۳، ۹۲۵۰۳، ۸۱۰۰۷)
+  // فراخوانی اتوماتیک کدهای معین تراز اسناد (کدهای ۹۳۵۰۴، ۹۲۵۰۴، ۸۱۰۰۷ و کدهای هزینه‌ای)
   useEffect(() => {
     if (!moeinBalancesMap || Object.keys(moeinBalancesMap).length === 0) return;
 
-    const m93503 = moeinBalancesMap["93503"] || moeinBalancesMap["93501"] || moeinBalancesMap["93502"] || 0; // کسری ابواب جمعی
-    const m92503 = moeinBalancesMap["92503"] || moeinBalancesMap["92501"] || moeinBalancesMap["92502"] || 0; // اسناد واخواهی
+    const m93504 = moeinBalancesMap["93504"] || moeinBalancesMap["93503"] || moeinBalancesMap["93501"] || moeinBalancesMap["93502"] || 0; // کسری ابواب جمعی
+    const m92504 = moeinBalancesMap["92504"] || moeinBalancesMap["92503"] || moeinBalancesMap["92501"] || moeinBalancesMap["92502"] || 0; // اسناد واخواهی شده
     const m81007 = moeinBalancesMap["81007"] || 0; // مانده پایان سال کسری برداشتی
 
-    if (objectedRows.length > 0 && (m93503 > 0 || m92503 > 0 || m81007 > 0)) {
+    if (objectedRows.length > 0 && (m93504 > 0 || m92504 > 0 || m81007 > 0)) {
       setObjectedRows((prevRows) => {
         const rows = (prevRows && prevRows.length > 0) ? prevRows : INITIAL_FORM_11_ROWS;
         const updated = rows.map((r) => {
@@ -83,12 +82,12 @@ export default function SanamaForm11ObjectedAndDeficit({
           let yearEnd = Number(r.yearEndBalance) || 0;
 
           if (r.rowTitle?.includes("واخواهی")) {
-            objDoc = m92503 > 0 ? m92503 : objDoc;
+            objDoc = m92504 > 0 ? m92504 : objDoc;
           } else if (r.rowTitle?.includes("برداشتی")) {
             yearEnd = m81007 > 0 ? m81007 : yearEnd;
-            cDef = m93503 > 0 ? Math.round(m93503 / 2) : cDef;
+            cDef = m93504 > 0 ? Math.round(m93504 / 2) : cDef;
           } else {
-            cDef = m93503 > 0 ? Math.round(m93503 / 2) : cDef;
+            cDef = m93504 > 0 ? Math.round(m93504 / 2) : cDef;
           }
 
           return {
@@ -194,7 +193,7 @@ export default function SanamaForm11ObjectedAndDeficit({
           <div className="flex items-center justify-between text-[11px] font-bold text-rose-700 dark:text-rose-400">
             <span>اسناد واخواهی شده</span>
             <Badge variant="outline" className="text-[9px] font-mono bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/30">
-              کد ۹۲۵۰۳
+              کد ۹۲۵۰۴
             </Badge>
           </div>
           <div className="text-sm font-mono font-bold text-rose-800 dark:text-rose-200 mt-1.5">
@@ -206,7 +205,7 @@ export default function SanamaForm11ObjectedAndDeficit({
           <div className="flex items-center justify-between text-[11px] font-bold text-orange-700 dark:text-orange-400">
             <span>کسری ابواب جمعی</span>
             <Badge variant="outline" className="text-[9px] font-mono bg-orange-500/10 text-orange-700 dark:text-orange-300 border-orange-500/30">
-              کد ۹۳۵۰۳
+              کد ۹۳۵۰۴
             </Badge>
           </div>
           <div className="text-sm font-mono font-bold text-orange-800 dark:text-orange-200 mt-1.5">
@@ -218,7 +217,7 @@ export default function SanamaForm11ObjectedAndDeficit({
           <div className="flex items-center justify-between text-[11px] font-bold text-purple-700 dark:text-purple-400">
             <span>وجوه ارسالی به خزانه</span>
             <Badge variant="outline" className="text-[9px] font-mono bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30">
-              واریزی
+              دستی
             </Badge>
           </div>
           <div className="text-sm font-mono font-bold text-purple-800 dark:text-purple-200 mt-1.5">
@@ -296,7 +295,7 @@ export default function SanamaForm11ObjectedAndDeficit({
                 </th>
               </tr>
 
-              {/* سطر ۲: عناوین ۸ ستون درخواستی دقیق کاربر */}
+              {/* سطر ۲: عناوین ستون‌ها طبق درخواست کاربر */}
               <tr className="bg-muted/50 text-foreground font-bold text-center border-b border-border/80 divide-x divide-x-reverse divide-border/60">
                 <th className="p-2 w-10">#</th>
                 <th className="p-2 min-w-[110px]">نوع اعتبار</th>
@@ -321,11 +320,11 @@ export default function SanamaForm11ObjectedAndDeficit({
 
                 <th className="p-2 min-w-[160px] bg-orange-50/40 dark:bg-orange-950/20 text-orange-800">
                   کسری ابواب جمعی <br/>
-                  <span className="text-[9px] font-mono bg-orange-100 text-orange-800 px-1 rounded">۹۳۵۰۳</span>
+                  <span className="text-[9px] font-mono bg-orange-100 text-orange-800 px-1 rounded">۹۳۵۰۴</span>
                 </th>
                 <th className="p-2 min-w-[160px] bg-rose-50/40 dark:bg-rose-950/20 text-rose-800">
                   اسناد واخواهی شده <br/>
-                  <span className="text-[9px] font-mono bg-rose-100 text-rose-800 px-1 rounded">۹۲۵۰۳</span>
+                  <span className="text-[9px] font-mono bg-rose-100 text-rose-800 px-1 rounded">۹۲۵۰۴</span>
                 </th>
                 <th className="p-2 min-w-[160px] bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-800">
                   مانده پایان سال <br/>
@@ -412,7 +411,7 @@ export default function SanamaForm11ObjectedAndDeficit({
                       />
                     </td>
 
-                    {/* کسری ابواب جمعی (۹۳۵۰۳) */}
+                    {/* کسری ابواب جمعی (۹۳۵۰۴) */}
                     <td className="p-1.5 bg-orange-50/20 dark:bg-orange-950/10">
                       <PersianAmountInput
                         value={row.cashierDeficit}
@@ -421,7 +420,7 @@ export default function SanamaForm11ObjectedAndDeficit({
                       />
                     </td>
 
-                    {/* اسناد واخواهی شده (۹۲۵۰۳) */}
+                    {/* اسناد واخواهی شده (۹۲۵۰۴) */}
                     <td className="p-1.5 bg-rose-50/20 dark:bg-rose-950/10">
                       <PersianAmountInput
                         value={row.objectedDocuments}
@@ -488,12 +487,12 @@ export default function SanamaForm11ObjectedAndDeficit({
                     {formatPersianAmount(calculatedTotals.transferredFunds)}
                   </td>
 
-                  {/* مجموع کسری ابواب جمعی (۹۳۵۰۳) */}
+                  {/* مجموع کسری ابواب جمعی (۹۳۵۰۴) */}
                   <td className="p-2.5 text-center font-mono font-bold text-orange-900 dark:text-orange-200 bg-orange-500/20">
                     {formatPersianAmount(calculatedTotals.cashierDeficit)}
                   </td>
 
-                  {/* مجموع اسناد واخواهی شده (۹۲۵۰۳) */}
+                  {/* مجموع اسناد واخواهی شده (۹۲۵۰۴) */}
                   <td className="p-2.5 text-center font-mono font-bold text-rose-900 dark:text-rose-200 bg-rose-500/20">
                     {formatPersianAmount(calculatedTotals.objectedDocuments)}
                   </td>
@@ -517,8 +516,8 @@ export default function SanamaForm11ObjectedAndDeficit({
         <div className="space-y-1">
           <p className="font-bold">راهنمای استانداردهای خزانه‌داری (سناما) در اسناد واخواهی و کسری ابواب جمعی (فرم ۱۱):</p>
           <ul className="list-disc list-inside space-y-0.5 text-[11px] text-muted-foreground leading-relaxed">
-            <li><b>کسری ابواب جمعی</b> متصل به کد معین <b>۹۳۵۰۳</b> (کسری ابواب جمعی عمومی/هزینه‌ای) می‌باشد.</li>
-            <li><b>اسناد واخواهی شده</b> متصل به کد معین <b>۹۲۵۰۳</b> (اسناد واخواهی شده دیوان محاسبات کشور) می‌باشد.</li>
+            <li><b>کسری ابواب جمعی</b> متصل به کد معین <b>۹۳۵۰۴</b> (کسری ابواب جمعی) می‌باشد.</li>
+            <li><b>اسناد واخواهی شده</b> متصل به کد معین <b>۹۲۵۰۴</b> (اسناد واخواهی شده دیوان محاسبات کشور) می‌باشد.</li>
             <li><b>مانده پایان سال</b> متصل به کد معین <b>۸۱۰۰۷</b> (کسری ابواب جمعی برداشتی و سنواتی) می‌باشد.</li>
           </ul>
         </div>

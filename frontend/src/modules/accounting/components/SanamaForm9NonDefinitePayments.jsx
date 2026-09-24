@@ -72,9 +72,37 @@ export default function SanamaForm9NonDefinitePayments({
   moeinBalancesMap = {},
   onSyncMoein,
   fiscalYear = "1404",
-  period = "کامل"
+  period = "کامل",
+  categoryId = "capital_dedicated",
+  categoryTitle = "",
+  formId = ""
 }) {
   const [paymentRows, setPaymentRows] = useState(rows && rows.length > 0 ? rows : INITIAL_FORM_9_ROWS);
+
+  // تعیین کدهای معین مانده پایان دوره بر اساس دسته فرم (عمومی تملک: ۹۸۰۰۳ | ۹۸۰۰۴، اختصاصی تملک: ۹۸۰۰۴، هزینه‌ای: ۹۸۰۰۳)
+  const yearEndMoeinCode = useMemo(() => {
+    if (categoryId === "capital_public" || formId === "form_9_cap_pub") {
+      return "۹۸۰۰۳ | ۹۸۰۰۴";
+    }
+    if (categoryId === "capital_dedicated" || formId === "form_9_cap_ded") {
+      return "۹۸۰۰۴";
+    }
+    if (categoryId?.includes("expense") || formId?.includes("exp")) {
+      return "۹۸۰۰۳";
+    }
+    if (categoryTitle?.includes("عمومی") && categoryTitle?.includes("تملک")) {
+      return "۹۸۰۰۳ | ۹۸۰۰۴";
+    }
+    if (categoryTitle?.includes("اختصاصی") && categoryTitle?.includes("تملک")) {
+      return "۹۸۰۰۴";
+    }
+    if (categoryTitle?.includes("تملک")) {
+      return "۹۸۰۰۴";
+    }
+    return "۹۸۰۰۳ | ۹۸۰۰۴";
+  }, [categoryId, formId, categoryTitle]);
+
+  const isCapitalForm = categoryId?.includes("capital") || formId?.includes("cap") || categoryTitle?.includes("تملک");
 
   // به‌روزرسانی ردیف‌ها و اطلاع به کامپوننت مادر
   const updateRows = (newRows) => {
@@ -82,32 +110,34 @@ export default function SanamaForm9NonDefinitePayments({
     if (onChange) onChange(newRows);
   };
 
-  // فراخوانی اتوماتیک اطلاعات کدهای معین تراز اسناد (کدهای ۹۸۰۰۳ و ۹۸۰۰۴ و ۹۸۰۰۱ و ۹۸۰۰۲)
+  // فراخوانی اتوماتیک اطلاعات کدهای معین تراز اسناد
   useEffect(() => {
     if (!moeinBalancesMap || Object.keys(moeinBalancesMap).length === 0) return;
 
-    const m98003 = moeinBalancesMap["98003"] || moeinBalancesMap["98001"] || 0; // پیش‌پرداخت/علی‌الحساب هزینه‌ای
-    const m98004 = moeinBalancesMap["98004"] || moeinBalancesMap["98002"] || 0; // پیش‌پرداخت/موجودی سرمایه‌ای
+    let mYearEnd = 0;
+    if (yearEndMoeinCode.includes("۹۸۰۰۳") && yearEndMoeinCode.includes("۹۸۰۰۴")) {
+      const m98003 = moeinBalancesMap["98003"] || moeinBalancesMap["98001"] || 0;
+      const m98004 = moeinBalancesMap["98004"] || moeinBalancesMap["98002"] || 0;
+      mYearEnd = m98003 + m98004;
+    } else if (yearEndMoeinCode.includes("۹۸۰۰۴")) {
+      mYearEnd = moeinBalancesMap["98004"] || moeinBalancesMap["98002"] || 0;
+    } else {
+      mYearEnd = moeinBalancesMap["98003"] || moeinBalancesMap["98001"] || 0;
+    }
 
-    if (paymentRows.length > 0 && (m98003 > 0 || m98004 > 0)) {
+    if (paymentRows.length > 0 && mYearEnd > 0) {
       setPaymentRows((prevRows) => {
         const rows = (prevRows && prevRows.length > 0) ? prevRows : INITIAL_FORM_9_ROWS;
-        const updated = rows.map((r) => {
-          let yearEnd = Number(r.yearEndBalance) || 0;
-          let initBal = Number(r.initialBalance) || 0;
+        const count = rows.length || 1;
 
-          if (r.creditLocation?.includes("تملک") || r.title?.includes("پیمانکاران") || r.title?.includes("انبار")) {
-            yearEnd = m98004 > 0 ? Math.round(m98004 / 2) : yearEnd;
-            initBal = initBal > 0 ? initBal : Math.round(yearEnd * 0.8);
-          } else {
-            yearEnd = m98003 > 0 ? Math.round(m98003 / 2) : yearEnd;
-            initBal = initBal > 0 ? initBal : Math.round(yearEnd * 0.8);
-          }
+        const updated = rows.map((r) => {
+          let yearEnd = Math.round(mYearEnd / count);
+          let initBal = Number(r.initialBalance) || 0;
 
           return {
             ...r,
             yearEndBalance: yearEnd,
-            initialBalance: initBal,
+            initialBalance: initBal > 0 ? initBal : Math.round(yearEnd * 0.8),
           };
         });
 
@@ -119,7 +149,7 @@ export default function SanamaForm9NonDefinitePayments({
         return prevRows;
       });
     }
-  }, [moeinBalancesMap]);
+  }, [moeinBalancesMap, yearEndMoeinCode]);
 
   // تغییر فیلد یک ردیف مشخص
   const handleCellChange = (id, field, value) => {
@@ -248,7 +278,7 @@ export default function SanamaForm9NonDefinitePayments({
           <div className="flex items-center justify-between text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
             <span>مانده پایان دوره</span>
             <Badge variant="outline" className="text-[9px] font-mono bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30">
-              کد ۹۸۰۰۳ / ۹۸۰۰۴
+              کد {yearEndMoeinCode}
             </Badge>
           </div>
           <div className="text-sm font-mono font-bold text-emerald-800 dark:text-emerald-200 mt-1.5">
@@ -351,7 +381,7 @@ export default function SanamaForm9NonDefinitePayments({
                 </th>
                 <th className="p-2 min-w-[160px] bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-800">
                   مانده پایان دوره <br/>
-                  <span className="text-[9px] font-mono bg-emerald-100 text-emerald-800 px-1 rounded">۹۸۰۰۳ | ۹۸۰۰۴</span>
+                  <span className="text-[9px] font-mono bg-emerald-100 text-emerald-800 px-1 rounded">کد {yearEndMoeinCode}</span>
                 </th>
 
                 <th className="p-2 w-12 text-center">حذف</th>
@@ -472,7 +502,7 @@ export default function SanamaForm9NonDefinitePayments({
                       {formatPersianAmount(transferredFunds)}
                     </td>
 
-                    {/* مانده پایان دوره (کدهای معین ۹۸۰۰۳ / ۹۸۰۰۴) */}
+                    {/* مانده پایان دوره (کد معین {yearEndMoeinCode}) */}
                     <td className="p-1.5 bg-emerald-50/30 dark:bg-emerald-950/10">
                       <PersianAmountInput
                         value={row.yearEndBalance}
@@ -545,7 +575,7 @@ export default function SanamaForm9NonDefinitePayments({
                     {formatPersianAmount(calculatedTotals.transferredFunds)}
                   </td>
 
-                  {/* مجموع مانده پایان دوره (۹۸۰۰۳ / ۹۸۰۰۴) */}
+                  {/* مجموع مانده پایان دوره (کد معین {yearEndMoeinCode}) */}
                   <td className="p-2.5 text-center font-mono font-bold text-emerald-900 dark:text-emerald-200 bg-emerald-500/20">
                     {formatPersianAmount(calculatedTotals.yearEndBalance)}
                   </td>
@@ -565,7 +595,7 @@ export default function SanamaForm9NonDefinitePayments({
           <p className="font-bold">راهنمای استانداردهای خزانه‌داری (سناما) در پرداخت‌های غیرقطعی (فرم ۹):</p>
           <ul className="list-disc list-inside space-y-0.5 text-[11px] text-muted-foreground leading-relaxed">
             <li><b>محل اعتبار و محل وصول</b> بر اساس منبع عمومی، اختصاصی یا تملک سرمایه‌ای و محل دریافت از خزانه تعیین می‌گردد.</li>
-            <li><b>مانده پایان دوره</b> متصل به کدهای معین <b>۹۸۰۰۳</b> (پیش‌پرداخت و علی‌الحساب هزینه‌ای) و <b>۹۸۰۰۴</b> (پیش‌پرداخت و موجودی تملک سرمایه‌ای) می‌باشد.</li>
+            <li><b>مانده پایان دوره</b> متصل به کد معین <b>{yearEndMoeinCode}</b> ({isCapitalForm ? "پیش‌پرداخت، علی‌الحساب و موجودی تملک دارایی‌های سرمایه‌ای" : "پیش‌پرداخت و علی‌الحساب اعتبارات هزینه‌ای"}) می‌باشد.</li>
             <li><b>وجوه انتقالی</b> حاصل تفاضل مانده ابتدای سال و مبالغ تسویه یا واریز شده به خزانه به‌صورت محاسباتی می‌باشد.</li>
           </ul>
         </div>
