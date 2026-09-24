@@ -89,6 +89,36 @@ export function getRuleDetails(code) {
   return { code: c, category, targetModule, affectedMoeins };
 }
 
+/**
+ * تفکیک کدهای معین اعتبارات هزینه‌ای بر پایه نوع اعتبار (اعتبار عمومی، اختصاصی یا سایر)
+ */
+export function classifyExpenseMoeinByCreditNature(moeinCode, creditNature = "public") {
+  const isDedicated = creditNature === "dedicated" || creditNature === "اختصاصی";
+  return isDedicated ? "expense_dedicated" : "expense_public";
+}
+
+/**
+ * کدهای معین انتظامی/مشترک بین هزینه‌ای و تملک دارایی‌های سرمایه‌ای (مانند ۸۱۰۱۰، ۸۲۰۱۰، ۸۱۰۱۷، ۸۲۰۱۷)
+ * عامل اصلی تمایز بین آن‌ها، "فصل‌های اعتباری" درج شده در تفصیلی آن کد می‌باشد.
+ */
+export const SHARED_ENTEZAMI_MOEIN_CODES = ["81010", "82010", "81017", "82017"];
+
+export function classifySharedMoeinByChapter(moeinCode, chapterCode) {
+  const cleanCode = String(moeinCode || "").trim();
+  if (!SHARED_ENTEZAMI_MOEIN_CODES.includes(cleanCode)) {
+    return null;
+  }
+  const cleanCh = String(chapterCode || "").trim().replace(/^0+/, "");
+  const chNum = Number(cleanCh);
+  if (chNum >= 1 && chNum <= 7) {
+    return "expense"; // مربوط به هزینه‌ها (فصل‌های ۱ تا ۷)
+  }
+  if (chNum >= 8 || cleanCh === "capital" || cleanCh === "عمرانی") {
+    return "capital"; // مربوط به تملک دارایی‌های سرمایه‌ای (فصل ۸ یا طرح‌های سرمایه‌ای)
+  }
+  return "unknown";
+}
+
 export const SANAMA_PERFORMANCE_RULES = [
   { code: 9, title: "دستگاه‌های فاقد اعتبار مصوب در سال جاری", desc: "دستگاه‌های اجرایی زیر در سال قبل (در هر یک از فرم‌های ۴، ۶، ۴-۴ و ۴-۱ دارای اعتبار (مصوب) بوده اند ولی در سال جاری فاقد اعتبار (مصوب) هستند." },
   { code: 10, title: "تعیین وضعیت بایگانی صورت‌حساب نهایی ارسال‌شده به وزارت/اداره کل اقتصادی", desc: "صورت‌حساب نهایی (اعتبارات هزینه / سرمایه‌ای) دستگاه اجرایی زیر به وزارت امور اقتصادی و دارایی / ادارات کل امور اقتصادی و دارایی استان ارسال گردیده ولی وضعیت آن بایگانی تعیین نشده است." },
@@ -1998,6 +2028,51 @@ export function validateSanamaPerformanceForms(items = []) {
     // ─── خطای ۱۱۶۰ (جدید) ───────────────────────────────────────────────────
     if ((Number(item.transferred_objection_docs) > 0 || Number(item.transferred_deficit) > 0) && item.form_status !== "واخواهی") {
       errors.push({ code: 1160, itemIndex: idx, itemRef, message: 'در صورتی که ستون اسناد واخواهی شده انتقالی یا کسری ابواب جمعی انتقالی گردیده است، وضعیت فرم می بایست فرم واخواهی باشد.' });
+    }
+
+
+
+    // ─── تفکیک کدهای عمومی و اختصاصی در اعتبارات هزینه‌ای بر پایه نوع اعتبار ────
+    const itemCreditNature = String(item.credit_nature || item.credit_type || "").trim();
+    if (itemCreditNature === "اختصاصی" && item.category === "expense_public") {
+      errors.push({
+        code: 8100,
+        itemIndex: idx,
+        itemRef,
+        message: 'اعتبار با ماهیت "اختصاصی" بوده و باید در قالب فرم‌های عملکرد اختصاصی (Performance-based) ثبت گردد و نباید در اعتبارات هزینه‌ای عمومی درج شود.',
+      });
+    } else if (itemCreditNature === "عمومی" && item.category === "expense_dedicated") {
+      errors.push({
+        code: 8101,
+        itemIndex: idx,
+        itemRef,
+        message: 'اعتبار با ماهیت "عمومی" بوده و باید در طبقه‌بندی اعتبارات هزینه‌ای عمومی قرار گیرد و نباید در فرم‌های اختصاصی درج شود.',
+      });
+    }
+
+    // ─── تمایز کدهای انتظامی مشترک (۸۱۰۱۰، ۸۲۰۱۰، ۸۱۰۱۷، ۸۲۰۱۷) بر اساس فصل اعتباری تفصیلی ────
+    const itemCode = String(item.moein_code || item.account_code || "").trim();
+    if (["81010", "82010", "81017", "82017"].includes(itemCode)) {
+      const ch = String(item.chapter_code || item.chapter || item.tafsili_chapter || "").trim().replace(/^0+/, "");
+      const chNum = Number(ch);
+      const isCapitalForm = item.is_capital_form || accountKind?.includes("سرمایه‌ای") || item.category?.startsWith("capital");
+      const isExpenseForm = item.is_expense_form || accountKind?.includes("هزینه‌ای") || item.category?.startsWith("expense");
+
+      if (chNum >= 1 && chNum <= 7 && isCapitalForm) {
+        errors.push({
+          code: 810101,
+          itemIndex: idx,
+          itemRef,
+          message: `کد معین انتظامی ${itemCode} دارای فصل اعتباری هزینه‌ای (${ch}) است اما در فرم/حساب تملک دارایی‌های سرمایه‌ای قرار گرفته است. تمایز حساب‌ها بر اساس فصل اعتباری تفصیلی می‌باشد.`,
+        });
+      } else if ((chNum >= 8 || ch === "capital") && isExpenseForm) {
+        errors.push({
+          code: 810102,
+          itemIndex: idx,
+          itemRef,
+          message: `کد معین انتظامی ${itemCode} دارای فصل اعتباری سرمایه‌ای (${ch}) است اما در فرم/حساب اعتبارات هزینه‌ای قرار گرفته است. تمایز حساب‌ها بر اساس فصل اعتباری تفصیلی می‌باشد.`,
+        });
+      }
     }
   });
 

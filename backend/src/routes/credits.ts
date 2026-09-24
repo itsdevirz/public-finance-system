@@ -1049,6 +1049,27 @@ router.post("/sanama-performance-check", async (c) => {
       if ((accountKind === "سرمایه‌ای" || accountKind === "سرمایه‌ای اختصاصی") && (chapter === "8" || chapter === "08")) {
         errors.push({ code: 1158, itemIndex: idx, message: 'امکان درج فصل ۸ در حساب سرمایه‌ای و سرمایه‌ای اختصاصی وجود ندارد.' });
       }
+      // تفکیک کدهای معین اعتبارات هزینه‌ای بر پایه نوع اعتبار (عمومی، اختصاصی یا سایر)
+      const creditNature = String(item.credit_nature || item.credit_type || "").trim();
+      if (creditNature === "اختصاصی" && item.category === "expense_public") {
+        errors.push({ code: 8100, itemIndex: idx, message: 'اعتبار با ماهیت "اختصاصی" بوده و باید در قالب فرم‌های عملکرد اختصاصی (Performance-based) ثبت گردد.' });
+      } else if (creditNature === "عمومی" && item.category === "expense_dedicated") {
+        errors.push({ code: 8101, itemIndex: idx, message: 'اعتبار با ماهیت "عمومی" بوده و باید در طبقه‌بندی اعتبارات هزینه‌ای عمومی قرار گیرد.' });
+      }
+      // تمایز کدهای انتظامی مشترک (۸۱۰۱۰، ۸۲۰۱۰، ۸۱۰۱۷، ۸۲۰۱۷) بر اساس فصل اعتباری تفصیلی
+      const itemCode = String(item.moein_code || item.account_code || "").trim();
+      if (["81010", "82010", "81017", "82017"].includes(itemCode)) {
+        const ch = String(item.chapter_code || item.chapter || item.tafsili_chapter || "").trim().replace(/^0+/, "");
+        const chNum = Number(ch);
+        const isCapitalForm = item.is_capital_form || accountKind.includes("سرمایه‌ای") || String(item.category || "").startsWith("capital");
+        const isExpenseForm = item.is_expense_form || accountKind.includes("هزینه‌ای") || String(item.category || "").startsWith("expense");
+
+        if (chNum >= 1 && chNum <= 7 && isCapitalForm) {
+          errors.push({ code: 810101, itemIndex: idx, message: `کد معین انتظامی ${itemCode} دارای فصل اعتباری هزینه‌ای (${ch}) است اما در فرم/حساب تملک دارایی‌های سرمایه‌ای قرار گرفته است. تمایز حساب‌ها بر اساس فصل اعتباری تفصیلی می‌باشد.` });
+        } else if ((chNum >= 8 || ch === "capital") && isExpenseForm) {
+          errors.push({ code: 810102, itemIndex: idx, message: `کد معین انتظامی ${itemCode} دارای فصل اعتباری سرمایه‌ای (${ch}) است اما در فرم/حساب اعتبارات هزینه‌ای قرار گرفته است. تمایز حساب‌ها بر اساس فصل اعتباری تفصیلی می‌باشد.` });
+        }
+      }
       // کد ۶۲
       if (item.form_type === 4 && item.project_number && /[a-zA-Zآ-ی]/.test(String(item.project_number))) {
         errors.push({ code: 62, itemIndex: idx, message: 'دستگاه اجرایی نمی‌تواند در فرم ۴ از شماره طرح حروف‌دار برای اعتبار ابلاغی استفاده نماید.' });

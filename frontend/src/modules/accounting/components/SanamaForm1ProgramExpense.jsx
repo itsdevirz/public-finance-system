@@ -107,7 +107,8 @@ export default function SanamaForm1ProgramExpense({
 
     const m91001 = moeinBalancesMap["91001"] || 0;
     const m93001 = (moeinBalancesMap["93001"] || 0) + (moeinBalancesMap["91501"] || 0) + (moeinBalancesMap["93501"] || 0);
-    const mReceived = (moeinBalancesMap["41001"] || 0) + (moeinBalancesMap["41003"] || 0) + (moeinBalancesMap["41005"] || 0) + (moeinBalancesMap["81017"] || 0) + (moeinBalancesMap["81010"] || 0) + (moeinBalancesMap["81019"] || 0);
+    // تفکیک بر پایه ماهیت اعتبارات هزینه‌ای و فصل‌های اعتباری تفصیلی برای کدهای انتظامی (۸۱۰۱۰ و ۸۱۰۱۷)
+    const mReceived = (moeinBalancesMap["41001"] || 0) + (moeinBalancesMap["41005"] || 0) + (moeinBalancesMap["81017_expense"] || moeinBalancesMap["81017"] || 0) + (moeinBalancesMap["81010_expense"] || moeinBalancesMap["81010"] || 0) + (moeinBalancesMap["81019"] || 0);
     const m99001 = moeinBalancesMap["99001"] || 0;
     const m98001 = moeinBalancesMap["98001"] || 0;
     const mDeficit = (moeinBalancesMap["81007"] || 0) + (moeinBalancesMap["93501"] || 0);
@@ -275,7 +276,7 @@ export default function SanamaForm1ProgramExpense({
     // مقادیر معین از نقشه کدهای دفتر معین
     const m91001 = moeinBalancesMap["91001"] || 0;
     const m93001 = (moeinBalancesMap["93001"] || 0) + (moeinBalancesMap["91501"] || 0) + (moeinBalancesMap["93501"] || 0);
-    const mReceived = (moeinBalancesMap["41001"] || 0) + (moeinBalancesMap["41003"] || 0) + (moeinBalancesMap["41005"] || 0) + (moeinBalancesMap["81017"] || 0) + (moeinBalancesMap["81010"] || 0) + (moeinBalancesMap["81019"] || 0);
+    const mReceived = (moeinBalancesMap["41001"] || 0) + (moeinBalancesMap["41005"] || 0) + (moeinBalancesMap["81017_expense"] || moeinBalancesMap["81017"] || 0) + (moeinBalancesMap["81010_expense"] || moeinBalancesMap["81010"] || 0) + (moeinBalancesMap["81019"] || 0);
     const m99001 = moeinBalancesMap["99001"] || 0;
     const m98001 = moeinBalancesMap["98001"] || 0;
     const mDeficit = (moeinBalancesMap["81007"] || 0) + (moeinBalancesMap["93501"] || 0);

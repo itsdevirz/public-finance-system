@@ -82,8 +82,8 @@ export default function SanamaFormCapitalProjectSummary({
     const mFinalBudget = moeinBalancesMap["91002"] || 0;
     // اعتبار تخصیص یافته: ۹۳۰۰۲ + ۹۳۵۰۲ + ۹۲۵۰۲
     const mAllocated = (moeinBalancesMap["93002"] || 0) + (moeinBalancesMap["93502"] || 0) + (moeinBalancesMap["92502"] || 0);
-    // اعتبار دریافت شده: ۴۱۰۰۳ + ۸۱۰۱۰ + ۸۱۰۱۷ + ۸۱۰۱۹
-    const mReceived = (moeinBalancesMap["41003"] || 0) + (moeinBalancesMap["81010"] || 0) + (moeinBalancesMap["81017"] || 0) + (moeinBalancesMap["81019"] || 0);
+    // اعتبار دریافت شده: ۴۱۰۰۳ (اعتبار عمومی سرمایه‌ای) + ۴۱۰۰۶ (اعتبار اختصاصی سرمایه‌ای) + کدهای انتظامی سرمایه‌ای (۸۱۰۱۰ و ۸۱۰۱۷) + ۸۱۰۱۹
+    const mReceived = (moeinBalancesMap["41003"] || 0) + (moeinBalancesMap["41006"] || 0) + (moeinBalancesMap["81010_capital"] || moeinBalancesMap["81010"] || 0) + (moeinBalancesMap["81017_capital"] || moeinBalancesMap["81017"] || 0) + (moeinBalancesMap["81019"] || 0);
     // اعتبار مصرف شده: ۹۹۰۰۲
     const mConsumed = moeinBalancesMap["99002"] || 0;
     // موجودی‌ها و پیش پرداخت‌ها: ۹۸۰۰۲

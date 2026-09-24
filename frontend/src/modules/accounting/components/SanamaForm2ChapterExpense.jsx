@@ -62,8 +62,8 @@ export default function SanamaForm2ChapterExpense({
     const m91001 = moeinBalancesMap["91001"] || 0;
     // کدهای تخصیص فرم ۲: ۹۳۰۰۱، ۹۲۵۰۱، ۹۳۵۰۱
     const mAllocated = (moeinBalancesMap["93001"] || 0) + (moeinBalancesMap["92501"] || 0) + (moeinBalancesMap["93501"] || 0);
-    // کدهای دریافت فرم ۲: ۴۱۰۰۱، ۴۱۰۰۳، ۴۱۰۰۵، ۸۱۰۱۷، ۸۱۰۱۰
-    const mReceived = (moeinBalancesMap["41001"] || 0) + (moeinBalancesMap["41003"] || 0) + (moeinBalancesMap["41005"] || 0) + (moeinBalancesMap["81017"] || 0) + (moeinBalancesMap["81010"] || 0);
+    // کدهای دریافت فرم ۲: ۴۱۰۰۱ (اعتبار عمومی)، ۴۱۰۰۵ (اعتبار اختصاصی)، و کدهای انتظامی هزینه‌ای (۸۱۰۱۷ و ۸۱۰۱۰)
+    const mReceived = (moeinBalancesMap["41001"] || 0) + (moeinBalancesMap["41005"] || 0) + (moeinBalancesMap["81017_expense"] || moeinBalancesMap["81017"] || 0) + (moeinBalancesMap["81010_expense"] || moeinBalancesMap["81010"] || 0);
     // کد مصرف فرم ۲: ۹۹۰۰۱
     const m99001 = moeinBalancesMap["99001"] || 0;
     // موجودی، موجودی مواد و پیش پرداخت: ۹۸۰۰۱

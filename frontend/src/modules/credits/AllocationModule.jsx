@@ -1,81 +1,170 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, Edit, Trash2, CheckCircle2, AlertCircle, ArrowDown, Eye, Filter } from "lucide-react";
+import { Modal } from "@/components/ui/modal";
+import { 
+  TrendingUp, Edit, Trash2, CheckCircle2, AlertCircle, Eye,
+  Plus, Save, RefreshCw, FileText, Copy, Printer, FileSpreadsheet,
+  Download, Layers, Landmark, ShieldCheck, Scale, Calculator, Search, HelpCircle, X
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 import api from "@/api";
+import { printTable } from "@/lib/printUtils";
+import * as XLSX from "xlsx";
 
+// ─── توابع کمکی تبدیل اعداد و مبالغ به فارسی و حروف ─────────────────────────────
 function fmtNum(n) {
-  if (n === 0 || n == null) return "۰";
+  if (n === 0 || n == null || isNaN(n)) return "۰";
   return Number(n).toLocaleString("fa-IR");
 }
 
+function numToPersianWords(num) {
+  if (!num || isNaN(num) || num === 0) return "صفر ریال";
+  const units = ["", "یک", "دو", "سه", "چهار", "پنج", "شش", "هفت", "هشت", "نه"];
+  const teens = ["ده", "یازده", "دوازده", "سیزده", "چهارده", "پانزده", "شانزده", "هفده", "هجده", "نوزده"];
+  const tens = ["", "ده", "بیست", "سی", "چهل", "پنجاه", "شصت", "هفتاد", "هشتاد", "نود"];
+  const hundreds = ["", "صد", "دویست", "سیصد", "چهارصد", "پانصد", "ششصد", "هفتصد", "هشتصد", "نهصد"];
+  const thousands = ["", " هزار", " میلیون", " میلیارد", " تریلیون"];
+
+  const n = Math.abs(Number(num));
+  let str = n.toString();
+  let parts = [];
+  while (str.length > 0) {
+    parts.unshift(str.slice(-3));
+    str = str.slice(0, -3);
+  }
+
+  const convertGroup = (g) => {
+    let val = parseInt(g, 10);
+    if (val === 0) return "";
+    let res = [];
+    let h = Math.floor(val / 100);
+    let rem = val % 100;
+    let t = Math.floor(rem / 10);
+    let u = rem % 10;
+
+    if (h > 0) res.push(hundreds[h]);
+    if (rem >= 10 && rem < 20) {
+      res.push(teens[rem - 10]);
+    } else {
+      if (t > 0) res.push(tens[t]);
+      if (u > 0) res.push(units[u]);
+    }
+    return res.join(" و ");
+  };
+
+  let wordParts = [];
+  for (let i = 0; i < parts.length; i++) {
+    let groupWord = convertGroup(parts[i]);
+    if (groupWord) {
+      let scale = thousands[parts.length - 1 - i];
+      wordParts.push(groupWord + scale);
+    }
+  }
+  return wordParts.join(" و ") + " ریال";
+}
+
+// ─── ثابت‌های فصول اعتبارات و منابع تخصیص ──────────────────────────────────────────
+export const EXPENSE_CHAPTERS = [
+  { code: "210000", title: "جبران خدمات کارکنان (فصل ۱)" },
+  { code: "220000", title: "استفاده از کالاها و خدمات (فصل ۲)" },
+  { code: "230000", title: "مصرف سرمایه‌های ثابت (فصل ۳)" },
+  { code: "240000", title: "سود (فصل ۴)" },
+  { code: "250000", title: "یارانه (فصل ۵)" },
+  { code: "260000", title: "کمک‌های بلاعوض (فصل ۶)" },
+  { code: "270000", title: "مزایای اجتماعی (فصل ۷)" },
+  { code: "280000", title: "سایر هزینه‌ها (فصل ۸)" },
+];
+
+export const CAPITAL_CHAPTERS = [
+  { code: "110100", title: "ساختمان و مستحدثات (فصل ۱)" },
+  { code: "110200", title: "ماشین‌آلات و تجهیزات (فصل ۲)" },
+  { code: "110300", title: "سایر دارایی‌های ثابت (فصل ۳)" },
+  { code: "120100", title: "تغییر در موجودی انبار (فصل ۴)" },
+  { code: "130100", title: "اقلام گرانبها (فصل ۵)" },
+  { code: "210000", title: "زمین (فصل ۶)" },
+  { code: "220000", title: "سایر دارایی‌های تولید نشده (فصل ۷)" },
+];
+
+export const ALLOCATION_SOURCES = [
+  { id: "1", label: "نقد" },
+  { id: "2", label: "قیر" },
+  { id: "3", label: "اسناد تسویه خزانه" },
+  { id: "4", label: "تسهیلات مالی" },
+  { id: "5", label: "اسناد خزانه اسلامی" },
+  { id: "6", label: "اوراق مشارکت" },
+  { id: "7", label: "اوراق مرابحه" },
+  { id: "8", label: "اوراق اجاره" },
+  { id: "9", label: "اوراق منفعت" },
+];
+
 export default function AllocationModule() {
   const { pathname } = useLocation();
-  const activeTab = pathname.includes("edit")
-    ? "edit"
-    : pathname.includes("review")
-    ? "review"
-    : "new";
 
+  // داده‌های اصلی از سرور
   const [allocations, setAllocations] = useState([]);
   const [agreements, setAgreements] = useState([]);
-  const [amendments, setAmendments] = useState([]);
-  const [fundingRequests, setFundingRequests] = useState([]);
-  const [obligations, setObligations] = useState([]);
-  const [realizations, setRealizations] = useState([]);
-  const [remittances, setRemittances] = useState([]);
-  const [paymentRequests, setPaymentRequests] = useState([]);
 
   const [loading, setLoading] = useState(false);
   const [alertMsg, setAlertMsg] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [editingAllocId, setEditingAllocId] = useState(null);
 
-  const [selectedAgrId, setSelectedAgrId] = useState("");
-  const [activeStep, setActiveStep] = useState("approved");
+  // مودال پروانه رسمی چاپ تخصیص
+  const [selectedPrintAlloc, setSelectedPrintAlloc] = useState(null);
 
-  const [editingAlloc, setEditingAlloc] = useState(null);
-  const [form, setForm] = useState({
+  // ۱. سربرگ اعتبارات (اطلاعات کلان)
+  const [headerForm, setHeaderForm] = useState({
     agreement_id: "",
-    fiscal_year: "1403",
-    amount: "",
-    allocation_date: new Date().toISOString().split("T")[0],
+    sourceType: "1", // ۱. عمومی / ۲. اختصاصی
+    creditType: "approved", // ۱. مصوب / ۲. ابلاغی
+    creditSpec: "program", // ۱. برنامه / ۲. طرح
+    creditCategory: "expense", // هزینه‌ای (expense) / تملک (capital)
+    fiscalYear: "1404",
     period: "سه ماهه اول",
-    description: "",
-    status: "allocated"
+    agencyBudgetRow: "109000", // ردیف بودجه‌ای ۶ رقمی
+    agreementBaseCode: "", // کد مبنای موافقتنامه دریافت شده از مرحله قبل
+    allocationBaseCode: "", // کد مبنای تخصیص صادرشده برای استفاده در مرحله بعد (دریافت)
   });
 
+  // ۲. سطرهای جزئیات تخصیص (ریز اعتبار)
+  const [detailRows, setDetailRows] = useState([
+    {
+      id: "row_1",
+      chapterCode: "210000",
+      chapterTitle: "جبران خدمات کارکنان (فصل ۱)",
+      programOrProjectNumber: "1001",
+      allocationSource: "1", // نقد
+      agencyRow: "109000",
+      amount: 0,
+      description: "تخصیص سه‌ماهه اول فصل اول حقوق و مزایای کارکنان",
+      rowBaseCode: "",
+    },
+  ]);
+
+  // دریافت داده‌ها از API
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [alRes, agRes, amdRes, fndRes, oblRes, rlzRes, remRes, reqRes] = await Promise.all([
+      const [alRes, agRes] = await Promise.all([
         api.get("/api/credits/allocations"),
         api.get("/api/credits/agreements"),
-        api.get("/api/credits/budget/amendments"),
-        api.get("/api/credits/funding/requests"),
-        api.get("/api/credits/obligations"),
-        api.get("/api/credits/realizations"),
-        api.get("/api/credits/payments/remittances"),
-        api.get("/api/credits/requests")
       ]);
-      const agList = agRes.data?.data || [];
-      setAllocations(alRes.data?.data || []);
-      setAgreements(agList);
-      setAmendments(amdRes.data?.data || []);
-      setFundingRequests(fndRes.data?.data || []);
-      setObligations(oblRes.data?.data || []);
-      setRealizations(rlzRes.data?.data || []);
-      setRemittances(remRes.data?.data || []);
-      setPaymentRequests(reqRes.data?.data || []);
 
-      if (agList.length > 0 && !selectedAgrId) {
-        setSelectedAgrId(String(agList[0]._id));
+      const agList = agRes.data?.data || [];
+      const alList = alRes.data?.data || [];
+      setAllocations(alList);
+      setAgreements(agList);
+
+      if (agList.length > 0 && !headerForm.agreement_id) {
+        handleSelectAgreement(agList[0], alList);
       }
     } catch (e) {
-      setAlertMsg({ type: "error", text: "خطا در دریافت اطلاعات تخصیص اعتبار" });
+      setAlertMsg({ type: "error", text: "خطا در دریافت اطلاعات تخصیص اعتبارات" });
     } finally {
       setLoading(false);
     }
@@ -85,766 +174,1111 @@ export default function AllocationModule() {
     fetchData();
   }, [pathname]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.agreement_id || !form.amount) {
-      setAlertMsg({ type: "error", text: "موافقت‌نامه و مبلغ تخصیص الزامی است" });
+  // هنگام انتخاب موافقتنامه، اطلاعات کلان آن در سربرگ قرار می‌گیرد
+  const handleSelectAgreement = (agr) => {
+    if (!agr) return;
+    const isCapital = agr.credit_category === "capital";
+    const srcType = String(agr.source_type || agr.sourceType || "1");
+    const credType = agr.credit_type === "notified" || agr.creditType === "notified" ? "notified" : "approved";
+    const baseC = agr.base_code || agr.program_code || `AGR-BASE-${agr.fiscal_year || 1404}-${Date.now()}`;
+    const newAllocBaseCode = `ALLOC-BASE-${agr.fiscal_year || 1404}-${Math.floor(100000 + Math.random() * 900000)}`;
+
+    setHeaderForm((prev) => ({
+      ...prev,
+      agreement_id: String(agr._id),
+      creditCategory: isCapital ? "capital" : "expense",
+      sourceType: srcType,
+      creditType: credType,
+      creditSpec: isCapital ? "project" : "program",
+      fiscalYear: String(agr.fiscal_year || "1404"),
+      agencyBudgetRow: agr.agency_budget_row || agr.notifier_budget_row || "109000",
+      agreementBaseCode: baseC,
+      allocationBaseCode: newAllocBaseCode,
+    }));
+
+    const defaultChapters = isCapital ? CAPITAL_CHAPTERS : EXPENSE_CHAPTERS;
+    setDetailRows((prevRows) =>
+      prevRows.map((r) => ({
+        ...r,
+        chapterCode: defaultChapters[0].code,
+        chapterTitle: defaultChapters[0].title,
+        rowBaseCode: `${newAllocBaseCode}-DET`,
+      }))
+    );
+  };
+
+  const selectedAgreement = useMemo(() => {
+    return agreements.find((a) => String(a._id) === String(headerForm.agreement_id)) || null;
+  }, [agreements, headerForm.agreement_id]);
+
+  const agreementTotalApproved = Number(selectedAgreement?.total_amount || selectedAgreement?.amount || 0);
+
+  const totalPreviousAllocated = useMemo(() => {
+    if (!headerForm.agreement_id) return 0;
+    return allocations
+      .filter((a) => String(a.agreement_id) === String(headerForm.agreement_id) && String(a._id) !== String(editingAllocId))
+      .reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
+  }, [allocations, headerForm.agreement_id, editingAllocId]);
+
+  const currentFormTotalAmount = useMemo(() => {
+    return detailRows.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+  }, [detailRows]);
+
+  const remainingAgreementBalance = Math.max(0, agreementTotalApproved - totalPreviousAllocated);
+
+  const accountingInfo = useMemo(() => {
+    const isCap = headerForm.creditCategory === "capital";
+    return {
+      debtor: isCap ? "93002 (تخصیص تملک)" : "93001 (تخصیص هزینه)",
+      creditor: isCap ? "92002 (حساب مقابل)" : "92001 (حساب مقابل)",
+      debtorCode: isCap ? "93002" : "93001",
+      creditorCode: isCap ? "92002" : "92001",
+    };
+  }, [headerForm.creditCategory]);
+
+  const handleAddRow = () => {
+    const defaultChapters = headerForm.creditCategory === "capital" ? CAPITAL_CHAPTERS : EXPENSE_CHAPTERS;
+    const newRow = {
+      id: `row_${Date.now()}`,
+      chapterCode: defaultChapters[0].code,
+      chapterTitle: defaultChapters[0].title,
+      programOrProjectNumber: headerForm.creditCategory === "capital" ? "13040010010001" : "1001",
+      allocationSource: "1",
+      agencyRow: headerForm.agencyBudgetRow || "109000",
+      amount: 0,
+      description: "تخصیص سه‌ماهه اعتبار بودجه‌ای",
+      rowBaseCode: `${headerForm.allocationBaseCode || "ALLOC-BASE"}-DET-${detailRows.length + 1}`,
+    };
+    setDetailRows([...detailRows, newRow]);
+  };
+
+  const handleUpdateRow = (id, field, val) => {
+    setDetailRows((prev) =>
+      prev.map((r) => {
+        if (r.id === id) {
+          const updated = { ...r, [field]: val };
+          if (field === "chapterCode") {
+            const list = headerForm.creditCategory === "capital" ? CAPITAL_CHAPTERS : EXPENSE_CHAPTERS;
+            const found = list.find((c) => c.code === val);
+            if (found) updated.chapterTitle = found.title;
+          }
+          return updated;
+        }
+        return r;
+      })
+    );
+  };
+
+  const handleDeleteRow = (id) => {
+    if (detailRows.length === 1) {
+      setAlertMsg({ type: "error", text: "حداقل یک سطر در ریز تخصیص باید وجود داشته باشد." });
       return;
     }
+    setDetailRows(detailRows.filter((r) => r.id !== id));
+  };
+
+  const handleCopyRow = (row) => {
+    const copied = {
+      ...row,
+      id: `row_copy_${Date.now()}`,
+      rowBaseCode: `${headerForm.allocationBaseCode || "ALLOC-BASE"}-DET-${detailRows.length + 1}`,
+    };
+    setDetailRows([...detailRows, copied]);
+  };
+
+  const handleResetForm = () => {
+    setEditingAllocId(null);
+    const defaultChapters = headerForm.creditCategory === "capital" ? CAPITAL_CHAPTERS : EXPENSE_CHAPTERS;
+    setHeaderForm((prev) => ({
+      ...prev,
+      allocationBaseCode: `ALLOC-BASE-${prev.fiscalYear}-${Math.floor(100000 + Math.random() * 900000)}`,
+    }));
+    setDetailRows([
+      {
+        id: "row_1",
+        chapterCode: defaultChapters[0].code,
+        chapterTitle: defaultChapters[0].title,
+        programOrProjectNumber: headerForm.creditCategory === "capital" ? "13040010010001" : "1001",
+        allocationSource: "1",
+        agencyRow: headerForm.agencyBudgetRow || "109000",
+        amount: 0,
+        description: "تخصیص اعتبار بودجه‌ای",
+        rowBaseCode: `ALLOC-BASE-${headerForm.fiscalYear}-DET-1`,
+      },
+    ]);
+    setAlertMsg({ type: "success", text: "فرم تخصیص با موفقیت بازنشانی شد." });
+  };
+
+  const validateRowCodes = () => {
+    for (let i = 0; i < detailRows.length; i++) {
+      const r = detailRows[i];
+      const codeStr = String(r.programOrProjectNumber || "").trim();
+      if (!codeStr) {
+        setAlertMsg({ type: "error", text: `سطر ${i + 1}: شماره برنامه / طرح وارد نشده است.` });
+        return false;
+      }
+      if (headerForm.creditSpec === "program") {
+        if (codeStr.length !== 4) {
+          setAlertMsg({ type: "error", text: `سطر ${i + 1}: شماره برنامه باید دقیقاً ۴ رقمی باشد (مقدار فعلی: ${codeStr.length} رقم).` });
+          return false;
+        }
+      } else {
+        if (codeStr.length !== 12 && codeStr.length !== 14) {
+          setAlertMsg({ type: "error", text: `سطر ${i + 1}: شماره طرح باید ۱۲ رقمی (ملی) یا ۱۴ رقمی (استانی) باشد (مقدار فعلی: ${codeStr.length} رقم).` });
+          return false;
+        }
+      }
+    }
+    return true;
+  };
+
+  const handleSubmitAllocation = async (e) => {
+    if (e) e.preventDefault();
+
+    if (!headerForm.agreement_id) {
+      setAlertMsg({ type: "error", text: "لطفاً موافقت‌نامه مربوطه را انتخاب کنید." });
+      return;
+    }
+
+    if (currentFormTotalAmount <= 0) {
+      setAlertMsg({ type: "error", text: "مبلغ تخصیص باید بزرگتر از صفر باشد." });
+      return;
+    }
+
+    if (!validateRowCodes()) return;
+
     setLoading(true);
     try {
       const payload = {
-        ...form,
-        fiscal_year: Number(form.fiscal_year),
-        amount: Number(form.amount)
+        agreement_id: headerForm.agreement_id,
+        fiscal_year: Number(headerForm.fiscalYear),
+        period: headerForm.period,
+        credit_category: headerForm.creditCategory,
+        source_type: headerForm.sourceType,
+        credit_type: headerForm.creditType,
+        credit_spec: headerForm.creditSpec,
+        agency_budget_row: headerForm.agencyBudgetRow,
+        agreement_base_code: headerForm.agreementBaseCode,
+        base_code: headerForm.allocationBaseCode,
+        amount: currentFormTotalAmount,
+        title: `تخصیص اعتبار ${headerForm.period} سال ${headerForm.fiscalYear} - ${selectedAgreement?.title || ""}`,
+        allocation_number: editingAllocId
+          ? allocations.find((a) => String(a._id) === String(editingAllocId))?.allocation_number
+          : `ALLOC-${headerForm.fiscalYear}-${Date.now()}`,
+        items: detailRows,
+        status: "allocated",
       };
 
-      if (editingAlloc) {
-        await api.put(`/api/credits/allocations/${editingAlloc._id}`, payload);
-        setAlertMsg({ type: "success", text: "تخصیص اعتبار با موفقیت بروزرسانی شد" });
+      if (editingAllocId) {
+        await api.put(`/api/credits/allocations/${editingAllocId}`, payload);
+        setAlertMsg({ type: "success", text: "تخصیص اعتبار و سند مربوطه با موفقیت ویرایش شد." });
       } else {
         await api.post("/api/credits/allocations", payload);
-        setAlertMsg({ type: "success", text: "تخصیص اعتبار با موفقیت صادر شد" });
+        setAlertMsg({ type: "success", text: "تخصیص اعتبار با موفقیت صادر و سند حسابداری مربوطه صادر گردید." });
       }
-      setForm({
-        agreement_id: "",
-        fiscal_year: "1403",
-        amount: "",
-        allocation_date: new Date().toISOString().split("T")[0],
-        period: "سه ماهه اول",
-        description: "",
-        status: "allocated"
-      });
-      setEditingAlloc(null);
+
+      handleResetForm();
       fetchData();
     } catch (e) {
-      setAlertMsg({ type: "error", text: "خطا در ثبت تخصیص اعتبار" });
+      setAlertMsg({ type: "error", text: e.response?.data?.message || "خطا در ثبت تخصیص اعتبار" });
     } finally {
       setLoading(false);
     }
   };
 
-  const deleteAlloc = async (id) => {
+  const handleEditAlloc = (alloc) => {
+    setEditingAllocId(String(alloc._id));
+    const isCap = alloc.credit_category === "capital";
+
+    setHeaderForm({
+      agreement_id: String(alloc.agreement_id || ""),
+      sourceType: String(alloc.source_type || "1"),
+      creditType: alloc.credit_type || "approved",
+      creditSpec: alloc.credit_spec || (isCap ? "project" : "program"),
+      creditCategory: isCap ? "capital" : "expense",
+      fiscalYear: String(alloc.fiscal_year || "1404"),
+      period: alloc.period || "سه ماهه اول",
+      agencyBudgetRow: alloc.agency_budget_row || "109000",
+      agreementBaseCode: alloc.agreement_base_code || "",
+      allocationBaseCode: alloc.base_code || alloc.allocation_number || "",
+    });
+
+    if (Array.isArray(alloc.items) && alloc.items.length > 0) {
+      setDetailRows(
+        alloc.items.map((it, idx) => ({
+          id: `edit_row_${idx}_${Date.now()}`,
+          chapterCode: it.chapterCode || (isCap ? CAPITAL_CHAPTERS[0].code : EXPENSE_CHAPTERS[0].code),
+          chapterTitle: it.chapterTitle || (isCap ? CAPITAL_CHAPTERS[0].title : EXPENSE_CHAPTERS[0].title),
+          programOrProjectNumber: it.programOrProjectNumber || "1001",
+          allocationSource: String(it.allocationSource || "1"),
+          agencyRow: it.agencyRow || alloc.agency_budget_row || "109000",
+          amount: Number(it.amount) || 0,
+          description: it.description || "",
+          rowBaseCode: it.rowBaseCode || alloc.base_code || "",
+        }))
+      );
+    } else {
+      setDetailRows([
+        {
+          id: `row_edit_single_${Date.now()}`,
+          chapterCode: isCap ? CAPITAL_CHAPTERS[0].code : EXPENSE_CHAPTERS[0].code,
+          chapterTitle: isCap ? CAPITAL_CHAPTERS[0].title : EXPENSE_CHAPTERS[0].title,
+          programOrProjectNumber: "1001",
+          allocationSource: "1",
+          agencyRow: alloc.agency_budget_row || "109000",
+          amount: Number(alloc.amount) || 0,
+          description: alloc.description || alloc.title || "",
+          rowBaseCode: alloc.base_code || "",
+        },
+      ]);
+    }
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleCopyAlloc = (alloc) => {
+    handleEditAlloc(alloc);
+    setEditingAllocId(null);
+    setHeaderForm((prev) => ({
+      ...prev,
+      allocationBaseCode: `ALLOC-BASE-${prev.fiscalYear}-${Math.floor(100000 + Math.random() * 900000)}`,
+    }));
+    setAlertMsg({ type: "success", text: "اطلاعات تخصیص کپی شد. پس از بررسی می‌توانید آن را به عنوان تخصیص جدید ثبت کنید." });
+  };
+
+  const handleDeleteAlloc = async (id) => {
     if (!window.confirm("آیا از حذف این تخصیص اعتبار اطمینان دارید؟")) return;
     try {
       await api.delete(`/api/credits/allocations/${id}`);
-      setAlertMsg({ type: "success", text: "تخصیص اعتبار حذف شد" });
+      setAlertMsg({ type: "success", text: "تخصیص اعتبار با موفقیت حذف گردید." });
       fetchData();
     } catch (e) {
       setAlertMsg({ type: "error", text: "خطا در حذف تخصیص اعتبار" });
     }
   };
 
-  // محاسبات ردیف انتخابی در مرور تخصیص
-  const selectedAgr = agreements.find((a) => String(a._id) === String(selectedAgrId)) || agreements[0];
-  const agrIdStr = selectedAgr ? String(selectedAgr._id) : "";
+  // کلیک روی آیکون پرینت سطر -> باز کردن مودال و فراهم‌سازی چاپ پروانه ابلاغ تخصیص
+  const handleOpenPrintModal = (alloc) => {
+    setSelectedPrintAlloc(alloc);
+  };
 
-  const selectedAmds = selectedAgr ? amendments.filter((amd) => String(amd.agreement_id) === agrIdStr) : [];
-  const selectedAllocs = selectedAgr ? allocations.filter((alc) => String(alc.agreement_id) === agrIdStr) : [];
-  const selectedFundings = selectedAgr ? fundingRequests.filter((fnd) => String(fnd.agreement_id) === agrIdStr) : [];
-  const selectedObligations = selectedAgr ? obligations.filter((obl) => String(obl.agreement_id) === agrIdStr || selectedFundings.some(f => String(f._id) === String(obl.funding_confirmation_id))) : obligations;
-  const selectedRealizations = realizations.filter((rlz) => selectedObligations.some(o => String(o._id) === String(rlz.obligation_id))) || realizations;
-  const selectedPayRequests = paymentRequests.filter((req) => String(req.agreement_id) === agrIdStr) || paymentRequests;
-  const selectedRemittances = remittances.filter((rem) => rem.status === "paid" || rem.status === "issued") || remittances;
-  const selectedPayments = remittances.filter((rem) => rem.status === "paid") || remittances;
+  // چاپ مستقیم پروانه ابلاغ تخصیص
+  const handleTriggerPrintCertificate = () => {
+    printTable("#official-alloc-certificate", "پروانه رسمی ابلاغ تخصیص اعتبار");
+  };
 
-  // محاسبات ۱۰ مرحله‌ای
-  const valApproved = selectedAgr ? Number(selectedAgr.total_amount) || 0 : 0;
-  const valAmendments = selectedAmds.reduce((sum, item) => {
-    const amt = Number(item.amount) || 0;
-    return item.amendment_type === "increase" ? sum + amt : item.amendment_type === "decrease" ? sum - amt : sum;
-  }, 0);
-  const valFinalCredit = valApproved + valAmendments;
-  const valAllocations = selectedAllocs.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-  const valFunding = selectedFundings.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-  const valObligations = selectedObligations.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-  const valRealizations = selectedRealizations.reduce((sum, item) => sum + (Number(item.verified_amount) || 0), 0);
-  const valPayRequests = selectedPayRequests.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-  const valRemittances = selectedRemittances.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-  const valPayments = selectedPayments.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+  // خروجی اکسل (Excel Export)
+  const handleExportExcel = () => {
+    if (allocations.length === 0) {
+      setAlertMsg({ type: "error", text: "داده‌ای برای خروجی اکسل وجود ندارد." });
+      return;
+    }
+
+    const excelData = allocations.map((alloc, idx) => {
+      const parentAgr = agreements.find((a) => String(a._id) === String(alloc.agreement_id));
+      return {
+        "ردیف": idx + 1,
+        "شماره تخصیص / کد مبنا": alloc.allocation_number || alloc.base_code || "—",
+        "موافقت‌نامه مادر": parentAgr?.title || "—",
+        "کد مبنای موافقتنامه": alloc.agreement_base_code || parentAgr?.base_code || "—",
+        "دوره / سال": `${alloc.period || "سه ماهه اول"} (${alloc.fiscal_year || "1404"})`,
+        "نوع منبع": alloc.source_type === "2" ? "اختصاصی" : "عمومی",
+        "نوع اعتبار": alloc.credit_type === "notified" ? "ابلاغی" : "مصوب",
+        "مبلغ (ریال)": Number(alloc.amount) || 0,
+        "کد بدهکار": alloc.debtor_account || (alloc.credit_category === "capital" ? "93002" : "93001"),
+        "کد بستانکار": alloc.creditor_account || (alloc.credit_category === "capital" ? "92002" : "92001"),
+        "وضعیت": alloc.status === "allocated" ? "تخصیص یافته" : "معلق",
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "لیست تخصیص‌ها");
+    XLSX.writeFile(workbook, `Allocation_Report_${Date.now()}.xlsx`);
+  };
+
+  // خروجی وورد (Word Export)
+  const handleExportWord = () => {
+    if (allocations.length === 0) {
+      setAlertMsg({ type: "error", text: "داده‌ای برای خروجی وورد وجود ندارد." });
+      return;
+    }
+
+    const rowsHtml = allocations
+      .map(
+        (a, i) => `
+      <tr>
+        <td style="border:1px solid #ccc;padding:8px;text-align:center;">${i + 1}</td>
+        <td style="border:1px solid #ccc;padding:8px;text-align:center;">${a.allocation_number || a.base_code}</td>
+        <td style="border:1px solid #ccc;padding:8px;text-align:center;">${a.period || "سه ماهه"} (${a.fiscal_year || 1404})</td>
+        <td style="border:1px solid #ccc;padding:8px;text-align:left;">${fmtNum(a.amount)} ریال</td>
+        <td style="border:1px solid #ccc;padding:8px;text-align:center;">${a.source_type === "2" ? "اختصاصی" : "عمومی"}</td>
+        <td style="border:1px solid #ccc;padding:8px;text-align:center;">تخصیص یافته</td>
+      </tr>
+    `
+      )
+      .join("");
+
+    const wordHtml = `
+      <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+      <head><meta charset='utf-8'><title>گزارش تخصیص اعتبار</title></head>
+      <body dir="rtl" style="font-family:Tahoma, Arial, sans-serif;">
+        <h2 style="text-align:center;">گزارش رسمی تخصیص اعتبارات مالی و بودجه‌ای</h2>
+        <table style="width:100%;border-collapse:collapse;margin-top:15px;">
+          <thead>
+            <tr style="background-color:#f2f2f2;">
+              <th style="border:1px solid #ccc;padding:8px;">ردیف</th>
+              <th style="border:1px solid #ccc;padding:8px;">شماره تخصیص / کد مبنا</th>
+              <th style="border:1px solid #ccc;padding:8px;">دوره / سال</th>
+              <th style="border:1px solid #ccc;padding:8px;">مبلغ (ریال)</th>
+              <th style="border:1px solid #ccc;padding:8px;">نوع منبع</th>
+              <th style="border:1px solid #ccc;padding:8px;">وضعیت</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        </table>
+      </body>
+      </html>
+    `;
+
+    const blob = new Blob([wordHtml], { type: "application/msword" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `Allocations_Report_${Date.now()}.doc`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const filteredAllocations = useMemo(() => {
+    if (!searchTerm.trim()) return allocations;
+    const term = searchTerm.toLowerCase();
+    return allocations.filter((a) => {
+      const numStr = String(a.allocation_number || a.base_code || "").toLowerCase();
+      const perStr = String(a.period || "").toLowerCase();
+      const yrStr = String(a.fiscal_year || "").toLowerCase();
+      const amtStr = String(a.amount || "").toLowerCase();
+      return numStr.includes(term) || perStr.includes(term) || yrStr.includes(term) || amtStr.includes(term);
+    });
+  }, [allocations, searchTerm]);
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-6 dir-rtl text-right">
+
+      {/* هشدارها و پیام‌های سیستم */}
       {alertMsg && (
         <div
-          className={`p-3 rounded-xl text-xs font-semibold flex items-center justify-between ${
+          className={cn(
+            "p-3.5 rounded-xl border flex items-center justify-between text-xs font-bold transition-all shadow-sm",
             alertMsg.type === "error"
-              ? "bg-destructive/10 text-destructive border border-destructive/20"
-              : "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
-          }`}
+              ? "bg-rose-500/10 border-rose-500/20 text-rose-700 dark:text-rose-400"
+              : "bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-400"
+          )}
         >
           <div className="flex items-center gap-2">
             {alertMsg.type === "error" ? <AlertCircle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
             <span>{alertMsg.text}</span>
           </div>
-          <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setAlertMsg(null)}>
-            ×
+          <Button variant="ghost" size="sm" onClick={() => setAlertMsg(null)} className="h-6 w-6 p-0 rounded-full">
+            <X className="h-3.5 w-3.5" />
           </Button>
         </div>
       )}
 
-      {/* ۱. زبانه تخصیص اعتبار / ۲. زبانه اصلاح تخصیص */}
-      {(activeTab === "new" || activeTab === "edit") && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="lg:col-span-1 shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-sm font-bold flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-blue-600" />
-                {editingAlloc ? "اصلاح تخصیص اعتبار" : "صدور تخصیص اعتبار جدید"}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2 bg-primary/5 p-3 rounded-xl border border-primary/20">
-                  <Label className="text-xs font-bold text-primary flex items-center justify-between">
-                    <span>فراخوانی هوشمند موافقتنامه با «کد مبنا»</span>
-                    <span className="text-[10px] text-muted-foreground font-normal">کلید اصلی رهگیری جامع اعتبار</span>
-                  </Label>
-                  <select
-                    value={form.agreement_id}
-                    onChange={(e) => {
-                      const agrId = e.target.value;
-                      const selected = agreements.find(a => String(a._id) === String(agrId) || String(a.base_code) === String(agrId));
-                      if (selected) {
-                        setForm({
-                          ...form,
-                          agreement_id: String(selected._id),
-                          fiscal_year: String(selected.fiscal_year || form.fiscal_year)
-                        });
-                        setSelectedAgrId(String(selected._id));
-                      } else {
-                        setForm({ ...form, agreement_id: agrId });
-                      }
-                    }}
-                    className="w-full h-9 px-3 text-xs font-bold rounded-lg border border-primary/30 bg-background focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
-                    required
-                  >
-                    <option value="">-- فراخوانی موافقتنامه بر اساس کد مبنا / عنوان --</option>
-                    {agreements.map((a) => (
-                      <option key={a._id} value={a._id}>
-                        {a.base_code ? `[کد مبنا: ${a.base_code}] ` : ""}{a.title} - {a.credit_category === "capital" ? "عمرانی (تملک)" : "هزینه‌ای"} ({fmtNum(a.total_amount)} ریال)
-                      </option>
-                    ))}
-                  </select>
+      {/* ─── کارت‌های شاخص‌های کلیدی اعتبارات تخصیص‌یافته (KPIs) ─── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <Card className="shadow-sm border border-border/60 bg-card">
+          <CardContent className="p-3.5">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <span className="text-[11px] font-bold text-muted-foreground">کل اعتبار موافقت‌نامه</span>
+                <p className="text-sm font-extrabold font-mono text-emerald-600">{fmtNum(agreementTotalApproved)} ریال</p>
+              </div>
+              <div className="h-9 w-9 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+                <Landmark className="h-5 w-5" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-                  {/* اطلاعات خودکار فراخوانی‌شده بر اساس کد مبنا */}
-                  {selectedAgr && (
-                    <div className="text-[11px] bg-background p-2.5 rounded-lg border border-border space-y-1 text-muted-foreground">
-                      <div className="flex justify-between font-bold text-foreground">
-                        <span>عنوان موافقتنامه: {selectedAgr.title}</span>
-                        {selectedAgr.base_code && <Badge variant="outline" className="text-[10px] font-mono bg-primary/10 text-primary">کد مبنا: {selectedAgr.base_code}</Badge>}
-                      </div>
-                      <div className="grid grid-cols-2 gap-1 text-[10px] font-mono">
-                        <div>نوع: {selectedAgr.credit_category === "capital" ? "تملک دارایی‌های سرمایه‌ای" : "اعتبارات هزینه‌ای"}</div>
-                        <div>منبع: {String(selectedAgr.source_type || selectedAgr.sourceType || "1") === "2" ? "اختصاصی" : "عمومی"}</div>
-                        <div>سقف موافقتنامه: {fmtNum(selectedAgr.total_amount)} ریال</div>
-                        <div>مانده قابل تخصیص: {fmtNum(Math.max(0, (Number(selectedAgr.total_amount) || 0) - valAllocations))} ریال</div>
-                      </div>
-                      
-                      <div className="mt-2 pt-2 border-t flex flex-col gap-1 text-[10px]">
-                        <Badge variant="outline" className="bg-blue-50 text-blue-800 border-blue-200 justify-center">
-                          سند تخصیص: بدهکار {selectedAgr.credit_category === "capital" ? "۹۳۰۰۲" : "۹۳۰۰۱"} | بستانکار {selectedAgr.credit_category === "capital" ? "۹۲۰۰۲" : "۹۲۰۰۱"}
+        <Card className="shadow-sm border border-border/60 bg-card">
+          <CardContent className="p-3.5">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <span className="text-[11px] font-bold text-muted-foreground">تخصیص‌یافته قبلی</span>
+                <p className="text-sm font-extrabold font-mono text-blue-600">{fmtNum(totalPreviousAllocated)} ریال</p>
+              </div>
+              <div className="h-9 w-9 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center">
+                <TrendingUp className="h-5 w-5" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm border border-border/60 bg-card">
+          <CardContent className="p-3.5">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <span className="text-[11px] font-bold text-muted-foreground">مانده اعتبار موافقت‌نامه</span>
+                <p className="text-sm font-extrabold font-mono text-amber-600">{fmtNum(remainingAgreementBalance)} ریال</p>
+              </div>
+              <div className="h-9 w-9 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
+                <Scale className="h-5 w-5" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm border border-border/60 bg-card">
+          <CardContent className="p-3.5">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <span className="text-[11px] font-bold text-muted-foreground">کد معین حسابداری تخصیص</span>
+                <p className="text-xs font-mono font-bold text-purple-600">{accountingInfo.debtorCode} (بدهکار)</p>
+              </div>
+              <div className="h-9 w-9 rounded-xl bg-purple-500/10 text-purple-600 flex items-center justify-center">
+                <ShieldCheck className="h-5 w-5" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ─── نوار ابزار عملیاتی مشابه محیط موافقت‌نامه ─── */}
+      <Card className="shadow-sm border border-border">
+        <CardContent className="p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                onClick={handleSubmitAllocation}
+                disabled={loading}
+                className="h-9 text-xs font-bold gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+              >
+                <Save className="h-4 w-4" />
+                {editingAllocId ? "ثبت اصلاح تخصیص" : "ایجاد ذخیره و صدور سند"}
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleResetForm}
+                className="h-9 text-xs font-bold gap-1.5 text-slate-700 hover:bg-slate-100"
+              >
+                <RefreshCw className="h-4 w-4 text-slate-500" />
+                برگشت / بازنشانی
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleExportExcel}
+                className="h-9 text-xs font-bold gap-1.5 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-300"
+              >
+                <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
+                خروجی اکسل
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleExportWord}
+                className="h-9 text-xs font-bold gap-1.5 text-blue-700 bg-blue-50 hover:bg-blue-100 border-blue-300"
+              >
+                <FileText className="h-4 w-4 text-blue-600" />
+                خروجی وورد
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => printTable("#printable-allocations-table", "گزارش تخصیص‌های اعتبارات صادرشده")}
+                className="h-9 text-xs font-bold gap-1.5 text-purple-700 bg-purple-50 hover:bg-purple-100 border-purple-300"
+              >
+                <Printer className="h-4 w-4 text-purple-600" />
+                چاپ جدول / PDF
+              </Button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="px-3 py-1 font-mono text-xs bg-muted text-foreground font-bold">
+                کد مبنای موافقت‌نامه: {headerForm.agreementBaseCode || "دریافت‌نشده"}
+              </Badge>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ─── بخش اول: سربرگ اعتبارات (اطلاعات کلان) ─── */}
+      <Card className="shadow-sm border">
+        <CardHeader className="pb-3 border-b border-border/50 bg-muted/20">
+          <CardTitle className="text-sm font-bold flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Layers className="h-4 w-4 text-primary" />
+              <span>الف) بخش اول: سربرگ اعتبارات (اطلاعات کلان موافقت‌نامه و تخصیص)</span>
+            </div>
+            {editingAllocId && (
+              <Badge className="bg-amber-500 text-white font-bold text-[11px]">
+                در حال ویرایش تخصیص شناسه {editingAllocId}
+              </Badge>
+            )}
+          </CardTitle>
+        </CardHeader>
+
+        <CardContent className="p-4 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+            {/* انتخاب موافقت‌نامه مادر */}
+            <div className="space-y-1.5 col-span-1 md:col-span-2">
+              <Label className="font-bold text-foreground flex items-center justify-between">
+                <span>موافقت‌نامه مادر (مبنای تخصیص)</span>
+                <span className="text-[10px] text-muted-foreground">دریافت اطلاعات مرحله قبل</span>
+              </Label>
+
+              <select
+                className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-xs font-bold focus:ring-2 focus:ring-primary"
+                value={headerForm.agreement_id}
+                onChange={(e) => {
+                  const found = agreements.find((a) => String(a._id) === e.target.value);
+                  if (found) handleSelectAgreement(found);
+                }}
+              >
+                {agreements.length === 0 ? (
+                  <option value="">هیچ موافقت‌نامه‌ای ثبت نشده است</option>
+                ) : (
+                  agreements.map((agr) => (
+                    <option key={agr._id} value={String(agr._id)}>
+                      {agr.title} — کد مبنا: {agr.base_code || agr.program_code || "-"} ({fmtNum(agr.total_amount)} ریال)
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+
+            {/* نوع منبع اعتبار */}
+            <div className="space-y-1.5">
+              <Label className="font-bold text-foreground">نوع منبع اعتبار</Label>
+              <select
+                className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-xs font-bold"
+                value={headerForm.sourceType}
+                onChange={(e) => setHeaderForm({ ...headerForm, sourceType: e.target.value })}
+              >
+                <option value="1">۱. عمومی</option>
+                <option value="2">۲. اختصاصی</option>
+              </select>
+            </div>
+
+            {/* نوع اعتبار */}
+            <div className="space-y-1.5">
+              <Label className="font-bold text-foreground">نوع اعتبار</Label>
+              <select
+                className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-xs font-bold"
+                value={headerForm.creditType}
+                onChange={(e) => setHeaderForm({ ...headerForm, creditType: e.target.value })}
+              >
+                <option value="approved">۱. مصوب</option>
+                <option value="notified">۲. ابلاغی</option>
+              </select>
+            </div>
+
+            {/* مشخصات کلی اعتبار */}
+            <div className="space-y-1.5">
+              <Label className="font-bold text-foreground">مشخصات کلی اعتبار</Label>
+              <select
+                className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-xs font-bold"
+                value={headerForm.creditSpec}
+                onChange={(e) => setHeaderForm({ ...headerForm, creditSpec: e.target.value })}
+              >
+                <option value="program">۱. برنامه (هزینه‌ای)</option>
+                <option value="project">۲. طرح (عمرانی / تملک)</option>
+              </select>
+            </div>
+
+            {/* دوره تخصیص */}
+            <div className="space-y-1.5">
+              <Label className="font-bold text-foreground">دوره تخصیص</Label>
+              <select
+                className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-xs font-bold"
+                value={headerForm.period}
+                onChange={(e) => setHeaderForm({ ...headerForm, period: e.target.value })}
+              >
+                <option value="سه ماهه اول">سه ماهه اول</option>
+                <option value="سه ماهه دوم">سه ماهه دوم</option>
+                <option value="سه ماهه سوم">سه ماهه سوم</option>
+                <option value="سه ماهه چهارم">سه ماهه چهارم</option>
+                <option value="شش ماهه اول">شش ماهه اول</option>
+                <option value="کامل">کامل سالانه</option>
+                <option value="متمم">دوره متمم</option>
+              </select>
+            </div>
+
+            {/* سال مالی */}
+            <div className="space-y-1.5">
+              <Label className="font-bold text-foreground">سال مالی</Label>
+              <select
+                className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-xs font-bold"
+                value={headerForm.fiscalYear}
+                onChange={(e) => setHeaderForm({ ...headerForm, fiscalYear: e.target.value })}
+              >
+                <option value="1403">۱۴۰۳</option>
+                <option value="1404">۱۴۰۴</option>
+                <option value="1405">۱۴۰۵</option>
+              </select>
+            </div>
+
+            {/* کد مبنای تخصیص (صادر شده برای مرحله بعدی: دریافت اعتبارات) */}
+            <div className="space-y-1.5">
+              <Label className="font-bold text-primary flex items-center gap-1">
+                <span>کد مبنای تخصیص (تولید خودکار)</span>
+                <HelpCircle className="h-3 w-3 text-muted-foreground" title="این کد مبنا جهت استفاده در مرحله دریافت اعتبارات صادر می‌گردد." />
+              </Label>
+              <Input
+                readOnly
+                value={headerForm.allocationBaseCode}
+                className="h-9 text-xs font-mono font-bold bg-primary/5 text-primary border-primary/30 text-center"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ─── بخش دوم: جزئیات تخصیص (ریز اعتبار) ─── */}
+      <Card className="shadow-sm border">
+        <CardHeader className="pb-3 border-b border-border/50 bg-muted/20 flex flex-row items-center justify-between">
+          <CardTitle className="text-sm font-bold flex items-center gap-2">
+            <Calculator className="h-4 w-4 text-emerald-600" />
+            <span>ب) بخش دوم: جزئیات تخصیص (ریز فصول، برنامه/طرح، منبع تخصیص و مبالغ)</span>
+          </CardTitle>
+          <Button
+            type="button"
+            onClick={handleAddRow}
+            size="sm"
+            className="h-8 text-xs font-bold gap-1 bg-primary hover:bg-primary/90 text-white"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            افزودن سطر تخصیص جدید
+          </Button>
+        </CardHeader>
+
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-right text-xs">
+              <thead className="bg-muted/50 border-b text-muted-foreground font-bold whitespace-nowrap">
+                <tr>
+                  <th className="p-2.5 text-center w-10">#</th>
+                  <th className="p-2.5 min-w-[220px]">فصل اعتبارات و کد معین</th>
+                  <th className="p-2.5 min-w-[150px]">
+                    شماره {headerForm.creditSpec === "program" ? "برنامه (۴ رقم)" : "طرح (۱۲/۱۴ رقم)"}
+                  </th>
+                  <th className="p-2.5 min-w-[140px]">منبع تخصیص</th>
+                  <th className="p-2.5 min-w-[100px] text-center">ردیف دستگاه</th>
+                  <th className="p-2.5 min-w-[150px]">مبلغ تخصیص (ریال)</th>
+                  <th className="p-2.5 min-w-[180px]">شرح تخصیص</th>
+                  <th className="p-2.5 min-w-[130px] text-center">کد مبنای سطر</th>
+                  <th className="p-2.5 text-center w-20">عملیات</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {detailRows.map((item, idx) => {
+                  const activeChapterList = headerForm.creditCategory === "capital" ? CAPITAL_CHAPTERS : EXPENSE_CHAPTERS;
+                  return (
+                    <tr key={item.id} className="hover:bg-muted/30 transition-colors">
+                      <td className="p-2.5 text-center font-bold text-muted-foreground">{idx + 1}</td>
+
+                      {/* فصل اعتباری */}
+                      <td className="p-2.5">
+                        <select
+                          className="w-full h-8 rounded border border-input bg-background px-2 text-[11px] font-bold"
+                          value={item.chapterCode}
+                          onChange={(e) => handleUpdateRow(item.id, "chapterCode", e.target.value)}
+                        >
+                          {activeChapterList.map((ch) => (
+                            <option key={ch.code} value={ch.code}>
+                              {ch.title}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+
+                      {/* شماره برنامه / طرح */}
+                      <td className="p-2.5">
+                        <Input
+                          type="text"
+                          dir="ltr"
+                          value={item.programOrProjectNumber}
+                          onChange={(e) => handleUpdateRow(item.id, "programOrProjectNumber", e.target.value.replace(/\D/g, ""))}
+                          placeholder={headerForm.creditSpec === "program" ? "۴ رقم" : "۱۲ یا ۱۴ رقم"}
+                          className="h-8 text-xs font-mono text-center font-bold"
+                          maxLength={headerForm.creditSpec === "program" ? 4 : 14}
+                        />
+                      </td>
+
+                      {/* منبع تخصیص (۹ نوع) */}
+                      <td className="p-2.5">
+                        <select
+                          className="w-full h-8 rounded border border-input bg-background px-2 text-[11px] font-bold"
+                          value={item.allocationSource}
+                          onChange={(e) => handleUpdateRow(item.id, "allocationSource", e.target.value)}
+                        >
+                          {ALLOCATION_SOURCES.map((src) => (
+                            <option key={src.id} value={src.id}>
+                              {src.id}. {src.label}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+
+                      {/* ردیف دستگاه (۶ رقمی) */}
+                      <td className="p-2.5">
+                        <Input
+                          type="text"
+                          dir="ltr"
+                          value={item.agencyRow}
+                          onChange={(e) => handleUpdateRow(item.id, "agencyRow", e.target.value.replace(/\D/g, ""))}
+                          placeholder="۶ رقم"
+                          className="h-8 text-xs font-mono text-center font-bold"
+                          maxLength={6}
+                        />
+                      </td>
+
+                      {/* مبلغ تخصیص */}
+                      <td className="p-2.5">
+                        <Input
+                          type="text"
+                          dir="ltr"
+                          value={item.amount ? Number(item.amount).toLocaleString("fa-IR") : ""}
+                          onChange={(e) => {
+                            const raw = e.target.value.replace(/[۰-۹]/g, (d) => "۰۱۲۳۴۵۶۷۸۹".indexOf(d)).replace(/\D/g, "");
+                            handleUpdateRow(item.id, "amount", raw ? Number(raw) : 0);
+                          }}
+                          placeholder="۰"
+                          className="h-8 text-xs font-mono text-center font-extrabold text-emerald-600"
+                        />
+                      </td>
+
+                      {/* شرح تخصیص */}
+                      <td className="p-2.5">
+                        <Input
+                          type="text"
+                          value={item.description}
+                          onChange={(e) => handleUpdateRow(item.id, "description", e.target.value)}
+                          placeholder="شرح کامل تخصیص اعتبار..."
+                          className="h-8 text-xs font-bold"
+                        />
+                      </td>
+
+                      {/* کد مبنای سطر */}
+                      <td className="p-2.5 text-center">
+                        <Badge variant="outline" className="font-mono text-[10px] bg-primary/5 text-primary border-primary/20">
+                          {item.rowBaseCode || headerForm.allocationBaseCode || "—"}
                         </Badge>
-                        <Badge className="bg-indigo-600 text-white justify-center">
-                          مقصد عملکرد: صورتحساب {selectedAgr.credit_category === "capital" ? "تملک دارایی‌های سرمایه‌ای" : "اعتبارات هزینه‌ای"} ({String(selectedAgr.source_type || selectedAgr.sourceType || "1") === "2" ? "اختصاصی" : "عمومی"}) ⟵ فیلد اعتبارات تخصیص‌یافته
-                        </Badge>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                      </td>
 
-                <div className="space-y-1">
-                  <Label className="text-xs font-bold text-foreground">عنوان / ابلاغ تخصیص <span className="text-rose-500">*</span></Label>
-                  <Input
-                    value={form.title || ""}
-                    onChange={(e) => setForm({ ...form, title: e.target.value })}
-                    placeholder="مثال: تخصیص اعتبار سه ماهه اول ابلاغی سازمان مدیریت"
-                    className="text-xs font-bold"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold">دوره تخصیص</Label>
-                    <select
-                      value={form.period}
-                      onChange={(e) => setForm({ ...form, period: e.target.value })}
-                      className="w-full h-9 px-3 text-xs rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
-                    >
-                      <option value="سه ماهه اول">سه ماهه اول</option>
-                      <option value="سه ماهه دوم">سه ماهه دوم</option>
-                      <option value="سه ماهه سوم">سه ماهه سوم</option>
-                      <option value="سه ماهه چهارم">سه ماهه چهارم</option>
-                      <option value="شش ماهه اول">شش ماهه اول</option>
-                      <option value="شش ماهه دوم">شش ماهه دوم</option>
-                      <option value="سالانه">سالانه</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold">سال مالی</Label>
-                    <Input
-                      value={form.fiscal_year}
-                      onChange={(e) => setForm({ ...form, fiscal_year: e.target.value })}
-                      className="text-xs"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">مبلغ تخصیص اعتبار (ریال) <span className="text-rose-500">*</span></Label>
-                  <Input
-                    type="number"
-                    value={form.amount}
-                    onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                    placeholder="0"
-                    className="text-xs font-mono font-bold text-blue-700"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">توضیحات و شماره مجوز</Label>
-                  <Input
-                    value={form.description}
-                    onChange={(e) => setForm({ ...form, description: e.target.value })}
-                    placeholder="شماره و تاریخ مجوز ابلاغ تخصیص سازمان مدیریت..."
-                    className="text-xs"
-                  />
-                </div>
-
-                <Button type="submit" size="sm" className="w-full text-xs font-bold gap-2 bg-blue-600 hover:bg-blue-700 text-white" disabled={loading}>
-                  <TrendingUp className="h-4 w-4" />
-                  {editingAlloc ? "بروزرسانی تخصیص اعتبار" : "صدور تخصیص و سند حسابداری (۹۳۰۰۱/۹۳۰۰۲)"}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-
-          {/* جدول تخصیص‌ها */}
-          <Card className="lg:col-span-2 shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
-              <CardTitle className="text-sm font-bold">لیست تخصیص‌های صادرشده</CardTitle>
-              <Badge variant="outline" className="text-xs">{allocations.length} تخصیص</Badge>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-right text-xs">
-                  <thead className="bg-muted/50 border-y text-muted-foreground font-semibold">
-                    <tr>
-                      <th className="p-3">شماره تخصیص</th>
-                      <th className="p-3">دوره / سال</th>
-                      <th className="p-3">مبلغ (ریال)</th>
-                      <th className="p-3">وضعیت</th>
-                      <th className="p-3 text-center">عملیات</th>
+                      {/* عملیات سطر */}
+                      <td className="p-2.5 text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleCopyRow(item)}
+                            className="h-7 w-7 p-0 text-purple-600 hover:bg-purple-50 rounded-lg"
+                            title="کپی سطر تخصیص"
+                          >
+                            <Copy className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteRow(item.id)}
+                            className="h-7 w-7 p-0 text-rose-600 hover:bg-rose-50 rounded-lg"
+                            title="حذف سطر"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {allocations.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} className="p-6 text-center text-muted-foreground">
-                          تخصیص اعتباری ثبت نشده است.
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* خلاصه مبلغ کل و حروف در انتهای جدول ریز تخصیص */}
+          <div className="p-3.5 bg-muted/30 border-t flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div className="space-y-0.5">
+              <span className="font-bold text-muted-foreground">مبلغ کل به حروف:</span>
+              <p className="font-bold text-primary text-sm">{numToPersianWords(currentFormTotalAmount)}</p>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <div className="text-left">
+                <span className="text-[11px] font-bold text-muted-foreground">مجموع مبلغ تخصیص در این فرم:</span>
+                <p className="text-base font-extrabold font-mono text-emerald-600">{fmtNum(currentFormTotalAmount)} ریال</p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ─── کارت لیست تخصیص‌های صادرشده (مطابق کامل با تصویر کاربر) ─── */}
+      <Card className="shadow-sm border">
+        <CardHeader className="pb-3 border-b border-border/50 flex flex-row items-center justify-between">
+          <div className="flex items-center gap-3">
+            <CardTitle className="text-sm font-bold text-foreground">لیست تخصیص‌های صادرشده</CardTitle>
+            {/* نشانگر بیضی‌شکل تعداد تخصیص‌ها دقیقا مطابق با تصویر کاربر */}
+            <span className="inline-flex items-center justify-center px-3 py-0.5 rounded-full border text-xs font-bold bg-muted/60 text-foreground border-border">
+              {filteredAllocations.length} تخصیص
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="relative w-64">
+              <Search className="absolute right-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="جستجو در تخصیص‌ها..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="h-8 text-xs pr-8"
+              />
+            </div>
+            <Button onClick={fetchData} variant="outline" size="sm" disabled={loading} className="h-8 text-xs font-bold gap-1">
+              <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
+              به‌روزرسانی
+            </Button>
+          </div>
+        </CardHeader>
+
+        <CardContent className="p-0" id="printable-allocations-table">
+          <div className="overflow-x-auto">
+            <table className="w-full text-right text-xs">
+              <thead className="bg-muted/40 border-b text-muted-foreground font-bold whitespace-nowrap">
+                <tr>
+                  <th className="p-3">شماره تخصیص</th>
+                  <th className="p-3 text-center">دوره / سال</th>
+                  <th className="p-3 text-left">مبلغ (ریال)</th>
+                  <th className="p-3 text-center">وضعیت</th>
+                  <th className="p-3 text-center w-36">عملیات</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {filteredAllocations.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="p-8 text-center text-muted-foreground">
+                      هیچ تخصیص اعتباری صادر نشده است.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredAllocations.map((alloc) => {
+                    const displayNum = alloc.allocation_number || alloc.base_code || `ALLOC-${alloc.fiscal_year || 1404}-${alloc._id}`;
+                    return (
+                      <tr key={alloc._id} className="hover:bg-muted/20 transition-colors">
+                        {/* شماره تخصیص */}
+                        <td className="p-3 font-mono font-extrabold text-slate-800 dark:text-slate-200">
+                          {displayNum}
                         </td>
-                      </tr>
-                    ) : (
-                      allocations.map((item) => (
-                        <tr key={item._id} className="hover:bg-muted/30 transition-colors">
-                          <td className="p-3 font-mono font-bold text-foreground">{item.allocation_number}</td>
-                          <td className="p-3 font-semibold text-muted-foreground">
-                            {item.period} ({item.fiscal_year})
-                          </td>
-                          <td className="p-3 font-bold text-blue-600">{fmtNum(item.amount)}</td>
-                          <td className="p-3">
-                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                              تخصیص یافته
-                            </Badge>
-                          </td>
-                          <td className="p-3 text-center space-x-1 space-x-reverse">
+
+                        {/* دوره / سال */}
+                        <td className="p-3 text-center font-bold text-foreground">
+                          {alloc.period || "سه ماهه اول"} ({alloc.fiscal_year || "1405"})
+                        </td>
+
+                        {/* مبلغ (ریال) با رندر متمم پررنگ سرمه‌ای مطابق تصویر کاربر */}
+                        <td className="p-3 text-left font-mono font-extrabold text-blue-700 dark:text-blue-400 text-sm">
+                          {fmtNum(alloc.amount)}
+                        </td>
+
+                        {/* وضعیت تخصیص (بج بیضی آبی نئونی مطابقت کامل با تصویر) */}
+                        <td className="p-3 text-center">
+                          <span className="inline-flex items-center justify-center px-3 py-1 rounded-full border text-[11px] font-bold bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20">
+                            تخصیص یافته
+                          </span>
+                        </td>
+
+                        {/* عملیات (دکمه‌های ویرایش، حذف، کپی، پرینت) */}
+                        <td className="p-3 text-center">
+                          <div className="flex items-center justify-center gap-1.5">
                             <Button
-                              variant="ghost"
+                              type="button"
+                              variant="outline"
                               size="sm"
-                              className="h-7 w-7 p-0 text-blue-600"
-                              onClick={() => {
-                                setEditingAlloc(item);
-                                setForm({
-                                  agreement_id: item.agreement_id ? String(item.agreement_id) : "",
-                                  fiscal_year: String(item.fiscal_year || 1403),
-                                  amount: String(item.amount || 0),
-                                  allocation_date: item.allocation_date || new Date().toISOString().split("T")[0],
-                                  period: item.period || "سه ماهه اول",
-                                  description: item.description || "",
-                                  status: item.status || "allocated"
-                                });
-                              }}
+                              onClick={() => handleEditAlloc(alloc)}
+                              className="h-7 w-7 p-0 text-blue-600 border-blue-200 bg-blue-50 hover:bg-blue-100 rounded-lg"
+                              title="ویرایش تخصیص"
                             >
                               <Edit className="h-3.5 w-3.5" />
                             </Button>
                             <Button
-                              variant="ghost"
+                              type="button"
+                              variant="outline"
                               size="sm"
-                              className="h-7 w-7 p-0 text-rose-600"
-                              onClick={() => deleteAlloc(item._id)}
+                              onClick={() => handleCopyAlloc(alloc)}
+                              className="h-7 w-7 p-0 text-purple-600 border-purple-200 bg-purple-50 hover:bg-purple-100 rounded-lg"
+                              title="کپی تخصیص"
+                            >
+                              <Copy className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleOpenPrintModal(alloc)}
+                              className="h-7 w-7 p-0 text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100 rounded-lg"
+                              title="مشاهده پروانه تخصیص / پرینت"
+                            >
+                              <Printer className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDeleteAlloc(alloc._id)}
+                              className="h-7 w-7 p-0 text-rose-600 border-rose-200 bg-rose-50 hover:bg-rose-100 rounded-lg"
+                              title="حذف تخصیص"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </Button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
 
-      {/* ۳. زبانه مرور تخصیص (مرکز اصلی کار حسابدار - ۱۰ مرحله‌ای تعاملی) */}
-      {activeTab === "review" && (
-        <div className="space-y-6">
-          {/* هدر انتخاب ردیف بودجه */}
-          <Card className="bg-card/70 border-blue-500/30 shadow-sm">
-            <CardContent className="p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center border border-blue-500/20">
-                  <TrendingUp className="h-5 w-5" />
-                </div>
-                <div>
-                  <h2 className="text-base font-black text-foreground">مرکز مرور تخصیص و پایش ۱۰ مرحله‌ای اعتبارات</h2>
-                  <p className="text-xs text-muted-foreground">انتخاب ردیف بودجه جهت مشاهده کامل زنجیره تخصیص و پرداختی‌ها با فلش‌های آبشاری ↓ و باز شدن جزئیات اسناد با کلیک</p>
-                </div>
-              </div>
-
-              <div className="w-full md:w-80 space-y-1">
-                <label className="text-[11px] font-bold text-muted-foreground block">انتخاب ردیف بودجه / برنامه:</label>
-                <select
-                  value={selectedAgrId}
-                  onChange={(e) => setSelectedAgrId(e.target.value)}
-                  className="w-full h-10 px-3 text-xs font-bold rounded-xl border border-blue-500/30 bg-background focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-xs cursor-pointer"
-                >
-                  {agreements.map((a) => (
-                    <option key={a._id} value={a._id}>
-                      {a.title} ({a.program_code || "بدون کد"})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* اگر ردیف انتخابی وجود داشته باشد، زنجیره ۱۰ مرحله‌ای نمایش داده می‌شود */}
-          {selectedAgr ? (
-            <div className="space-y-6">
-              {/* زنجیره عمودی ۱۰ کارت محاسباتی با فلش‌های رو به پایین ↓ */}
-              <div className="flex flex-col items-center gap-2.5 max-w-2xl mx-auto">
-                {/* ۱. بودجه مصوب */}
-                <div
-                  onClick={() => setActiveStep("approved")}
-                  className={`w-full cursor-pointer transition-all duration-200 rounded-2xl border p-4 shadow-sm ${
-                    activeStep === "approved"
-                      ? "bg-primary/10 border-primary ring-2 ring-primary/40 shadow-md scale-[1.01]"
-                      : "bg-card hover:bg-muted/40 border-border"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-lg bg-primary/20 text-primary flex items-center justify-center font-bold text-xs">
-                        ۱
-                      </div>
-                      <div>
-                        <span className="text-xs font-bold text-muted-foreground block">بودجه مصوب اولیه</span>
-                        <h3 className="text-sm font-black text-foreground">{selectedAgr.title}</h3>
-                      </div>
-                    </div>
-                    <div className="text-left">
-                      <div className="text-base font-black text-primary font-mono">{fmtNum(valApproved)}</div>
-                      <span className="text-[9px] font-semibold text-muted-foreground">ریال</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="text-muted-foreground/60"><ArrowDown className="h-4 w-4" /></div>
-
-                {/* ۲. اصلاحیه */}
-                <div
-                  onClick={() => setActiveStep("amendments")}
-                  className={`w-full cursor-pointer transition-all duration-200 rounded-2xl border p-4 shadow-sm ${
-                    activeStep === "amendments"
-                      ? "bg-amber-500/10 border-amber-500 ring-2 ring-amber-500/40 shadow-md scale-[1.01]"
-                      : "bg-card hover:bg-muted/40 border-border"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-lg bg-amber-500/20 text-amber-600 flex items-center justify-center font-bold text-xs">
-                        ۲
-                      </div>
-                      <div>
-                        <span className="text-xs font-bold text-muted-foreground block">اصلاحیه (خالص افزایش/کاهش)</span>
-                        <span className="text-[11px] font-semibold text-foreground">{selectedAmds.length} اصلاحیه ثبت‌شده</span>
-                      </div>
-                    </div>
-                    <div className="text-left">
-                      <div className={`text-base font-black font-mono ${valAmendments >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
-                        {valAmendments >= 0 ? `+${fmtNum(valAmendments)}` : fmtNum(valAmendments)}
-                      </div>
-                      <span className="text-[9px] font-semibold text-muted-foreground">ریال</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="text-muted-foreground/60"><ArrowDown className="h-4 w-4" /></div>
-
-                {/* ۳. اعتبار نهایی */}
-                <div
-                  onClick={() => setActiveStep("final")}
-                  className={`w-full cursor-pointer transition-all duration-200 rounded-2xl border p-4 shadow-sm ${
-                    activeStep === "final"
-                      ? "bg-indigo-500/10 border-indigo-600 ring-2 ring-indigo-500/40 shadow-md scale-[1.01]"
-                      : "bg-card hover:bg-muted/40 border-border"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-lg bg-indigo-500/20 text-indigo-600 flex items-center justify-center font-bold text-xs">
-                        ۳
-                      </div>
-                      <div>
-                        <span className="text-xs font-bold text-indigo-700 block">اعتبار نهایی (سقف مصوب)</span>
-                        <span className="text-[11px] font-semibold text-muted-foreground">بودجه اولیه + خالص اصلاحیه</span>
-                      </div>
-                    </div>
-                    <div className="text-left">
-                      <div className="text-lg font-black text-indigo-600 font-mono">{fmtNum(valFinalCredit)}</div>
-                      <span className="text-[9px] font-semibold text-muted-foreground">ریال</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="text-muted-foreground/60"><ArrowDown className="h-4 w-4" /></div>
-
-                {/* ۴. تخصیص */}
-                <div
-                  onClick={() => setActiveStep("allocations")}
-                  className={`w-full cursor-pointer transition-all duration-200 rounded-2xl border p-4 shadow-sm ${
-                    activeStep === "allocations"
-                      ? "bg-blue-500/10 border-blue-500 ring-2 ring-blue-500/40 shadow-md scale-[1.01]"
-                      : "bg-card hover:bg-muted/40 border-border"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-lg bg-blue-500/20 text-blue-600 flex items-center justify-center font-bold text-xs">
-                        ۴
-                      </div>
-                      <div>
-                        <span className="text-xs font-bold text-muted-foreground block">تخصیص اعتبار</span>
-                        <span className="text-[11px] font-semibold text-foreground">{selectedAllocs.length} نوبت تخصیص</span>
-                      </div>
-                    </div>
-                    <div className="text-left">
-                      <div className="text-base font-black text-blue-600 font-mono">{fmtNum(valAllocations)}</div>
-                      <span className="text-[9px] font-semibold text-muted-foreground">ریال</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="text-muted-foreground/60"><ArrowDown className="h-4 w-4" /></div>
-
-                {/* ۵. تأمین اعتبار */}
-                <div
-                  onClick={() => setActiveStep("funding")}
-                  className={`w-full cursor-pointer transition-all duration-200 rounded-2xl border p-4 shadow-sm ${
-                    activeStep === "funding"
-                      ? "bg-amber-500/10 border-amber-600 ring-2 ring-amber-500/40 shadow-md scale-[1.01]"
-                      : "bg-card hover:bg-muted/40 border-border"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-lg bg-amber-500/20 text-amber-600 flex items-center justify-center font-bold text-xs">
-                        ۵
-                      </div>
-                      <div>
-                        <span className="text-xs font-bold text-muted-foreground block">تأمین اعتبار</span>
-                        <span className="text-[11px] font-semibold text-foreground">{selectedFundings.length} گواهی رزرو</span>
-                      </div>
-                    </div>
-                    <div className="text-left">
-                      <div className="text-base font-black text-amber-600 font-mono">{fmtNum(valFunding)}</div>
-                      <span className="text-[9px] font-semibold text-muted-foreground">ریال</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="text-muted-foreground/60"><ArrowDown className="h-4 w-4" /></div>
-
-                {/* ۶. تعهد */}
-                <div
-                  onClick={() => setActiveStep("obligations")}
-                  className={`w-full cursor-pointer transition-all duration-200 rounded-2xl border p-4 shadow-sm ${
-                    activeStep === "obligations"
-                      ? "bg-purple-500/10 border-purple-500 ring-2 ring-purple-500/40 shadow-md scale-[1.01]"
-                      : "bg-card hover:bg-muted/40 border-border"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-lg bg-purple-500/20 text-purple-600 flex items-center justify-center font-bold text-xs">
-                        ۶
-                      </div>
-                      <div>
-                        <span className="text-xs font-bold text-muted-foreground block">تعهد مالی</span>
-                        <span className="text-[11px] font-semibold text-foreground">{selectedObligations.length} تعهد قطعی</span>
-                      </div>
-                    </div>
-                    <div className="text-left">
-                      <div className="text-base font-black text-purple-600 font-mono">{fmtNum(valObligations)}</div>
-                      <span className="text-[9px] font-semibold text-muted-foreground">ریال</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="text-muted-foreground/60"><ArrowDown className="h-4 w-4" /></div>
-
-                {/* ۷. تحقق */}
-                <div
-                  onClick={() => setActiveStep("realizations")}
-                  className={`w-full cursor-pointer transition-all duration-200 rounded-2xl border p-4 shadow-sm ${
-                    activeStep === "realizations"
-                      ? "bg-indigo-500/10 border-indigo-600 ring-2 ring-indigo-500/40 shadow-md scale-[1.01]"
-                      : "bg-card hover:bg-muted/40 border-border"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-lg bg-indigo-500/20 text-indigo-600 flex items-center justify-center font-bold text-xs">
-                        ۷
-                      </div>
-                      <div>
-                        <span className="text-xs font-bold text-muted-foreground block">تحقق / تسجیل</span>
-                        <span className="text-[11px] font-semibold text-foreground">{selectedRealizations.length} صورت وضعیت تاییدشده</span>
-                      </div>
-                    </div>
-                    <div className="text-left">
-                      <div className="text-base font-black text-indigo-600 font-mono">{fmtNum(valRealizations)}</div>
-                      <span className="text-[9px] font-semibold text-muted-foreground">ریال</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="text-muted-foreground/60"><ArrowDown className="h-4 w-4" /></div>
-
-                {/* ۸. درخواست پرداخت */}
-                <div
-                  onClick={() => setActiveStep("paymentRequests")}
-                  className={`w-full cursor-pointer transition-all duration-200 rounded-2xl border p-4 shadow-sm ${
-                    activeStep === "paymentRequests"
-                      ? "bg-sky-500/10 border-sky-500 ring-2 ring-sky-500/40 shadow-md scale-[1.01]"
-                      : "bg-card hover:bg-muted/40 border-border"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-lg bg-sky-500/20 text-sky-600 flex items-center justify-center font-bold text-xs">
-                        ۸
-                      </div>
-                      <div>
-                        <span className="text-xs font-bold text-muted-foreground block">درخواست پرداخت</span>
-                        <span className="text-[11px] font-semibold text-foreground">{selectedPayRequests.length} درخواست وجه</span>
-                      </div>
-                    </div>
-                    <div className="text-left">
-                      <div className="text-base font-black text-sky-600 font-mono">{fmtNum(valPayRequests)}</div>
-                      <span className="text-[9px] font-semibold text-muted-foreground">ریال</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="text-muted-foreground/60"><ArrowDown className="h-4 w-4" /></div>
-
-                {/* ۹. حواله */}
-                <div
-                  onClick={() => setActiveStep("remittances")}
-                  className={`w-full cursor-pointer transition-all duration-200 rounded-2xl border p-4 shadow-sm ${
-                    activeStep === "remittances"
-                      ? "bg-teal-500/10 border-teal-500 ring-2 ring-teal-500/40 shadow-md scale-[1.01]"
-                      : "bg-card hover:bg-muted/40 border-border"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-lg bg-teal-500/20 text-teal-600 flex items-center justify-center font-bold text-xs">
-                        ۹
-                      </div>
-                      <div>
-                        <span className="text-xs font-bold text-muted-foreground block">حواله پرداخت</span>
-                        <span className="text-[11px] font-semibold text-foreground">{selectedRemittances.length} حواله صادرشده</span>
-                      </div>
-                    </div>
-                    <div className="text-left">
-                      <div className="text-base font-black text-teal-600 font-mono">{fmtNum(valRemittances)}</div>
-                      <span className="text-[9px] font-semibold text-muted-foreground">ریال</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="text-muted-foreground/60"><ArrowDown className="h-4 w-4" /></div>
-
-                {/* ۱۰. پرداخت */}
-                <div
-                  onClick={() => setActiveStep("payments")}
-                  className={`w-full cursor-pointer transition-all duration-200 rounded-2xl border p-4 shadow-sm ${
-                    activeStep === "payments"
-                      ? "bg-emerald-500/10 border-emerald-500 ring-2 ring-emerald-500/40 shadow-md scale-[1.01]"
-                      : "bg-card hover:bg-muted/40 border-border"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-lg bg-emerald-500/20 text-emerald-600 flex items-center justify-center font-bold text-xs">
-                        ۱۰
-                      </div>
-                      <div>
-                        <span className="text-xs font-bold text-muted-foreground block">پرداخت قطعی</span>
-                        <span className="text-[11px] font-semibold text-foreground">{selectedPayments.length} تسویه بانکی</span>
-                      </div>
-                    </div>
-                    <div className="text-left">
-                      <div className="text-base font-black text-emerald-600 font-mono">{fmtNum(valPayments)}</div>
-                      <span className="text-[9px] font-semibold text-muted-foreground">ریال</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* پنل بازشونده ریز جزئیات گام انتخاب‌شده (Detail Panel) */}
-              <Card className="shadow-lg border-2 border-blue-500/30">
-                <CardHeader className="pb-3 border-b border-border/50 flex flex-row items-center justify-between">
-                  <CardTitle className="text-sm font-bold flex items-center gap-2">
-                    <Eye className="h-4 w-4 text-blue-600" />
-                    جزئیات دقیق گام انتخاب‌شده: {
-                      activeStep === "approved" ? "بودجه مصوب" :
-                      activeStep === "amendments" ? "اصلاحیه بودجه" :
-                      activeStep === "final" ? "اعتبار نهایی" :
-                      activeStep === "allocations" ? "تخصیص اعتبار" :
-                      activeStep === "funding" ? "تأمین اعتبار" :
-                      activeStep === "obligations" ? "تعهدات مالی" :
-                      activeStep === "realizations" ? "تحقق / تسجیل" :
-                      activeStep === "paymentRequests" ? "درخواست پرداخت" :
-                      activeStep === "remittances" ? "حواله پرداخت" : "پرداخت قطعی"
-                    }
-                  </CardTitle>
-                  <Badge variant="outline" className="text-xs font-mono bg-blue-50 text-blue-800 border-blue-300">
-                    ردیف: {selectedAgr.title}
-                  </Badge>
-                </CardHeader>
-                <CardContent className="p-4">
-                  {/* ۴. جزئیات تخصیص */}
-                  {activeStep === "allocations" && (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-right text-xs">
-                        <thead className="bg-muted/50 font-semibold">
-                          <tr>
-                            <th className="p-2.5">شماره تخصیص</th>
-                            <th className="p-2.5">دوره</th>
-                            <th className="p-2.5">مبلغ (ریال)</th>
-                            <th className="p-2.5">وضعیت</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y">
-                          {selectedAllocs.length === 0 ? (
-                            <tr><td colSpan={4} className="p-4 text-center text-muted-foreground">تخصیص اعتباری ثبت نشده است.</td></tr>
-                          ) : (
-                            selectedAllocs.map((item) => (
-                              <tr key={item._id}>
-                                <td className="p-2.5 font-mono font-bold">{item.allocation_number}</td>
-                                <td className="p-2.5">{item.period || "عمومی"}</td>
-                                <td className="p-2.5 font-bold font-mono text-blue-600">{fmtNum(item.amount)}</td>
-                                <td className="p-2.5"><Badge variant="outline" className="bg-blue-50 text-blue-600">تخصیص‌یافته</Badge></td>
-                              </tr>
-                            ))
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-
-                  {/* سایر اسناد */}
-                  {activeStep !== "allocations" && (
-                    <div className="text-xs p-3 text-muted-foreground text-center">
-                      مشاهده ریز اسناد مربوط به <strong>{activeStep}</strong> برای ردیف بودجه انتخابی.
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+      {/* ─── مودال نمایش و چاپ رسمی پروانه تخصیص اعتبار (کامل با جزئیات سطرها) ─── */}
+      {selectedPrintAlloc && (
+        <Modal
+          open={!!selectedPrintAlloc}
+          onClose={() => setSelectedPrintAlloc(null)}
+          title="پروانه رسمی ابلاغ تخصیص اعتبار"
+          size="2xl"
+        >
+          <div className="space-y-5 p-4 text-right dir-rtl" id="official-alloc-certificate">
+            {/* سربرگ رسمی پروانه */}
+            <div className="border-b-2 border-primary/20 pb-4 text-center space-y-1.5">
+              <h3 className="text-lg font-extrabold text-foreground">جمهوری اسلامی ایران</h3>
+              <h4 className="text-sm font-bold text-primary">سازمان مدیریت و برنامه‌ریزی کشور / خزانه‌داری کل</h4>
+              <p className="text-xs font-bold text-muted-foreground">
+                پروانه رسمی ابلاغ تخصیص اعتبار مالی و بودجه‌ای (سال {selectedPrintAlloc.fiscal_year || "1405"})
+              </p>
             </div>
-          ) : (
-            <Card>
-              <CardContent className="py-12 text-center text-muted-foreground">
-                هیچ ردیف بودجه‌ای انتخاب نشده است.
-              </CardContent>
-            </Card>
-          )}
 
-          {/* جدول تجمیعی کلیه تخصیص‌ها */}
-          <Card className="shadow-sm">
-            <CardHeader className="pb-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <CardTitle className="text-sm font-bold flex items-center gap-2">
-                <Filter className="h-4 w-4 text-blue-600" />
-                مرور و مقایسه بودجه مصوب در برابر تخصیص‌ها
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
+            {/* اطلاعات کلان در سربرگ پروانه */}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs bg-muted/40 p-3.5 rounded-xl border border-border/80">
+              <div><span className="font-bold text-muted-foreground">شماره تخصیص:</span> <span className="font-mono font-bold text-foreground dir-ltr inline-block">{selectedPrintAlloc.allocation_number}</span></div>
+              <div><span className="font-bold text-muted-foreground">کد مبنای تخصیص:</span> <span className="font-mono font-bold text-primary dir-ltr inline-block">{selectedPrintAlloc.base_code || selectedPrintAlloc.allocation_number}</span></div>
+              <div><span className="font-bold text-muted-foreground">کد مبنای موافقتنامه:</span> <span className="font-mono font-bold text-foreground dir-ltr inline-block">{selectedPrintAlloc.agreement_base_code || "—"}</span></div>
+              <div><span className="font-bold text-muted-foreground">دوره تخصیص:</span> <span className="font-bold text-foreground">{selectedPrintAlloc.period || "سه ماهه اول"}</span></div>
+              <div><span className="font-bold text-muted-foreground">نوع منبع اعتبار:</span> <span className="font-bold text-foreground">{selectedPrintAlloc.source_type === "2" ? "اختصاصی" : "عمومی"}</span></div>
+              <div><span className="font-bold text-muted-foreground">نوع اعتبار:</span> <span className="font-bold text-foreground">{selectedPrintAlloc.credit_type === "notified" ? "ابلاغی" : "مصوب"}</span></div>
+              <div><span className="font-bold text-muted-foreground">کد بدهکار (۹۳۰۰۱/۹۳۰۰۲):</span> <span className="font-mono font-bold text-purple-600">{selectedPrintAlloc.debtor_account || (selectedPrintAlloc.credit_category === "capital" ? "93002" : "93001")}</span></div>
+              <div><span className="font-bold text-muted-foreground">کد بستانکار (۹۲۰۰۱/۹۲۰۰۲):</span> <span className="font-mono font-bold text-purple-600">{selectedPrintAlloc.creditor_account || (selectedPrintAlloc.credit_category === "capital" ? "92002" : "92001")}</span></div>
+              <div><span className="font-bold text-muted-foreground">وضعیت اعتبار:</span> <span className="font-bold text-emerald-600">تخصیص یافته و قطعی</span></div>
+            </div>
+
+            {/* جدول ریز سطور تخصیص داده شده در پروانه */}
+            <div className="space-y-2">
+              <h4 className="text-xs font-bold text-foreground">جدول تفکیکی ریز تخصیص بر حسب فصول و برنامه‌ها:</h4>
+              <div className="overflow-x-auto border rounded-xl">
                 <table className="w-full text-right text-xs">
-                  <thead className="bg-muted/50 border-y text-muted-foreground font-semibold">
+                  <thead className="bg-muted/60 border-b font-bold text-muted-foreground">
                     <tr>
-                      <th className="p-3">عنوان موافقت‌نامه / برنامه</th>
-                      <th className="p-3">بودجه کل (ریال)</th>
-                      <th className="p-3">مجموع تخصیص (ریال)</th>
-                      <th className="p-3">درصد تخصیص</th>
-                      <th className="p-3">مانده غیرتخصیص‌یافته</th>
+                      <th className="p-2 text-center w-8">#</th>
+                      <th className="p-2">فصل اعتباری</th>
+                      <th className="p-2 text-center">شماره برنامه / طرح</th>
+                      <th className="p-2 text-center">منبع</th>
+                      <th className="p-2 text-center">ردیف دستگاه</th>
+                      <th className="p-2 text-left">مبلغ (ریال)</th>
+                      <th className="p-2">شرح سطر</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
-                    {agreements.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} className="p-6 text-center text-muted-foreground">
-                          اطلاعاتی یافت نشد.
-                        </td>
-                      </tr>
-                    ) : (
-                      agreements.map((a) => {
-                        const relAlloc = allocations.filter((al) => String(al.agreement_id) === String(a._id));
-                        const totalAllocAmt = relAlloc.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-                        const budgetAmt = Number(a.total_amount) || 0;
-                        const percent = budgetAmt > 0 ? Math.round((totalAllocAmt / budgetAmt) * 100) : 0;
-                        const unalloc = Math.max(0, budgetAmt - totalAllocAmt);
-
+                    {Array.isArray(selectedPrintAlloc.items) && selectedPrintAlloc.items.length > 0 ? (
+                      selectedPrintAlloc.items.map((it, idx) => {
+                        const srcObj = ALLOCATION_SOURCES.find((s) => s.id === String(it.allocationSource)) || { label: "نقد" };
                         return (
-                          <tr key={a._id} className="hover:bg-muted/30 transition-colors">
-                            <td className="p-3 font-bold text-foreground">{a.title}</td>
-                            <td className="p-3 font-semibold">{fmtNum(budgetAmt)}</td>
-                            <td className="p-3 font-bold text-blue-600">{fmtNum(totalAllocAmt)}</td>
-                            <td className="p-3 font-bold">
-                              <span className={percent >= 80 ? "text-amber-600" : "text-emerald-600"}>
-                                {percent}%
-                              </span>
-                            </td>
-                            <td className="p-3 font-semibold text-emerald-600">{fmtNum(unalloc)}</td>
+                          <tr key={idx}>
+                            <td className="p-2 text-center font-bold">{idx + 1}</td>
+                            <td className="p-2 font-bold">{it.chapterTitle || it.chapterCode || "—"}</td>
+                            <td className="p-2 text-center font-mono font-bold">{it.programOrProjectNumber || "—"}</td>
+                            <td className="p-2 text-center font-bold">{srcObj.label}</td>
+                            <td className="p-2 text-center font-mono">{it.agencyRow || selectedPrintAlloc.agency_budget_row || "109000"}</td>
+                            <td className="p-2 text-left font-mono font-bold text-emerald-600">{fmtNum(it.amount)}</td>
+                            <td className="p-2 text-muted-foreground">{it.description || "—"}</td>
                           </tr>
                         );
                       })
+                    ) : (
+                      <tr>
+                        <td colSpan={7} className="p-4 text-center text-muted-foreground">
+                          تخصیص کلی به مبلغ {fmtNum(selectedPrintAlloc.amount)} ریال
+                        </td>
+                      </tr>
                     )}
                   </tbody>
                 </table>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+
+            {/* خلاصه مبلغ کل و حروف در پروانه */}
+            <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-center space-y-1">
+              <span className="text-xs font-bold text-muted-foreground">مبلغ کل تخصیص صادرشده:</span>
+              <p className="text-xl font-extrabold font-mono text-emerald-600">{fmtNum(selectedPrintAlloc.amount)} ریال</p>
+              <p className="text-xs font-bold text-emerald-700">{numToPersianWords(selectedPrintAlloc.amount)}</p>
+            </div>
+
+            {/* محل امضاهای رسمی ابلاغ */}
+            <div className="grid grid-cols-3 gap-4 pt-6 border-t text-center text-xs font-bold text-muted-foreground">
+              <div className="space-y-8">
+                <p>مسئول تنظیم و ثبت اعتبارات</p>
+                <p className="text-slate-400 font-normal">[ امضاء و مهر ]</p>
+              </div>
+              <div className="space-y-8">
+                <p>ذیحساب و مدیر امور مالی</p>
+                <p className="text-slate-400 font-normal">[ امضاء و مهر ]</p>
+              </div>
+              <div className="space-y-8">
+                <p>رئیس دستگاه اجرایی / معاونت بودجه</p>
+                <p className="text-slate-400 font-normal">[ امضاء و مهر ]</p>
+              </div>
+            </div>
+
+            {/* دکمه‌های عملیاتی پایین مودال پرینت */}
+            <div className="border-t pt-4 flex flex-wrap items-center justify-between gap-2 no-print">
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  onClick={handleTriggerPrintCertificate}
+                  className="h-9 text-xs font-bold gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                >
+                  <Printer className="h-4 w-4" />
+                  چاپ پروانه رسمی (پرینت مستقیم / PDF)
+                </Button>
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setSelectedPrintAlloc(null)}
+                className="h-9 text-xs font-bold"
+              >
+                بستن
+              </Button>
+            </div>
+          </div>
+        </Modal>
       )}
+
     </div>
   );
 }

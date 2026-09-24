@@ -60,6 +60,17 @@ export async function fetchMoeinBalances() {
           const credit = Number(line.credit) || 0;
           const amount = (debit > 0 || credit > 0) ? Math.max(debit, credit) : Math.abs(debit - credit);
           addVal(code, amount);
+
+          // تفکیک کدهای انتظامی مشترک (۸۱۰۱۰، ۸۲۰۱۰، ۸۱۰۱۷، ۸۲۰۱۷) بر اساس فصل اعتباری در تفصیلی
+          if (["81010", "82010", "81017", "82017"].includes(code)) {
+            const ch = String(line.chapter_code || line.chapter || line.tafsili_chapter || "").trim().replace(/^0+/, "");
+            const chNum = Number(ch);
+            if (chNum >= 8 || line.account_kind === "capital" || line.is_capital) {
+              addVal(`${code}_capital`, amount);
+            } else {
+              addVal(`${code}_expense`, amount);
+            }
+          }
         });
       });
     }
@@ -107,8 +118,18 @@ export async function fetchMoeinBalances() {
     const recs = recRes.data?.data || recRes.data || [];
     if (Array.isArray(recs)) {
       recs.forEach((r) => {
-        const code = r.moein_code || (r.credit_category === "capital" ? "41003" : "41001");
+        const isCapital = r.credit_category === "capital" || r.account_kind === "capital";
+        const code = r.moein_code || (isCapital ? "41003" : "41001");
         addVal(code, r.amount || 0);
+
+        if (["81010", "82010", "81017", "82017"].includes(String(r.moein_code || "").trim())) {
+          if (isCapital) {
+            addVal(`${r.moein_code}_capital`, r.amount || 0);
+          } else {
+            addVal(`${r.moein_code}_expense`, r.amount || 0);
+          }
+        }
+
         if (r.treasury_deposit_amount) {
           addVal("63001", r.treasury_deposit_amount);
         }

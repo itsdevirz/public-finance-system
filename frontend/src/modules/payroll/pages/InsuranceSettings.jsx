@@ -523,7 +523,7 @@ export default function InsuranceSettings() {
                         <div className="col-span-2 pt-2 border-t border-indigo-100/50">
                           <span className="text-[10px] text-slate-500 block">سهم هزینه‌ای کارفرما (بدون کارهای سخت):</span>
                           <span className="text-xs font-extrabold text-slate-800 dark:text-slate-200 font-mono">
-                            {((form.insEmployerRate || 0) + (form.insUnemployRate || 0))} ٪
+                            {(Number(form.insEmployerRate || 0) + Number(form.insUnemployRate || 0))} ٪
                           </span>
                         </div>
                       </div>
