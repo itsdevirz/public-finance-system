@@ -156,7 +156,12 @@ function sanitizePayload(obj: any): any {
 }
 
 export const AUDIT_STORAGE_THRESHOLD = 10000; // حد آستانه ۱۰,۰۰۰ رکورد لاگ قبل از سرریز
-const HMAC_SECRET = process.env.AUDIT_LOG_SECRET || "AFTA_SECURE_HMAC_SECRET_KEY_2026";
+const HMAC_SECRET = process.env.AUDIT_LOG_SECRET ?? (() => {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("AUDIT_LOG_SECRET must be set in production");
+  }
+  return "dev-audit-log-hmac-secret-key-2026";
+})();
 let isOverflowLogging = false;
 
 /**

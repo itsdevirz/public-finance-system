@@ -17,12 +17,15 @@ export const securityHeaders = createMiddleware(async (c, next) => {
   // ۴. فعال‌سازی فیلتر مرورگر برای جلوگیری از حملات Cross-Site Scripting (X-XSS-Protection)
   c.header("X-XSS-Protection", "1; mode=block");
 
-  // ۵. اجبار به استفاده از پروتکل امن HTTPS و HSTS Preload (Strict-Transport-Security)
-  c.header("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+  // ۵. اجبار به استفاده از پروتکل امن HTTPS و HSTS Preload (Strict-Transport-Security) فقط در محیط HTTPS
+  const isHttps = c.req.header("x-forwarded-proto") === "https" || c.req.url.startsWith("https://");
+  if (isHttps) {
+    c.header("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+  }
 
   // ۶. سایر سرآیندهای امنیتی مکمل (Referrer Policy, Permissions Policy, CSP)
   c.header("Referrer-Policy", "strict-origin-when-cross-origin");
   c.header("Permissions-Policy", "geolocation=(), camera=(), microphone=(), payment=()");
-  c.header("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' http: https:;");
+  c.header("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' http://localhost:* http://127.0.0.1:* https://localhost:* https://127.0.0.1:* ws: wss:;");
 });
 

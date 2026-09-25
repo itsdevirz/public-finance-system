@@ -62,18 +62,38 @@ import { verifyToken } from "./lib/auth.js";
 
 const app = new Hono();
 
-// 🌟 Secure CORS - باید پیش از تمامی میدلورها قرار گیرد تا درخواست‌های پیش‌پرواز OPTIONS به سرعت پاسخ داده شوند
+const getAllowedOrigins = (): string[] => {
+  const envOrigins = process.env.ALLOWED_ORIGINS || process.env.CORS_ALLOWED_ORIGINS || process.env.FRONTEND_URL;
+  const defaultDevOrigins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:4173",
+    "http://127.0.0.1:4173",
+    "http://localhost:5000",
+    "http://127.0.0.1:5000",
+  ];
+  if (envOrigins) {
+    const parsed = envOrigins.split(",").map((o) => o.trim()).filter(Boolean);
+    if (parsed.length > 0) {
+      return parsed;
+    }
+  }
+  return defaultDevOrigins;
+};
+
+// 🌟 Secure CORS - Strict Origin Allowlist
 app.use(
   "*",
   cors({
     origin: (origin) => {
-      if (!origin) return "*";
-      const isLocalOrLan =
-        /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\]|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?$/i.test(origin);
-      if (isLocalOrLan) {
+      if (!origin) return null;
+      const allowed = getAllowedOrigins();
+      if (allowed.includes(origin)) {
         return origin;
       }
-      return origin;
+      return null;
     },
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowHeaders: [
@@ -84,12 +104,37 @@ app.use(
       "X-User-Active",
       "X-Timezone",
       "X-Location",
-      "Accept"
+      "Accept",
+      "Origin",
+      "X-Requested-With"
     ],
     exposeHeaders: ["X-CSRF-Token", "X-Correlation-ID"],
     credentials: true,
   })
 );
+
+// پاسخ سریع 204 No Content به درخواست‌های پیش‌پرواز OPTIONS با بررسی لایه مجاز
+app.options("*", (c) => {
+  const reqOrigin = c.req.header("Origin");
+  const allowed = getAllowedOrigins();
+  if (reqOrigin && allowed.includes(reqOrigin)) {
+    c.header("Access-Control-Allow-Origin", reqOrigin);
+    c.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+    c.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Correlation-ID, X-CSRF-Token, X-User-Active, X-Timezone, X-Location, Accept, Origin, X-Requested-With");
+    c.header("Access-Control-Allow-Credentials", "true");
+  }
+  return c.body(null, 204);
+});
+
+// مسیر پایش سلامت ارتباط و تست CORS
+app.get("/api/health", (c) => {
+  return c.json({
+    status: "online",
+    timestamp: new Date().toISOString(),
+    cors: "ok",
+    message: "سرور حسابداری بخش عمومی فعال و در دسترس است"
+  });
+});
 
 // Global Middleware
 app.use("*", securityHeaders);

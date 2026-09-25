@@ -6,17 +6,21 @@ import { logAuditEvent, AFTA_LOG_EVENT_TYPES } from "../lib/auditLogger.js";
 import { getAuthTokenFromCookieOrHeader } from "../lib/cookieHelper.js";
 
 export const requireAuth = createMiddleware(async (c, next) => {
-  if (c.req.path.includes("/security/audit-failure")) {
-    return next();
-  }
-
+  const isAuditFailureEndpoint = c.req.path.includes("/security/audit-failure");
   const rawToken = getAuthTokenFromCookieOrHeader(c);
+
   if (!rawToken) {
+    if (isAuditFailureEndpoint) {
+      return next();
+    }
     return c.json({ success: false, message: "احراز هویت الزامی است" }, 401);
   }
 
   const payload = verifyToken(rawToken);
   if (!payload) {
+    if (isAuditFailureEndpoint) {
+      return next();
+    }
     return c.json({ success: false, message: "توکن نامعتبر یا منقضی شده است" }, 401);
   }
 

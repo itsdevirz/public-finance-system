@@ -9,7 +9,8 @@ router.get("/settings", async (c) => {
     const settings = await SanamaService.getOrgSettings();
     return c.json({ success: true, data: settings });
   } catch (err: any) {
-    return c.json({ success: false, message: err.message }, 500);
+    console.error("SANAMA settings fetch error:", err);
+    return c.json({ success: false, message: "خطا در دریافت تنظیمات سناما" }, 500);
   }
 });
 
@@ -24,7 +25,8 @@ router.post("/settings", async (c) => {
     await SanamaService.saveOrgSettings(mainOrgID, mainOrgCode);
     return c.json({ success: true, message: "تنظیمات دستگاه اجرایی سناما با موفقیت ذخیره شد." });
   } catch (err: any) {
-    return c.json({ success: false, message: err.message }, 500);
+    console.error("SANAMA settings save error:", err);
+    return c.json({ success: false, message: "خطا در ذخیره‌سازی تنظیمات سناما" }, 500);
   }
 });
 
@@ -35,7 +37,8 @@ router.post("/validate", async (c) => {
     const validation = await SanamaService.validateData(options);
     return c.json({ success: true, data: validation });
   } catch (err: any) {
-    return c.json({ success: false, message: err.message }, 500);
+    console.error("SANAMA validation error:", err);
+    return c.json({ success: false, message: "خطا در اعتبارسنجی داده‌های سناما" }, 500);
   }
 });
 
@@ -46,7 +49,8 @@ router.post("/preview", async (c) => {
     const preview = await SanamaService.generatePreview(options);
     return c.json({ success: true, data: preview });
   } catch (err: any) {
-    return c.json({ success: false, message: err.message }, 500);
+    console.error("SANAMA preview error:", err);
+    return c.json({ success: false, message: "خطا در تولید پیش‌نمایش سناما" }, 500);
   }
 });
 
@@ -91,7 +95,8 @@ router.get("/export-xml", async (c) => {
     c.header("Content-Disposition", `attachment; filename="${filename}"`);
     return c.text(xml);
   } catch (err: any) {
-    return c.json({ success: false, message: err.message }, 500);
+    console.error("SANAMA export-xml error:", err);
+    return c.json({ success: false, message: "خطا در تولید فایل XML سناما" }, 500);
   }
 });
 

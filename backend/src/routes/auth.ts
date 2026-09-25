@@ -541,7 +541,6 @@ router.post("/login", async (c) => {
   const { password: _, ...safeUser } = user;
   return c.json({
     message: "ورود موفق",
-    token,
     user: { ...safeUser, id: (user._id as ObjectId).toHexString() },
     sessionNotice
   });
@@ -663,6 +662,13 @@ router.get("/me", async (c) => {
   }
 
   const activeSession = await db.collection("active_sessions").findOne({ token });
+  const isUserActiveHeader = c.req.header("X-User-Active");
+  if (activeSession && isUserActiveHeader !== "false") {
+    await db.collection("active_sessions").updateOne(
+      { token },
+      { $set: { lastActivity: new Date().toISOString() } }
+    ).catch(() => {});
+  }
 
   const { password: _, ...safeUser } = user;
   return c.json({

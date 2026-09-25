@@ -1,4 +1,5 @@
 import { createMiddleware } from "hono/factory";
+import { extractClientIp } from "../lib/ipHelper.js";
 
 interface RateLimitStore {
   count: number;
@@ -15,13 +16,13 @@ setInterval(() => {
       memoryStore.delete(key);
     }
   }
-}, 5 * 60 * 1000);
+}, 5 * 60 * 1000).unref();
 
 export function rateLimiter(options: { windowMs: number; max: number; message?: string }) {
   const { windowMs, max, message = "تعداد درخواست‌های شما بیش از حد مجاز است. لطفاً کمی بعد دوباره تلاش کنید." } = options;
 
   return createMiddleware(async (c, next) => {
-    const ip = c.req.header("x-forwarded-for") || c.req.header("cf-connecting-ip") || "127.0.0.1";
+    const ip = extractClientIp(c);
     const path = c.req.path;
     const key = `${ip}:${path}`;
 

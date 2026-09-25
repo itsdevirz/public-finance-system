@@ -1,61 +1,104 @@
 import crypto from "crypto";
 
-// مخزن نگهداشت توکن‌های یکبارمصرف CSRF همراه با زمان انقضا
-// key: token, value: expiryTimestamp
-const activeCsrfTokens = new Map<string, number>();
+// Secret for HMAC-signing CSRF tokens
+const CSRF_SECRET = process.env.CSRF_SECRET || process.env.JWT_SECRET || "dev-csrf-hmac-secret-key-2026";
 
-// مدت زمان اعتبار هر توکن CSRF (مثلاً ۱۵ دقیقه)
+// Map tracking consumed tokens with their consumption timestamp
+const consumedCsrfTokens = new Map<string, number>();
+
+// TTL for CSRF tokens (15 minutes)
 const CSRF_TOKEN_TTL_MS = 15 * 60 * 1000;
 
 /**
- * پاکسازی خودکار توکن‌های منقضی‌شده از حافظه
+ * Periodically prune consumed tokens older than 30 seconds
  */
-function cleanupExpiredCsrfTokens() {
+function cleanupConsumedTokens() {
   const now = Date.now();
-  for (const [token, expiry] of activeCsrfTokens.entries()) {
-    if (now > expiry) {
-      activeCsrfTokens.delete(token);
+  for (const [token, consumedTime] of consumedCsrfTokens.entries()) {
+    if (now - consumedTime > 30 * 1000) {
+      consumedCsrfTokens.delete(token);
     }
   }
 }
 
-// اجرای دوره‌ای پاکسازی حافظه هر ۵ دقیقه
-setInterval(cleanupExpiredCsrfTokens, 5 * 60 * 1000).unref();
+setInterval(cleanupConsumedTokens, 60 * 1000).unref();
 
-/**
- * ایجاد یک توکن جدید Anti-CSRF امن و ذخیره آن در مخزن توکن‌های فعال
- */
-export function generateCsrfToken(): string {
-  cleanupExpiredCsrfTokens();
-  const rawBytes = crypto.randomBytes(32).toString("hex");
-  const timestamp = Date.now();
-  const token = `${rawBytes}.${timestamp}`;
-
-  // ثبت توکن با زمان انقضا
-  activeCsrfTokens.set(token, timestamp + CSRF_TOKEN_TTL_MS);
-  return token;
+function computeHmac(rawBytes: string, timestamp: number): string {
+  return crypto
+    .createHmac("sha256", CSRF_SECRET)
+    .update(`${rawBytes}.${timestamp}`)
+    .digest("hex");
 }
 
 /**
- * اعتبارسنجی و منقضی‌سازی یکباره توکن CSRF (Per-Request Rotation)
- * در صورت معتبر بودن، توکن بلافاصله از مخزن حذف می‌شود تا امکان استفاده مجدد (Replay) وجود نداشته باشد.
+ * Generates an HMAC-signed Anti-CSRF token.
  */
-export function validateAndConsumeCsrfToken(incomingToken: string | undefined | null): boolean {
+export function generateCsrfToken(): string {
+  const rawBytes = crypto.randomBytes(24).toString("hex");
+  const timestamp = Date.now();
+  const signature = computeHmac(rawBytes, timestamp);
+  return `${rawBytes}.${timestamp}.${signature}`;
+}
+
+/**
+ * Validates cryptographic signature and TTL of a CSRF token.
+ */
+export function validateCsrfToken(incomingToken: string | undefined | null): boolean {
   if (!incomingToken || typeof incomingToken !== "string") {
     return false;
   }
 
-  const expiry = activeCsrfTokens.get(incomingToken);
-  if (!expiry) {
-    return false; // توکن نامعتبر است یا قبلاً منقضی/مصرف شده است
+  const parts = incomingToken.split(".");
+  if (parts.length !== 3) {
+    return false;
   }
 
-  if (Date.now() > expiry) {
-    activeCsrfTokens.delete(incomingToken);
-    return false; // توکن منقضی شده است
+  const [rawBytes, timestampStr, signature] = parts;
+  const timestamp = parseInt(timestampStr, 10);
+
+  if (isNaN(timestamp) || Date.now() - timestamp > CSRF_TOKEN_TTL_MS) {
+    return false; // Expired or malformed timestamp
   }
 
-  // 🌟 منقضی‌سازی آنی توکن استفاده‌شده (یکبارمصرف بودن توکن در هر درخواست)
-  activeCsrfTokens.delete(incomingToken);
+  const expectedSignature = computeHmac(rawBytes, timestamp);
+  
+  try {
+    return crypto.timingSafeEqual(
+      Buffer.from(signature, "hex"),
+      Buffer.from(expectedSignature, "hex")
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Validates and consumes a CSRF token.
+ * To support concurrent requests without race conditions, recently consumed
+ * tokens remain valid within a short grace period (default 5 seconds, 0ms in test mode).
+ */
+export function validateAndConsumeCsrfToken(
+  incomingToken: string | undefined | null,
+  gracePeriodMs: number = process.env.NODE_ENV === "test" ? 0 : 5000
+): boolean {
+  if (!validateCsrfToken(incomingToken)) {
+    return false;
+  }
+
+  const tokenStr = incomingToken as string;
+  const now = Date.now();
+  const consumedTime = consumedCsrfTokens.get(tokenStr);
+
+  if (consumedTime !== undefined) {
+    if (now - consumedTime <= gracePeriodMs) {
+      // Valid within grace period for concurrent inflight requests
+      return true;
+    }
+    // Reused token outside grace period -> reject
+    return false;
+  }
+
+  // Mark token as consumed
+  consumedCsrfTokens.set(tokenStr, now);
   return true;
 }

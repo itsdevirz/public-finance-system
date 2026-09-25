@@ -130,7 +130,8 @@ router.post("/export-treasury-60", async (c) => {
     c.header("Content-Disposition", `attachment; filename="${filename}"`);
     return c.text(fileText);
   } catch (err: any) {
-    return c.json({ success: false, message: err.message }, 500);
+    console.error("treasuryPayroll60 export error:", err);
+    return c.json({ success: false, message: "خطا در تولید فایل خروجی خزانه‌داری" }, 500);
   }
 });
 

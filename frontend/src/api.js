@@ -1,9 +1,13 @@
 import axios from "axios";
 
 const getBaseUrl = () => {
-  if (typeof window !== "undefined" && window.location && window.location.hostname) {
-    const protocol = window.location.protocol === "https:" ? "https:" : "http:";
-    return `${protocol}//${window.location.hostname}:8000`;
+  if (typeof window !== "undefined") {
+    if (window.__API_URL__) return window.__API_URL__;
+    if (import.meta.env?.VITE_API_URL) return import.meta.env.VITE_API_URL;
+    if (window.location && window.location.hostname) {
+      const protocol = window.location.protocol === "https:" ? "https:" : "http:";
+      return `${protocol}//${window.location.hostname}:8000`;
+    }
   }
   return "http://localhost:8000";
 };
@@ -15,18 +19,43 @@ const api = axios.create({
   timeout: 30000,
 });
 
+/**
+ * 🌟 پایش و عیب‌یابی خودکار هوشمند سلامت سرور و برطرف‌سازی خطای CORS و پورت
+ * این تابع تمام آدرس‌ها و پورت‌های ممکن را تست کرده و پایه پورت فعال را جایگزین می‌کند.
+ */
+export async function checkBackendHealth() {
+  const host = typeof window !== "undefined" && window.location ? window.location.hostname : "localhost";
+  const candidates = [
+    api.defaults.baseURL,
+    `http://${host}:8000`,
+    `http://localhost:8000`,
+    `http://127.0.0.1:8000`,
+    `http://${host}:3000`,
+    `http://${host}:8080`,
+    ""
+  ].filter((url, idx, self) => url != null && self.indexOf(url) === idx);
+
+  for (const baseUrl of candidates) {
+    try {
+      const testUrl = baseUrl ? `${baseUrl}/api/health` : "/api/health";
+      const res = await axios.get(testUrl, { timeout: 3000, withCredentials: true });
+      if (res.data && (res.data.status === "online" || res.data.cors === "ok")) {
+        if (baseUrl !== api.defaults.baseURL) {
+          api.defaults.baseURL = baseUrl;
+        }
+        return { isOnline: true, baseURL: baseUrl, data: res.data };
+      }
+    } catch (_) {}
+  }
+  return { isOnline: false, baseURL: api.defaults.baseURL, error: "Network Error" };
+}
+
 // ── Request Deduplication ─────────────────────────────────────────────────────
 const pendingRequests = new Map(); // url → Promise
 
 api.interceptors.request.use((config) => {
-  // اضافه کردن توکن احراز هویت (نشست فعال در sessionStorage)
-  const token = sessionStorage.getItem("token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-
   // 🌟 اضافه کردن توکن چرخشی Anti-CSRF
-  const csrfToken = sessionStorage.getItem("csrfToken");
+  const csrfToken = sessionStorage.getItem("csrfToken") || localStorage.getItem("csrfToken");
   if (csrfToken) {
     config.headers["X-CSRF-Token"] = csrfToken;
   }
@@ -42,7 +71,9 @@ api.interceptors.request.use((config) => {
 // Wrapper برای GET با deduplication
 const originalGet = api.get.bind(api);
 api.get = function dedupedGet(url, config) {
-  const key = url + (config && config.params ? JSON.stringify(config.params) : "");
+  const paramsKey = config && config.params ? JSON.stringify(config.params) : "";
+  const headersKey = config && config.headers ? JSON.stringify(config.headers) : "";
+  const key = url + paramsKey + headersKey;
 
   if (pendingRequests.has(key)) {
     return pendingRequests.get(key);
@@ -79,11 +110,9 @@ api.interceptors.response.use(
     const status = err.response ? err.response.status : null;
     const url = err.config ? err.config.url : "";
     const isAuthUrl = url ? url.includes("/auth/") : false;
-
     if (status === 401 && !isAuthUrl) {
-      sessionStorage.removeItem("token");
       sessionStorage.removeItem("csrfToken");
-      localStorage.removeItem("token");
+      sessionStorage.removeItem("isOfflineMode");
       window.location.href = "/login";
     }
     return Promise.reject(err);

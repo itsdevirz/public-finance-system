@@ -1943,11 +1943,169 @@ router.get("/performance-statements-4way", async (c) => {
       }
     });
   } catch (err: any) {
-    return c.json({ success: false, message: err.message }, 500);
+    console.error("Credits report generation error:", err);
+    return c.json({ success: false, message: "خطا در تولید گزارش اعتبارات" }, 500);
   }
+});
+
+// ─── Credit Receipts (دریافت اعتبارات) ──────────────────────────────────────────
+router.get("/receipts", async (c) => {
+  const data = await getDb().collection("credit_receipts").find().sort({ createdAt: -1 }).toArray();
+  return c.json({ data: data.map((d) => serialize(d as Record<string, unknown>)), message: "لیست دریافتی‌های اعتبارات" });
+});
+
+router.post("/receipts", async (c) => {
+  const body = await c.req.json();
+  const receipt_number = body.receipt_number || `RCPT-${body.fiscalYear || body.fiscal_year || 1404}-${Date.now()}`;
+  const receiptBaseCode = body.receiptBaseCode || `RCPT-BASE-${Math.floor(100000 + Math.random() * 900000)}`;
+
+  const doc = {
+    ...body,
+    receipt_number,
+    receiptBaseCode,
+    status: body.status ?? "confirmed",
+    createdAt: new Date().toISOString()
+  };
+
+  const result = await getDb().collection("credit_receipts").insertOne(doc);
+  const inserted = await getDb().collection("credit_receipts").findOne({ _id: result.insertedId });
+  const authUser = getAuthUser(c);
+
+  // صدور اتوماتیک سند حسابداری دریافت اعتبارات در صورت درخواست یا تایید
+  let journalDocNum = null;
+  if (body.issue_journal_voucher !== false || body.status === "confirmed") {
+    try {
+      journalDocNum = `DOC-RCPT-${Date.now()}`;
+      const isCapital = body.creditCategory === "capital" || body.credit_category === "capital";
+      const isCentral = body.creditType === "central" || body.credit_type === "notified" || body.creditType === "notified";
+      const isPrior = body.yearType === "prior" || String(body.yearType) === "3" || body.yearType === "سنواتی";
+      const isSpecial = body.sourceType === "special" || body.sourceType === "2" || body.sourceType === "اختصاصی";
+      const srcTitle = isSpecial ? "منبع اختصاصی" : "منبع عمومی";
+      const catTitle = isCapital ? "تملک دارایی‌های سرمایه‌ای" : "هزینه‌ای";
+      const typeTitle = isCentral ? "ابلاغی متمرکز" : "استانی (مصوب)";
+      const yearTitle = isPrior ? "سنواتی" : body.yearType === "supplementary" ? "متمم" : "جاری";
+
+      const totalAmt = Number(body.totalAmount || body.amount) || 0;
+
+      // ساخت آرتیکل‌ها
+      const lines: any[] = [];
+      if (!isCapital) {
+        // هزینه‌ای
+        const bankCode = "11001";
+        const bankName = `بانک اعتبارات هزینه‌ای (${srcTitle})`;
+        if (!isCentral) {
+          const credCode = isPrior ? "41007" : (body.creditAccountCode || "41001");
+          const credName = isPrior ? `دریافت اعتبارات هزینه‌ای سنواتی (${srcTitle})` : `دریافت اعتبارات جاری (${srcTitle})`;
+          lines.push({ account_code: bankCode, account_name: bankName, debit: totalAmt, credit: 0, source_type: body.sourceType });
+          lines.push({ account_code: credCode, account_name: credName, debit: 0, credit: totalAmt, source_type: body.sourceType });
+        } else {
+          lines.push({ account_code: bankCode, account_name: bankName, debit: totalAmt, credit: 0, source_type: body.sourceType });
+          lines.push({ account_code: "46001", account_name: `درآمد انتقالات (${srcTitle})`, debit: 0, credit: totalAmt, source_type: body.sourceType });
+          lines.push({ account_code: "81017", account_name: `حساب انتظامی اعتبارات ابلاغی ${yearTitle} (${srcTitle})`, debit: totalAmt, credit: 0, is_budgetary: true, source_type: body.sourceType });
+          lines.push({ account_code: "82017", account_name: `طرف حساب انتظامی اعتبارات ابلاغی ${yearTitle} (${srcTitle})`, debit: 0, credit: totalAmt, is_budgetary: true, source_type: body.sourceType });
+        }
+      } else {
+        // سرمایه‌ای
+        const bankCode = "11002";
+        const bankName = `بانک تملک دارایی‌های سرمایه‌ای (${srcTitle})`;
+        if (!isCentral) {
+          const credCode = isPrior ? "41008" : "41003";
+          const credName = isPrior ? `دریافت اعتبارات سرمایه‌ای سنواتی (${srcTitle})` : `دریافت اعتبارات سرمایه‌ای (${srcTitle})`;
+          lines.push({ account_code: bankCode, account_name: bankName, debit: totalAmt, credit: 0, source_type: body.sourceType });
+          lines.push({ account_code: credCode, account_name: credName, debit: 0, credit: totalAmt, source_type: body.sourceType });
+        } else {
+          lines.push({ account_code: bankCode, account_name: bankName, debit: totalAmt, credit: 0, source_type: body.sourceType });
+          lines.push({ account_code: "46001", account_name: `درآمد انتقالات / اعتبارات سرمایه‌ای ابلاغی (${srcTitle})`, debit: 0, credit: totalAmt, source_type: body.sourceType });
+          lines.push({ account_code: "81017", account_name: `حساب انتظامی اعتبارات ابلاغی سرمایه‌ای ${yearTitle} (${srcTitle})`, debit: totalAmt, credit: 0, is_budgetary: true, source_type: body.sourceType });
+          lines.push({ account_code: "82017", account_name: `طرف حساب انتظامی اعتبارات ابلاغی سرمایه‌ای ${yearTitle} (${srcTitle})`, debit: 0, credit: totalAmt, is_budgetary: true, source_type: body.sourceType });
+          if (body.treasuryInstrument === "treasury_bill" || body.hasTreasuryBills) {
+            lines.push({ account_code: "81010", account_name: `اسناد خزانه اسلامی ${yearTitle} (${srcTitle})`, debit: totalAmt, credit: 0, is_budgetary: true, source_type: body.sourceType });
+            lines.push({ account_code: "82010", account_name: `طرف حساب اسناد خزانه اسلامی ${yearTitle} (${srcTitle})`, debit: 0, credit: totalAmt, is_budgetary: true, source_type: body.sourceType });
+          }
+          if (body.treasuryInstrument === "murabaha_bond" || body.hasMurabahaBonds) {
+            lines.push({ account_code: "81019", account_name: `اوراق مرابحه ${yearTitle} (${srcTitle})`, debit: totalAmt, credit: 0, is_budgetary: true, source_type: body.sourceType });
+            lines.push({ account_code: "82019", account_name: `طرف حساب اوراق مرابحه ${yearTitle} (${srcTitle})`, debit: 0, credit: totalAmt, is_budgetary: true, source_type: body.sourceType });
+          }
+        }
+      }
+
+      await getDb().collection("journal_documents").insertOne({
+        document_number: journalDocNum,
+        document_type: "CREDIT_RECEIPT",
+        fiscal_year: Number(body.fiscalYear || body.fiscal_year) || 1404,
+        status: "CONFIRMED",
+        document_date: body.receiptDate || new Date().toLocaleDateString("fa-IR"),
+        description: `سند حسابداری دریافت اعتبارات ${catTitle} - ${typeTitle} - سال ${yearTitle} (${srcTitle}): ${body.description || receipt_number}`,
+        receipt_id: result.insertedId.toHexString(),
+        base_code: receiptBaseCode,
+        allocation_base_code: body.allocationBaseCode || "",
+        source_type: body.sourceType || "1",
+        credit_category: body.creditCategory || "expense",
+        lines,
+        created_at: new Date().toISOString()
+      });
+
+      await getDb().collection("credit_receipts").updateOne(
+        { _id: result.insertedId },
+        { $set: { journal_document_number: journalDocNum, voucher_status: "issued" } }
+      );
+    } catch (vErr) {
+      console.error("Auto receipt voucher error:", vErr);
+    }
+  }
+
+  try {
+    await logAuditEvent({
+      ...authUser,
+      action: "ثبت دریافت جدید اعتبارات",
+      resource: `دریافت اعتبار: ${receipt_number}`,
+      result: "SUCCESS",
+      ip: extractClientIp(c),
+      userAgent: c.req.header("user-agent") || "",
+      eventType: "ADMIN_FUNCTION_USAGE",
+      details: {
+        receipt_id: result.insertedId.toHexString(),
+        receipt_number,
+        receiptBaseCode,
+        totalAmount: body.totalAmount || body.amount,
+        creditCategory: body.creditCategory,
+        creditType: body.creditType,
+        sourceType: body.sourceType,
+        yearType: body.yearType,
+        journalDocNum
+      }
+    });
+  } catch (_) {}
+
+  return c.json({ message: "دریافت اعتبار با موفقیت ثبت و سند حسابداری مربوطه صادر شد", data: serialize({ ...inserted, journal_document_number: journalDocNum } as Record<string, unknown>) }, 201);
+});
+
+router.put("/receipts/:id", async (c) => {
+  const id = c.req.param("id");
+  let oid: ObjectId;
+  try { oid = new ObjectId(id); } catch { return c.json({ message: "شناسه نامعتبر است" }, 400); }
+  const body = await c.req.json();
+  const { _id, ...updateData } = body;
+  const result = await getDb().collection("credit_receipts").findOneAndUpdate(
+    { _id: oid },
+    { $set: { ...updateData, updatedAt: new Date().toISOString() } },
+    { returnDocument: "after" }
+  );
+  if (!result) return c.json({ message: "دریافت یافت نشد" }, 404);
+  return c.json({ message: "دریافت اعتبار با موفقیت بروزرسانی شد", data: serialize(result as Record<string, unknown>) });
+});
+
+router.delete("/receipts/:id", async (c) => {
+  const id = c.req.param("id");
+  let oid: ObjectId;
+  try { oid = new ObjectId(id); } catch { return c.json({ message: "شناسه نامعتبر است" }, 400); }
+  const result = await getDb().collection("credit_receipts").deleteOne({ _id: oid });
+  if (result.deletedCount === 0) return c.json({ message: "دریافت یافت نشد" }, 404);
+  return c.json({ message: "دریافت اعتبار با موفقیت حذف شد" });
 });
 
 router.get("/", (_c) => _c.json({ message: "اعتبارات" }));
 
 export default router;
+
 

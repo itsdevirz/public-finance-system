@@ -54,8 +54,6 @@ export default function UserSessionsModal({ isOpen, onClose }) {
 
   if (!isOpen) return null;
 
-  const currentToken = sessionStorage.getItem("token");
-
   return (
     <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="relative w-full max-w-4xl rounded-2xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh]">
@@ -141,7 +139,6 @@ export default function UserSessionsModal({ isOpen, onClose }) {
                 ) : (
                   sessions.map((session, idx) => {
                     const isSelf = session.isCurrent ||
-                      (session.token && session.token === currentToken) ||
                       (session.username && currentUser?.username && session.username.toLowerCase() === currentUser.username.toLowerCase());
 
                     return (

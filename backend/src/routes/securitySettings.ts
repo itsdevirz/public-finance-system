@@ -3,6 +3,7 @@ import { ObjectId } from "mongodb";
 import { getDb } from "../db/index.js";
 import { DEFAULT_SECURITY_POLICY, validateInternalTransitProtection, validateSecurityDataInteroperability, validateTrustedTimestamping, validateProductSoftwareUpdate, validateAutoUpdateAuthenticity, validateCoreFunctionsSoftwareFaultTolerance, validateInteractiveSessionInactivityTermination, validateCaCertificateAcceptance } from "../lib/securityPolicy.js";
 import { executeRealTlsHandshake } from "../lib/secureTlsClient.js";
+import { validatePublicTlsTarget } from "../lib/ssrfGuard.js";
 import { logAuditEvent, AFTA_LOG_EVENT_TYPES, verifyLogIntegrity, signExistingLogs, runAuditLogRetentionAndRotation, extractClientIp, AUDIT_STORAGE_THRESHOLD } from "../lib/auditLogger.js";
 import { getShamsiDetails } from "../lib/shamsi.js";
 import { requireRole } from "../middleware/rbacMiddleware.js";
@@ -1580,60 +1581,66 @@ router.post("/audit-file-download", async (c) => {
   });
 });
 
+// Helper to truncate long user strings securely
+function safeTruncate(str: any, maxLen = 300): string {
+  if (typeof str !== "string") return "";
+  return str.trim().slice(0, maxLen);
+}
+
 // POST /api/security/audit-failure - Log failure occurrences (CORS error, server offline, auth failure, network drop)
 router.post("/audit-failure", async (c) => {
   const payload = (c.get as any)("jwtPayload");
   const body = await c.req.json().catch(() => ({}));
 
-  const clientIp = body.ip || extractClientIp(c);
-  const userAgent = body.userAgent || c.req.header("user-agent") || "Mozilla/5.0 (Windows NT 10.0; Win64; x64)";
+  const clientIp = extractClientIp(c);
+  const userAgent = safeTruncate(c.req.header("user-agent") || body.userAgent || "Mozilla/5.0", 300);
 
-  const userMessage = body.details?.userMessage || body.userMessage || "خطا در ارتباط با سرور یا محدودیت CORS. لطفاً از روشن بودن سرور و تطابق پورت مطمئن شوید.";
-  const action = body.action || "شکست در ارتباط با سرور یا محدودیت CORS (بروز خطای شبکه/پورت)";
-  const eventType = body.eventType || AFTA_LOG_EVENT_TYPES.SYSTEM_CAPABILITY_FAILURE;
-  const resource = body.resource || "/api/auth/login";
-  const method = body.method || "POST";
-  const errorCode = body.errorCode || 0;
+  const userMessage = safeTruncate(body.details?.userMessage || body.userMessage || "خطا در ارتباط با سرور یا محدودیت CORS.", 300);
+  const action = safeTruncate(body.action || "شکست در ارتباط با سرور یا محدودیت CORS (بروز خطای شبکه/پورت)", 300);
+  const eventType = safeTruncate(body.eventType || AFTA_LOG_EVENT_TYPES.SYSTEM_CAPABILITY_FAILURE, 100);
+  const resource = safeTruncate(body.resource || "/api/auth/login", 200);
+  const method = safeTruncate(body.method || "POST", 10);
+  const errorCode = typeof body.errorCode === "number" ? body.errorCode : 0;
 
-  const fullExplanation = body.details?.fullExplanation || 
-    "تلاش ناموفق جهت برقراری ارتباط با سرور یا مسدود شدن درخواست توسط قوانین محدودیت CORS / شبکه. این رویداد نشان‌دهنده شکست در قابلیت‌های کارکردی محصول و عدم دسترسی به سرویس پشتیبان (بک‌اند) بر روی پورت تعیین‌شده می‌باشد.";
+  const fullExplanation = safeTruncate(
+    body.details?.fullExplanation || "تلاش ناموفق جهت برقراری ارتباط با سرور یا مسدود شدن درخواست توسط قوانین محدودیت CORS / شبکه.",
+    500
+  );
 
-  const troubleshootingSteps = body.details?.troubleshootingSteps || [
-    "۱. بررسی و اطمینان از روشن بودن سرویس بک‌اند بر روی پورت 8000.",
-    "۲. بررسی تطابق پورت و پروتکل درخواست کلاینت (HTTP/HTTPS) با سرور.",
-    "۳. بررسی هدر Origin و مجوزهای دامنه درخواست‌دهنده در پیکربندی CORS سرور.",
-    "۴. بررسی اتصال شبکه یا دیواره آتش (Firewall) دستگاه."
-  ].join("\n");
+  const isAuthenticated = !!payload?.sub;
 
   await logAuditEvent({
-    userId: payload?.sub || body.userId || "system",
-    username: payload?.username || body.username || "anonymous",
-    userFullName: payload?.userFullName || body.userFullName || payload?.username || "ناشناس",
-    userRole: payload?.role || body.userRole || "سیستم",
-    action: action,
-    eventType: eventType,
-    resource: resource,
-    method: method,
+    userId: isAuthenticated ? payload.sub : "unauthenticated",
+    username: isAuthenticated ? payload.username : "anonymous",
+    userFullName: isAuthenticated ? (payload.userFullName || payload.username) : "ناشناس",
+    userRole: isAuthenticated ? (payload.role || "کاربر") : "سیستم",
+    action,
+    eventType,
+    resource,
+    method,
     result: "FAILURE",
     ip: clientIp,
     userAgent,
-    errorCode: errorCode,
+    errorCode,
     details: {
       userMessage,
       fullExplanation,
-      troubleshootingSteps,
+      clientReported: {
+        ip: safeTruncate(body.ip, 50),
+        username: safeTruncate(body.username, 100),
+        userId: safeTruncate(body.userId, 100)
+      },
       aftaRequirement: "بند ۱ جدول ۲-۷ (شکست در قابلیت‌های کارکردی) و بند ۱ جدول ۲-۶ (حفاظت از توابع امنیتی)",
       failureCategory: "NETWORK_OR_CORS_FAILURE",
       failureCategoryDescription: "شکست در ارتباط با سرور یا محدودیت دامنه/پورت در CORS",
-      clientOrigin: body.clientOrigin || "http://localhost:5173",
-      targetBaseUrl: body.targetBaseUrl || "http://localhost:8000",
-      ...(body.details || {})
+      clientOrigin: safeTruncate(body.clientOrigin, 200),
+      targetBaseUrl: safeTruncate(body.targetBaseUrl, 200)
     }
   });
 
   return c.json({
     success: true,
-    message: "لاگ بروز شکست با موفقیت و تمامی جزئیات در دیتابیس ثبت گردید."
+    message: "لاگ بروز شکست با موفقیت در دیتابیس ثبت گردید."
   });
 });
 
@@ -1641,35 +1648,43 @@ router.post("/audit-failure", async (c) => {
 router.post("/audit-failure-batch", async (c) => {
   const payload = (c.get as any)("jwtPayload");
   const body = await c.req.json().catch(() => ({}));
-  const logs = Array.isArray(body.logs) ? body.logs : [];
+  const rawLogs = Array.isArray(body.logs) ? body.logs : [];
+  // Limit max batch size to 20 to prevent log flooding / DOS
+  const logs = rawLogs.slice(0, 20);
+
+  const isAuthenticated = !!payload?.sub;
 
   for (const item of logs) {
-    const clientIp = item.ip || extractClientIp(c);
-    const userAgent = item.userAgent || c.req.header("user-agent") || "Mozilla/5.0 (Windows NT 10.0; Win64; x64)";
-    
+    const clientIp = extractClientIp(c);
+    const userAgent = safeTruncate(c.req.header("user-agent") || item.userAgent || "Mozilla/5.0", 300);
+
     await logAuditEvent({
-      userId: payload?.sub || item.userId || "system",
-      username: payload?.username || item.username || "anonymous",
-      userFullName: payload?.userFullName || item.userFullName || payload?.username || "ناشناس",
-      userRole: payload?.role || item.userRole || "سیستم",
-      action: item.action || "شکست در ارتباط با سرور یا محدودیت CORS (آفلاین)",
-      eventType: item.eventType || AFTA_LOG_EVENT_TYPES.SYSTEM_CAPABILITY_FAILURE,
-      resource: item.resource || "/api/auth/login",
-      method: item.method || "POST",
+      userId: isAuthenticated ? payload.sub : "unauthenticated",
+      username: isAuthenticated ? payload.username : "anonymous",
+      userFullName: isAuthenticated ? (payload.userFullName || payload.username) : "ناشناس",
+      userRole: isAuthenticated ? (payload.role || "کاربر") : "سیستم",
+      action: safeTruncate(item.action || "شکست در ارتباط با سرور (آفلاین)", 300),
+      eventType: safeTruncate(item.eventType || AFTA_LOG_EVENT_TYPES.SYSTEM_CAPABILITY_FAILURE, 100),
+      resource: safeTruncate(item.resource || "/api/auth/login", 200),
+      method: safeTruncate(item.method || "POST", 10),
       result: "FAILURE",
       ip: clientIp,
       userAgent,
-      errorCode: item.errorCode || 0,
+      errorCode: typeof item.errorCode === "number" ? item.errorCode : 0,
       details: {
         isSyncedFromOffline: true,
-        ...(item.details || {})
+        clientReported: {
+          ip: safeTruncate(item.ip, 50),
+          username: safeTruncate(item.username, 100),
+          userId: safeTruncate(item.userId, 100)
+        }
       }
     });
   }
 
   return c.json({
     success: true,
-    message: `${logs.length} لاگ بروز شکست آفلاین با موفقیت در دیتابیس ثبت و همگام‌سازی شد.`
+    message: `${logs.length} لاگ بروز شکست آفلاین با موفقیت همگام‌سازی شد.`
   });
 });
 
@@ -1973,12 +1988,32 @@ router.post("/simulate-tls-client-connection", requireRole(["admin"]), async (c)
     const policy = config?.value ? { ...DEFAULT_SECURITY_POLICY, ...config.value } : DEFAULT_SECURITY_POLICY;
 
     const tlsPolicy = policy.tlsClientPolicy || DEFAULT_SECURITY_POLICY.tlsClientPolicy;
-    const targetUrl = body.targetUrl || body.targetHost || "https://google.com";
+    const targetUrlStr = body.targetUrl || body.targetHost || "https://google.com";
+
+    let parsedUrl: URL;
+    try {
+      const rawUrl = targetUrlStr.startsWith("http") ? targetUrlStr : `https://${targetUrlStr}`;
+      parsedUrl = new URL(rawUrl);
+    } catch (err: any) {
+      return c.json({ success: false, message: `آدرس URL وارد شده معتبر نمی‌باشد: ${err.message}` }, 400);
+    }
+
+    const host = parsedUrl.hostname;
+    const port = parsedUrl.port ? parseInt(parsedUrl.port, 10) : 443;
+
+    // SSRF & DNS Rebinding Validation (Item 7)
+    const ssrfCheck = await validatePublicTlsTarget(host, port);
+    if (!ssrfCheck.safe) {
+      return c.json({
+        success: false,
+        message: ssrfCheck.reason || "دسترسی به آدرس‌های داخلی و شبکه محلی غیرمجاز است."
+      }, 400);
+    }
 
     // اجرای دست‌تکانی واقعی سوکت TLS شبکه
-    const realResult = await executeRealTlsHandshake(targetUrl, tlsPolicy);
+    const realResult = await executeRealTlsHandshake(targetUrlStr, tlsPolicy);
 
-    const clientIp = c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "127.0.0.1";
+    const clientIp = extractClientIp(c);
     await logAuditEvent({
       userId: payload?.sub,
       username: payload?.username || "admin",
@@ -2014,7 +2049,8 @@ router.post("/simulate-tls-client-connection", requireRole(["admin"]), async (c)
       message: realResult.message
     });
   } catch (error: any) {
-    return c.json({ success: false, message: error.message }, 500);
+    console.error("Error in simulate-tls-client-connection:", error);
+    return c.json({ success: false, message: "خطا در ارزیابی اتصال TLS سرور" }, 500);
   }
 });
 

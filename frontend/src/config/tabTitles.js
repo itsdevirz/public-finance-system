@@ -27,12 +27,24 @@ const EXTRA_TITLES = {
 
   // ─── مدیریت اعتبارات (اعتبارات و بودجه) ──────────────────────────────
   "/credits/agreements": "ثبت موافقت‌نامه",
+  "/credits/budget/amendments": "متمم و اصلاحیه بودجه",
   "/credits/allocations": "تخصیص اعتبار",
-  "/credits/verification-realization": "دریافت اعتبارات",
+  "/credits/allocations/new": "ابلاغ و صدور تخصیص",
+  "/credits/allocation-no-doc": "تخصیص بدون سند بودجه",
+  "/credits/verification-realization": "دریافت اعتبارات از خزانه",
+  "/credits/receipt-no-doc": "دریافت بدون سند بودجه",
+  "/credits/requests": "درخواست وجه از خزانه",
   "/credits/commitments-funding": "تأمین اعتبار",
   "/credits/commitments-funding/request": "درخواست تأمین اعتبار",
   "/credits/commitments-funding/review": "مرور تأمین اعتبار",
+  "/credits/commitments-funding/confirm": "تأیید و رزرو اعتبار",
+  "/credits/payroll-funding": "تأمین اعتبار حقوق و دستمزد",
+  "/credits/obligations": "تعهدات مالی",
+  "/credits/obligations/create": "ثبت تعهد بودجه‌ای",
+  "/credits/obligations/release": "آزادسازی و تسویه تعهد",
   "/credits/payments": "پرداخت اعتبارات",
+  "/credits/payments/remittance": "صدور حواله پرداخت",
+  "/credits/payments/return": "استرداد و برگشت اعتبار",
   "/credits/card": "شناسنامه و کارت اعتبار",
 
   // ─── خزانه، سپرده‌ها و چک ──────────────────────────────────────────────

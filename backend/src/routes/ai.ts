@@ -82,9 +82,7 @@ const tools = {
   },
 };
 
-const OPENROUTER_API_KEY =
-  process.env.OPENROUTER_API_KEY ||
-  "your api key";
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "";
 
 router.post("/chat", async (c) => {
   try {
