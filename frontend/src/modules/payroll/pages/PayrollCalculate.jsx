@@ -107,27 +107,60 @@ function calcPayrollRow(emp, decree, attRec, advances, loans, selectedYear, sele
     customFieldsData[allow.key] = Number(allow.defaultValue || 0);
   });
 
+  // بارگذاری تنظیمات بیمه و کسورات از ذخیره‌سازی محلی یا پیش‌فرض‌ها
+  let insSettings = {};
+  try {
+    const saved = localStorage.getItem("insurance_settings");
+    if (saved) insSettings = JSON.parse(saved);
+  } catch (_) {}
+
+  const insEmployeeRate = (Number(insSettings.insEmployeeRate ?? 7)) / 100;
+  const insEmployerRate = (Number(insSettings.insEmployerRate ?? 20)) / 100;
+  const insUnemployRate = (Number(insSettings.insUnemployRate ?? 3)) / 100;
+
+  const healthEmployeeRate = (Number(insSettings.healthEmployeeRate ?? 2)) / 100;
+  const healthEmployerRate = (Number(insSettings.healthEmployerRate ?? 2)) / 100;
+  const healthGovtRate     = (Number(insSettings.healthGovtRate ?? 3)) / 100;
+
+  const retireEmployeeRate = (Number(decree?.retireRate ?? emp?.retireRate ?? insSettings.retireEmployeeRate ?? 9)) / 100;
+  const retireEmployerRate = (Number(insSettings.retireEmployerRate ?? 16.5)) / 100;
+
+  const savingsRate = (Number(decree?.savingsRate ?? emp?.savingsRate ?? insSettings.savingsAccountRate ?? 3)) / 100;
+  const savingsFixed = Number(decree?.savingsFixed ?? emp?.savingsFixed ?? insSettings.savingsAccountFixed ?? 0);
+
   // جمع ناخالص حقوق
   const grossSalary = earnedBaseSalary + housingAllow + groceryAllow + childAllow
                     + seniority + responsibility + expertise + transportAllow + other + overtimePay + customAllowancesSum;
 
-  // مبنای بیمه (حقوق پایه + مزایای مشمول بیمه)
-  const insBase        = earnedBaseSalary + seniority + responsibility + expertise + transportAllow + other;
-  const insEmployee    = Math.round(insBase * INS_EMPLOYEE_RATE);
-  const insEmployer    = Math.round(insBase * INS_EMPLOYER_RATE);
-  const insUnemploy    = Math.round(insBase * INS_UNEMPLOY_RATE);
-  const totalInsurance = insEmployee + insEmployer + insUnemploy;
+  // تعیین نوع پوشش بیمه درمان و تامین اجتماعی: انحصار متقابل (یک کارمند فقط تامین اجتماعی یا خدمات درمانی دارد)
+  const healthStatus = String(decree?.healthInsuranceStatus || emp?.healthInsuranceStatus || "2");
+  const pensionFund = String(decree?.pensionFund || emp?.pensionFund || "8");
 
-  // بیمه درمان (مبنا = حقوق ناخالص)
-  const healthInsEmployee = Math.round(grossSalary * HEALTH_INS_EMPLOYEE_RATE);
-  const healthInsEmployer = Math.round(grossSalary * HEALTH_INS_EMPLOYER_RATE);
-  const healthInsGovt     = Math.round(grossSalary * HEALTH_INS_GOVT_RATE);
+  const isHealthServices = healthStatus === "1" || healthStatus === "health_services" || pensionFund === "7" || pensionFund === "civil";
+  const isSocialSecurity = !isHealthServices;
 
-  // مالیات ماهانه (بر اساس ناخالص سالانه و وضعیت معافیت مالیاتی کارمند)
+  // ۱. بیمه تامین اجتماعی (سهم کارمند، دستگاه و دولت/بیکاری - فقط در صورت داشتن بیمه تامین اجتماعی)
+  const insEmployee    = isSocialSecurity ? Math.round(insBase * insEmployeeRate) : 0;
+  const insEmployer    = isSocialSecurity ? Math.round(insBase * insEmployerRate) : 0;
+  const insUnemploy    = isSocialSecurity ? Math.round(insBase * insUnemployRate) : 0;
+
+  // ۲. بیمه درمان (سهم کارمند، دستگاه و دولت - فقط در صورت داشتن بیمه خدمات درمانی)
+  const healthInsEmployee = isHealthServices ? Math.round(grossSalary * healthEmployeeRate) : 0;
+  const healthInsEmployer = isHealthServices ? Math.round(grossSalary * healthEmployerRate) : 0;
+  const healthInsGovt     = isHealthServices ? Math.round(grossSalary * healthGovtRate) : 0;
+
+  // ۳. صندوق بازنشستگی سهم کارمند (کاهنده حقوق)
+  const retirementEmployee = Math.round(insBase * retireEmployeeRate);
+  const retirementEmployer = Math.round(insBase * retireEmployerRate);
+
+  // ۴. مالیات ماهانه (کاهنده حقوق)
   const taxStatus      = decree?.taxStatus || emp?.taxStatus || "taxable";
   const isExempt       = taxStatus === "exempt";
   const annualGross    = grossSalary * 12;
   const monthlyTax     = isExempt ? 0 : calcTax(annualGross);
+
+  // ۵. حساب پس‌انداز کارمند (کاهنده حقوق)
+  const savingsAccountDeduct = savingsFixed > 0 ? savingsFixed : Math.round(grossSalary * savingsRate);
 
   // محاسبه کسر مساعده
   const empId = emp._id || emp.id;
@@ -162,10 +195,10 @@ function calcPayrollRow(emp, decree, attRec, advances, loans, selectedYear, sele
     }
   });
 
-  // جمع کسورات
-  const totalDeductions = insEmployee + healthInsEmployee + monthlyTax + tardinessDeduct + absenceDeduct + advanceDeduct + loanDeduct;
+  // جمع کل کسورات قانونی و کارگاهی (کاهنده حقوق کارمند)
+  const totalDeductions = insEmployee + healthInsEmployee + retirementEmployee + monthlyTax + savingsAccountDeduct + tardinessDeduct + absenceDeduct + advanceDeduct + loanDeduct;
 
-  // خالص قابل پرداخت
+  // خالص قابل پرداخت به کارمند
   const netSalary      = Math.max(0, grossSalary - totalDeductions);
 
   return {
@@ -190,20 +223,23 @@ function calcPayrollRow(emp, decree, attRec, advances, loans, selectedYear, sele
     other,
     overtimePay,
     grossSalary,
-    // کسورات
+    // ۵ کسر اصلی + سایر کسورات (همگی کاهنده حقوق)
+    monthlyTax,
     insEmployee,
     insEmployer,
     insUnemploy,
     healthInsEmployee,
     healthInsEmployer,
     healthInsGovt,
-    monthlyTax,
-    taxStatus,
-    isExempt,
+    retirementEmployee,
+    retirementEmployer,
+    savingsAccountDeduct,
     tardinessDeduct,
     absenceDeduct,
     advanceDeduct,
     loanDeduct,
+    taxStatus,
+    isExempt,
     totalDeductions,
     // خالص
     netSalary,
@@ -534,15 +570,15 @@ export default function PayrollCalculate() {
                 <TableRow className="bg-muted/40 text-[10px]">
                   <TableHead className="text-right text-white">کد / نام</TableHead>
                   <TableHead className="text-center text-white">کارکرد<br/><span className="font-normal text-[9px]">(روز / اضافه‌کار)</span></TableHead>
-                  <TableHead className="text-left font-mono text-white">حقوق پایه<br/><span className="font-normal text-[9px]">بر اساس کارکرد</span></TableHead>
-                  <TableHead className="text-left font-mono text-white">مسکن + خوار</TableHead>
-                  <TableHead className="text-left font-mono text-white">اضافه‌کار</TableHead>
-                  <TableHead className="text-left font-mono font-bold text-white">ناخالص</TableHead>
-                  <TableHead className="text-left font-mono text-white border-r border-slate-200/50 pr-3">بیمه کارمند</TableHead>
-                  <TableHead className="text-left font-mono text-white">بیمه کارفرما<br/><span className="font-normal text-[9px]">(برای اطلاع)</span></TableHead>
+                  <TableHead className="text-left font-mono text-white">حقوق پایه</TableHead>
+                  <TableHead className="text-left font-mono font-bold text-white">ناخالص حقوق</TableHead>
+                  <TableHead className="text-left font-mono text-white border-r border-slate-200/50 pr-2">بیمه تامین</TableHead>
+                  <TableHead className="text-left font-mono text-white">خدمات درمانی</TableHead>
+                  <TableHead className="text-left font-mono text-white">بازنشستگی</TableHead>
                   <TableHead className="text-left font-mono text-white">مالیات</TableHead>
-                  <TableHead className="text-left font-mono text-white">کسر کارکرد</TableHead>
-                  <TableHead className="text-left font-mono font-bold text-white border-r border-slate-200/50 pr-3">خالص پرداخت</TableHead>
+                  <TableHead className="text-left font-mono text-white">پس‌انداز</TableHead>
+                  <TableHead className="text-left font-mono text-rose-300 font-bold">جمع کسورات</TableHead>
+                  <TableHead className="text-left font-mono font-bold text-emerald-300 border-r border-slate-200/50 pr-2">خالص قابل پرداخت</TableHead>
                   <TableHead className="text-center text-white">وضعیت</TableHead>
                 </TableRow>
               </TableHeader>
@@ -561,29 +597,28 @@ export default function PayrollCalculate() {
                     </TableCell>
                     <TableCell className="text-center font-mono">
                       <div className="font-bold">{r.workedDays} روز</div>
-                      {r.overtimeHours > 0 && <div className="text-[10px] text-amber-600">+{r.overtimeHours}ساعت</div>}
+                      {r.overtimeHours > 0 && <div className="text-[10px] text-amber-600">+{r.overtimeHours}س</div>}
                     </TableCell>
                     <TableCell className="text-left font-mono text-slate-700">{fmt(r.earnedBaseSalary)}</TableCell>
-                    <TableCell className="text-left font-mono text-slate-500">{fmt(r.housingAllow + r.groceryAllow)}</TableCell>
-                    <TableCell className="text-left font-mono text-amber-600">{r.overtimePay > 0 ? fmt(r.overtimePay) : "—"}</TableCell>
                     <TableCell className="text-left font-mono font-bold text-indigo-700">{fmt(r.grossSalary)}</TableCell>
-                    <TableCell className="text-left font-mono text-blue-600 border-r border-slate-100 dark:border-slate-800 pr-3">{fmt(r.insEmployee)}</TableCell>
-                    <TableCell className="text-left font-mono text-orange-500 text-[10px]">{fmt(r.insEmployer)}</TableCell>
+                    
+                    {/* ۵ آیتم اصلی کسورات (کاهنده حقوق) */}
+                    <TableCell className="text-left font-mono text-blue-600 border-r border-slate-100 dark:border-slate-800 pr-2">{fmt(r.insEmployee)}</TableCell>
+                    <TableCell className="text-left font-mono text-teal-600">{fmt(r.healthInsEmployee)}</TableCell>
+                    <TableCell className="text-left font-mono text-purple-600">{fmt(r.retirementEmployee)}</TableCell>
                     <TableCell className="text-left font-mono text-rose-600">
                       {r.isExempt || r.taxStatus === "exempt" ? (
                         <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-300 text-[9px] py-0 px-1 font-sans">
-                          معاف (ماده ۹۱)
+                          معاف (۹۱)
                         </Badge>
                       ) : (
                         fmt(r.monthlyTax)
                       )}
                     </TableCell>
-                    <TableCell className="text-left font-mono text-slate-500">
-                      {(r.tardinessDeduct + r.absenceDeduct + (r.advanceDeduct || 0) + (r.loanDeduct || 0)) > 0 
-                        ? fmt(r.tardinessDeduct + r.absenceDeduct + (r.advanceDeduct || 0) + (r.loanDeduct || 0)) 
-                        : "—"}
-                    </TableCell>
-                    <TableCell className="text-left font-mono font-bold text-emerald-700 text-sm border-r border-slate-100 dark:border-slate-800 pr-3">{fmt(r.netSalary)}</TableCell>
+                    <TableCell className="text-left font-mono text-emerald-600">{fmt(r.savingsAccountDeduct)}</TableCell>
+                    
+                    <TableCell className="text-left font-mono font-bold text-rose-700">{fmt(r.totalDeductions)}</TableCell>
+                    <TableCell className="text-left font-mono font-bold text-emerald-700 text-sm border-r border-slate-100 dark:border-slate-800 pr-2">{fmt(r.netSalary)}</TableCell>
                     <TableCell className="text-center">
                       {!r.hasDecree
                         ? <Badge className="bg-amber-100 text-amber-700 text-[9px]">فاقد حکم</Badge>

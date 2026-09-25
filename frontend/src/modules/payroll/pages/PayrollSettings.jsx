@@ -18,11 +18,21 @@ const DEFAULTS = {
   nightShiftMultiplier: 1.35,
   holidayMultiplier: 1.75,
 
-  // بیمه تأمین اجتماعی
-  insEmployeeRate: 7,       // %
-  insEmployerRate: 20,      // %
-  insUnemployRate: 3,       // %
+  // بیمه و کسورات قانونی و اختیاری
+  insEmployeeRate: 7,       // % بیمه تامین اجتماعی سهم کارمند
+  insEmployerRate: 20,      // % بیمه تامین اجتماعی سهم کارفرما
+  insUnemployRate: 3,       // % بیمه بیکاری
   insMaxBase: 0,            // 0 = نامحدود
+
+  healthEmployeeRate: 2,    // % بیمه خدمات درمانی سهم کارمند
+  healthEmployerRate: 2,    // % بیمه خدمات درمانی سهم کارفرما
+  healthGovtRate: 3,        // % بیمه خدمات درمانی سهم دولت
+
+  retireEmployeeRate: 9,    // % صندوق بازنشستگی سهم کارمند
+  retireEmployerRate: 16.5, // % صندوق بازنشستگی سهم دولت/دستگاه
+
+  savingsAccountRate: 3,    // % کسر حساب پس‌انداز کارمند
+  savingsAccountFixed: 0,   // مبلغ ثابت کسر پس‌انداز کارمند (ریال)
 
   // مالیات حقوق ۱۴۰۵
   taxAnnualExemption: 1440000000,   // ریال
@@ -226,22 +236,27 @@ export default function PayrollSettings() {
           </CardContent>
         </Card>
 
-        {/* ۲. بیمه تأمین اجتماعی */}
+        {/* ۲. بیمه و کسورات قانونی و اختیاری حقوق */}
         <Card className="border-slate-100 shadow-sm">
           <CardHeader className="border-b pb-3">
-            <SectionTitle icon={ShieldCheck} title="بیمه تأمین اجتماعی"
-              description="نرخ‌های بیمه بر اساس مصوبه سازمان تأمین اجتماعی" color="text-teal-600" />
+            <SectionTitle icon={ShieldCheck} title="بیمه‌ها و کسورات حقوق کارمندان"
+              description="نرخ‌های ۵ بند کسورات حقوق شامل تامین اجتماعی، خدمات درمانی، بازنشستگی و پس‌انداز" color="text-teal-600" />
           </CardHeader>
-          <CardContent className="pt-4">
-            <SettingField label="سهم کارمند" hint="بر اساس پایه بیمه‌پذیر — مصوب: ۷٪" value={settings.insEmployeeRate} onChange={v => set("insEmployeeRate", v)} unit="%" min={0} max={15} step="0.5" />
-            <SettingField label="سهم کارفرما" hint="بار مالی کارفرما — مصوب: ۲۰٪" value={settings.insEmployerRate} onChange={v => set("insEmployerRate", v)} unit="%" min={0} max={30} step="0.5" />
-            <SettingField label="بیمه بیکاری" hint="سهم کارفرما — مصوب: ۳٪" value={settings.insUnemployRate} onChange={v => set("insUnemployRate", v)} unit="%" min={0} max={10} step="0.5" />
+          <CardContent className="pt-4 space-y-1">
+            <SettingField label="بیمه تامین اجتماعی (سهم کارمند)" hint="کاهنده حقوق — مصوب: ۷٪" value={settings.insEmployeeRate} onChange={v => set("insEmployeeRate", v)} unit="%" min={0} max={15} step="0.5" />
+            <SettingField label="بیمه خدمات درمانی (سهم کارمند)" hint="کاهنده حقوق — مصوب: ۲٪" value={settings.healthEmployeeRate || 2} onChange={v => set("healthEmployeeRate", v)} unit="%" min={0} max={10} step="0.5" />
+            <SettingField label="صندوق بازنشستگی (سهم کارمند)" hint="کاهنده حقوق — مصوب: ۹٪" value={settings.retireEmployeeRate || 9} onChange={v => set("retireEmployeeRate", v)} unit="%" min={0} max={20} step="0.5" />
+            <SettingField label="حساب پس‌انداز کارمند (درصد)" hint="کاهنده حقوق — مصوب: ۳٪" value={settings.savingsAccountRate || 3} onChange={v => set("savingsAccountRate", v)} unit="%" min={0} max={15} step="0.5" />
+            
+            <Separator className="my-2" />
+
+            <SettingField label="بیمه تامین اجتماعی (سهم کارفرما)" hint="بار مالی کارفرما — مصوب: ۲۰٪" value={settings.insEmployerRate} onChange={v => set("insEmployerRate", v)} unit="%" min={0} max={30} step="0.5" />
+            <SettingField label="بیمه بیکاری (سهم کارفرما)" hint="بار مالی کارفرما — مصوب: ۳٪" value={settings.insUnemployRate} onChange={v => set("insUnemployRate", v)} unit="%" min={0} max={10} step="0.5" />
 
             <div className="mt-3 bg-teal-50 dark:bg-teal-950/30 rounded-lg p-3 border border-teal-100 dark:border-teal-900">
               <div className="text-[10px] text-teal-700 dark:text-teal-300 space-y-1">
-                <div>📊 جمع کل نرخ بیمه: <strong>{totalInsRate.toLocaleString("fa-IR")}٪</strong></div>
-                <div>👤 کسر از حقوق کارمند: <strong>{Number(settings.insEmployeeRate)}٪</strong></div>
-                <div>🏢 بار کارفرمایی: <strong>{(Number(settings.insEmployerRate) + Number(settings.insUnemployRate))}٪</strong></div>
+                <div>📊 کسر پایه از حقوق کارمند (تامین اجتماعی + خدمات درمانی + بازنشستگی + پس‌انداز): <strong>{(Number(settings.insEmployeeRate || 7) + Number(settings.healthEmployeeRate || 2) + Number(settings.retireEmployeeRate || 9) + Number(settings.savingsAccountRate || 3))}٪</strong></div>
+                <div>👤 تمام ۵ آیتم مالیات، تامین اجتماعی، خدمات درمانی، بازنشستگی و پس‌انداز <strong>کاهنده حقوق کارمند</strong> هستند.</div>
               </div>
             </div>
           </CardContent>

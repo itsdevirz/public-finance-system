@@ -146,6 +146,8 @@ export default function PayslipForm() {
 
       const totalDeductions = (calc.insEmployee || 0) +
                               (calc.healthInsEmployee || 0) +
+                              (calc.retirementEmployee || 0) +
+                              (calc.savingsAccountDeduct || 0) +
                               monthlyTax +
                               (calc.tardinessDeduct || 0) +
                               (calc.absenceDeduct || 0) +
@@ -272,11 +274,13 @@ export default function PayslipForm() {
 
     const totalEarnings = calc.grossSalary;
 
-    // اقلام کسورات
+    // اقلام کسورات (همگی کاهنده ناخالص حقوق کارمند)
     const deductions = [
-      { label: "بیمه تامین اجتماعی سهم کارمند (۷٪)", val: calc.insEmployee },
-      { label: "بیمه درمان سهم کارمند (۲٪)", val: calc.healthInsEmployee || 0 },
       { label: "مالیات حقوق ماهانه", val: calc.monthlyTax || 0 },
+      { label: "بیمه تامین اجتماعی سهم کارمند", val: calc.insEmployee || 0 },
+      { label: "بیمه خدمات درمانی سهم کارمند", val: calc.healthInsEmployee || 0 },
+      { label: "صندوق بازنشستگی سهم کارمند", val: calc.retirementEmployee || 0 },
+      { label: "حساب پس‌انداز کارمند", val: calc.savingsAccountDeduct || 0 },
       { label: "کسر کارکرد تأخیر ورود", val: calc.tardinessDeduct || 0 },
       { label: "کسر غیبت ماهانه", val: calc.absenceDeduct || 0 },
       { label: "مساعده حقوق", val: calc.advanceDeduct || 0 },
@@ -778,16 +782,18 @@ export default function PayslipForm() {
                           </TableRow>
                         </TableHeader>
                         <TableBody className="text-[10px]">
-                          <TableRow className="h-7"><TableCell className="py-1">حقوق بیمه تامین اجتماعی سهم پرسنل (۷٪)</TableCell><TableCell className="text-left font-mono py-1">{fmt(selectedCalc.insEmployee)}</TableCell></TableRow>
-                          {(selectedCalc.healthInsEmployee || 0) > 0 && <TableRow className="h-7"><TableCell className="py-1">بیمه درمان سهم پرسنل (۲٪)</TableCell><TableCell className="text-left font-mono py-1">{fmt(selectedCalc.healthInsEmployee)}</TableCell></TableRow>}
+                          <TableRow className="h-7"><TableCell className="py-1">حقوق بیمه تامین اجتماعی سهم پرسنل</TableCell><TableCell className="text-left font-mono py-1">{fmt(selectedCalc.insEmployee)}</TableCell></TableRow>
+                          {(selectedCalc.healthInsEmployee || 0) > 0 && <TableRow className="h-7"><TableCell className="py-1">بیمه خدمات درمانی سهم پرسنل</TableCell><TableCell className="text-left font-mono py-1">{fmt(selectedCalc.healthInsEmployee)}</TableCell></TableRow>}
+                          {(selectedCalc.retirementEmployee || 0) > 0 && <TableRow className="h-7"><TableCell className="py-1">صندوق بازنشستگی سهم پرسنل</TableCell><TableCell className="text-left font-mono py-1">{fmt(selectedCalc.retirementEmployee)}</TableCell></TableRow>}
                           {selectedCalc.monthlyTax > 0 && <TableRow className="h-7"><TableCell className="py-1">مالیات حقوق</TableCell><TableCell className="text-left font-mono py-1">{fmt(selectedCalc.monthlyTax)}</TableCell></TableRow>}
+                          {(selectedCalc.savingsAccountDeduct || 0) > 0 && <TableRow className="h-7"><TableCell className="py-1">حساب پس‌انداز کارمند</TableCell><TableCell className="text-left font-mono py-1">{fmt(selectedCalc.savingsAccountDeduct)}</TableCell></TableRow>}
                           {selectedCalc.tardinessDeduct > 0 && <TableRow className="h-7"><TableCell className="py-1">کسر کارکرد تأخیر ورود</TableCell><TableCell className="text-left font-mono py-1">{fmt(selectedCalc.tardinessDeduct)}</TableCell></TableRow>}
                           {selectedCalc.absenceDeduct > 0 && <TableRow className="h-7"><TableCell className="py-1">کسر غیبت</TableCell><TableCell className="text-left font-mono py-1">{fmt(selectedCalc.absenceDeduct)}</TableCell></TableRow>}
                           {selectedCalc.advanceDeduct > 0 && <TableRow className="h-7"><TableCell className="py-1">مساعده حقوق</TableCell><TableCell className="text-left font-mono py-1">{fmt(selectedCalc.advanceDeduct)}</TableCell></TableRow>}
                           {selectedCalc.loanDeduct > 0 && <TableRow className="h-7"><TableCell className="py-1">اقساط وام</TableCell><TableCell className="text-left font-mono py-1">{fmt(selectedCalc.loanDeduct)}</TableCell></TableRow>}
                           <TableRow className="bg-slate-50 dark:bg-slate-800/20 font-bold border-t border-slate-300">
-                            <TableCell className="py-1.5">جمع کل کسورات</TableCell>
-                            <TableCell className="text-left font-mono py-1.5">{fmt(selectedCalc.totalDeductions)}</TableCell>
+                            <TableCell className="py-1.5">جمع کل کسورات (کاهنده حقوق)</TableCell>
+                            <TableCell className="text-left font-mono py-1.5 text-rose-600">{fmt(selectedCalc.totalDeductions)}</TableCell>
                           </TableRow>
                         </TableBody>
                       </Table>

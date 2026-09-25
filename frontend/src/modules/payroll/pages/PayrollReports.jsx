@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Printer, Search, ShieldCheck, DollarSign, Calendar, Clock, Percent, Award, HelpCircle as HelpIcon, FileDown, BarChart2, User, AlertCircle, CheckCircle2 } from "lucide-react";
+import { FileText, Printer, Search, ShieldCheck, DollarSign, Calendar, Clock, Percent, Award, HelpCircle as HelpIcon, FileDown, BarChart2, User, AlertCircle, CheckCircle2, MinusCircle, HeartPulse, Landmark, ReceiptText } from "lucide-react";
 import { toPersianDigits } from "./InsuranceSettings";
 import { generateTreasury60TextFile, generateTreasuryFilename, validateEmployeeForTreasury, buildTreasury60Fields } from "@/lib/sanama/treasuryPayrollExporter";
 
@@ -18,16 +18,17 @@ const MONTHS = [
 ];
 
 const REPORT_TYPES = [
-  { id: "list",         label: "لیست حقوق ماهانه",  desc: "مشاهده جامع دریافتی، کسورات و خالص پرسنل", icon: FileText,      color: "text-indigo-600 border-indigo-200" },
-  { id: "treasury60",   label: "فایل ۶۰ ستونه خزانه (سینا)", desc: "تولید فایل متنی ۶۰ ستونه Comma-Delimited جهت ارسال به خزانه کل کشور", icon: FileDown, color: "text-emerald-700 border-emerald-300" },
-  { id: "insurance",    label: "لیست بیمه",         desc: "سهم ۷٪ کارمند، ۲۰٪ کارفرما و ۳٪ بیکاری",   icon: ShieldCheck,   color: "text-blue-600 border-blue-200" },
-  { id: "tax",          label: "لیست مالیات",        desc: "درآمد مشمول مالیات و مالیات کسر شده پرسنل", icon: Percent,       color: "text-rose-600 border-rose-200" },
-  { id: "overtime",     label: "گزارش اضافه‌کاری",    desc: "ساعات و مبالغ پرداختی اضافه‌کاری کارکنان", icon: Clock,         color: "text-amber-600 border-amber-200" },
-  { id: "absence",      label: "گزارش غیبت و تأخیر",   desc: "کسورات ناشی از تأخیر ورود و غیبت ماهانه",  icon: HelpIcon,      color: "text-slate-600 border-slate-200" },
-  { id: "leave",        label: "گزارش مرخصی پرسنل",   desc: "مرخصی استحقاقی استفاده شده و مانده سالانه", icon: Calendar,      color: "text-emerald-600 border-emerald-200" },
-  { id: "annual",       label: "گزارش سالانه حقوق",   desc: "جمع کارکرد و دریافتی کل ماه‌های سال مالی",  icon: DollarSign,    color: "text-cyan-600 border-cyan-200" },
-  { id: "eid",          label: "گزارش عیدی و سنوات",  desc: "محاسبه عیدی و ذخیره سنوات پایان خدمت پرسنل",icon: Award,         color: "text-violet-600 border-violet-200" },
-  { id: "cumulative",   label: "گزارش تجمیعی پرسنل",  desc: "جمع‌بندی خلاصه دریافتی، مالیات و بیمه یک کارمند در بازه زمانی دلخواه", icon: BarChart2,     color: "text-fuchsia-600 border-fuchsia-200" }
+  { id: "list",            label: "لیست حقوق ماهانه",    desc: "مشاهده جامع دریافتی، کسورات و خالص پرسنل", icon: FileText,      color: "text-indigo-600 border-indigo-200" },
+  { id: "legalDeductions", label: "گزارش کسورات قانونی", desc: "تفکیک سهم کارمند، دستگاه و دولت برای تامین اجتماعی، بازنشستگی، خدمات درمانی و مالیات", icon: MinusCircle, color: "text-rose-600 border-rose-200 shadow-sm" },
+  { id: "treasury60",      label: "فایل ۶۰ ستونه خزانه (سینا)", desc: "تولید فایل متنی ۶۰ ستونه Comma-Delimited جهت ارسال به خزانه کل کشور", icon: FileDown, color: "text-emerald-700 border-emerald-300" },
+  { id: "insurance",       label: "لیست بیمه",           desc: "سهم ۷٪ کارمند، ۲۰٪ کارفرما و ۳٪ بیکاری",   icon: ShieldCheck,   color: "text-blue-600 border-blue-200" },
+  { id: "tax",             label: "لیست مالیات",          desc: "درآمد مشمول مالیات و مالیات کسر شده پرسنل", icon: Percent,       color: "text-rose-600 border-rose-200" },
+  { id: "overtime",        label: "گزارش اضافه‌کاری",      desc: "ساعات و مبالغ پرداختی اضافه‌کاری کارکنان", icon: Clock,         color: "text-amber-600 border-amber-200" },
+  { id: "absence",         label: "گزارش غیبت و تأخیر",     desc: "کسورات ناشی از تأخیر ورود و غیبت ماهانه",  icon: HelpIcon,      color: "text-slate-600 border-slate-200" },
+  { id: "leave",           label: "گزارش مرخصی پرسنل",     desc: "مرخصی استحقاقی استفاده شده و مانده سالانه", icon: Calendar,      color: "text-emerald-600 border-emerald-200" },
+  { id: "annual",          label: "گزارش سالانه حقوق",     desc: "جمع کارکرد و دریافتی کل ماه‌های سال مالی",  icon: DollarSign,    color: "text-cyan-600 border-cyan-200" },
+  { id: "eid",             label: "گزارش عیدی و سنوات",    desc: "محاسبه عیدی و ذخیره سنوات پایان خدمت پرسنل",icon: Award,         color: "text-violet-600 border-violet-200" },
+  { id: "cumulative",      label: "گزارش تجمیعی پرسنل",    desc: "جمع‌بندی خلاصه دریافتی، مالیات و بیمه یک کارمند در بازه زمانی دلخواه", icon: BarChart2,     color: "text-fuchsia-600 border-fuchsia-200" }
 ];
 
 const fmt = (n) => Number(n || 0).toLocaleString("fa-IR");
@@ -41,6 +42,9 @@ export default function PayrollReports() {
   const [selectedYear, setSelectedYear] = useState("1405");
   const [selectedMonth, setSelectedMonth] = useState("01");
   const [search, setSearch] = useState("");
+
+  // فیلتر مخصوص گزارش کسورات قانونی
+  const [legalDeductFilter, setLegalDeductFilter] = useState("all"); // all | social_security | pension | health | tax
 
   // فیلترها و تنظیمات خروجی ۶۰ ستونه خزانه
   const [treasuryPlatform, setTreasuryPlatform] = useState("W"); // W = וیندوز UTF-8, D = داس Iran-System
@@ -156,6 +160,9 @@ export default function PayrollReports() {
       healthInsEmp: 0,
       healthInsEmployer: 0,
       healthInsGovt: 0,
+      retireEmp: 0,
+      retireEmployer: 0,
+      savingsDeduct: 0,
       tax: 0,
       deductions: 0,
       net: 0,
@@ -184,6 +191,9 @@ export default function PayrollReports() {
         res.healthInsEmp += Number(r.calc.healthInsEmployee || 0);
         res.healthInsEmployer += Number(r.calc.healthInsEmployer || 0);
         res.healthInsGovt += Number(r.calc.healthInsGovt || 0);
+        res.retireEmp += Number(r.calc.retirementEmployee || 0);
+        res.retireEmployer += Number(r.calc.retirementEmployer || Math.round((r.calc.earnedBaseSalary || 0) * 0.165));
+        res.savingsDeduct += Number(r.calc.savingsAccountDeduct || 0);
         res.tax += Number(r.calc.monthlyTax || 0);
         res.deductions += Number(r.calc.totalDeductions || 0);
         res.net += Number(r.calc.netSalary || 0);
@@ -381,6 +391,181 @@ export default function PayrollReports() {
           <td class="r mono b text-emerald">${fmt(reportTotals.net)}</td>
         </tr>
       `;
+    } else if (activeReport === "legalDeductions") {
+      orientation = "A4 landscape";
+      const filteredEmps = reportData.filter(r => {
+        const healthStatus = String(r.decree?.healthInsuranceStatus || r.emp?.healthInsuranceStatus || "2");
+        const pensionFund = String(r.decree?.pensionFund || r.emp?.pensionFund || "8");
+        const isHealthServices = healthStatus === "1" || healthStatus === "health_services" || pensionFund === "7" || pensionFund === "civil";
+        const isSocialSecurity = !isHealthServices;
+
+        if (legalDeductFilter === "social_security" && !isSocialSecurity) return false;
+        if (legalDeductFilter === "health" && !isHealthServices) return false;
+        return true;
+      });
+
+      if (legalDeductFilter === "social_security") {
+        headersHtml = `
+          <th>ردیف</th><th>کد پرسنلی</th><th>نام و نام خانوادگی</th><th>دستمزد مشمول</th>
+          <th>سهم کارمند (۷٪)</th><th>سهم دستگاه (۲۰٪)</th><th>سهم دولت/بیکاری (۳٪)</th><th>جمع کل تأمین اجتماعی (۳۰٪)</th>
+        `;
+        bodyHtml = filteredEmps.map((r, i) => {
+          const insEmp = r.calc?.insEmployee || 0;
+          const insEmpr = r.calc?.insEmployer || 0;
+          const insGov = r.calc?.insUnemploy || 0;
+          const insSum = insEmp + insEmpr + insGov;
+          const base = r.calc?.earnedBaseSalary || 0;
+          return `
+            <tr>
+              <td class="c">${i + 1}</td><td class="c mono">${r.code}</td><td><b>${r.name}</b></td>
+              <td class="r mono">${fmt(base)}</td>
+              <td class="r mono">${fmt(insEmp)}</td>
+              <td class="r mono">${fmt(insEmpr)}</td>
+              <td class="r mono">${fmt(insGov)}</td>
+              <td class="r mono b text-indigo">${fmt(insSum)}</td>
+            </tr>
+          `;
+        }).join("");
+        footerHtml = `
+          <tr class="total-row">
+            <td colspan="3">جمع کل تامین اجتماعی (${toPersianDigits(filteredEmps.length)} نفر)</td>
+            <td class="r mono">${fmt(reportTotals.baseSalary)}</td>
+            <td class="r mono">${fmt(reportTotals.insEmp)}</td>
+            <td class="r mono">${fmt(reportTotals.insEmployer)}</td>
+            <td class="r mono">${fmt(reportTotals.insUnemploy)}</td>
+            <td class="r mono b text-indigo">${fmt(reportTotals.insEmp + reportTotals.insEmployer + reportTotals.insUnemploy)}</td>
+          </tr>
+        `;
+      } else if (legalDeductFilter === "pension") {
+        headersHtml = `
+          <th>ردیف</th><th>کد پرسنلی</th><th>نام و نام خانوادگی</th><th>حقوق مبنا</th>
+          <th>سهم کارمند (۹٪)</th><th>سهم دستگاه (۱۶.۵٪)</th><th>جمع صندوق بازنشستگی</th>
+        `;
+        bodyHtml = filteredEmps.map((r, i) => {
+          const retireEmp = r.calc?.retirementEmployee || 0;
+          const retireEmpr = r.calc?.retirementEmployer || Math.round((r.calc?.earnedBaseSalary || 0) * 0.165);
+          const base = r.calc?.earnedBaseSalary || 0;
+          return `
+            <tr>
+              <td class="c">${i + 1}</td><td class="c mono">${r.code}</td><td><b>${r.name}</b></td>
+              <td class="r mono">${fmt(base)}</td>
+              <td class="r mono">${fmt(retireEmp)}</td>
+              <td class="r mono">${fmt(retireEmpr)}</td>
+              <td class="r mono b text-indigo">${fmt(retireEmp + retireEmpr)}</td>
+            </tr>
+          `;
+        }).join("");
+        footerHtml = `
+          <tr class="total-row">
+            <td colspan="3">جمع کل صندوق بازنشستگی (${toPersianDigits(filteredEmps.length)} نفر)</td>
+            <td class="r mono">${fmt(reportTotals.baseSalary)}</td>
+            <td class="r mono">${fmt(reportTotals.retireEmp)}</td>
+            <td class="r mono">${fmt(reportTotals.retireEmployer)}</td>
+            <td class="r mono b text-indigo">${fmt(reportTotals.retireEmp + reportTotals.retireEmployer)}</td>
+          </tr>
+        `;
+      } else if (legalDeductFilter === "health") {
+        headersHtml = `
+          <th>ردیف</th><th>کد پرسنلی</th><th>نام و نام خانوادگی</th><th>دستمزد مشمول</th>
+          <th>سهم کارمند (۲٪)</th><th>سهم دستگاه (۲٪)</th><th>سهم دولت (۳٪)</th><th>جمع خدمات درمانی (۷٪)</th>
+        `;
+        bodyHtml = filteredEmps.map((r, i) => {
+          const healthEmp = r.calc?.healthInsEmployee || 0;
+          const healthEmpr = r.calc?.healthInsEmployer || 0;
+          const healthGov = r.calc?.healthInsGovt || 0;
+          const base = r.calc?.earnedBaseSalary || 0;
+          return `
+            <tr>
+              <td class="c">${i + 1}</td><td class="c mono">${r.code}</td><td><b>${r.name}</b></td>
+              <td class="r mono">${fmt(base)}</td>
+              <td class="r mono">${fmt(healthEmp)}</td>
+              <td class="r mono">${fmt(healthEmpr)}</td>
+              <td class="r mono">${fmt(healthGov)}</td>
+              <td class="r mono b text-indigo">${fmt(healthEmp + healthEmpr + healthGov)}</td>
+            </tr>
+          `;
+        }).join("");
+        footerHtml = `
+          <tr class="total-row">
+            <td colspan="3">جمع کل خدمات درمانی (${toPersianDigits(filteredEmps.length)} نفر)</td>
+            <td class="r mono">${fmt(reportTotals.baseSalary)}</td>
+            <td class="r mono">${fmt(reportTotals.healthInsEmp)}</td>
+            <td class="r mono">${fmt(reportTotals.healthInsEmployer)}</td>
+            <td class="r mono">${fmt(reportTotals.healthInsGovt)}</td>
+            <td class="r mono b text-indigo">${fmt(reportTotals.healthInsEmp + reportTotals.healthInsEmployer + reportTotals.healthInsGovt)}</td>
+          </tr>
+        `;
+      } else if (legalDeductFilter === "tax") {
+        headersHtml = `
+          <th>ردیف</th><th>کد پرسنلی</th><th>نام و نام خانوادگی</th><th>درآمد ناخالص مستمر</th>
+          <th>معافیت پایه مالیاتی</th><th>درآمد مشمول مالیات</th><th>مالیات کسر شده</th>
+        `;
+        bodyHtml = filteredEmps.map((r, i) => {
+          const gross = r.calc?.grossSalary || 0;
+          const empTaxStatus = r.decree?.taxStatus || r.emp?.taxStatus || r.calc?.taxStatus || "taxable";
+          const isExempt = empTaxStatus === "exempt" || r.calc?.isExempt;
+          const tax = isExempt ? 0 : (r.calc?.monthlyTax || 0);
+          const taxable = isExempt ? 0 : (tax > 0 ? Math.max(0, gross - 120_000_000) : 0);
+          const exempt = isExempt ? gross : (tax > 0 ? 120_000_000 : gross);
+          return `
+            <tr>
+              <td class="c">${i + 1}</td><td class="c mono">${r.code}</td><td><b>${r.name}</b></td>
+              <td class="r mono">${fmt(gross)}</td>
+              <td class="r mono">${fmt(exempt)}</td>
+              <td class="r mono">${fmt(taxable)}</td>
+              <td class="r mono b text-rose">${isExempt ? "معاف (ماده ۹۱)" : fmt(tax)}</td>
+            </tr>
+          `;
+        }).join("");
+        footerHtml = `
+          <tr class="total-row">
+            <td colspan="3">جمع کل مالیات حقوق (${toPersianDigits(filteredEmps.length)} نفر)</td>
+            <td class="r mono">${fmt(reportTotals.gross)}</td>
+            <td class="r mono">—</td>
+            <td class="r mono">—</td>
+            <td class="r mono b text-rose">${fmt(reportTotals.tax)}</td>
+          </tr>
+        `;
+      } else {
+        headersHtml = `
+          <th>ردیف</th><th>کد پرسنلی</th><th>نام و نام خانوادگی</th><th>پوشش بیمه</th>
+          <th>تامین اجتماعی (۷٪ کارمند)</th><th>بازنشستگی (۹٪ کارمند)</th><th>خدمات درمانی (۲٪ کارمند)</th><th>مالیات حقوق</th>
+          <th>جمع کل کسورات قانونی</th>
+        `;
+        bodyHtml = filteredEmps.map((r, i) => {
+          const healthStatus = String(r.decree?.healthInsuranceStatus || r.emp?.healthInsuranceStatus || "2");
+          const pensionFund = String(r.decree?.pensionFund || r.emp?.pensionFund || "8");
+          const isHealthServices = healthStatus === "1" || healthStatus === "health_services" || pensionFund === "7" || pensionFund === "civil";
+          
+          const insEmp = isHealthServices ? 0 : (r.calc?.insEmployee || 0);
+          const healthEmp = isHealthServices ? (r.calc?.healthInsEmployee || 0) : 0;
+          const retireEmp = r.calc?.retirementEmployee || 0;
+          const tax = r.calc?.monthlyTax || 0;
+          const empLegalTotal = insEmp + healthEmp + retireEmp + tax;
+
+          return `
+            <tr>
+              <td class="c">${i + 1}</td><td class="c mono">${r.code}</td><td><b>${r.name}</b></td>
+              <td class="c">${isHealthServices ? "خدمات درمانی" : "تأمین اجتماعی"}</td>
+              <td class="r mono">${isHealthServices ? "—" : fmt(insEmp)}</td>
+              <td class="r mono">${fmt(retireEmp)}</td>
+              <td class="r mono">${isHealthServices ? fmt(healthEmp) : "—"}</td>
+              <td class="r mono">${fmt(tax)}</td>
+              <td class="r mono b text-rose">${fmt(empLegalTotal)}</td>
+            </tr>
+          `;
+        }).join("");
+        footerHtml = `
+          <tr class="total-row">
+            <td colspan="4">جمع کل کسورات قانونی (${toPersianDigits(filteredEmps.length)} نفر)</td>
+            <td class="r mono">${fmt(reportTotals.insEmp)}</td>
+            <td class="r mono">${fmt(reportTotals.retireEmp)}</td>
+            <td class="r mono">${fmt(reportTotals.healthInsEmp)}</td>
+            <td class="r mono">${fmt(reportTotals.tax)}</td>
+            <td class="r mono b text-rose">${fmt(reportTotals.insEmp + reportTotals.healthInsEmp + reportTotals.retireEmp + reportTotals.tax)}</td>
+          </tr>
+        `;
+      }
     } else if (activeReport === "insurance") {
       orientation = "A4 landscape";
       headersHtml = `
@@ -704,6 +889,75 @@ export default function PayrollReports() {
           r.calc?.netSalary || 0
         ];
       });
+    } else if (activeReport === "legalDeductions") {
+      const filteredEmps = reportData.filter(r => {
+        const healthStatus = String(r.decree?.healthInsuranceStatus || r.emp?.healthInsuranceStatus || "2");
+        const pensionFund = String(r.decree?.pensionFund || r.emp?.pensionFund || "8");
+        const isHealthServices = healthStatus === "1" || healthStatus === "health_services" || pensionFund === "7" || pensionFund === "civil";
+        const isSocialSecurity = !isHealthServices;
+
+        if (legalDeductFilter === "social_security" && !isSocialSecurity) return false;
+        if (legalDeductFilter === "health" && !isHealthServices) return false;
+        return true;
+      });
+
+      if (legalDeductFilter === "social_security") {
+        headers = ["ردیف", "کد پرسنلی", "نام و نام خانوادگی", "دستمزد مشمول", "سهم کارمند (۷%)", "سهم دستگاه (۲۰%)", "سهم دولت (۳%)", "جمع تامین اجتماعی (۳۰%)"];
+        rows = filteredEmps.map((r, i) => {
+          const base = r.calc?.earnedBaseSalary || 0;
+          const insEmp = r.calc?.insEmployee || 0;
+          const insEmpr = r.calc?.insEmployer || 0;
+          const insGov = r.calc?.insUnemploy || 0;
+          return [i + 1, r.code, r.name, base, insEmp, insEmpr, insGov, insEmp + insEmpr + insGov];
+        });
+      } else if (legalDeductFilter === "pension") {
+        headers = ["ردیف", "کد پرسنلی", "نام و نام خانوادگی", "حقوق مبنا", "سهم کارمند (۹%)", "سهم دستگاه (۱۶.۵%)", "جمع صندوق بازنشستگی"];
+        rows = filteredEmps.map((r, i) => {
+          const base = r.calc?.earnedBaseSalary || 0;
+          const retireEmp = r.calc?.retirementEmployee || 0;
+          const retireEmpr = r.calc?.retirementEmployer || Math.round(base * 0.165);
+          return [i + 1, r.code, r.name, base, retireEmp, retireEmpr, retireEmp + retireEmpr];
+        });
+      } else if (legalDeductFilter === "health") {
+        headers = ["ردیف", "کد پرسنلی", "نام و نام خانوادگی", "دستمزد مشمول", "سهم کارمند (۲%)", "سهم دستگاه (۲%)", "سهم دولت (۳%)", "جمع خدمات درمانی (۷%)"];
+        rows = filteredEmps.map((r, i) => {
+          const base = r.calc?.earnedBaseSalary || 0;
+          const healthEmp = r.calc?.healthInsEmployee || 0;
+          const healthEmpr = r.calc?.healthInsEmployer || 0;
+          const healthGov = r.calc?.healthInsGovt || 0;
+          return [i + 1, r.code, r.name, base, healthEmp, healthEmpr, healthGov, healthEmp + healthEmpr + healthGov];
+        });
+      } else if (legalDeductFilter === "tax") {
+        headers = ["ردیف", "کد پرسنلی", "نام و نام خانوادگی", "ناخالص مستمر", "معافیت پایه", "مشمول مالیات", "مالیات کسر شده"];
+        rows = filteredEmps.map((r, i) => {
+          const gross = r.calc?.grossSalary || 0;
+          const empTaxStatus = r.decree?.taxStatus || r.emp?.taxStatus || r.calc?.taxStatus || "taxable";
+          const isExempt = empTaxStatus === "exempt" || r.calc?.isExempt;
+          const tax = isExempt ? 0 : (r.calc?.monthlyTax || 0);
+          const taxable = isExempt ? 0 : (tax > 0 ? Math.max(0, gross - 120_000_000) : 0);
+          const exempt = isExempt ? gross : (tax > 0 ? 120_000_000 : gross);
+          return [i + 1, r.code, r.name, gross, exempt, taxable, tax];
+        });
+      } else {
+        headers = ["ردیف", "کد پرسنلی", "نام و نام خانوادگی", "پوشش بیمه‌ای", "تامین اجتماعی (۷%)", "صندوق بازنشستگی (۹%)", "خدمات درمانی (۲%)", "مالیات حقوق", "جمع کسورات قانونی"];
+        rows = filteredEmps.map((r, i) => {
+          const healthStatus = String(r.decree?.healthInsuranceStatus || r.emp?.healthInsuranceStatus || "2");
+          const pensionFund = String(r.decree?.pensionFund || r.emp?.pensionFund || "8");
+          const isHealthServices = healthStatus === "1" || healthStatus === "health_services" || pensionFund === "7" || pensionFund === "civil";
+
+          const insEmp = isHealthServices ? 0 : (r.calc?.insEmployee || 0);
+          const healthEmp = isHealthServices ? (r.calc?.healthInsEmployee || 0) : 0;
+          const retireEmp = r.calc?.retirementEmployee || 0;
+          const tax = r.calc?.monthlyTax || 0;
+          const total = insEmp + healthEmp + retireEmp + tax;
+
+          return [
+            i + 1, r.code, r.name,
+            isHealthServices ? "خدمات درمانی" : "تأمین اجتماعی",
+            insEmp, retireEmp, healthEmp, tax, total
+          ];
+        });
+      }
     } else if (activeReport === "insurance") {
       headers = ["ردیف","نام","شماره بیمه","نوع بیمه","کد ملی","کارکرد","دستمزد روزانه","مشمول بیمه","بیمه کارمند(۷%)","بیمه کارفرما(۲۰%)","بیمه بیکاری(۳%)","جمع ۳۰%"];
       rows = reportData.map((r, i) => {
@@ -1051,6 +1305,264 @@ export default function PayrollReports() {
               </Table>
             </div>
           )}
+          {/* ===== گزارش مستقل کسورات قانونی ===== */}
+          {activeReport === "legalDeductions" && (
+            <div className="space-y-4">
+              {/* بار ابزار ساب‌فیلترها و راهنمای پوشش بیمه */}
+              <div className="bg-rose-50/50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/40 p-4 rounded-2xl space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <MinusCircle className="h-5 w-5 text-rose-600 animate-pulse" />
+                    <h3 className="text-xs font-black text-slate-800 dark:text-slate-100">
+                      گزارش تفکیکی کسورات قانونی پرسنل دستگاه ({monthLabel} {selectedYear})
+                    </h3>
+                  </div>
+
+                  {/* دکمه‌های فیلتر تفکیکی کسورات */}
+                  <div className="flex flex-wrap items-center gap-1.5 bg-white dark:bg-slate-900 p-1.5 rounded-xl border border-rose-200 dark:border-slate-800">
+                    <button
+                      onClick={() => setLegalDeductFilter("all")}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${legalDeductFilter === "all" ? "bg-rose-600 text-white shadow" : "text-slate-600 hover:bg-slate-100 dark:text-slate-400"}`}
+                    >
+                      📌 همه کسورات قانونی
+                    </button>
+                    <button
+                      onClick={() => setLegalDeductFilter("social_security")}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${legalDeductFilter === "social_security" ? "bg-blue-600 text-white shadow" : "text-slate-600 hover:bg-slate-100 dark:text-slate-400"}`}
+                    >
+                      🛡 تامین اجتماعی (۳ سهم)
+                    </button>
+                    <button
+                      onClick={() => setLegalDeductFilter("pension")}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${legalDeductFilter === "pension" ? "bg-purple-600 text-white shadow" : "text-slate-600 hover:bg-slate-100 dark:text-slate-400"}`}
+                    >
+                      🏛 بازنشستگی (۲ سهم)
+                    </button>
+                    <button
+                      onClick={() => setLegalDeductFilter("health")}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${legalDeductFilter === "health" ? "bg-teal-600 text-white shadow" : "text-slate-600 hover:bg-slate-100 dark:text-slate-400"}`}
+                    >
+                      🏥 خدمات درمانی (۳ سهم)
+                    </button>
+                    <button
+                      onClick={() => setLegalDeductFilter("tax")}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${legalDeductFilter === "tax" ? "bg-rose-700 text-white shadow" : "text-slate-600 hover:bg-slate-100 dark:text-slate-400"}`}
+                    >
+                      📑 مالیات حقوق
+                    </button>
+                  </div>
+                </div>
+
+                <div className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed bg-white/80 dark:bg-slate-900/60 p-2.5 rounded-xl border border-rose-100/70 flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-rose-500 shrink-0 mt-0.5" />
+                  <div>
+                    <strong>قواعد قانونی کسورات دستگاه:</strong> هر کارمند بسته به حکم یا ثبت‌نام، صرفاً دارای یکی از پوشش‌های بیمه‌ای <strong>«تأمین اجتماعی»</strong> یا <strong>«خدمات درمانی»</strong> است (عدم همزمانی پوشش). سهم‌های کارمند، دستگاه و دولت برای بیمه تامین اجتماعی (۷٪، ۲۰٪، ۳٪)، بازنشستگی (۹٪، ۱۶.۵٪)، خدمات درمانی (۲٪، ۲٪، ۳٪) و مالیات به تفکیک ثبت و گزارش می‌شوند.
+                  </div>
+                </div>
+              </div>
+
+              {/* کارت‌های خلاصه آماری ۴ کسر قانونی */}
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                <div className="bg-blue-50/70 dark:bg-blue-950/30 p-3 rounded-2xl border border-blue-100 dark:border-blue-900 text-center space-y-1">
+                  <span className="text-[10px] text-blue-700 dark:text-blue-300 font-bold block">🛡 تامین اجتماعی (جمع ۳۰٪)</span>
+                  <div className="text-xs font-black text-blue-900 dark:text-blue-100 font-mono">{fmt(reportTotals.insEmp + reportTotals.insEmployer + reportTotals.insUnemploy)}</div>
+                  <div className="text-[9px] text-slate-500 font-mono">کارمند: {fmt(reportTotals.insEmp)} | دستگاه: {fmt(reportTotals.insEmployer)} | دولت: {fmt(reportTotals.insUnemploy)}</div>
+                </div>
+
+                <div className="bg-purple-50/70 dark:bg-purple-950/30 p-3 rounded-2xl border border-purple-100 dark:border-purple-900 text-center space-y-1">
+                  <span className="text-[10px] text-purple-700 dark:text-purple-300 font-bold block">🏛 صندوق بازنشستگی</span>
+                  <div className="text-xs font-black text-purple-900 dark:text-purple-100 font-mono">{fmt(reportTotals.retireEmp + reportTotals.retireEmployer)}</div>
+                  <div className="text-[9px] text-slate-500 font-mono">کارمند (۹٪): {fmt(reportTotals.retireEmp)} | دستگاه (۱۶.۵٪): {fmt(reportTotals.retireEmployer)}</div>
+                </div>
+
+                <div className="bg-teal-50/70 dark:bg-teal-950/30 p-3 rounded-2xl border border-teal-100 dark:border-teal-900 text-center space-y-1">
+                  <span className="text-[10px] text-teal-700 dark:text-teal-300 font-bold block">🏥 خدمات درمانی (جمع ۷٪)</span>
+                  <div className="text-xs font-black text-teal-900 dark:text-teal-100 font-mono">{fmt(reportTotals.healthInsEmp + reportTotals.healthInsEmployer + reportTotals.healthInsGovt)}</div>
+                  <div className="text-[9px] text-slate-500 font-mono">کارمند (۲٪): {fmt(reportTotals.healthInsEmp)} | دستگاه (۲٪): {fmt(reportTotals.healthInsEmployer)} | دولت (۳٪): {fmt(reportTotals.healthInsGovt)}</div>
+                </div>
+
+                <div className="bg-rose-50/70 dark:bg-rose-950/30 p-3 rounded-2xl border border-rose-100 dark:border-rose-900 text-center space-y-1">
+                  <span className="text-[10px] text-rose-700 dark:text-rose-300 font-bold block">📑 مالیات حقوق</span>
+                  <div className="text-xs font-black text-rose-900 dark:text-rose-100 font-mono">{fmt(reportTotals.tax)}</div>
+                  <div className="text-[9px] text-slate-500">مجموع مالیات کسر شده</div>
+                </div>
+
+                <div className="bg-slate-900 text-white p-3 rounded-2xl text-center space-y-1 col-span-2 md:col-span-1 shadow-md">
+                  <span className="text-[10px] text-rose-300 font-extrabold block">جمع کسورات قانونی پرسنل</span>
+                  <div className="text-sm font-black text-emerald-400 font-mono">{fmt(reportTotals.insEmp + reportTotals.healthInsEmp + reportTotals.retireEmp + reportTotals.tax)}</div>
+                  <div className="text-[9px] text-slate-300">ریال کسر شده از حقوق</div>
+                </div>
+              </div>
+
+              {/* جدول داده‌ها بر اساس فیلتر انتخاب شده */}
+              <Table>
+                <TableHeader className="bg-rose-800 dark:bg-rose-950 text-white">
+                  <TableRow className="text-[10px] hover:bg-rose-800">
+                    <TableHead className="text-right text-white font-bold">کد / نام کارمند</TableHead>
+                    <TableHead className="text-center text-white font-bold">پوشش بیمه‌ای فعال</TableHead>
+
+                    {(legalDeductFilter === "all" || legalDeductFilter === "social_security") && (
+                      <TableHead className="text-center text-white font-bold border-r border-rose-700 pr-2">
+                        تامین اجتماعی<br/>
+                        <span className="font-normal text-[9px]">(کارمند ۷٪ | دستگاه ۲۰٪ | دولت ۳٪)</span>
+                      </TableHead>
+                    )}
+
+                    {(legalDeductFilter === "all" || legalDeductFilter === "pension") && (
+                      <TableHead className="text-center text-white font-bold border-r border-rose-700 pr-2">
+                        صندوق بازنشستگی<br/>
+                        <span className="font-normal text-[9px]">(کارمند ۹٪ | دستگاه ۱۶.۵٪)</span>
+                      </TableHead>
+                    )}
+
+                    {(legalDeductFilter === "all" || legalDeductFilter === "health") && (
+                      <TableHead className="text-center text-white font-bold border-r border-rose-700 pr-2">
+                        خدمات درمانی<br/>
+                        <span className="font-normal text-[9px]">(کارمند ۲٪ | دستگاه ۲٪ | دولت ۳٪)</span>
+                      </TableHead>
+                    )}
+
+                    {(legalDeductFilter === "all" || legalDeductFilter === "tax") && (
+                      <TableHead className="text-left font-mono text-white font-bold border-r border-rose-700 pr-2">مالیات حقوق</TableHead>
+                    )}
+
+                    <TableHead className="text-left font-mono font-bold text-white border-r border-rose-700 pr-2">جمع کل کسورات قانونی</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody className="text-[10px] font-mono">
+                  {reportData.map(r => {
+                    const healthStatus = String(r.decree?.healthInsuranceStatus || r.emp?.healthInsuranceStatus || "2");
+                    const pensionFund = String(r.decree?.pensionFund || r.emp?.pensionFund || "8");
+                    const isHealthServices = healthStatus === "1" || healthStatus === "health_services" || pensionFund === "7" || pensionFund === "civil";
+                    const isSocialSecurity = !isHealthServices;
+
+                    // اگر فیلتر اختصاصی تامین اجتماعی انتخاب شده و کارمند تامین اجتماعی ندارد، یا بالعکس
+                    if (legalDeductFilter === "social_security" && !isSocialSecurity) return null;
+                    if (legalDeductFilter === "health" && !isHealthServices) return null;
+
+                    const insEmp = r.calc?.insEmployee || 0;
+                    const insEmpr = r.calc?.insEmployer || 0;
+                    const insGov = r.calc?.insUnemploy || 0;
+                    const insSum = insEmp + insEmpr + insGov;
+
+                    const retireEmp = r.calc?.retirementEmployee || 0;
+                    const retireEmpr = r.calc?.retirementEmployer || Math.round((r.calc?.earnedBaseSalary || 0) * 0.165);
+                    const retireSum = retireEmp + retireEmpr;
+
+                    const healthEmp = r.calc?.healthInsEmployee || 0;
+                    const healthEmpr = r.calc?.healthInsEmployer || 0;
+                    const healthGov = r.calc?.healthInsGovt || 0;
+                    const healthSum = healthEmp + healthEmpr + healthGov;
+
+                    const tax = r.calc?.monthlyTax || 0;
+                    const empLegalTotal = insEmp + healthEmp + retireEmp + tax;
+
+                    return (
+                      <TableRow key={r.empId} className="h-8 hover:bg-rose-50/30">
+                        <TableCell className="text-right font-sans">
+                          <div className="font-bold text-slate-800 dark:text-slate-100">{r.name}</div>
+                          <div className="text-[9px] text-slate-400 font-mono">{r.code} · {r.jobTitle}</div>
+                        </TableCell>
+                        <TableCell className="text-center font-sans">
+                          {isHealthServices ? (
+                            <Badge className="bg-teal-100 text-teal-800 hover:bg-teal-100 text-[9px] px-1.5 py-0 border-teal-200">
+                              🏥 خدمات درمانی
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 text-[9px] px-1.5 py-0 border-blue-200">
+                              🛡 تامین اجتماعی
+                            </Badge>
+                          )}
+                        </TableCell>
+
+                        {(legalDeductFilter === "all" || legalDeductFilter === "social_security") && (
+                          <TableCell className="text-center border-r border-slate-100 dark:border-slate-800">
+                            {isSocialSecurity ? (
+                              <div>
+                                <span className="font-bold text-blue-700">{fmt(insEmp)}</span>
+                                <div className="text-[9px] text-slate-400 font-normal">دستگاه: {fmt(insEmpr)} | دولت: {fmt(insGov)}</div>
+                              </div>
+                            ) : (
+                              <span className="text-slate-300 font-normal">غیرمشمول</span>
+                            )}
+                          </TableCell>
+                        )}
+
+                        {(legalDeductFilter === "all" || legalDeductFilter === "pension") && (
+                          <TableCell className="text-center border-r border-slate-100 dark:border-slate-800">
+                            <span className="font-bold text-purple-700">{fmt(retireEmp)}</span>
+                            <div className="text-[9px] text-slate-400 font-normal">دستگاه/دولت: {fmt(retireEmpr)}</div>
+                          </TableCell>
+                        )}
+
+                        {(legalDeductFilter === "all" || legalDeductFilter === "health") && (
+                          <TableCell className="text-center border-r border-slate-100 dark:border-slate-800">
+                            {isHealthServices ? (
+                              <div>
+                                <span className="font-bold text-teal-700">{fmt(healthEmp)}</span>
+                                <div className="text-[9px] text-slate-400 font-normal">دستگاه: {fmt(healthEmpr)} | دولت: {fmt(healthGov)}</div>
+                              </div>
+                            ) : (
+                              <span className="text-slate-300 font-normal">غیرمشمول</span>
+                            )}
+                          </TableCell>
+                        )}
+
+                        {(legalDeductFilter === "all" || legalDeductFilter === "tax") && (
+                          <TableCell className="text-left font-mono text-rose-600 font-bold border-r border-slate-100 dark:border-slate-800">
+                            {r.isExempt || r.taxStatus === "exempt" ? (
+                              <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-300 text-[9px] font-sans">
+                                معاف (۹۱)
+                              </Badge>
+                            ) : (
+                              fmt(tax)
+                            )}
+                          </TableCell>
+                        )}
+
+                        <TableCell className="text-left font-mono font-black text-rose-800 dark:text-rose-300 border-r border-slate-100 dark:border-slate-800">
+                          {fmt(empLegalTotal)}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  <TableRow className="bg-rose-100/50 dark:bg-rose-950/40 font-bold text-xs border-t-2 border-rose-300">
+                    <TableCell colSpan={2} className="text-right font-sans">جمع کل کسورات قانونی ({monthLabel} {selectedYear})</TableCell>
+                    
+                    {(legalDeductFilter === "all" || legalDeductFilter === "social_security") && (
+                      <TableCell className="text-center font-mono text-blue-700 border-r border-rose-200">
+                        {fmt(reportTotals.insEmp)}
+                        <div className="text-[9px] font-normal">جمع کل۳۰٪: {fmt(reportTotals.insEmp + reportTotals.insEmployer + reportTotals.insUnemploy)}</div>
+                      </TableCell>
+                    )}
+
+                    {(legalDeductFilter === "all" || legalDeductFilter === "pension") && (
+                      <TableCell className="text-center font-mono text-purple-700 border-r border-rose-200">
+                        {fmt(reportTotals.retireEmp)}
+                        <div className="text-[9px] font-normal">جمع با دستگاه: {fmt(reportTotals.retireEmp + reportTotals.retireEmployer)}</div>
+                      </TableCell>
+                    )}
+
+                    {(legalDeductFilter === "all" || legalDeductFilter === "health") && (
+                      <TableCell className="text-center font-mono text-teal-700 border-r border-rose-200">
+                        {fmt(reportTotals.healthInsEmp)}
+                        <div className="text-[9px] font-normal">جمع کل۷٪: {fmt(reportTotals.healthInsEmp + reportTotals.healthInsEmployer + reportTotals.healthInsGovt)}</div>
+                      </TableCell>
+                    )}
+
+                    {(legalDeductFilter === "all" || legalDeductFilter === "tax") && (
+                      <TableCell className="text-left font-mono text-rose-700 border-r border-rose-200">{fmt(reportTotals.tax)}</TableCell>
+                    )}
+
+                    <TableCell className="text-left font-mono font-black text-rose-900 dark:text-rose-200 text-sm border-r border-rose-200">
+                      {fmt(reportTotals.insEmp + reportTotals.healthInsEmp + reportTotals.retireEmp + reportTotals.tax)}
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+          )}
+
           {/* لیست حقوق ماهانه */}
           {activeReport === "list" && (
             <Table>
