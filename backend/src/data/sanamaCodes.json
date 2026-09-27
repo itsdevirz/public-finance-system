@@ -402,7 +402,7 @@
             },
             {
               "code": "15008",
-              "title": "دارایی های زیستی",
+              "title": "دارایی‌های زیستی مولد",
               "nature": "debit"
             },
             {
@@ -418,7 +418,7 @@
             {
               "code": "15011",
               "title": "راه ها",
-              "nature": "both"
+              "nature": "debit"
             },
             {
               "code": "15012",
@@ -673,7 +673,7 @@
             {
               "code": "21004",
               "title": "هزینه مالی آتی",
-              "nature": "credit"
+              "nature": "debit"
             },
             {
               "code": "21005",
@@ -906,12 +906,12 @@
             {
               "code": "31006",
               "title": "تعدیلات سنواتی",
-              "nature": "both"
+              "nature": "credit"
             },
             {
               "code": "31007",
               "title": "خالص تغییر در وضعیت مالی",
-              "nature": "both"
+              "nature": "credit"
             },
             {
               "code": "31010",
@@ -1031,7 +1031,7 @@
           "children": [
             {
               "code": "45001",
-              "title": "درآمدهای حاصل از مالیات و عوارض",
+              "title": "درآمدهای مالیاتی",
               "nature": "credit"
             },
             {
@@ -1062,7 +1062,7 @@
             {
               "code": "45007",
               "title": "تخفیفات و بخشودگی",
-              "nature": "debit"
+              "nature": "credit"
             }
           ]
         },
@@ -1089,7 +1089,7 @@
           "children": [
             {
               "code": "51001",
-              "title": "درآمدهای حاصل از مالیات و عوارض",
+              "title": "درآمدهای مالیاتی",
               "nature": "credit"
             },
             {
@@ -1426,22 +1426,22 @@
             {
               "code": "91001",
               "title": "بودجه اعتبار هزینه",
-              "nature": "debit"
+              "nature": "credit"
             },
             {
               "code": "91002",
               "title": "بودجه اعتبار سرمایه ای",
-              "nature": "debit"
+              "nature": "credit"
             },
             {
               "code": "91003",
               "title": "بودجه اعتبار هزینه انتقالی",
-              "nature": "debit"
+              "nature": "credit"
             },
             {
               "code": "91004",
               "title": "بودجه اعتبار سرمایه ای انتقالی",
-              "nature": "debit"
+              "nature": "credit"
             }
           ]
         },
@@ -1510,12 +1510,12 @@
             {
               "code": "93001",
               "title": "اعتبار هزینه تخصیص یافته",
-              "nature": "credit"
+              "nature": "debit"
             },
             {
               "code": "93002",
               "title": "اعتبار سرمایه ای تخصیص یافته",
-              "nature": "credit"
+              "nature": "debit"
             }
           ]
         },
@@ -1578,22 +1578,22 @@
             {
               "code": "95001",
               "title": "اعتبار هزینه ابلاغی",
-              "nature": "credit"
+              "nature": "debit"
             },
             {
               "code": "95002",
               "title": "اعتبار سرمایه ای ابلاغی",
-              "nature": "credit"
+              "nature": "debit"
             },
             {
               "code": "95003",
               "title": "اعتبار هزینه انتقالی ابلاغی",
-              "nature": "credit"
+              "nature": "debit"
             },
             {
               "code": "95004",
               "title": "اعتبار سرمایه ای انتقالی ابلاغی",
-              "nature": "credit"
+              "nature": "debit"
             }
           ]
         },
@@ -1672,22 +1672,22 @@
             {
               "code": "99001",
               "title": "اعتبار هزینه مصرف شده",
-              "nature": "credit"
+              "nature": "debit"
             },
             {
               "code": "99002",
               "title": "اعتبار سرمایه ای مصرف شده",
-              "nature": "credit"
+              "nature": "debit"
             },
             {
               "code": "99003",
               "title": "اعتبار هزینه انتقالی مصرف شده",
-              "nature": "credit"
+              "nature": "debit"
             },
             {
               "code": "99004",
               "title": "اعتبار سرمایه ای انتقالی مصرف شده",
-              "nature": "credit"
+              "nature": "debit"
             }
           ]
         }

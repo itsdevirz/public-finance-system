@@ -9,7 +9,7 @@ import { Users, AlertCircle, Loader2 } from "lucide-react";
  * اشخاص را از API می‌گیرد و به صورت dropdown نمایش می‌دهد.
  * اگر هیچ شخصی ثبت نشده باشد، پیام راهنما و لینک به صفحه تعریف اشخاص نشان می‌دهد.
  */
-export function PersonSanamaField({ value, onChange, labelCls = "", required = true, showLabel = true }) {
+export function PersonSanamaField({ value, onChange, labelCls = "", required = true, showLabel = true, disabled = false, hasError = false }) {
   const { options, loading, error } = usePersons();
   const navigate = useNavigate();
 
@@ -77,6 +77,8 @@ export function PersonSanamaField({ value, onChange, labelCls = "", required = t
         options={options}
         placeholder="انتخاب شخص..."
         searchable
+        disabled={disabled}
+        className={hasError ? "border-rose-500 ring-1 ring-rose-500/50" : ""}
       />
     </div>
   );

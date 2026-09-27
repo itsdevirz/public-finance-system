@@ -176,7 +176,19 @@ export class SanamaValidator {
       const reqConfig = sanamaRequirements[accCode];
       if (reqConfig && reqConfig.requiredRows) {
         const missingAttrs: string[] = [];
-        reqConfig.requiredRows.forEach((rowNum) => {
+        const reqRows = reqConfig.requiredRows;
+        const hasRow9 = reqRows.includes(9);
+        const hasRow11 = reqRows.includes(11);
+
+        const expVal = item["ExpenseArticle"];
+        const constVal = item["ConstructArticle"];
+        const isRow9Filled = Boolean(expVal && String(expVal).trim() !== "" && String(expVal) !== "0");
+        const isRow11Filled = Boolean(constVal && String(constVal).trim() !== "" && String(constVal) !== "0");
+
+        reqRows.forEach((rowNum) => {
+          if (rowNum === 11 && hasRow9 && isRow9Filled) return;
+          if (rowNum === 9 && hasRow11 && isRow11Filled) return;
+
           // Find matching attribute name
           const attrName = Object.keys(SANAMA_CONSTANTS.ATTR_TO_ROW_MAP).find(
             (k) => SANAMA_CONSTANTS.ATTR_TO_ROW_MAP[k] === rowNum

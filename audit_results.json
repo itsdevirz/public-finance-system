@@ -1,0 +1,2113 @@
+{
+  "backendRes": {
+    "filePath": "c:\\Users\\Alireza\\Downloads\\public-finance-system-updated\\public-finance-system\\backend\\src\\data\\sanamaCodes.json",
+    "totalRef": 262,
+    "totalApp": 275,
+    "matchCount": 245,
+    "mismatchCount": 17,
+    "notInReferenceCount": 13,
+    "missingFromAppCount": 0,
+    "changesList": [
+      {
+        "code": "15011",
+        "title": "راه ها",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "21004",
+        "title": "هزینه مالی آتی",
+        "oldNature": "بستانکار",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "31006",
+        "title": "تعدیلات سنواتی",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "31007",
+        "title": "خالص تغییر در وضعیت مالی",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "45007",
+        "title": "تخفیفات و بخشودگی",
+        "oldNature": "بدهکار",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "91003",
+        "title": "بودجه اعتبار هزینه انتقالی",
+        "oldNature": "بدهکار",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "91004",
+        "title": "بودجه اعتبار سرمایه ای انتقالی",
+        "oldNature": "بدهکار",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "93001",
+        "title": "اعتبار هزینه تخصیص یافته",
+        "oldNature": "بستانکار",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "93002",
+        "title": "اعتبار سرمایه ای تخصیص یافته",
+        "oldNature": "بستانکار",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "95001",
+        "title": "اعتبار هزینه ابلاغی",
+        "oldNature": "بستانکار",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "95002",
+        "title": "اعتبار سرمایه ای ابلاغی",
+        "oldNature": "بستانکار",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "95003",
+        "title": "اعتبار هزینه انتقالی ابلاغی",
+        "oldNature": "بستانکار",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "95004",
+        "title": "اعتبار سرمایه ای انتقالی ابلاغی",
+        "oldNature": "بستانکار",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "99001",
+        "title": "اعتبار هزینه مصرف شده",
+        "oldNature": "بستانکار",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "99002",
+        "title": "اعتبار سرمایه ای مصرف شده",
+        "oldNature": "بستانکار",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "99003",
+        "title": "اعتبار هزینه انتقالی مصرف شده",
+        "oldNature": "بستانکار",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "99004",
+        "title": "اعتبار سرمایه ای انتقالی مصرف شده",
+        "oldNature": "بستانکار",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      }
+    ],
+    "notInRefList": [
+      {
+        "code": "11023",
+        "title": "تنخواه گردان رد وجوه سپرده عاملین ذیحساب",
+        "nature": "debit"
+      },
+      {
+        "code": "81001",
+        "title": "حساب انتظامی - تضمین های دریافتی",
+        "nature": "debit"
+      },
+      {
+        "code": "81002",
+        "title": "حساب انتظامی - تضمین های واگذار شده",
+        "nature": "debit"
+      },
+      {
+        "code": "81003",
+        "title": "حساب انتظامی - علی‌الحساب بابت عملیات جاری",
+        "nature": "debit"
+      },
+      {
+        "code": "81004",
+        "title": "حساب انتظامی - علی‌الحساب بابت عملیات سرمایه‌ای",
+        "nature": "debit"
+      },
+      {
+        "code": "81005",
+        "title": "حساب انتظامی - کنترل قراردادها",
+        "nature": "debit"
+      },
+      {
+        "code": "81006",
+        "title": "حساب انتظامی - اسناد وصولی از عاملین ذیحساب",
+        "nature": "debit"
+      },
+      {
+        "code": "82001",
+        "title": "طرف حساب انتظامی - تضمین‌های دریافتی",
+        "nature": "credit"
+      },
+      {
+        "code": "82002",
+        "title": "طرف حساب انتظامی - تضمین‌های واگذار شده",
+        "nature": "credit"
+      },
+      {
+        "code": "82003",
+        "title": "طرف حساب انتظامی - علی‌الحساب بابت عملیات جاری",
+        "nature": "credit"
+      },
+      {
+        "code": "82004",
+        "title": "طرف حساب انتظامی - علی‌الحساب بابت عملیات سرمایه‌ای",
+        "nature": "credit"
+      },
+      {
+        "code": "82005",
+        "title": "طرف حساب انتظامی - کنترل قراردادها",
+        "nature": "credit"
+      },
+      {
+        "code": "82006",
+        "title": "طرف حساب انتظامی - اسناد وصولی از عاملین ذیحساب",
+        "nature": "credit"
+      }
+    ],
+    "missingFromAppList": []
+  },
+  "frontendRes": {
+    "filePath": "c:\\Users\\Alireza\\Downloads\\public-finance-system-updated\\public-finance-system\\frontend\\src\\data\\sanamaCodes.json",
+    "totalRef": 262,
+    "totalApp": 275,
+    "matchCount": 0,
+    "mismatchCount": 262,
+    "notInReferenceCount": 13,
+    "missingFromAppCount": 0,
+    "changesList": [
+      {
+        "code": "11001",
+        "title": "بانک پرداخت هزینه",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "11002",
+        "title": "بانک پرداخت سرمایه‌ای",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "11003",
+        "title": "بانک پرداخت اختصاصی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "11004",
+        "title": "بانک وجوه سایر منابع",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "11005",
+        "title": "بانک دریافت وجوه سپرده",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "11006",
+        "title": "بانک رد وجوه سپرده",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "11007",
+        "title": "بانک دریافت",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "11009",
+        "title": "بانک رد وجوه اضافه دریافتی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "11010",
+        "title": "بانک مالیات و عوارض ارزش افزوده",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "11011",
+        "title": "بانک وجوه کارشناسی ثبت",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "11012",
+        "title": "بانک وجوه خدمات ثبت",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "11013",
+        "title": "بانک وجوه اموال سرقتی و اختلاسی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "11014",
+        "title": "بانک دریافت فروش اراضی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "11015",
+        "title": "بانک پرداخت فروش اراضی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "11016",
+        "title": "بانک دریافت درآمد خانه‌های سازمانی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "11017",
+        "title": "بانک پرداخت خانه‌های سازمانی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "11018",
+        "title": "بانک پرداخت وجوه یارانه",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "11019",
+        "title": "بانک ارزی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "11020",
+        "title": "کارت هدیه",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "11021",
+        "title": "تنخواه گردان پرداخت بابت عملیات جاری",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "11022",
+        "title": "تنخواه گردان پرداخت بابت عملیات سرمایه‌ای",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "11024",
+        "title": "صندوق",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "11025",
+        "title": "بانک دریافت اجاره املاک و اراضی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "11026",
+        "title": "حواله ارزی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "11501",
+        "title": "حساب‌ها و اسناد دریافتنی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "11502",
+        "title": "حساب‌ها و اسناد دریافتنی ارزی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "11503",
+        "title": "مطالبات از سایر واحدها",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "11504",
+        "title": "ذخیره مطالبات مشکوک‌الوصول",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "11505",
+        "title": "حساب‌ها و اسناد دریافتنی - اسناد واخواهی هزینه",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "11506",
+        "title": "حساب‌ها و اسناد دریافتنی - اسناد واخواهی سرمایه‌ای",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "11507",
+        "title": "حساب‌ها و اسناد دریافتنی - کسری ابواب جمعی هزینه",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "11508",
+        "title": "حساب‌ها و اسناد دریافتنی - کسری ابواب جمعی سرمایه‌ای",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "11509",
+        "title": "حساب‌ها و اسناد دریافتنی - بن غیرنقدی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "11510",
+        "title": "ودایع",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "11511",
+        "title": "حساب‌ها و اسناد دریافتنی - حواله قیر",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "11513",
+        "title": "دریافتی بابت تنخواه رد وجوه سپرده",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "11517",
+        "title": "دریافتی بابت رد وجوه اضافه دریافتی",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "11519",
+        "title": "مالیات و عوارض ارزش افزوده خرید کالا و خدمات",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "11520",
+        "title": "سایر حساب‌ها و اسناد دریافتنی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "11521",
+        "title": "حساب‌ها و اسناد دریافتنی - سهمیه وکیوم باتوم",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "11522",
+        "title": "مطالبات از خزانه",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "12001",
+        "title": "حساب ها و اسناد دریافتنی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "12002",
+        "title": "حساب ها و اسناد دریافتنی ارزی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "12003",
+        "title": "مطالبات از سایر واحدها",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "12004",
+        "title": "دخیره مطالبات مشکوک الوصول",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "12501",
+        "title": "سرمایه گذاری در شرکت ها",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "12502",
+        "title": "سایر سرمایه گذاری ها",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "12503",
+        "title": "درآمد دوره های آتی",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "13001",
+        "title": "موجودی ملزومات",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "13002",
+        "title": "موجودی مواد",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "13003",
+        "title": "موجودی کالا",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "13004",
+        "title": "سایر موجودی ها",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "13005",
+        "title": "ذخیره کاهش ارزش موجودی ها",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "13006",
+        "title": "موجودی های امانی نزد سایر اشخاص - موجودی ملزومات",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "13007",
+        "title": "موجودی های امانی نزد سایر اشخاص - موجودی مواد",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "13008",
+        "title": "موجودی های امانی نزد سایر اشخاص - موجودی کالا",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "13009",
+        "title": "موجودی های امانی نزد سایر اشخاص - سایر موجودی ها",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "13010",
+        "title": "سایر موجودی ها - اوراق بهادار",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "13011",
+        "title": "سایر موجودی ها - تنخواه گردان اوراق بهادار",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "14001",
+        "title": "پیش پرداخت بابت عملیات جاری",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "14523",
+        "title": "دارایی‌های نگهداری شده برای فروش",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "14551",
+        "title": "ذخیره کاهش ارزش دارایی‌ها",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "15001",
+        "title": "دارایی در جریان تکمیل",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "15002",
+        "title": "اثاثه و منصوبات",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "15003",
+        "title": "وسایل نقلیه زمینی و زیرزمینی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "15004",
+        "title": "ماشین آلات و تجهیزات",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "15005",
+        "title": "ساختمان و مستحدثات",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "15006",
+        "title": "زمین",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "15007",
+        "title": "اقلام گرانبها",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "15008",
+        "title": "دارایی های زیستی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "15009",
+        "title": "وسایل و ادوات دریایی (مانند انواع کشتی، قایق و ...)",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "15010",
+        "title": "وسایل و ادوات هوایی (مانند هواپیما، چرخبال و ...)",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "15011",
+        "title": "راه ها",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "15012",
+        "title": "تاسیسات",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "15013",
+        "title": "شبکه‌های توزیع و انتقال (برق، آب، مخابرات و ...)",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "15014",
+        "title": "سدها",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "15015",
+        "title": "میراث ملی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "15016",
+        "title": "سایر دارایی‌های ثابت مشهود",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "15020",
+        "title": "دارایی‌های اجاره‌ای",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "15022",
+        "title": "دارایی‌های امانی نزد سایر اشخاص - اثاثه و منصوبات",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "15023",
+        "title": "دارایی‌های امانی نزد سایر اشخاص - وسایل نقلیه زمینی و زیرزمینی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "15024",
+        "title": "دارایی‌های امانی نزد سایر اشخاص - ماشین آلات و تجهیزات",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "15025",
+        "title": "دارایی‌های امانی نزد سایر اشخاص - ساختمان و مستحدثات",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "15026",
+        "title": "دارایی‌های امانی نزد سایر اشخاص - زمین",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "15027",
+        "title": "دارایی‌های امانی نزد سایر اشخاص - اقلام گرانبها",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "15028",
+        "title": "دارایی‌های امانی نزد سایر اشخاص - دارایی‌های زیستی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "15029",
+        "title": "دارایی‌های امانی نزد سایر اشخاص - وسایل و ادوات دریایی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "15030",
+        "title": "دارایی‌های امانی نزد سایر اشخاص - وسایل و ادوات هوایی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "15032",
+        "title": "دارایی‌های امانی نزد سایر اشخاص - تاسیسات",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "15036",
+        "title": "دارایی‌های امانی نزد سایر اشخاص - سایر دارایی های ثابت",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "15040",
+        "title": "استهلاک انباشته",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "15045",
+        "title": "استهلاک انباشته دارایی اجاره‌ای",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "15050",
+        "title": "ذخیره کاهش ارزش دارایی‌ها",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "15060",
+        "title": "پیش پرداخت بابت عملیات سرمایه‌ای",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "15070",
+        "title": "پیش پرداخت اعتبار اسنادی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "15080",
+        "title": "پیش پرداخت مواد و کالا",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "15090",
+        "title": "پیش پرداخت دارایی های استیجاری",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "16001",
+        "title": "نرم افزار رایانه‌ای",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "16002",
+        "title": "سرقفلی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "16003",
+        "title": "بانک‌های اطلاعاتی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "16004",
+        "title": "حق تالیف و اختراع",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "16005",
+        "title": "حق امتیاز و فرانشیز",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "16006",
+        "title": "دارایی‌های نامشهود در جریان تکمیل",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "16007",
+        "title": "سایر دارایی‌های نامشهود",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "16040",
+        "title": "استهلاک انباشته",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "16050",
+        "title": "ذخیره کاهش ارزش دارایی‌ها",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "16060",
+        "title": "پیش‌پرداخت بابت عملیات سرمایه‌ای دارایی‌های نامشهود",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "17001",
+        "title": "سرمایه گذاری در شرکت‌ها",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "17002",
+        "title": "سایر سرمایه گذاری‌ها",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "17003",
+        "title": "درآمد دوره‌های آتی",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "17004",
+        "title": "ذخیره کاهش ارزش سرمایه گذاری‌ها",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "18001",
+        "title": "مطالبات بلندمدت دولت",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "18002",
+        "title": "تسهیلات مالی دریافتنی بلندمدت",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "18003",
+        "title": "تسهیلات مالی دریافتنی ارزی بلندمدت",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "21001",
+        "title": "حساب‌ها و اسناد پرداختنی",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "21002",
+        "title": "حساب‌ها و اسناد پرداختنی ارزی",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "21003",
+        "title": "حساب‌ها و اسناد پرداختنی-اعتبارات اسنادی",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "21004",
+        "title": "هزینه مالی آتی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "21005",
+        "title": "حقوق و مزایای پرداختنی",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "21006",
+        "title": "بدهی به سایر واحدها",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "21007",
+        "title": "سپرده‌های پرداختنی",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "21008",
+        "title": "سپرده‌های پرداختنی ارزی",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "21009",
+        "title": "سود تضمین شده پرداختنی",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "21010",
+        "title": "مالیات و عوارض ارزش افزوده فروش کالا و خدمات",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "21011",
+        "title": "اسناد خزانه پرداختنی",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "22001",
+        "title": "حساب‌ها و اسناد پرداختنی",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "22002",
+        "title": "بدهی به سایر واحدها",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "23001",
+        "title": "پیش دریافت اعتبار هزینه",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "23002",
+        "title": "پیش دریافت اعتبار سرمایه‌ای",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "23003",
+        "title": "پیش دریافت درآمد",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "24001",
+        "title": "بیمه پرداختنی",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "24002",
+        "title": "حق بازنشستگی پرداختنی",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "24003",
+        "title": "سایر کسورات پرداختنی",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "24004",
+        "title": "مالیات پرداختنی",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "24005",
+        "title": "ذخیره احکام صادره از مراجع ذی صلاح",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "24006",
+        "title": "ذخیره تعهدات هزینه‌ای",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "24007",
+        "title": "ذخیره تعهدات سرمایه‌ای",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "24008",
+        "title": "سایر حساب‌ها و اسناد پرداختنی",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "24009",
+        "title": "بدهی بابت وجوه نامشخص",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "24010",
+        "title": "بدهی بابت چک‌های بین راهی",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "24011",
+        "title": "بدهی به اشخاص بابت وجوه اضافه دریافتی",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "24012",
+        "title": "بدهی بابت اوراق بهادار",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "24013",
+        "title": "بدهی بابت وجه الضمان",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "25001",
+        "title": "اوراق مشارکت پرداختنی",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "25002",
+        "title": "تسهیلات مالی دریافتنی بلندمدت",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "25003",
+        "title": "تسهیلات مالی پرداختنی ارزی بلندمدت",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "25006",
+        "title": "اوراق مرابحه پرداختنی",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "25007",
+        "title": "سایر حساب‌ها و اسناد پرداختنی بلندمدت",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "26001",
+        "title": "ذخیره مزایای پایان خدمت کارکنان",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "27001",
+        "title": "ذخیره مرخصی استفاده نشده کارکنان",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "27002",
+        "title": "سایر ذخایر",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "31001",
+        "title": "ارزش خالص انباشته",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "31004",
+        "title": "دارایی‌های انتقالی",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "31005",
+        "title": "دارایی‌های دریافتنی",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "31006",
+        "title": "تعدیلات سنواتی",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "31007",
+        "title": "خالص تغییر در وضعیت مالی",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "31010",
+        "title": "انتقال از سایر اقلام ارزش خالص",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "32001",
+        "title": "مازاد تجدید ارزیابی",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "33001",
+        "title": "تفاوت تسعیر دارایی‌ها و بدهی‌های ارزی",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "33002",
+        "title": "تفاوت تسعیر ارز عملیات خارجی",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "41001",
+        "title": "دریافتی بابت عملیات جاری",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "41002",
+        "title": "دریافتی بابت عملیات جاری در دوره متمم",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "41003",
+        "title": "دریافتی بابت عملیات سرمایه‌ای",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "41004",
+        "title": "دریافتی بابت عملیات سرمایه‌ای در دوره متمم",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "41005",
+        "title": "دریافتی از خزانه بابت حقوق و مزایا",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "41006",
+        "title": "دریافتی بابت وجوه یارانه",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "41007",
+        "title": "دریافتی بابت عملیات جاری از محل اعتبار سال قبل",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "41008",
+        "title": "دریافتی بابت عملیات سرمایه‌ای از محل اعتبار سال قبل",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "41009",
+        "title": "قیر دریافتی بابت عملیات سرمایه‌ای",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "41010",
+        "title": "دریافتی از محل سایر منابع",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "41011",
+        "title": "قیر دریافتی از محل سایر منابع",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "43001",
+        "title": "هدایا و کمک‌ها",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "45001",
+        "title": "درآمدهای حاصل از مالیات و عوارض",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "45002",
+        "title": "درآمدهای ناشی از کمک‌های اجتماعی",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "45003",
+        "title": "درآمدهای حاصل از مالکیت",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "45004",
+        "title": "درآمدهای حاصل از فروش کالا و خدمات",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "45005",
+        "title": "درآمدهای حاصل از جرایم و خسارات",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "45006",
+        "title": "سایر درآمدهای واحد",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "45007",
+        "title": "تخفیفات و بخشودگی",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "46001",
+        "title": "درآمدها - انتقالات",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "51001",
+        "title": "درآمدهای حاصل از مالیات و عوارض",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "51002",
+        "title": "درآمدهای حاصل از مالکیت دولت",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "51003",
+        "title": "درآمدهای حاصل از فروش کالا و خدمات",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "51004",
+        "title": "درآمدهای حاصل از جرایم و خسارات",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "51005",
+        "title": "سایر درآمدهای دولت",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "51006",
+        "title": "تخفیفات و بخشودگی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "51007",
+        "title": "درآمدهای ناشی از کمک های اجتماعی",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "61001",
+        "title": "هزینه جبران خدمت کارکنان",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "61002",
+        "title": "هزینه استفاده از کالا و خدمات",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "61003",
+        "title": "هزینه مصرف سرمایه های ثابت",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "61004",
+        "title": "هزینه سود",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "61005",
+        "title": "هزینه یارانه",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "61006",
+        "title": "هزینه کمک‌های بلاعوض",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "61007",
+        "title": "هزینه مزایای اجتماعی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "61008",
+        "title": "سایر هزینه‌ها",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "62001",
+        "title": "هزینه‌ها - انتقالات",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "63001",
+        "title": "انتقال به خزانه",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "71001",
+        "title": "وجوه ارسالی بابت درآمد عمومی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "81007",
+        "title": "حساب انتظامی - کسری ابوابجمعی برداشتی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "81008",
+        "title": "حساب انتظامی - منابع پیش‌بینی شده",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "81010",
+        "title": "حساب انتظامی - اسناد خزانه اسلامی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "81011",
+        "title": "حساب انتظامی - موجودی‌های امانی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "81012",
+        "title": "حساب انتظامی - دارایی‌های امانی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "81013",
+        "title": "حساب انتظامی - کنترل منابع بودجه‌ای",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "81014",
+        "title": "حساب انتظامی - اوراق مرابحه",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "81015",
+        "title": "حساب انتظامی - اوراق مشارکت",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "81016",
+        "title": "حساب انتظامی - کنترل سفارش‌ها",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "81017",
+        "title": "حساب انتظامی - کنترل دریافتی‌ها بابت اعتبار",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "81018",
+        "title": "حساب انتظامی - بدهی‌های احتمالی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "81019",
+        "title": "حساب انتظامی - اسناد تسویه خزانه",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "82007",
+        "title": "طرف حساب انتظامی - کسری ابوابجمعی برداشتی",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "82008",
+        "title": "طرف حساب انتظامی - منابع پیش‌بینی شده",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "82010",
+        "title": "طرف حساب انتظامی - اسناد خزانه اسلامی",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "82011",
+        "title": "طرف حساب انتظامی - موجودی‌های امانی",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "82012",
+        "title": "طرف حساب انتظامی - دارایی‌های امانی",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "82013",
+        "title": "طرف حساب انتظامی - کنترل منابع بودجه‌ای",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "82014",
+        "title": "طرف حساب انتظامی - اوراق مرابحه",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "82015",
+        "title": "طرف حساب انتظامی - اوراق مشارکت",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "82016",
+        "title": "طرف حساب انتظامی - کنترل سفارش‌ها",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "82017",
+        "title": "طرف حساب انتظامی - کنترل دریافتی‌ها بابت اعتبار",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "82018",
+        "title": "طرف حساب انتظامی - بدهی‌های احتمالی",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "82019",
+        "title": "طرف حساب انتظامی - اسناد تسویه خزانه",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "91001",
+        "title": "بودجه اعتبار هزینه",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "91002",
+        "title": "بودجه اعتبار سرمایه ای",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "91003",
+        "title": "بودجه اعتبار هزینه انتقالی",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "91004",
+        "title": "بودجه اعتبار سرمایه ای انتقالی",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "91501",
+        "title": "اعتبار هزینه انتقالی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "91502",
+        "title": "اعتبار سرمایه ای انتقالی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "92001",
+        "title": "اعتبار هزینه",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "92002",
+        "title": "اعتبار سرمایه ای",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "92501",
+        "title": "اسناد واخواهی بابت اعتبار هزینه",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "92502",
+        "title": "اسناد واخواهی بابت اعتبار سرمایه ای",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "92503",
+        "title": "اسناد واخواهی بابت اعتبار هزینه انتقالی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "92504",
+        "title": "اسناد واخواهی بابت اعتبار سرمایه ای انتقالی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "93001",
+        "title": "اعتبار هزینه تخصیص یافته",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "93002",
+        "title": "اعتبار سرمایه ای تخصیص یافته",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "93501",
+        "title": "کسری ابواب جمعی بابت اعتبار هزینه",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "93502",
+        "title": "کسری ابواب جمعی بابت اعتبار سرمایه ای",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "93503",
+        "title": "کسری ابواب جمعی بابت اعتبار هزینه انتقالی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "93504",
+        "title": "کسری ابواب جمعی بابت اعتبار سرمایه ای انتقالی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "94001",
+        "title": "حواله اعتبار هزینه",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "94002",
+        "title": "حواله اعتبار سرمایه ای",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "94003",
+        "title": "حواله اعتبار هزینه انتقالی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "94004",
+        "title": "حواله اعتبار سرمایه ای انتقالی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "95001",
+        "title": "اعتبار هزینه ابلاغی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "95002",
+        "title": "اعتبار سرمایه ای ابلاغی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "95003",
+        "title": "اعتبار هزینه انتقالی ابلاغی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "95004",
+        "title": "اعتبار سرمایه ای انتقالی ابلاغی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "96001",
+        "title": "کنترل اعتبار هزینه",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "96002",
+        "title": "کنترل اعتبار سرمایه ای",
+        "oldNature": "both",
+        "correctNature": "بستانکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "97001",
+        "title": "اعتبار هزینه تامین شده",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "97002",
+        "title": "اعتبار سرمایه ای تامین شده",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "97003",
+        "title": "اعتبار هزینه انتقالی تامین شده",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "97004",
+        "title": "اعتبار سرمایه ای انتقالی تامین شده",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "98001",
+        "title": "اعتبار هزینه بابت پرداخت های غیر قطعی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "98002",
+        "title": "اعتبار سرمایه ای بابت پرداخت های غیر قطعی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "98003",
+        "title": "اعتبار هزینه انتقالی بابت پرداخت های غیر قطعی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "98004",
+        "title": "اعتبار سرمایه ای انتقالی بابت پرداخت های غیر قطعی",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "99001",
+        "title": "اعتبار هزینه مصرف شده",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "99002",
+        "title": "اعتبار سرمایه ای مصرف شده",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "99003",
+        "title": "اعتبار هزینه انتقالی مصرف شده",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      },
+      {
+        "code": "99004",
+        "title": "اعتبار سرمایه ای انتقالی مصرف شده",
+        "oldNature": "both",
+        "correctNature": "بدهکار",
+        "file": "sanamaCodes.json"
+      }
+    ],
+    "notInRefList": [
+      {
+        "code": "11023",
+        "title": "تنخواه گردان رد وجوه سپرده عاملین ذیحساب",
+        "nature": "both"
+      },
+      {
+        "code": "81001",
+        "title": "حساب انتظامی - تضمین های دریافتی",
+        "nature": "both"
+      },
+      {
+        "code": "81002",
+        "title": "حساب انتظامی - تضمین های واگذار شده",
+        "nature": "both"
+      },
+      {
+        "code": "81003",
+        "title": "حساب انتظامی - علی‌الحساب بابت عملیات جاری",
+        "nature": "both"
+      },
+      {
+        "code": "81004",
+        "title": "حساب انتظامی - علی‌الحساب بابت عملیات سرمایه‌ای",
+        "nature": "both"
+      },
+      {
+        "code": "81005",
+        "title": "حساب انتظامی - کنترل قراردادها",
+        "nature": "both"
+      },
+      {
+        "code": "81006",
+        "title": "حساب انتظامی - اسناد وصولی از عاملین ذیحساب",
+        "nature": "both"
+      },
+      {
+        "code": "82001",
+        "title": "طرف حساب انتظامی - تضمین‌های دریافتی",
+        "nature": "both"
+      },
+      {
+        "code": "82002",
+        "title": "طرف حساب انتظامی - تضمین‌های واگذار شده",
+        "nature": "both"
+      },
+      {
+        "code": "82003",
+        "title": "طرف حساب انتظامی - علی‌الحساب بابت عملیات جاری",
+        "nature": "both"
+      },
+      {
+        "code": "82004",
+        "title": "طرف حساب انتظامی - علی‌الحساب بابت عملیات سرمایه‌ای",
+        "nature": "both"
+      },
+      {
+        "code": "82005",
+        "title": "طرف حساب انتظامی - کنترل قراردادها",
+        "nature": "both"
+      },
+      {
+        "code": "82006",
+        "title": "طرف حساب انتظامی - اسناد وصولی از عاملین ذیحساب",
+        "nature": "both"
+      }
+    ],
+    "missingFromAppList": []
+  }
+}

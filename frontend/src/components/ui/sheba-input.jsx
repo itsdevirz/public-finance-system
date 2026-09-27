@@ -201,6 +201,7 @@ export default function ShebaInput({
   disabled = false,
   readOnly = false,
   showBankBadge = true,
+  hasError = false,
   name,
   id,
 }) {
@@ -260,7 +261,11 @@ export default function ShebaInput({
       <div 
         dir="ltr"
         className={`relative flex items-center rounded-md border bg-white shadow-xs transition-all duration-150 ${
-          isFocusedState ? "border-primary ring-1 ring-primary/20 shadow-xs" : "border-input hover:border-muted-foreground/40"
+          hasError
+            ? "border-rose-500 ring-1 ring-rose-500/50 text-rose-700"
+            : isFocusedState
+              ? "border-primary ring-1 ring-primary/20 shadow-xs"
+              : "border-input hover:border-muted-foreground/40"
         } ${disabled ? "opacity-60 cursor-not-allowed bg-muted/20" : ""}`}
       >
         

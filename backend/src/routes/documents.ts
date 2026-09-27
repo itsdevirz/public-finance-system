@@ -58,7 +58,7 @@ async function validateAccountBalances(
   if (!newLines.length) return { valid: true };
 
   // فقط کدهایی که ماهیت محدود (debit یا credit) دارند بررسی می‌شوند
-  const codesInDoc = [...new Set(newLines.map(l => String(l.account_code)))];
+  const codesInDoc = [...new Set(newLines.map(l => String(l.account_code || (l as any).subAccount || "").trim()))].filter(Boolean);
   const restrictedCodes = codesInDoc.filter(c => {
     const n = getAccountNature(c);
     return n === "debit" || n === "credit";
@@ -80,10 +80,19 @@ async function validateAccountBalances(
   const pipeline = [
     { $match: matchStage },
     { $unwind: "$lines" },
-    { $match: { "lines.account_code": { $in: restrictedCodes } } },
+    {
+      $match: {
+        $expr: {
+          $in: [
+            { $ifNull: ["$lines.account_code", "$lines.subAccount"] },
+            restrictedCodes
+          ]
+        }
+      }
+    },
     {
       $group: {
-        _id: "$lines.account_code",
+        _id: { $ifNull: ["$lines.account_code", "$lines.subAccount"] },
         histDebit:  { $sum: "$lines.debit" },
         histCredit: { $sum: "$lines.credit" },
       },
@@ -105,8 +114,8 @@ async function validateAccountBalances(
     const nature = getAccountNature(code);
     const hist = histMap.get(code) ?? { debit: 0, credit: 0 };
 
-    const newDebit  = newLines.filter(l => String(l.account_code) === code).reduce((s, l) => s + (Number(l.debit)  || 0), 0);
-    const newCredit = newLines.filter(l => String(l.account_code) === code).reduce((s, l) => s + (Number(l.credit) || 0), 0);
+    const newDebit  = newLines.filter(l => String(l.account_code || (l as any).subAccount) === code).reduce((s, l) => s + (Number(l.debit)  || 0), 0);
+    const newCredit = newLines.filter(l => String(l.account_code || (l as any).subAccount) === code).reduce((s, l) => s + (Number(l.credit) || 0), 0);
 
     const totalDebit  = hist.debit  + newDebit;
     const totalCredit = hist.credit + newCredit;
@@ -186,10 +195,9 @@ export async function getNextDocumentNumber(fiscalYear: number | string): Promis
     .find({
       $or: [
         { fiscal_year: fyNum },
-        { fiscal_year: fyStr },
         { "rawHeader.fiscalYear": fyStr }
       ]
-    })
+    } as any)
     .project({ document_number: 1, rawHeader: 1 })
     .toArray();
 
@@ -389,22 +397,23 @@ router.post("/", async (c) => {
     }
   }
 
-  const targetStatus = body.status ?? "DRAFT";
-  if (targetStatus === "CONFIRMED") {
-    const balanceCheck = await validateAccountBalances(resolvedLines as JournalLine[]);
-    if (!balanceCheck.valid) {
-      return c.json(balanceCheck, 422);
-    }
+  // Always validate account nature balances for ALL document statuses (DRAFT and CONFIRMED)
+  const balanceCheck = await validateAccountBalances(resolvedLines as JournalLine[]);
+  if (!balanceCheck.valid) {
+    return c.json(balanceCheck, 422);
   }
 
-  // Enforce transaction amount limits
-  if (!isAdmin && user) {
-    const totalDebit = (resolvedLines as any[]).reduce((s, l) => s + (Number(l.debit) || 0), 0);
-    if (user.financialLimitMax > 0 && totalDebit > user.financialLimitMax) {
-      return c.json({ message: `خطا: مبلغ سند (${totalDebit.toLocaleString()} ریال) بیشتر از سقف مجاز تراکنش شما (${user.financialLimitMax.toLocaleString()} ریال) است.` }, 403);
-    }
-    if (user.financialLimitMin > 0 && totalDebit < user.financialLimitMin) {
-      return c.json({ message: `خطا: مبلغ سند (${totalDebit.toLocaleString()} ریال) کمتر از حداقل مجاز تراکنش شما (${user.financialLimitMin.toLocaleString()} ریال) است.` }, 403);
+  const targetStatus = body.status ?? "DRAFT";
+  if (targetStatus === "CONFIRMED") {
+    // Enforce transaction amount limits ONLY for CONFIRMED status
+    if (!isAdmin && user) {
+      const totalDebit = (resolvedLines as any[]).reduce((s, l) => s + (Number(l.debit) || 0), 0);
+      if (user.financialLimitMax > 0 && totalDebit > user.financialLimitMax) {
+        return c.json({ message: `خطا: مبلغ سند (${totalDebit.toLocaleString()} ریال) بیشتر از سقف مجاز تراکنش شما (${user.financialLimitMax.toLocaleString()} ریال) است.` }, 403);
+      }
+      if (user.financialLimitMin > 0 && totalDebit < user.financialLimitMin) {
+        return c.json({ message: `خطا: مبلغ سند (${totalDebit.toLocaleString()} ریال) کمتر از حداقل مجاز تراکنش شما (${user.financialLimitMin.toLocaleString()} ریال) است.` }, 403);
+      }
     }
   }
 
@@ -439,6 +448,22 @@ router.patch("/:id/confirm", async (c) => {
     if (!user?.permissions?.["doc.approve"]) {
       return c.json({ message: "دسترسی غیرمجاز. شما مجوز تایید و نهایی‌سازی اسناد را ندارید." }, 403);
     }
+  }
+
+  const existingDoc = await db.collection<JournalDocument>("journal_documents").findOne({ _id: new ObjectId(id) });
+  if (!existingDoc) return c.json({ message: "سند یافت نشد" }, 404);
+
+  let docLines: JournalLine[] = (existingDoc.lines || []) as JournalLine[];
+  if (existingDoc.ciphertext) {
+    try {
+      const dec = decryptDocument(existingDoc as Record<string, unknown>);
+      if (dec.lines?.length) docLines = dec.lines as JournalLine[];
+    } catch { /* ادامه بده */ }
+  }
+
+  const balanceCheck = await validateAccountBalances(docLines, id);
+  if (!balanceCheck.valid) {
+    return c.json(balanceCheck, 422);
   }
 
   const res = await getDb()
@@ -506,27 +531,28 @@ router.put("/:id", async (c) => {
     }
   }
 
-  const targetStatus = body.status ?? "DRAFT";
-  if (targetStatus === "CONFIRMED") {
-    const newLines = (updateData.lines ?? []) as JournalLine[];
-    const balanceCheck = await validateAccountBalances(newLines, id);
-    if (!balanceCheck.valid) {
-      return c.json(balanceCheck, 422);
-    }
+  const newLines = (updateData.lines ?? []) as JournalLine[];
+  // Always validate account nature balances for ALL document statuses (DRAFT and CONFIRMED)
+  const balanceCheck = await validateAccountBalances(newLines, id);
+  if (!balanceCheck.valid) {
+    return c.json(balanceCheck, 422);
   }
 
-  // Enforce transaction amount limits and approve check
-  if (!isAdmin && user) {
-    const totalDebit = newLines.reduce((s, l) => s + (Number(l.debit) || 0), 0);
-    if (user.financialLimitMax > 0 && totalDebit > user.financialLimitMax) {
-      return c.json({ message: `خطا: مبلغ سند (${totalDebit.toLocaleString()} ریال) بیشتر از سقف مجاز تراکنش شما (${user.financialLimitMax.toLocaleString()} ریال) است.` }, 403);
-    }
-    if (user.financialLimitMin > 0 && totalDebit < user.financialLimitMin) {
-      return c.json({ message: `خطا: مبلغ سند (${totalDebit.toLocaleString()} ریال) کمتر از حداقل مجاز تراکنش شما (${user.financialLimitMin.toLocaleString()} ریال) است.` }, 403);
-    }
+  const targetStatus = body.status ?? "DRAFT";
+  if (targetStatus === "CONFIRMED") {
+    // Enforce transaction amount limits and approve check ONLY for CONFIRMED status
+    if (!isAdmin && user) {
+      const totalDebit = newLines.reduce((s, l) => s + (Number(l.debit) || 0), 0);
+      if (user.financialLimitMax > 0 && totalDebit > user.financialLimitMax) {
+        return c.json({ message: `خطا: مبلغ سند (${totalDebit.toLocaleString()} ریال) بیشتر از سقف مجاز تراکنش شما (${user.financialLimitMax.toLocaleString()} ریال) است.` }, 403);
+      }
+      if (user.financialLimitMin > 0 && totalDebit < user.financialLimitMin) {
+        return c.json({ message: `خطا: مبلغ سند (${totalDebit.toLocaleString()} ریال) کمتر از حداقل مجاز تراکنش شما (${user.financialLimitMin.toLocaleString()} ریال) است.` }, 403);
+      }
 
-    if (updateData.status === "CONFIRMED" && !permissions["doc.approve"]) {
-      return c.json({ message: "دسترسی غیرمجاز. شما مجوز تایید و نهایی‌سازی اسناد را ندارید." }, 403);
+      if (updateData.status === "CONFIRMED" && !permissions["doc.approve"]) {
+        return c.json({ message: "دسترسی غیرمجاز. شما مجوز تایید و نهایی‌سازی اسناد را ندارید." }, 403);
+      }
     }
   }
 

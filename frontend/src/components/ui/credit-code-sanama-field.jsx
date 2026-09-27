@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useApiCache } from "@/hooks/useApiCache";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 
-export function CreditCodeSanamaField({ value, onChange, inputCls }) {
+export function CreditCodeSanamaField({ value, onChange, inputCls, disabled = false, hasError = false }) {
   const { data, loading } = useApiCache("/api/credits/definitions");
 
   const options = useMemo(() => {
@@ -45,11 +45,12 @@ export function CreditCodeSanamaField({ value, onChange, inputCls }) {
         <input
           type="text"
           inputMode="numeric"
-          className={defaultInputCls}
-          placeholder="عدد وارد کنید..."
+          className={`${defaultInputCls} ${disabled ? "bg-muted cursor-not-allowed opacity-60 text-muted-foreground" : ""} ${hasError ? "border-rose-500 ring-1 ring-rose-500/50" : ""}`}
+          placeholder={disabled ? "غیرفعال" : "عدد وارد کنید..."}
           value={value ?? ""}
-          onChange={(e) => onChange(e.target.value.replace(/\D/g, ""))}
+          onChange={(e) => !disabled && onChange(e.target.value.replace(/\D/g, ""))}
           dir="ltr"
+          disabled={disabled}
         />
       </div>
     );
@@ -61,8 +62,10 @@ export function CreditCodeSanamaField({ value, onChange, inputCls }) {
         value={value ?? ""}
         onChange={(v) => onChange(v || "")}
         options={options}
-        placeholder="انتخاب از اعتبارهای تعریف‌شده..."
+        placeholder={disabled ? "غیرفعال" : "انتخاب از اعتبارهای تعریف‌شده..."}
         searchable
+        disabled={disabled}
+        className={hasError ? "border-rose-500 ring-1 ring-rose-500/50" : ""}
       />
     </div>
   );

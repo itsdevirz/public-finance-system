@@ -146,12 +146,39 @@ function AccountSanamaBlock({ line, lineIdx, sanamaValues, onSanamaChange }) {
           const rowDef = getSubAccountTitle(rowNum);
           if (!rowDef) return null;
           const key = `l${lineIdx}_s${rowNum}`;
+
+          const hasRow9 = requiredRows.includes(9);
+          const hasRow11 = requiredRows.includes(11);
+          const hasBothChapters = hasRow9 && hasRow11;
+
+          const valRow9 = sanamaValues[`l${lineIdx}_s9`];
+          const valRow11 = sanamaValues[`l${lineIdx}_s11`];
+
+          const isRow9Filled = Boolean(valRow9 && String(valRow9).trim() !== "" && String(valRow9) !== "0");
+          const isRow11Filled = Boolean(valRow11 && String(valRow11).trim() !== "" && String(valRow11) !== "0");
+
+          let disabled = false;
+          if (hasBothChapters) {
+            if (rowNum === 11 && isRow9Filled) disabled = true;
+            if (rowNum === 9 && isRow11Filled) disabled = true;
+          }
+
           return (
             <SanamaField
               key={key}
               rowDef={rowDef}
               value={sanamaValues[key]}
-              onChange={(val) => onSanamaChange(key, val)}
+              disabled={disabled}
+              onChange={(val) => {
+                onSanamaChange(key, val);
+                if (hasBothChapters) {
+                  if (rowNum === 9 && val && String(val).trim() !== "" && String(val) !== "0") {
+                    onSanamaChange(`l${lineIdx}_s11`, "");
+                  } else if (rowNum === 11 && val && String(val).trim() !== "" && String(val) !== "0") {
+                    onSanamaChange(`l${lineIdx}_s9`, "");
+                  }
+                }
+              }}
             />
           );
         })}
@@ -317,6 +344,13 @@ export default function AutoDocument() {
           sanamaFields: lineSanamaFields,
         };
       });
+
+      const balanceError = await checkDebitNatureBalance(parsedLines);
+      if (balanceError) {
+        setMessage({ type: "error", text: balanceError });
+        setLoading(false);
+        return;
+      }
 
       const encryptedHex = await encrypt(JSON.stringify({
         header: { fiscalYear: String(docFields.fiscalYear), docNo: "", docDate: docFields.documentDate, docType: "موقت", access: "عادی", desc: docFields.description, letterNo: "", letterDate: "", status: "صدور سند" },

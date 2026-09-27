@@ -10,7 +10,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Plus, Trash2, Save, Printer, RotateCcw,
   FileText, CheckCircle2, Ban, X, AlertCircle,
-  Check, FileEdit
+  Check, FileEdit, Copy
 } from "lucide-react";
 import api from "@/api";
 import { useApiCache } from "@/hooks/useApiCache";
@@ -92,6 +92,18 @@ function needsSanamaFields(subAccountCode) {
   return getRequiredRows(subAccountCode).length > 0;
 }
 
+function areSanamaRequirementsMatching(subAccountA, subAccountB) {
+  if (!subAccountA || !subAccountB) return false;
+  const reqsA = getRequiredRows(subAccountA);
+  const reqsB = getRequiredRows(subAccountB);
+  if (reqsA.length === 0 || reqsB.length === 0) return false;
+  if (reqsA.length !== reqsB.length) return false;
+
+  const sortedA = [...reqsA].sort((a, b) => a - b);
+  const sortedB = [...reqsB].sort((a, b) => a - b);
+  return sortedA.every((val, idx) => val === sortedB[idx]);
+}
+
 function getAccounts(groupCode) {
   const g = allGroups.find((x) => x.code === groupCode);
   return g ? g.accounts : [];
@@ -106,7 +118,7 @@ function getSubAccounts(groupCode, accountCode) {
 function toEnglishDigits(str) {
   if (str == null) return "";
   const persianDigits = [/۰/g, /۱/g, /۲/g, /۳/g, /۴/g, /۵/g, /۶/g, /۷/g, /۸/g, /۹/g];
-  const arabicDigits  = [/٠/g, /١/g, /٢/g, /٣/g, /٤/g, /٥/g, /٦/g, /٧/g, /٨/g, /٩/g];
+  const arabicDigits = [/٠/g, /١/g, /٢/g, /٣/g, /٤/g, /٥/g, /٦/g, /٧/g, /٨/g, /٩/g];
   let clean = str.toString().replace(/,/g, "").replace(/،/g, "");
   for (let i = 0; i < 10; i++) {
     clean = clean.replace(persianDigits[i], i).replace(arabicDigits[i], i);
@@ -190,7 +202,7 @@ function subAccountOptions(groupCode, accountCode) {
 }
 
 // ---- ردیف جدول ----
-const DocRow = React.memo(({ row, idx, onChange, onDelete, isActive, onActivate }) => {
+const DocRow = React.memo(({ row, idx, onChange, onDelete, onDuplicate, isActive, onActivate }) => {
   const [debitVal, setDebitVal] = useState(row.debit || "");
   const [creditVal, setCreditVal] = useState(row.credit || "");
   const debitFocused = React.useRef(false);
@@ -216,18 +228,23 @@ const DocRow = React.memo(({ row, idx, onChange, onDelete, isActive, onActivate 
   }, [row.group, row.account, row.subAccount]);
 
   function setGroup(val) {
-    onChange({ ...row, group: val, account: "", subAccount: "", debit: "", credit: "", sanamaFields: {} });
+    onActivate?.();
+    onChange({ ...row, group: val, account: "", subAccount: "", debit: "", credit: "", sanamaFields: {}, isSanamaConfirmed: false, lastTouchTimestamp: Date.now() });
   }
 
   function setAccount(val) {
-    onChange({ ...row, account: val, subAccount: "", debit: "", credit: "", sanamaFields: {} });
+    onActivate?.();
+    onChange({ ...row, account: val, subAccount: "", debit: "", credit: "", sanamaFields: {}, isSanamaConfirmed: false, lastTouchTimestamp: Date.now() });
   }
 
   function setSubAccount(val) {
+    onActivate?.();
     onChange({
       ...row,
       subAccount: val,
       sanamaFields: {},
+      isSanamaConfirmed: false,
+      lastTouchTimestamp: Date.now(),
     });
   }
 
@@ -287,7 +304,6 @@ const DocRow = React.memo(({ row, idx, onChange, onDelete, isActive, onActivate 
             setDebitVal(formatted);
             onChange({ ...row, debit: formatted });
           }}
-          placeholder={nature === "credit" ? "(بستانکار)" : ""}
         />
       </td>
 
@@ -305,30 +321,40 @@ const DocRow = React.memo(({ row, idx, onChange, onDelete, isActive, onActivate 
             setCreditVal(formatted);
             onChange({ ...row, credit: formatted });
           }}
-          placeholder={nature === "debit" ? "(بدهکار)" : ""}
         />
       </td>
 
-      {/* حذف */}
-      <td className={`${cellCls} w-10 text-center`}>
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          className="text-muted-foreground hover:text-rose-500 transition-colors"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
+      {/* عملیات (کپی و حذف) */}
+      <td className={`${cellCls} w-16 text-center`}>
+        <div className="flex items-center justify-center gap-1.5">
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onDuplicate?.(); }}
+            className="text-muted-foreground hover:text-blue-600 transition-colors"
+            title={`تکثیر / کپی سطر ${idx + 1}`}
+          >
+            <Copy className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+            className="text-muted-foreground hover:text-rose-500 transition-colors"
+            title={`حذف سطر ${idx + 1}`}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
       </td>
     </tr>
   );
 }, (prev, next) => {
   return prev.idx === next.idx &&
-         prev.isActive === next.isActive &&
-         prev.row === next.row;
+    prev.isActive === next.isActive &&
+    prev.row === next.row;
 });
 
 // ---- SanamaNumericInput: input عددی با local state برای جلوگیری از از دست دادن focus ----
-function SanamaNumericInput({ value, onChange, inputCls }) {
+function SanamaNumericInput({ value, onChange, inputCls, disabled = false, allowDash = false }) {
   const [localVal, setLocalVal] = React.useState(value ?? "");
   const isFocused = React.useRef(false);
 
@@ -338,31 +364,45 @@ function SanamaNumericInput({ value, onChange, inputCls }) {
     }
   }, [value]);
 
+  const cleanVal = (val) => {
+    if (!val) return "";
+    const converted = toEnglishDigits(val);
+    return allowDash ? converted.replace(/[^0-9-]/g, "") : converted.replace(/\D/g, "");
+  };
+
   return (
     <input
       type="text"
-      inputMode="numeric"
-      pattern="[0-9]*"
-      className={inputCls}
-      placeholder="عدد وارد کنید..."
+      inputMode={allowDash ? "text" : "numeric"}
+      className={`${inputCls} ${disabled ? "bg-muted cursor-not-allowed opacity-60 text-muted-foreground" : ""}`}
       value={localVal}
+      disabled={disabled}
       dir="ltr"
-      onFocus={() => { isFocused.current = true; }}
-      onChange={(e) => setLocalVal(e.target.value.replace(/\D/g, ""))}
+      onFocus={() => { if (!disabled) isFocused.current = true; }}
+      onChange={(e) => {
+        if (!disabled) {
+          const val = cleanVal(e.target.value);
+          setLocalVal(val);
+        }
+      }}
       onBlur={() => {
-        isFocused.current = false;
-        onChange(localVal.replace(/\D/g, ""));
+        if (!disabled) {
+          isFocused.current = false;
+          const val = cleanVal(localVal);
+          setLocalVal(val);
+          onChange(val);
+        }
       }}
     />
   );
 }
 
 // wrapper: label کوچک خاکستری بالا، input پایین
-function SanamaWrap({ title, children, wide = false }) {
+function SanamaWrap({ title, children, wide = false, hasError = false, errorMsg = "این الزام تکمیل شود" }) {
   return (
     <div className={`flex flex-col gap-1 min-w-0 w-full overflow-hidden ${wide ? "sm:col-span-2" : ""}`}>
       <span
-        className="text-[10px] font-medium text-muted-foreground/80 leading-none truncate"
+        className={`text-[10px] font-medium leading-none truncate ${hasError ? "text-rose-600 font-semibold" : "text-muted-foreground/80"}`}
         title={title}
       >
         {title}
@@ -370,27 +410,41 @@ function SanamaWrap({ title, children, wide = false }) {
       <div className="w-full min-w-0">
         {children}
       </div>
+      {hasError && (
+        <span className="text-[11px] text-rose-600 font-medium mt-0.5 animate-in fade-in duration-150">
+          {errorMsg}
+        </span>
+      )}
     </div>
   );
 }
 
 // ---- SanamaField: رندر یک فیلد سناما بر اساس نوع ردیف ----
-function SanamaField({ rowDef, value, onChange, optional }) {
-  const inputCls = "h-8 text-xs rounded-md border border-input bg-white px-2.5 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/20 w-full transition-all placeholder:text-muted-foreground/40";
+function SanamaField({ rowDef, value, onChange, optional, disabled = false, hasError = false }) {
+  const errInputCls = hasError ? "border-rose-500 ring-1 ring-rose-500/50 text-rose-700" : "";
+  const inputCls = `h-8 text-xs rounded-md border ${hasError ? "border-rose-500 ring-1 ring-rose-500/50" : "border-input"} bg-white px-2.5 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/20 w-full transition-all placeholder:text-muted-foreground/40`;
 
-  const placeholder = optional ? `${rowDef.default ?? "0"}` : "انتخاب کنید...";
+  const placeholder = disabled
+    ? "غیرفعال (فصل دیگر انتخاب شد)"
+    : optional
+      ? `${rowDef.default ?? "0"}`
+      : "انتخاب کنید...";
+
+  const errSelectCls = hasError ? "border-rose-500 ring-1 ring-rose-500/50" : "";
 
   // dropdown ساده
   if (rowDef.values) {
     const opts = rowDef.values.map((v) => ({ value: String(v.type), label: v.title }));
     return (
-      <SanamaWrap title={rowDef.title}>
+      <SanamaWrap title={rowDef.title} hasError={hasError}>
         <SearchableSelect
           value={value !== undefined && value !== null ? String(value) : ""}
           onChange={(v) => onChange(v || "")}
           options={opts}
           placeholder={placeholder}
           searchable={opts.length > 8}
+          disabled={disabled}
+          className={errSelectCls}
         />
       </SanamaWrap>
     );
@@ -402,12 +456,14 @@ function SanamaField({ rowDef, value, onChange, optional }) {
       g.values.map((v) => ({ value: String(v.type), label: v.title, group: g.title }))
     );
     return (
-      <SanamaWrap title={rowDef.title}>
+      <SanamaWrap title={rowDef.title} hasError={hasError}>
         <SearchableSelect
           value={value !== undefined && value !== null ? String(value) : ""}
           onChange={(v) => onChange(v || "")}
           options={opts}
           placeholder={placeholder}
+          disabled={disabled}
+          className={errSelectCls}
         />
       </SanamaWrap>
     );
@@ -431,7 +487,7 @@ function SanamaField({ rowDef, value, onChange, optional }) {
       dateStr = `${dateStr.slice(0, 4)}/${dateStr.slice(4, 6)}/${dateStr.slice(6, 8)}`;
     }
     return (
-      <SanamaWrap title={rowDef.title}>
+      <SanamaWrap title={rowDef.title} hasError={hasError}>
         <PersianDatePicker
           value={dateStr}
           onChange={(e) => {
@@ -439,6 +495,8 @@ function SanamaField({ rowDef, value, onChange, optional }) {
             onChange(rawVal || "");
           }}
           placeholder="۱۴۰۵/۰۱/۰۱"
+          disabled={disabled}
+          className={errSelectCls}
         />
       </SanamaWrap>
     );
@@ -448,21 +506,22 @@ function SanamaField({ rowDef, value, onChange, optional }) {
   if ("default" in rowDef) {
     if (rowDef.row === 8) {
       return (
-        <SanamaWrap title={rowDef.title} wide>
-          <CreditCodeSanamaField value={value} onChange={onChange} inputCls={inputCls} />
+        <SanamaWrap title={rowDef.title} wide hasError={hasError}>
+          <CreditCodeSanamaField value={value} onChange={onChange} inputCls={inputCls} disabled={disabled} hasError={hasError} />
         </SanamaWrap>
       );
     }
     if (rowDef.row === 31 || (rowDef.title && rowDef.title.includes("شبا"))) {
       return (
-        <SanamaWrap title={rowDef.title} wide>
-          <ShebaInput value={value} onChange={onChange} />
+        <SanamaWrap title={rowDef.title} wide hasError={hasError}>
+          <ShebaInput value={value} onChange={onChange} disabled={disabled} hasError={hasError} />
         </SanamaWrap>
       );
     }
+    const allowDash = rowDef.row === 7 || (rowDef.title && rowDef.title.includes("شماره ردیف"));
     return (
-      <SanamaWrap title={rowDef.title}>
-        <SanamaNumericInput value={value} onChange={onChange} inputCls={inputCls} />
+      <SanamaWrap title={rowDef.title} hasError={hasError}>
+        <SanamaNumericInput value={value} onChange={onChange} inputCls={inputCls} disabled={disabled} allowDash={allowDash} hasError={hasError} />
       </SanamaWrap>
     );
   }
@@ -470,8 +529,8 @@ function SanamaField({ rowDef, value, onChange, optional }) {
   // ردیف اشخاص
   if (rowDef.types) {
     return (
-      <SanamaWrap title={rowDef.title} wide>
-        <PersonSanamaField value={value} onChange={onChange} showLabel={false} labelCls="" required={!optional} />
+      <SanamaWrap title={rowDef.title} wide hasError={hasError}>
+        <PersonSanamaField value={value} onChange={onChange} showLabel={false} labelCls="" required={!optional && !disabled} disabled={disabled} hasError={hasError} />
       </SanamaWrap>
     );
   }
@@ -482,15 +541,24 @@ function SanamaField({ rowDef, value, onChange, optional }) {
 // فیلدهایی که اختیاری‌اند
 const OPTIONAL_ROWS = new Set();
 
-function SanamaExtraFields({ row, onSanamaChange }) {
-  const [isConfirmed, setIsConfirmed] = useState(false);
+function SanamaExtraFields({ row, allRows, onSanamaChange, onConfirmRow, onEditRow, onCopySanama }) {
+  const [localConfirmed, setLocalConfirmed] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const isConfirmed = row.isSanamaConfirmed ?? localConfirmed;
   const requiredRows = getRequiredRows(row.subAccount);
   if (!requiredRows.length) return null;
 
-  const isDebit  = parseFloat(String(row.debit  || "").replace(/,/g, "")) > 0;
+  const availableSourceRows = (allRows || []).filter(
+    (r) => r.id !== row.id && r.subAccount && getRequiredRows(r.subAccount).length > 0
+  );
+  const currIndex = (allRows || []).findIndex((r) => r.id === row.id) + 1;
+  const prevRow = currIndex > 1 ? (allRows || [])[currIndex - 2] : null;
+  const hasPrevRowSanama = prevRow && prevRow.subAccount && getRequiredRows(prevRow.subAccount).length > 0;
+
+  const isDebit = parseFloat(String(row.debit || "").replace(/,/g, "")) > 0;
   const isCredit = parseFloat(String(row.credit || "").replace(/,/g, "")) > 0;
 
-  const acctCode  = row.subAccount || "";
+  const acctCode = row.subAccount || "";
   const acctTitle = (() => {
     if (!row.group || !row.account || !row.subAccount) return row.desc || "";
     const subs = getSubAccounts(row.group, row.account);
@@ -500,19 +568,63 @@ function SanamaExtraFields({ row, onSanamaChange }) {
   const amount = isDebit
     ? parseFloat(String(row.debit || "").replace(/,/g, ""))
     : isCredit
-    ? parseFloat(String(row.credit || "").replace(/,/g, ""))
-    : 0;
+      ? parseFloat(String(row.credit || "").replace(/,/g, ""))
+      : 0;
 
   const amountStr = amount > 0 ? amount.toLocaleString("fa-IR") : null;
 
   // رنگ‌بندی بر اساس ماهیت
   const theme = isDebit
-    ? { bar: "bg-blue-500",  header: "bg-blue-50/70  border-blue-100",  badge: "bg-blue-100 text-blue-700 border-blue-200",  label: "بدهکار",  amount: "text-blue-700" }
+    ? { bar: "bg-blue-500", header: "bg-blue-50/70  border-blue-100", badge: "bg-blue-100 text-blue-700 border-blue-200", label: "بدهکار", amount: "text-blue-700" }
     : isCredit
-    ? { bar: "bg-rose-500",  header: "bg-rose-50/70  border-rose-100",  badge: "bg-rose-100 text-rose-700 border-rose-200",  label: "بستانکار", amount: "text-rose-700" }
-    : { bar: "bg-muted",     header: "bg-muted/30    border-border",     badge: "bg-muted text-muted-foreground border-border", label: "—",       amount: "text-muted-foreground" };
+      ? { bar: "bg-rose-500", header: "bg-rose-50/70  border-rose-100", badge: "bg-rose-100 text-rose-700 border-rose-200", label: "بستانکار", amount: "text-rose-700" }
+      : { bar: "bg-muted", header: "bg-muted/30    border-border", badge: "bg-muted text-muted-foreground border-border", label: "—", amount: "text-muted-foreground" };
 
   const creditTypeValue = row.sanamaFields?.["sanama_5"];
+
+  const handleConfirmSanama = () => {
+    const newErrors = {};
+    let hasEmpty = false;
+
+    const hasRow9 = requiredRows.includes(9);
+    const hasRow11 = requiredRows.includes(11);
+    const hasBothChapters = hasRow9 && hasRow11;
+
+    const valRow9 = row.sanamaFields?.["sanama_9"];
+    const valRow11 = row.sanamaFields?.["sanama_11"];
+
+    const isRow9Filled = Boolean(valRow9 && String(valRow9).trim() !== "" && String(valRow9) !== "0");
+    const isRow11Filled = Boolean(valRow11 && String(valRow11).trim() !== "" && String(valRow11) !== "0");
+
+    requiredRows.forEach((rowNum) => {
+      const isNotifiedCredit = creditTypeValue === "2" || creditTypeValue === "ابلاغی";
+      if (rowNum === 15 && !isNotifiedCredit) return;
+
+      let disabled = false;
+      if (hasBothChapters) {
+        if (rowNum === 11 && isRow9Filled) disabled = true;
+        if (rowNum === 9 && isRow11Filled) disabled = true;
+      }
+
+      if (!disabled) {
+        const fieldKey = `sanama_${rowNum}`;
+        const val = row.sanamaFields?.[fieldKey];
+        if (!val || String(val).trim() === "" || String(val) === "0") {
+          newErrors[fieldKey] = true;
+          hasEmpty = true;
+        }
+      }
+    });
+
+    if (hasEmpty) {
+      setFieldErrors(newErrors);
+      return;
+    }
+
+    setFieldErrors({});
+    setLocalConfirmed(true);
+    onConfirmRow?.(row.id);
+  };
 
   // خلاصه تفصیلی‌های پر شده
   const filledSummaries = requiredRows.map((rowNum) => {
@@ -564,14 +676,55 @@ function SanamaExtraFields({ row, onSanamaChange }) {
           )}
         </div>
 
-        {/* دکمه ثبت / ویرایش تفصیلی */}
-        <div className="shrink-0 flex items-center gap-2">
+        {/* دکمه ثبت / ویرایش / کپی تفصیلی */}
+        <div className="shrink-0 flex items-center gap-2" dir="rtl">
+          {availableSourceRows.length > 0 && !isConfirmed && (
+            <div className="flex items-center gap-1.5">
+              {hasPrevRowSanama && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1 h-7 text-xs bg-blue-50/90 hover:bg-blue-100 text-blue-800 border-blue-200 font-medium"
+                  onClick={() => onCopySanama?.(row.id, prevRow.id)}
+                  title={`کپی تفصیلی از سطر ${currIndex - 1}`}
+                >
+                  <Copy className="h-3.5 w-3.5 text-blue-600" />
+                  کپی از سطر قبل ({currIndex - 1})
+                </Button>
+              )}
+              <select
+                className="h-7 text-xs rounded border border-blue-200 bg-blue-50/50 text-blue-900 px-2 py-0 cursor-pointer font-medium hover:bg-blue-100/70"
+                defaultValue=""
+                onChange={(e) => {
+                  const sourceId = Number(e.target.value);
+                  if (sourceId) {
+                    onCopySanama?.(row.id, sourceId);
+                    e.target.value = "";
+                  }
+                }}
+              >
+                <option value="" disabled>کپی از تفصیلی سطر...</option>
+                {availableSourceRows.map((srcRow) => {
+                  const idx = (allRows || []).findIndex((r) => r.id === srcRow.id) + 1;
+                  return (
+                    <option key={srcRow.id} value={srcRow.id}>
+                      سطر {idx} (معین {srcRow.subAccount})
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+          )}
+
           {isConfirmed ? (
             <Button
               size="sm"
               variant="outline"
               className="gap-1.5 h-7 text-xs bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-300 font-medium"
-              onClick={() => setIsConfirmed(false)}
+              onClick={() => {
+                setLocalConfirmed(false);
+                onEditRow?.(row.id);
+              }}
             >
               <FileEdit className="h-3.5 w-3.5 text-amber-600" />
               ویرایش تفصیلی
@@ -581,7 +734,7 @@ function SanamaExtraFields({ row, onSanamaChange }) {
               size="sm"
               variant="default"
               className="gap-1.5 h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-xs"
-              onClick={() => setIsConfirmed(true)}
+              onClick={handleConfirmSanama}
             >
               <Check className="h-3.5 w-3.5" />
               ثبت و تایید تفصیلی
@@ -615,16 +768,46 @@ function SanamaExtraFields({ row, onSanamaChange }) {
             const isNotifiedCredit = creditTypeValue === "2" || creditTypeValue === "ابلاغی";
             if (rowNum === 15 && !isNotifiedCredit) return null;
 
-            const optional  = OPTIONAL_ROWS.has(rowNum);
-            const fieldKey  = `sanama_${rowNum}`;
-            const fieldVal  = row.sanamaFields?.[fieldKey];
+            const hasRow9 = requiredRows.includes(9);
+            const hasRow11 = requiredRows.includes(11);
+            const hasBothChapters = hasRow9 && hasRow11;
+
+            const valRow9 = row.sanamaFields?.["sanama_9"];
+            const valRow11 = row.sanamaFields?.["sanama_11"];
+
+            const isRow9Filled = Boolean(valRow9 && String(valRow9).trim() !== "" && String(valRow9) !== "0");
+            const isRow11Filled = Boolean(valRow11 && String(valRow11).trim() !== "" && String(valRow11) !== "0");
+
+            let disabled = false;
+            let optional = OPTIONAL_ROWS.has(rowNum);
+
+            if (hasBothChapters) {
+              if (rowNum === 11 && isRow9Filled) {
+                disabled = true;
+                optional = true;
+              } else if (rowNum === 9 && isRow11Filled) {
+                disabled = true;
+                optional = true;
+              }
+            }
+
+            const fieldKey = `sanama_${rowNum}`;
+            const fieldVal = row.sanamaFields?.[fieldKey];
+            const hasErr = Boolean(fieldErrors[fieldKey]);
             return (
               <SanamaField
                 key={rowNum}
                 rowDef={rowDef}
                 value={fieldVal}
                 optional={optional}
-                onChange={(val) => onSanamaChange(fieldKey, val)}
+                disabled={disabled}
+                hasError={hasErr}
+                onChange={(val) => {
+                  onSanamaChange(fieldKey, val);
+                  if (fieldErrors[fieldKey]) {
+                    setFieldErrors((prev) => ({ ...prev, [fieldKey]: false }));
+                  }
+                }}
               />
             );
           })}
@@ -661,7 +844,6 @@ function VoucherPrintContent({ header, rows, totalDebit, totalCredit, diff, toda
         {/* شماره و تاریخ نامه و شرح کلی */}
         <div className="mt-3 pt-2 border-t border-gray-300 grid grid-cols-3 gap-2 text-xs">
           <div><span className="text-gray-600">شماره نامه:</span> <span className="font-medium">{header.letterNo || "—"}</span></div>
-          <div><span className="text-gray-600">تاریخ نامه:</span> <span className="font-medium">{header.letterDate || "—"}</span></div>
           <div className="col-span-3 mt-1"><span className="text-gray-600">شرح کلی سند:</span> <span className="font-medium">{header.desc || "—"}</span></div>
         </div>
       </div>
@@ -670,26 +852,18 @@ function VoucherPrintContent({ header, rows, totalDebit, totalCredit, diff, toda
       <table className="w-full text-xs border-collapse border border-gray-800 my-2" dir="rtl">
         <thead>
           <tr className="bg-gray-100 border-b border-gray-800 text-gray-900 font-bold">
-            <th className="border border-gray-800 p-2 text-center w-8">#</th>
+            <th className="border border-gray-800 p-2 text-center w-16">ردیف</th>
             <th className="border border-gray-800 p-2 text-right w-44">گروه و کل</th>
-            <th className="border border-gray-800 p-2 text-right w-48">حساب معین</th>
-            <th className="border border-gray-800 p-2 text-right">جزئیات تفصیلی (الزامات سناما)</th>
-            <th className="border border-gray-800 p-2 text-center w-32">بدهکار (ریال)</th>
-            <th className="border border-gray-800 p-2 text-center w-32">بستانکار (ریال)</th>
+            <th className="border border-gray-800 p-2 text-right">حساب معین</th>
+            <th className="border border-gray-800 p-2 text-center w-36">بدهکار (ریال)</th>
+            <th className="border border-gray-800 p-2 text-center w-36">بستانکار (ریال)</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((row, idx) => {
-            const grpObj  = allGroups.find(g => g.code === row.group);
+            const grpObj = allGroups.find(g => g.code === row.group);
             const acctObj = getAccounts(row.group).find(a => a.code === row.account);
-            const subObj  = getSubAccounts(row.group, row.account).find(s => s.code === row.subAccount);
-
-            const sanamaSummary = getRequiredRows(row.subAccount).map(rNum => {
-              const rDef = getSubAccountTitle(rNum);
-              const val  = row.sanamaFields?.[`sanama_${rNum}`];
-              if (!val || val === "0") return null;
-              return `${rDef?.title}: ${val}`;
-            }).filter(Boolean).join(" | ");
+            const subObj = getSubAccounts(row.group, row.account).find(s => s.code === row.subAccount);
 
             return (
               <tr key={row.id || idx} className="border-b border-gray-400">
@@ -700,9 +874,6 @@ function VoucherPrintContent({ header, rows, totalDebit, totalCredit, diff, toda
                 </td>
                 <td className="border border-gray-800 p-2 font-semibold">
                   {row.subAccount ? `${row.subAccount} - ${subObj?.title || ""}` : "—"}
-                </td>
-                <td className="border border-gray-800 p-2 text-[11px] text-gray-800">
-                  {sanamaSummary || row.desc || "—"}
                 </td>
                 <td className="border border-gray-800 p-2 text-left font-mono font-bold text-blue-950">
                   {row.debit ? parseNumber(row.debit).toLocaleString("fa-IR") : "۰"}
@@ -716,7 +887,7 @@ function VoucherPrintContent({ header, rows, totalDebit, totalCredit, diff, toda
         </tbody>
         <tfoot>
           <tr className="bg-gray-100 font-bold border-t-2 border-gray-800">
-            <td colSpan={4} className="border border-gray-800 p-2 text-left">جمع کل:</td>
+            <td colSpan={3} className="border border-gray-800 p-2 text-left">جمع کل:</td>
             <td className="border border-gray-800 p-2 text-left font-mono font-black text-blue-950">
               {totalDebit.toLocaleString("fa-IR")}
             </td>
@@ -744,19 +915,19 @@ function VoucherPrintContent({ header, rows, totalDebit, totalCredit, diff, toda
       {/* امضاهای رسمی */}
       <div className="mt-8 pt-4 border-t-2 border-gray-900 grid grid-cols-4 gap-4 text-center text-xs font-bold text-gray-900">
         <div className="border border-gray-300 p-3 rounded">
-          <div className="mb-8">تنظیم‌کننده</div>
+          <div className="mb-8">تنظیم حساب</div>
           <div className="text-[10px] text-gray-500 font-normal">امضا / تاریخ</div>
         </div>
         <div className="border border-gray-300 p-3 rounded">
-          <div className="mb-8">حسابدار / کارشناس</div>
-          <div className="text-[10px] text-gray-500 font-normal">امضا / تاریخ</div>
-        </div>
-        <div className="border border-gray-300 p-3 rounded">
-          <div className="mb-8">تاییدکننده (رئیس حسابداری)</div>
+          <div className="mb-8">رئیس اعتبارات</div>
           <div className="text-[10px] text-gray-500 font-normal">امضا / تاریخ</div>
         </div>
         <div className="border border-gray-300 p-3 rounded">
           <div className="mb-8">مدیر مالی / ذیحساب</div>
+          <div className="text-[10px] text-gray-500 font-normal">امضا / تاریخ</div>
+        </div>
+        <div className="border border-gray-300 p-3 rounded">
+          <div className="mb-8">رئیس دستگاه اجرایی</div>
           <div className="text-[10px] text-gray-500 font-normal">امضا / تاریخ</div>
         </div>
       </div>
@@ -1018,8 +1189,8 @@ export default function ManualDocument() {
             docNo: docNoVal,
             docDate: adjustDateToFiscalYear(doc.document_date || today, targetFY),
             docType: doc.rawHeader?.docType ||
-                     (doc.document_type === "CLOSING" ? "اختتامیه" :
-                      doc.document_type === "TRANSFER" ? "دائم" : "موقت"),
+              (doc.document_type === "CLOSING" ? "اختتامیه" :
+                doc.document_type === "TRANSFER" ? "دائم" : "موقت"),
             access: doc.rawHeader?.access || "عادی",
             desc: copySourceId ? `کپی از سند ${doc.document_number}` : (doc.description || ""),
             letterNo: doc.reference_number || "",
@@ -1080,16 +1251,7 @@ export default function ManualDocument() {
   }, [docId, copySourceId]);
 
   async function handleSave() {
-    // ─── بررسی انتخاب تاریخ سند ──────────────────────────────────────────
-    if (!header.docDate || !String(header.docDate).trim() || String(header.docDate).trim() === "—") {
-      setMessage({
-        type: "error",
-        text: "تاریخ سند را تنظیم کنید",
-      });
-      return;
-    }
-
-    // ─── بررسی سطوح دسترسی بر اساس نقش و مجوزها ───────────────────────────
+    // ─── ۱. بررسی سطوح دسترسی اولیه ───────────────────────────────────────
     if (currentUser && currentUser.role !== "admin") {
       if (docId) {
         if (!currentUser.permissions?.["doc.edit"]) {
@@ -1102,92 +1264,94 @@ export default function ManualDocument() {
           return;
         }
       }
-
-      // ─── بررسی محدودیت‌های مبالغ مالی کاربر ──────────────────────────────────
-      const totalDebit = rows.reduce((sum, r) => sum + parseNumber(r.debit), 0);
-      if (currentUser.financialLimitMax > 0 && totalDebit > currentUser.financialLimitMax) {
-        setMessage({
-          type: "error",
-          text: `مبلغ کل سند (${totalDebit.toLocaleString("fa-IR")} ریال) بیشتر از سقف مجاز تراکنش شما (${currentUser.financialLimitMax.toLocaleString("fa-IR")} ریال) است.`
-        });
-        return;
-      }
-      if (currentUser.financialLimitMin > 0 && totalDebit < currentUser.financialLimitMin) {
-        setMessage({
-          type: "error",
-          text: `مبلغ کل سند (${totalDebit.toLocaleString("fa-IR")} ریال) کمتر از حداقل مجاز تراکنش شما (${currentUser.financialLimitMin.toLocaleString("fa-IR")} ریال) است.`
-        });
-        return;
-      }
     }
 
-    // ─── بررسی خطاهایی که باعث ثبت سند به صورت پیش‌نویس (DRAFT) می‌شوند ───
-    let hasValidationError = false;
-    let validationErrorMessage = "";
+    // ─── ۲. جمع‌آوری خطاهایی که مانع تایید نهایی سند می‌شوند (اما مانع ذخیره پیش‌نویس نیستند) ───
+    const validationErrors = [];
 
-    // ۱. بررسی کامل بودن حداقل یک ردیف
+    // ۱. بررسی انتخاب تاریخ سند
+    if (!header.docDate || !String(header.docDate).trim() || String(header.docDate).trim() === "—") {
+      validationErrors.push("تاریخ سند تنظیم نشده است.");
+    }
+
+    // ۲. بررسی حداقل یک ردیف کامل
     const validRows = rows.filter(r => r.group && r.account && r.subAccount);
     if (validRows.length === 0) {
-      hasValidationError = true;
-      validationErrorMessage = "حداقل یک ردیف کامل (گروه، کل، معین) الزامی است.";
+      validationErrors.push("حداقل یک ردیف کامل (گروه، کل، معین) ثبت نشده است.");
     }
 
-    // ۲. بررسی تراز بودن سند (اختلاف بدهکار و بستانکار)
-    if (!hasValidationError && diff !== 0) {
-      hasValidationError = true;
-      validationErrorMessage = `سند ناتراز است (اختلاف: ${Math.abs(diff).toLocaleString("fa-IR")} ریال).`;
+    // ۳. بررسی تراز بودن سند
+    if (diff !== 0) {
+      validationErrors.push(`سند ناتراز است (اختلاف: ${Math.abs(diff).toLocaleString("fa-IR")} ریال).`);
     }
 
-    // ۳. بررسی موجودی معین‌های بدهکار
-    if (!hasValidationError) {
-      const balanceRows = rows
-        .filter(r => r.subAccount)
-        .map(r => ({
-          subAccount: r.subAccount,
-          debit:  parseNumber(r.debit),
-          credit: parseNumber(r.credit),
-        }));
+    // ۴. بررسی کنترل ماهیت و مانده کلیه حساب‌ها (از اولین سند تا سند جاری)
+    const balanceRows = rows
+      .filter(r => r.subAccount)
+      .map(r => ({
+        subAccount: r.subAccount,
+        debit: parseNumber(r.debit),
+        credit: parseNumber(r.credit),
+      }));
+    if (balanceRows.length > 0) {
       const balanceError = await checkDebitNatureBalance(balanceRows, docId || null);
       if (balanceError) {
-        hasValidationError = true;
-        validationErrorMessage = balanceError;
+        setMessage({ type: "error", text: balanceError });
+        setLoading(false);
+        return;
       }
     }
 
-    // ۴. بررسی الزامات سناما برای تمامی ردیف‌ها
-    if (!hasValidationError) {
-      for (let i = 0; i < rows.length; i++) {
-        const r = rows[i];
-        if (r.group && r.account && r.subAccount) {
-          const requiredRows = getRequiredRows(r.subAccount);
-          const creditTypeValue = r.sanamaFields?.["sanama_5"];
-          const isNotifiedCredit = creditTypeValue === "2" || creditTypeValue === "ابلاغی";
+    // ۵. بررسی الزامات سناما برای تمامی ردیف‌ها
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      if (r.group && r.account && r.subAccount) {
+        const requiredRows = getRequiredRows(r.subAccount);
+        const creditTypeValue = r.sanamaFields?.["sanama_5"];
+        const isNotifiedCredit = creditTypeValue === "2" || creditTypeValue === "ابلاغی";
 
-          for (const rowNum of requiredRows) {
-            if (rowNum === 15 && !isNotifiedCredit) continue;
+        const hasRow9 = requiredRows.includes(9);
+        const hasRow11 = requiredRows.includes(11);
+        const isRow9Filled = Boolean(r.sanamaFields?.["sanama_9"] && String(r.sanamaFields["sanama_9"]).trim() !== "" && String(r.sanamaFields["sanama_9"]) !== "0");
+        const isRow11Filled = Boolean(r.sanamaFields?.["sanama_11"] && String(r.sanamaFields["sanama_11"]).trim() !== "" && String(r.sanamaFields["sanama_11"]) !== "0");
 
-            const rowDef = getSubAccountTitle(rowNum);
-            const fieldKey = `sanama_${rowNum}`;
-            const isOptional = OPTIONAL_ROWS.has(rowNum);
-            const val = r.sanamaFields?.[fieldKey];
-            if (!isOptional && (!val || String(val).trim() === "")) {
-              hasValidationError = true;
-              validationErrorMessage = `در ردیف ${i + 1}، پر کردن فیلد الزامی سناما «${rowDef?.title ?? `ردیف ${rowNum}`}» برای معین ${r.subAccount} اجباری است.`;
-              break;
-            }
+        for (const rowNum of requiredRows) {
+          if (rowNum === 15 && !isNotifiedCredit) continue;
+
+          // غیرفعال و عدم الزام متقابل فصول اعتبارات (۹ و ۱۱)
+          if (rowNum === 11 && hasRow9 && isRow9Filled) continue;
+          if (rowNum === 9 && hasRow11 && isRow11Filled) continue;
+
+          const rowDef = getSubAccountTitle(rowNum);
+          const fieldKey = `sanama_${rowNum}`;
+          const isOptional = OPTIONAL_ROWS.has(rowNum);
+          const val = r.sanamaFields?.[fieldKey];
+          if (!isOptional && (!val || String(val).trim() === "")) {
+            validationErrors.push(`در ردیف ${i + 1}، فیلد سناما «${rowDef?.title ?? `ردیف ${rowNum}`}» برای معین ${r.subAccount} تکمیل نشده است.`);
+            break;
           }
         }
-        if (hasValidationError) break;
       }
     }
 
-    // ─── تعیین وضعیت سند به جهت ارسال به سرور ───
+    // ۶. بررسی سقف مبالغ مالی کاربر
+    if (currentUser && currentUser.role !== "admin") {
+      const totalDebit = rows.reduce((sum, r) => sum + parseNumber(r.debit), 0);
+      if (currentUser.financialLimitMax > 0 && totalDebit > currentUser.financialLimitMax) {
+        validationErrors.push(`مبلغ کل سند (${totalDebit.toLocaleString("fa-IR")} ریال) بیشتر از سقف مجاز کاربر است.`);
+      }
+      if (currentUser.financialLimitMin > 0 && totalDebit < currentUser.financialLimitMin) {
+        validationErrors.push(`مبلغ کل سند (${totalDebit.toLocaleString("fa-IR")} ریال) کمتر از حداقل مجاز کاربر است.`);
+      }
+    }
+
+    const hasValidationError = validationErrors.length > 0;
+
+    // ─── تعیین وضعیت نهایی جهت ذخیره در سرور ───
     let statusMapped = "DRAFT";
     if (!hasValidationError) {
       if (header.status === "رد شده") {
         statusMapped = "CANCELLED";
-      } else if (["پرداخت و دریافت", "دفترداری", "اعتمادات", "بایگانی"].includes(header.status)) {
-        statusMapped = "CONFIRMED";
       } else {
         statusMapped = "CONFIRMED";
       }
@@ -1234,10 +1398,10 @@ export default function ManualDocument() {
         ciphertext: encryptedHex,
       };
 
-      const res = docId 
+      const res = docId
         ? await api.put(`/api/documents/${docId}`, payload)
         : await api.post("/api/documents", payload);
-      
+
       const savedDocNumber = res.data.data.document_number;
       const savedDocId = res.data.data._id || docId;
 
@@ -1255,14 +1419,14 @@ export default function ManualDocument() {
       clearBalanceCache();
 
       if (hasValidationError) {
-        setMessage({ 
-          type: "error", 
-          text: `سند شماره ${savedDocNumber} به دلیل وجود ایراد به صورت پیش‌نویس ثبت گردید: (${validationErrorMessage}) — لطفاً پس از اصلاح موارد، مجدداً جهت ثبت نهایی کلیک کنید.` 
+        setMessage({
+          type: "warning",
+          text: `سند شماره ${savedDocNumber} به عنوان «پیش‌نویس» ذخیره شد (آخرین تغییرات شما حفظ گردید). مواردی که باید برای تایید نهایی اصلاح شوند: ${validationErrors.join(" | ")}`
         });
       } else {
-        setMessage({ 
-          type: "success", 
-          text: `تغییرات سند شماره ${savedDocNumber} با موفقیت نهایی و ثبت شد.` 
+        setMessage({
+          type: "success",
+          text: `سند شماره ${savedDocNumber} با موفقیت تایید و ثبت نهایی گردید.`
         });
       }
     } catch (err) {
@@ -1316,33 +1480,270 @@ export default function ManualDocument() {
 
   const addRow = useCallback(() => {
     const id = Date.now();
-    setRows((prev) => [...prev, { ...EMPTY_ROW, id }]);
+    setRows((prev) => [...prev, { ...EMPTY_ROW, id, lastTouchTimestamp: Date.now() }]);
     setActiveRowId(id);
   }, []);
 
   const updateRow = useCallback((id, updated) => {
-    setRows((prev) => prev.map((r) => (r.id === id ? updated : r)));
-  }, []);
-
-  const deleteRow = useCallback((id) => {
-    setRows((prev) => {
-      const next = prev.filter((r) => r.id !== id);
-      if (activeRowId === id && next.length) setActiveRowId(next[0].id);
-      return next.length ? next : [{ ...EMPTY_ROW, id: Date.now() }];
-    });
-  }, [activeRowId]);
-
-  const handleSanamaChange = useCallback((rowId, fieldKey, val) => {
     setRows((prev) =>
       prev.map((r) =>
-        r.id === rowId
-          ? { ...r, sanamaFields: { ...r.sanamaFields, [fieldKey]: val } }
+        r.id === id
+          ? { ...updated, lastTouchTimestamp: updated.lastTouchTimestamp || Date.now() }
           : r
       )
     );
   }, []);
 
-  const totalDebit  = useMemo(() => rows.reduce((s, r) => s + parseNumber(r.debit),  0), [rows]);
+  const deleteRow = useCallback((id) => {
+    setRows((prev) => {
+      if (prev.length <= 1) {
+        return [{ ...EMPTY_ROW, id: Date.now() }];
+      }
+      return prev.filter((r) => r.id !== id);
+    });
+    setActiveRowId((curr) => (curr === id ? null : curr));
+  }, []);
+
+  const handleConfirmSanamaRow = useCallback((rowId) => {
+    setRows((prev) =>
+      prev.map((r) => (r.id === rowId ? { ...r, isSanamaConfirmed: true } : r))
+    );
+  }, []);
+
+  const handleEditSanamaRow = useCallback((rowId) => {
+    setActiveRowId(rowId);
+    setRows((prev) =>
+      prev.map((r) =>
+        r.id === rowId
+          ? { ...r, isSanamaConfirmed: false, lastTouchTimestamp: Date.now() }
+          : r
+      )
+    );
+  }, []);
+
+  const handleSanamaChange = useCallback((rowId, fieldKey, val) => {
+    setRows((prev) =>
+      prev.map((r) => {
+        if (r.id !== rowId) return r;
+
+        const reqRows = getRequiredRows(r.subAccount);
+        const hasBothChapters = reqRows.includes(9) && reqRows.includes(11);
+        const newSanamaFields = { ...r.sanamaFields, [fieldKey]: val };
+
+        if (hasBothChapters) {
+          if (fieldKey === "sanama_9" && val && String(val).trim() !== "" && String(val) !== "0") {
+            newSanamaFields["sanama_11"] = "";
+          } else if (fieldKey === "sanama_11" && val && String(val).trim() !== "" && String(val) !== "0") {
+            newSanamaFields["sanama_9"] = "";
+          }
+        }
+
+        return {
+          ...r,
+          lastTouchTimestamp: Date.now(),
+          sanamaFields: newSanamaFields,
+        };
+      })
+    );
+  }, []);
+
+  const handleCopySanamaFields = useCallback((targetRowId, sourceRowId) => {
+    const targetRow = rows.find((r) => r.id === targetRowId);
+    const sourceRow = rows.find((r) => r.id === sourceRowId);
+
+    if (!targetRow || !sourceRow) return;
+
+    const sourceIdx = rows.findIndex((r) => r.id === sourceRowId) + 1;
+    const targetIdx = rows.findIndex((r) => r.id === targetRowId) + 1;
+
+    const targetReqRows = getRequiredRows(targetRow.subAccount);
+    const sourceReqRows = getRequiredRows(sourceRow.subAccount);
+
+    if (targetReqRows.length === 0) {
+      setMessage({
+        type: "error",
+        text: `سطر ${targetIdx} فیلد تفصیلی سناما ندارد.`,
+      });
+      return;
+    }
+
+    if (sourceReqRows.length === 0) {
+      setMessage({
+        type: "error",
+        text: `سطر ${sourceIdx} فیلد تفصیلی برای کپی ندارد.`,
+      });
+      return;
+    }
+
+    // استخراج فیلدهای تفصیلی مشترک بین دو گروه
+    const commonReqRows = targetReqRows.filter((rNum) => sourceReqRows.includes(rNum));
+
+    if (commonReqRows.length === 0) {
+      setMessage({
+        type: "error",
+        text: `امکان کپی تفصیلی وجود ندارد: هیچ فیلد تفصیلی مشترکی بین سطر ${sourceIdx} و سطر ${targetIdx} وجود ندارد.`,
+      });
+      return;
+    }
+
+    const copiedFields = { ...(targetRow.sanamaFields || {}) };
+    let copiedCount = 0;
+
+    commonReqRows.forEach((rNum) => {
+      const fieldKey = `sanama_${rNum}`;
+      const val = sourceRow.sanamaFields?.[fieldKey];
+      if (val !== undefined && val !== null && val !== "") {
+        copiedFields[fieldKey] = val;
+        copiedCount++;
+      }
+    });
+
+    setRows((prev) =>
+      prev.map((r) =>
+        r.id === targetRowId
+          ? {
+            ...r,
+            sanamaFields: copiedFields,
+            lastTouchTimestamp: Date.now(),
+          }
+          : r
+      )
+    );
+
+    const sortedTarget = [...targetReqRows].sort((a, b) => a - b);
+    const sortedSource = [...sourceReqRows].sort((a, b) => a - b);
+    const isFullyIdentical = targetReqRows.length === sourceReqRows.length &&
+      sortedTarget.every((val, idx) => val === sortedSource[idx]);
+
+    if (copiedCount === 0) {
+      setMessage({
+        type: "warning",
+        text: `فیلدهای تفصیلی مشترکی (${commonReqRows.length} فیلد) بین سطر ${sourceIdx} و سطر ${targetIdx} وجود دارد، اما هیچ مقداری در سطر ${sourceIdx} برای آنها وارد نشده بود.`,
+      });
+    } else if (isFullyIdentical) {
+      setMessage({
+        type: "success",
+        text: `اطلاعات تفصیلی از سطر ${sourceIdx} به سطر ${targetIdx} با موفقیت کپی گردید.`,
+      });
+    } else {
+      setMessage({
+        type: "success",
+        text: `اطلاعات فیلدهای تفصیلی مشابه (${copiedCount} فیلد مشترک) با موفقیت از سطر ${sourceIdx} به سطر ${targetIdx} کپی گردید.`,
+      });
+    }
+  }, [rows]);
+
+  const handleCopyRow = useCallback((targetRowId, sourceRowId) => {
+    const targetRow = rows.find((r) => r.id === targetRowId);
+    const sourceRow = rows.find((r) => r.id === sourceRowId);
+
+    if (!targetRow || !sourceRow) return;
+
+    const sourceIdx = rows.findIndex((r) => r.id === sourceRowId) + 1;
+    const targetIdx = rows.findIndex((r) => r.id === targetRowId) + 1;
+
+    setRows((prev) =>
+      prev.map((r) =>
+        r.id === targetRowId
+          ? {
+            ...r,
+            group: sourceRow.group || "",
+            account: sourceRow.account || "",
+            subAccount: sourceRow.subAccount || "",
+            debit: sourceRow.debit || "",
+            credit: sourceRow.credit || "",
+            checkDate: sourceRow.checkDate || "",
+            checkNo: sourceRow.checkNo || "",
+            createYear: sourceRow.createYear || "",
+            personFlag: sourceRow.personFlag || false,
+            checkFlag: sourceRow.checkFlag || false,
+            desc: sourceRow.desc || "",
+            sanamaFields: sourceRow.sanamaFields ? { ...sourceRow.sanamaFields } : {},
+            isSanamaConfirmed: sourceRow.isSanamaConfirmed ?? false,
+            lastTouchTimestamp: Date.now(),
+          }
+          : r
+      )
+    );
+
+    setMessage({
+      type: "success",
+      text: `اطلاعات کامل سطر ${sourceIdx} با موفقیت به سطر ${targetIdx} کپی گردید.`,
+    });
+  }, [rows]);
+
+  const handleDuplicateRow = useCallback((sourceRowId) => {
+    const sourceRow = rows.find((r) => r.id === sourceRowId);
+    if (!sourceRow) return;
+
+    const sourceIdx = rows.findIndex((r) => r.id === sourceRowId) + 1;
+    const newId = Date.now();
+    const newRow = {
+      ...sourceRow,
+      id: newId,
+      sanamaFields: sourceRow.sanamaFields ? { ...sourceRow.sanamaFields } : {},
+      lastTouchTimestamp: Date.now(),
+    };
+
+    setRows((prev) => {
+      const idx = prev.findIndex((r) => r.id === sourceRowId);
+      if (idx === -1) return [...prev, newRow];
+      const next = [...prev];
+      next.splice(idx + 1, 0, newRow);
+      return next;
+    });
+
+    setActiveRowId(newId);
+
+    setMessage({
+      type: "success",
+      text: `سطر ${sourceIdx} با موفقیت تکثیر و ایجاد گردید.`,
+    });
+  }, [rows]);
+
+  const activeTargetRow = useMemo(() => {
+    return rows.find((r) => r.id === activeRowId) || rows[rows.length - 1];
+  }, [rows, activeRowId]);
+
+  const activeRowIndex = useMemo(() => {
+    if (!activeTargetRow) return 1;
+    const idx = rows.findIndex((r) => r.id === activeTargetRow.id);
+    return idx >= 0 ? idx + 1 : 1;
+  }, [rows, activeTargetRow]);
+
+  const prevRowForActive = useMemo(() => {
+    if (activeRowIndex <= 1) return null;
+    return rows[activeRowIndex - 2];
+  }, [rows, activeRowIndex]);
+
+  const otherSourceRows = useMemo(() => {
+    if (!activeTargetRow) return rows;
+    return rows.filter((r) => r.id !== activeTargetRow.id);
+  }, [rows, activeTargetRow]);
+
+  const sortedSanamaRows = useMemo(() => {
+    const eligible = rows.filter(
+      (r) => r.subAccount && getRequiredRows(r.subAccount).length > 0
+    );
+    return eligible.slice().sort((a, b) => {
+      // 1. Active row comes first
+      if (a.id === activeRowId) return -1;
+      if (b.id === activeRowId) return 1;
+
+      // 2. Unconfirmed rows come before confirmed rows
+      const aConf = Boolean(a.isSanamaConfirmed);
+      const bConf = Boolean(b.isSanamaConfirmed);
+      if (!aConf && bConf) return -1;
+      if (aConf && !bConf) return 1;
+
+      // 3. Most recently touched / selected row comes first
+      const tA = a.lastTouchTimestamp || a.id || 0;
+      const tB = b.lastTouchTimestamp || b.id || 0;
+      return tB - tA;
+    });
+  }, [rows, activeRowId]);
+
+  const totalDebit = useMemo(() => rows.reduce((s, r) => s + parseNumber(r.debit), 0), [rows]);
   const totalCredit = useMemo(() => rows.reduce((s, r) => s + parseNumber(r.credit), 0), [rows]);
   const diff = totalDebit - totalCredit;
 
@@ -1362,18 +1763,17 @@ export default function ManualDocument() {
 
   return (
     <PageShell>
-      <PageHeader 
-        title={copySourceId ? "کپی سند" : (docId ? "ویرایش سند مالی" : "صدور سند دستی")} 
-        description={copySourceId ? "صدور سند جدید بر اساس سند مبدا" : (docId ? `ویرایش سند شماره ${header.docNo}` : "ثبت و ویرایش اسناد حسابداری")} 
+      <PageHeader
+        title={copySourceId ? "کپی سند" : (docId ? "ویرایش سند مالی" : "صدور سند دستی")}
+        description={copySourceId ? "صدور سند جدید بر اساس سند مبدا" : (docId ? `ویرایش سند شماره ${header.docNo}` : "ثبت و ویرایش اسناد حسابداری")}
       />
 
       {message && (
         <div
-          className={`mb-4 flex items-center gap-2 rounded-xl border px-4 py-3 text-xs transition-all ${
-            message.type === "success"
-              ? "border-green-200 bg-green-50 text-green-800"
-              : "border-rose-200 bg-rose-50 text-rose-800"
-          }`}
+          className={`mb-4 flex items-center gap-2 rounded-xl border px-4 py-3 text-xs transition-all ${message.type === "success"
+            ? "border-green-200 bg-green-50 text-green-800"
+            : "border-rose-200 bg-rose-50 text-rose-800"
+            }`}
           dir="rtl"
         >
           {message.type === "success" ? (
@@ -1403,7 +1803,7 @@ export default function ManualDocument() {
                   <div className="flex-1">
                     <SearchableSelect
                       value={header.fiscalYear || selectedFiscalYear}
-                      onChange={() => {}}
+                      onChange={() => { }}
                       options={(fiscalYears.length > 0 ? fiscalYears : [{ year: header.fiscalYear || selectedFiscalYear }]).map((fy) => ({ value: String(fy.year), label: `${fy.year}` }))}
                       placeholder="دوره مالی..."
                       searchable={false}
@@ -1488,9 +1888,8 @@ export default function ManualDocument() {
                       <button
                         key={s}
                         onClick={() => setH("status", s)}
-                        className={`rounded-full px-2.5 py-1 text-[10px] font-medium text-white transition-all ${
-                          header.status === s ? statusColors[s] + " ring-2 ring-offset-1 ring-current" : "bg-muted text-muted-foreground"
-                        }`}
+                        className={`rounded-full px-2.5 py-1 text-[10px] font-medium text-white transition-all ${header.status === s ? statusColors[s] + " ring-2 ring-offset-1 ring-current" : "bg-muted text-muted-foreground"
+                          }`}
                       >
                         {s}
                       </button>
@@ -1507,11 +1906,54 @@ export default function ManualDocument() {
       <div>
         <Card className="mb-3">
           <div className="flex items-center justify-between px-3 py-2 border-b bg-muted/30" dir="rtl">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Button size="sm" variant="default" className="gap-1.5 h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-medium" onClick={addRow}>
                 <Plus className="h-4 w-4" />
                 درج سطر
               </Button>
+
+              {/* دکمه‌های کپی سطر (شامل کپی سطر از سطر قبل و کپی سطر از...) */}
+              {rows.length > 1 && activeTargetRow && (
+                <div className="flex items-center gap-1.5">
+                  {prevRowForActive && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1 h-8 text-xs bg-blue-50/90 hover:bg-blue-100 text-blue-800 border-blue-200 font-medium"
+                      onClick={() => handleCopyRow(activeTargetRow.id, prevRowForActive.id)}
+                      title={`کپی تمام اطلاعات سطر ${activeRowIndex - 1} به سطر ${activeRowIndex}`}
+                    >
+                      <Copy className="h-3.5 w-3.5 text-blue-600" />
+                      کپی سطر از سطر قبل ({activeRowIndex - 1})
+                    </Button>
+                  )}
+                  {otherSourceRows.length > 0 && (
+                    <select
+                      className="h-8 text-xs rounded-md border border-blue-200 bg-blue-50/50 text-blue-900 px-2 py-0 cursor-pointer font-medium hover:bg-blue-100/70"
+                      defaultValue=""
+                      onChange={(e) => {
+                        const sourceId = Number(e.target.value);
+                        if (sourceId && activeTargetRow) {
+                          handleCopyRow(activeTargetRow.id, sourceId);
+                          e.target.value = "";
+                        }
+                      }}
+                    >
+                      <option value="" disabled>کپی سطر {activeRowIndex} از...</option>
+                      {otherSourceRows.map((srcRow) => {
+                        const srcIdx = rows.findIndex((r) => r.id === srcRow.id) + 1;
+                        const title = srcRow.subAccount || srcRow.account || srcRow.group || "سطر بدون حساب";
+                        const amt = srcRow.debit ? `بدهکار: ${srcRow.debit}` : (srcRow.credit ? `بستانکار: ${srcRow.credit}` : "");
+                        return (
+                          <option key={srcRow.id} value={srcRow.id}>
+                            سطر {srcIdx} ({title}{amt ? ` - ${amt}` : ""})
+                          </option>
+                        );
+                      })}
+                    </select>
+                  )}
+                </div>
+              )}
             </div>
             <span className="text-xs font-semibold text-muted-foreground">
               جدول ردیف‌های سند
@@ -1528,7 +1970,7 @@ export default function ManualDocument() {
                     <th className="px-2 py-2.5 text-right w-56">معین</th>
                     <th className="px-2 py-2.5 text-right w-36 text-blue-600">بدهکار</th>
                     <th className="px-2 py-2.5 text-right w-36 text-rose-600">بستانکار</th>
-                    <th className="px-2 py-2.5 text-center w-10"></th>
+                    <th className="px-2 py-2.5 text-center w-16">عملیات</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1541,26 +1983,27 @@ export default function ManualDocument() {
                       onActivate={() => setActiveRowId(row.id)}
                       onChange={(updated) => updateRow(row.id, updated)}
                       onDelete={() => deleteRow(row.id)}
+                      onDuplicate={() => handleDuplicateRow(row.id)}
                     />
                   ))}
                 </tbody>
               </table>
             </div>
 
-            {/* الزامات سناما — همه ردیف‌هایی که الزامات دارند */}
-            {rows.some(r => r.subAccount && getRequiredRows(r.subAccount).length > 0) && (
+            {/* الزامات سناما — همه ردیف‌هایی که الزامات دارند با اولویت ردیف فعال و آخرین گروه انتخابی */}
+            {sortedSanamaRows.length > 0 && (
               <div className="border-t">
-                {rows.map((row) => {
-                  const reqs = getRequiredRows(row.subAccount);
-                  if (!reqs.length) return null;
-                  return (
-                    <SanamaExtraFields
-                      key={row.id}
-                      row={row}
-                      onSanamaChange={(fieldKey, val) => handleSanamaChange(row.id, fieldKey, val)}
-                    />
-                  );
-                })}
+                {sortedSanamaRows.map((row) => (
+                  <SanamaExtraFields
+                    key={row.id}
+                    row={row}
+                    allRows={rows}
+                    onSanamaChange={(fieldKey, val) => handleSanamaChange(row.id, fieldKey, val)}
+                    onConfirmRow={(rowId) => handleConfirmSanamaRow(rowId)}
+                    onEditRow={(rowId) => handleEditSanamaRow(rowId)}
+                    onCopySanama={(targetRowId, sourceRowId) => handleCopySanamaFields(targetRowId, sourceRowId)}
+                  />
+                ))}
               </div>
             )}
 
@@ -1596,9 +2039,9 @@ export default function ManualDocument() {
             {/* فیلدهای کدینگ — چهار ستون */}
             <div className="grid grid-cols-2 gap-x-10 gap-y-2.5 md:grid-cols-4" dir="rtl">
               {[
-                { label: "گروه",  value: activeRow?.group      || "—" },
-                { label: "کل",    value: activeRow?.account    || "—" },
-                { label: "معین",  value: activeRow?.subAccount || "—" },
+                { label: "گروه", value: activeRow?.group || "—" },
+                { label: "کل", value: activeRow?.account || "—" },
+                { label: "معین", value: activeRow?.subAccount || "—" },
                 {
                   label: "ماهیت",
                   value: (() => {
@@ -1606,22 +2049,22 @@ export default function ManualDocument() {
                     if (!row?.subAccount) return "—";
                     const subs = getSubAccounts(row.group, row.account);
                     const nature = subs.find((s) => s.code === row.subAccount)?.nature;
-                    return nature === "debit"  ? "بدهکار"  :
-                           nature === "credit" ? "بستانکار":
-                           nature === "both"   ? "هر دو"   : "—";
+                    return nature === "debit" ? "بدهکار" :
+                      nature === "credit" ? "بستانکار" :
+                        nature === "both" ? "هر دو" : "—";
                   })(),
                 },
                 ...(needsSanamaFields(activeRow?.subAccount)
                   ? getRequiredRows(activeRow.subAccount).map((rowNum) => {
-                      const rowDef   = getSubAccountTitle(rowNum);
-                      const fieldKey = `sanama_${rowNum}`;
-                      const val      = activeRow?.sanamaFields?.[fieldKey];
-                      const defVal   = rowDef?.default ?? "0";
-                      return {
-                        label: rowDef?.title ?? `ردیف ${rowNum}`,
-                        value: val && val !== defVal ? String(val) : "—",
-                      };
-                    })
+                    const rowDef = getSubAccountTitle(rowNum);
+                    const fieldKey = `sanama_${rowNum}`;
+                    const val = activeRow?.sanamaFields?.[fieldKey];
+                    const defVal = rowDef?.default ?? "0";
+                    return {
+                      label: rowDef?.title ?? `ردیف ${rowNum}`,
+                      value: val && val !== defVal ? String(val) : "—",
+                    };
+                  })
                   : []),
               ].map(({ label, value }) => (
                 <div key={label} className="flex items-center gap-2">
