@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
+import { useFiscalYear } from "@/context/FiscalYearContext";
 import { PageShell } from "@/components/layout/PageShell";
 import { StaggerContainer, StaggerItem } from "@/components/motion/AnimatedPage";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -13,12 +14,12 @@ import { Badge } from "@/components/ui/badge";
 import {
   LayoutDashboard, FileText, CreditCard, BookOpen,
   Shield, PiggyBank, ArrowLeftRight, TrendingUp,
-  AlertTriangle, CheckCircle, Clock, ChevronLeft,
+  AlertTriangle, CheckCircle, Clock, ChevronLeft, ChevronDown,
   Plus, Trash2, Pencil, Landmark, ListChecks,
   Users, BadgePercent, Sparkles, Bot, Zap,
   BarChart3, PieChart, Layers, ArrowUpRight, CheckCircle2,
   Wallet, Boxes, Coins, FileSpreadsheet, Cpu,
-  Activity, Search
+  Activity, Search, UserCheck, Briefcase
 } from "lucide-react";
 import api from "@/api";
 
@@ -379,6 +380,7 @@ export default function Dashboard() {
   const auth = useAuth() || {};
   const user = auth.user;
   const navigate = useNavigate();
+  const { selectedFiscalYear, setSelectedFiscalYear, fiscalYears } = useFiscalYear();
 
   const [activeModal, setActiveModal] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -490,37 +492,72 @@ export default function Dashboard() {
               </span>
             </div>
 
-            <h1 className="text-2xl md:text-4xl font-black tracking-tight leading-snug">
-              خوش آمدید،{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-l from-accent via-amber-300 to-amber-100 font-black drop-shadow-md">
-                {user?.username || "مدیر مالی گرامی"}
-              </span>
-            </h1>
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-2xl md:text-4xl font-black tracking-tight leading-snug">
+                خوش آمدید
+              </h1>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="flex items-center gap-1.5 font-bold text-slate-100 bg-white/10 backdrop-blur-md px-3 py-1 rounded-xl border border-white/15 text-xs shadow-sm">
+                  <UserCheck className="h-3.5 w-3.5 text-amber-300" />
+                  {user?.firstName && user?.lastName
+                    ? `${user.firstName} ${user.lastName}`
+                    : (user?.username || "مدیر سیستم")}
+                </span>
+                <span className="flex items-center gap-1.5 bg-emerald-500/20 backdrop-blur-md px-3 py-1 rounded-xl border border-emerald-400/30 text-emerald-200 font-semibold text-xs shadow-sm">
+                  <Briefcase className="h-3.5 w-3.5 text-emerald-300" />
+                  سمت: {user?.position || user?.role || "کارشناس حسابداری"}
+                </span>
+              </div>
+            </div>
 
             <p className="text-xs md:text-sm text-slate-300 max-w-2xl leading-relaxed">
               امروز {now} | کلیه زیرسیستم‌های حسابداری، بودجه، خزانه، انبار و حقوق و دستمزد آماده بهره‌برداری می‌باشند.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0">
             <motion.button
               whileHover={{ scale: 1.04, y: -2 }}
               whileTap={{ scale: 0.96 }}
               onClick={() => navigate("/ai/chat")}
-              className="flex items-center gap-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white px-5 py-3 rounded-2xl shadow-xl shadow-purple-900/40 border border-purple-400/30 text-xs md:text-sm font-black"
+              className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white px-4 py-2.5 rounded-2xl shadow-xl shadow-purple-900/40 border border-purple-400/30 text-xs md:text-sm font-black whitespace-nowrap"
             >
-              <Bot className="h-5 w-5 text-amber-300 animate-bounce" />
+              <Bot className="h-4.5 w-4.5 text-amber-300 animate-bounce" />
               <span>دستیار هوشمند مالی (AI)</span>
               <ArrowUpRight className="h-4 w-4 opacity-80" />
             </motion.button>
 
-            <div className="flex items-center gap-3 bg-white/10 backdrop-blur-md border border-white/15 px-4 py-2.5 rounded-2xl shadow-lg">
-              <div className="h-9 w-9 rounded-xl bg-accent/20 border border-accent/40 flex items-center justify-center text-accent">
-                <Landmark className="h-5 w-5" />
+            <div className="flex items-center gap-2.5 bg-white/10 backdrop-blur-md border border-white/15 px-3.5 py-2 rounded-2xl shadow-lg relative transition-all hover:bg-white/15">
+              <div className="h-8.5 w-8.5 rounded-xl bg-accent/20 border border-accent/40 flex items-center justify-center text-accent shrink-0">
+                <Landmark className="h-4.5 w-4.5" />
               </div>
               <div className="text-right">
-                <span className="text-[10px] text-slate-300 font-semibold block">دوره مالی فعال</span>
-                <span className="text-xs font-black text-amber-300">سال مالی ۱۴۰۵</span>
+                <label htmlFor="banner-fiscal-year-select" className="text-[10px] text-slate-300 font-semibold block cursor-pointer leading-none mb-1">
+                  دوره مالی فعال
+                </label>
+                <div className="relative flex items-center">
+                  <select
+                    id="banner-fiscal-year-select"
+                    value={selectedFiscalYear}
+                    onChange={(e) => setSelectedFiscalYear(e.target.value)}
+                    className="bg-transparent text-xs font-black text-amber-300 focus:outline-none cursor-pointer border-none p-0 pl-4 appearance-none font-bold text-right"
+                  >
+                    {fiscalYears && fiscalYears.length > 0 ? (
+                      fiscalYears.map((fy) => (
+                        <option key={fy._id || fy.year} value={String(fy.year)} className="bg-slate-900 text-white font-semibold">
+                          سال مالی {fy.year}
+                        </option>
+                      ))
+                    ) : (
+                      <>
+                        <option value="1405" className="bg-slate-900 text-white font-semibold">سال مالی ۱۴۰۵</option>
+                        <option value="1404" className="bg-slate-900 text-white font-semibold">سال مالی ۱۴۰۴</option>
+                        <option value="1403" className="bg-slate-900 text-white font-semibold">سال مالی ۱۴۰۳</option>
+                      </>
+                    )}
+                  </select>
+                  <ChevronDown className="h-3.5 w-3.5 text-amber-300 pointer-events-none absolute left-0 top-1/2 -translate-y-1/2" />
+                </div>
               </div>
             </div>
           </div>

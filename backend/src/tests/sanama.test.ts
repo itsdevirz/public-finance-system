@@ -136,5 +136,37 @@ describe("🏛️ SANAMA Protocol Edition 19 Test Suite", () => {
       assert.strictEqual(items[0].SummaryProgressDeptor, 300);
       assert.strictEqual(items[0].SummaryProgressCreditor, 50);
     });
+
+    it("should correctly populate default CreditType for account 21001 without SANAMA_WARN_GAP", () => {
+      const docs = [
+        {
+          status: "CONFIRMED",
+          fiscal_year: "1403",
+          month: "3",
+          lines: [
+            { account_code: "21001", debit: 20881999999, credit: 0, nominee_code: "A311112345678901" }
+          ]
+        }
+      ];
+
+      const items = SanamaMapper.mapDocumentsToReportItems(docs, { fiscalYear: "1403", month: "3" });
+      assert.strictEqual(items.length, 1);
+      assert.strictEqual(items[0].AccCode, "21001");
+      assert.strictEqual(items[0].CreditType, "0");
+
+      const header: SanamaHeader = {
+        protocolName: "SANAMA",
+        protocolVer: "3.2",
+        protocolType: "MonthlyProtocol",
+        mainOrgID: "10100000000",
+        mainOrgCode: "400367",
+        year: "1403",
+        month: "03"
+      };
+
+      const result = SanamaValidator.validateAll(header, items, []);
+      const gap21001 = result.warnings.filter((w) => w.code === "SANAMA_WARN_GAP" && w.accCode === "21001");
+      assert.strictEqual(gap21001.length, 0, "Account 21001 should not produce SANAMA_WARN_GAP for CreditType");
+    });
   });
 });

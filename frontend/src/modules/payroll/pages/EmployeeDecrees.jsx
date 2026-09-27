@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useAssets } from "@/context/AssetContext";
+import { useFiscalYear } from "@/context/FiscalYearContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -141,6 +142,7 @@ export default function EmployeeDecrees() {
   const {
     employees, employeeDecrees, addConfig, updateConfig, deleteConfig, refreshAllConfigs
   } = useAssets();
+  const { selectedFiscalYear } = useFiscalYear();
 
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -172,15 +174,15 @@ export default function EmployeeDecrees() {
     if (!editingId && employeeDecrees && employeeDecrees.length > 0) {
       const numbers = employeeDecrees
         .map(d => d.decreeNo)
-        .filter(n => n && n.startsWith("DEC-1405-"))
-        .map(n => Number(n.replace("DEC-1405-", "")))
+        .filter(n => n && n.startsWith(`DEC-${selectedFiscalYear || "1405"}-`))
+        .map(n => Number(n.replace(`DEC-${selectedFiscalYear || "1405"}-`, "")))
         .filter(num => !isNaN(num));
       const nextNum = numbers.length > 0 ? Math.max(...numbers) + 1 : employeeDecrees.length + 1;
-      setForm(f => ({ ...f, decreeNo: `DEC-1405-${String(nextNum).padStart(3, "0")}` }));
+      setForm(f => ({ ...f, decreeNo: `DEC-${selectedFiscalYear || "1405"}-${String(nextNum).padStart(3, "0")}` }));
     } else if (!editingId) {
-      setForm(f => ({ ...f, decreeNo: "DEC-1405-001" }));
+      setForm(f => ({ ...f, decreeNo: `DEC-${selectedFiscalYear || "1405"}-001` }));
     }
-  }, [employeeDecrees, editingId, showForm]);
+  }, [employeeDecrees, editingId, showForm, selectedFiscalYear]);
 
   // Dropdown options for employees
   const employeeOptions = useMemo(() => {
@@ -213,16 +215,21 @@ export default function EmployeeDecrees() {
       const empName = emp ? `${emp.firstName} ${emp.lastName}` : "";
       const empCode = emp ? emp.code : "";
       const searchLower = search.toLowerCase();
+
+      const dYear = String(d.fiscalYear || d.fiscal_year || d.issueDate?.slice(0, 4) || d.effectiveDate?.slice(0, 4) || "");
+      const matchYear = !selectedFiscalYear || !dYear || dYear === String(selectedFiscalYear);
+
       return (
-        !search ||
-        d.decreeNo?.toLowerCase().includes(searchLower) ||
-        empName.toLowerCase().includes(searchLower) ||
-        empCode.toLowerCase().includes(searchLower) ||
-        d.decreeTitle?.toLowerCase().includes(searchLower) ||
-        d.jobTitle?.toLowerCase().includes(searchLower)
+        matchYear &&
+        (!search ||
+          d.decreeNo?.toLowerCase().includes(searchLower) ||
+          empName.toLowerCase().includes(searchLower) ||
+          empCode.toLowerCase().includes(searchLower) ||
+          d.decreeTitle?.toLowerCase().includes(searchLower) ||
+          d.jobTitle?.toLowerCase().includes(searchLower))
       );
     });
-  }, [employeeDecrees, employees, search]);
+  }, [employeeDecrees, employees, search, selectedFiscalYear]);
 
   function handleChange(field, val) {
     setForm(f => ({ ...f, [field]: val }));

@@ -10,6 +10,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import { cn } from "@/lib/utils";
 import api, { logFileDownloadAudit } from "@/api";
+import { useFiscalYear } from "@/context/FiscalYearContext";
 import { validateEgressPermission } from "@/lib/egressValidator";
 
 const PERSIAN_MONTHS = [
@@ -44,6 +45,7 @@ const SOURCE_TYPE_OPTIONS = [
 ];
 
 export default function SanamaExport() {
+  const { selectedFiscalYear } = useFiscalYear();
   const [loading, setLoading] = useState(false);
   const [validating, setValidating] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
@@ -56,7 +58,11 @@ export default function SanamaExport() {
   // ── ۱. پارامترهای اصلی خروجی ──
   const [exportType, setExportType] = useState("monthly"); // "monthly" | "final"
   const [month, setMonth] = useState("3");
-  const [fiscalYear, setFiscalYear] = useState("1403");
+  const [fiscalYear, setFiscalYear] = useState(selectedFiscalYear || "1405");
+
+  useEffect(() => {
+    if (selectedFiscalYear) setFiscalYear(selectedFiscalYear);
+  }, [selectedFiscalYear]);
 
   // ── ۲. فیلترهای دامنه ──
   const [rangeMode, setRangeMode] = useState("all");

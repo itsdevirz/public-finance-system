@@ -279,7 +279,7 @@ export function SearchableSelect({
         onKeyDown={handleKeyDown}
         dir="rtl"
         className={[
-          "group relative flex w-full items-center justify-between gap-2",
+          "group relative flex w-full items-center justify-between gap-2 min-w-0 overflow-hidden",
           "h-9 rounded-lg border border-input/90 bg-background/90 px-3",
           "text-xs transition-all duration-150 cursor-pointer select-none",
           "hover:border-primary/70 hover:bg-background hover:shadow-xs",
@@ -292,7 +292,7 @@ export function SearchableSelect({
         <span
           title={selectedLabel || placeholder}
           className={[
-            "flex-1 truncate text-right leading-tight transition-colors",
+            "flex-1 truncate text-right leading-tight transition-colors min-w-0 overflow-hidden",
             selectedLabel ? "font-semibold text-foreground" : "text-muted-foreground/70 font-normal",
           ].join(" ")}
         >

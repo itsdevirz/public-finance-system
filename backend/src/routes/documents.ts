@@ -176,14 +176,114 @@ router.post("/migrate", async (c) => {
   return c.json({ message: `${updated} سند به‌روزرسانی شد`, updated, total: docs.length });
 });
 
+export async function getNextDocumentNumber(fiscalYear: number | string): Promise<string> {
+  const db = getDb();
+  const fyNum = Number(fiscalYear) || 1405;
+  const fyStr = String(fyNum);
+
+  const docs = await db
+    .collection<JournalDocument>("journal_documents")
+    .find({
+      $or: [
+        { fiscal_year: fyNum },
+        { fiscal_year: fyStr },
+        { "rawHeader.fiscalYear": fyStr }
+      ]
+    })
+    .project({ document_number: 1, rawHeader: 1 })
+    .toArray();
+
+  let maxNo = 0;
+  for (const d of docs) {
+    const rawNo = String(d.document_number || d.rawHeader?.docNo || "").trim();
+    const cleanNum = rawNo.replace(/\D/g, "");
+    const num = parseInt(cleanNum, 10);
+    if (!isNaN(num) && num > 0 && num < 100000000) {
+      if (num > maxNo) {
+        maxNo = num;
+      }
+    }
+  }
+
+  return String(maxNo + 1);
+}
+
+export async function fixAndMigrateDocumentNumbers(): Promise<{ updated: number }> {
+  const db = getDb();
+  const docs = await db
+    .collection<JournalDocument>("journal_documents")
+    .find()
+    .sort({ _id: 1 })
+    .toArray();
+
+  const fyGroups = new Map<string, JournalDocument[]>();
+  for (const doc of docs) {
+    const fy = String(doc.fiscal_year || "1405");
+    if (!fyGroups.has(fy)) {
+      fyGroups.set(fy, []);
+    }
+    fyGroups.get(fy)!.push(doc);
+  }
+
+  let updatedCount = 0;
+
+  for (const [, groupDocs] of fyGroups.entries()) {
+    let seq = 1;
+    for (const doc of groupDocs) {
+      const currentDocNo = String(doc.document_number || "");
+      const targetDocNo = String(seq);
+
+      if (currentDocNo !== targetDocNo || currentDocNo.startsWith("DOC-")) {
+        await db.collection<JournalDocument>("journal_documents").updateOne(
+          { _id: doc._id },
+          { $set: { document_number: targetDocNo } }
+        );
+        updatedCount++;
+      }
+      seq++;
+    }
+  }
+
+  return { updated: updatedCount };
+}
+
+// GET /api/documents/next-number/:fiscalYear
+router.get("/next-number/:fiscalYear", async (c) => {
+  const fy = c.req.param("fiscalYear");
+  const nextNo = await getNextDocumentNumber(fy);
+  return c.json({ success: true, fiscalYear: fy, nextDocumentNumber: nextNo });
+});
+
+router.post("/fix-numbers", async (c) => {
+  const res = await fixAndMigrateDocumentNumbers();
+  return c.json({ success: true, message: `${res.updated} سند شماره‌گذاری شد`, ...res });
+});
+
 // GET /api/documents — با projection برای کاهش داده منتقله
 router.get("/", async (c) => {
-  const data = await getDb()
+  const db = getDb();
+  const legacyCount = await db.collection("journal_documents").countDocuments({ document_number: { $regex: /^DOC-/ } });
+  if (legacyCount > 0) {
+    await fixAndMigrateDocumentNumbers();
+  }
+
+  const data = await db
     .collection<JournalDocument>("journal_documents")
     .find()
     .sort({ _id: -1 })
     .toArray();
-  const decrypted = data.map((d) => decryptDocument(serialize(d as Record<string, unknown>)));
+  const decrypted = data.map((d) => {
+    const doc = decryptDocument(serialize(d as Record<string, unknown>));
+    if (doc.document_date && doc.fiscal_year) {
+      const fyStr = String(doc.fiscal_year);
+      const dateClean = String(doc.document_date).replace(/[۰-۹]/g, ch => "۰۱۲۳۴۵۶۷۸۹".indexOf(ch).toString());
+      const parts = dateClean.split("/");
+      if (parts.length === 3 && parts[0] !== fyStr) {
+        doc.document_date = `${fyStr}/${parts[1].padStart(2, "0")}/${parts[2].padStart(2, "0")}`;
+      }
+    }
+    return doc;
+  });
   return c.json({ data: decrypted, message: "لیست اسناد" });
 });
 
@@ -237,6 +337,14 @@ router.get("/:id", async (c) => {
     .findOne({ _id: new ObjectId(id) });
   if (!doc) return c.json({ message: "سند یافت نشد" }, 404);
   const decrypted = decryptDocument(serialize(doc as Record<string, unknown>));
+  if (decrypted.document_date && decrypted.fiscal_year) {
+    const fyStr = String(decrypted.fiscal_year);
+    const dateClean = String(decrypted.document_date).replace(/[۰-۹]/g, ch => "۰۱۲۳۴۵۶۷۸۹".indexOf(ch).toString());
+    const parts = dateClean.split("/");
+    if (parts.length === 3 && parts[0] !== fyStr) {
+      decrypted.document_date = `${fyStr}/${parts[1].padStart(2, "0")}/${parts[2].padStart(2, "0")}`;
+    }
+  }
   return c.json({ data: decrypted });
 });
 
@@ -267,14 +375,26 @@ router.post("/", async (c) => {
   if (ciphertext) {
     try {
       const preview = decryptDocument({ ciphertext } as any);
-      if (preview.document_date) resolvedDate = preview.document_date;
+      if (preview.document_date && !resolvedDate) resolvedDate = preview.document_date;
       if (preview.lines?.length) resolvedLines = preview.lines;
     } catch { /* ادامه بده */ }
   }
 
-  const balanceCheck = await validateAccountBalances(resolvedLines as JournalLine[]);
-  if (!balanceCheck.valid) {
-    return c.json(balanceCheck, 422);
+  if (resolvedDate && fiscal_year) {
+    const fyStr = String(fiscal_year);
+    const dateClean = String(resolvedDate).replace(/[۰-۹]/g, ch => "۰۱۲۳۴۵۶۷۸۹".indexOf(ch).toString());
+    const parts = dateClean.split("/");
+    if (parts.length === 3 && parts[0] !== fyStr) {
+      resolvedDate = `${fyStr}/${parts[1].padStart(2, "0")}/${parts[2].padStart(2, "0")}`;
+    }
+  }
+
+  const targetStatus = body.status ?? "DRAFT";
+  if (targetStatus === "CONFIRMED") {
+    const balanceCheck = await validateAccountBalances(resolvedLines as JournalLine[]);
+    if (!balanceCheck.valid) {
+      return c.json(balanceCheck, 422);
+    }
   }
 
   // Enforce transaction amount limits
@@ -288,7 +408,7 @@ router.post("/", async (c) => {
     }
   }
 
-  const document_number = `DOC-${fiscal_year}-${Date.now()}`;
+  const document_number = await getNextDocumentNumber(fiscal_year);
   const result = await getDb()
     .collection<JournalDocument>("journal_documents")
     .insertOne({
@@ -366,18 +486,33 @@ router.put("/:id", async (c) => {
     ...(ciphertext ? { ciphertext } : {}),
   };
 
+  if (body.document_date) {
+    updateData.document_date = body.document_date;
+  }
   if (ciphertext) {
     try {
       const preview = decryptDocument({ ciphertext } as any);
-      if (preview.document_date) updateData.document_date = preview.document_date;
+      if (preview.document_date && !updateData.document_date) updateData.document_date = preview.document_date;
       if (preview.lines?.length)  updateData.lines = preview.lines;
     } catch { /* ادامه بده */ }
   }
 
-  const newLines = (updateData.lines ?? []) as JournalLine[];
-  const balanceCheck = await validateAccountBalances(newLines, id);
-  if (!balanceCheck.valid) {
-    return c.json(balanceCheck, 422);
+  if (updateData.document_date && fiscal_year) {
+    const fyStr = String(fiscal_year);
+    const dateClean = String(updateData.document_date).replace(/[۰-۹]/g, ch => "۰۱۲۳۴۵۶۷۸۹".indexOf(ch).toString());
+    const parts = dateClean.split("/");
+    if (parts.length === 3 && parts[0] !== fyStr) {
+      updateData.document_date = `${fyStr}/${parts[1].padStart(2, "0")}/${parts[2].padStart(2, "0")}`;
+    }
+  }
+
+  const targetStatus = body.status ?? "DRAFT";
+  if (targetStatus === "CONFIRMED") {
+    const newLines = (updateData.lines ?? []) as JournalLine[];
+    const balanceCheck = await validateAccountBalances(newLines, id);
+    if (!balanceCheck.valid) {
+      return c.json(balanceCheck, 422);
+    }
   }
 
   // Enforce transaction amount limits and approve check

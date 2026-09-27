@@ -16,14 +16,16 @@ import api from "@/api";
 import { useApiCache } from "@/hooks/useApiCache";
 import { encrypt } from "@/lib/crypto";
 
-import { PersianDatePicker } from "@/components/ui/persian-date-picker";
+import { PersianDatePicker, toPersianDigits } from "@/components/ui/persian-date-picker";
 import sanamaCodes from "@/data/sanamaCodes.json";
 import subAccountTitles from "@/data/subAccountTitles.json";
 import sanamaRequirements from "@/data/sanamaRequirements.json";
 import { PersonSanamaField } from "@/components/ui/person-sanama-field";
+import { CreditCodeSanamaField } from "@/components/ui/credit-code-sanama-field";
 import ShebaInput from "@/components/ui/sheba-input";
 import { checkDebitNatureBalance, clearBalanceCache } from "@/lib/accountBalanceCheck";
 import { useAuth } from "@/context/AuthContext";
+import { useFiscalYear } from "@/context/FiscalYearContext";
 
 // ---- helpers ----
 const allGroups = sanamaCodes.groups.map((g) => ({ code: g.code, title: g.title, accounts: g.accounts }));
@@ -76,68 +78,7 @@ function numberToPersianWords(num) {
   return result.join(" و ");
 }
 
-// ── کامپوننت انتخاب شماره برنامه/طرح — با caching ──────────────────────────
-function CreditCodeSanamaField({ value, onChange, labelCls, inputCls }) {
-  const { data, loading } = useApiCache("/api/credits/definitions");
 
-  const options = useMemo(() => {
-    if (!data?.data) return [];
-    return data.data
-      .filter((c) => c.expense?.programNumber || c.capital?.projectNumber)
-      .map((c) => {
-        const num  = c.capital?.projectNumber || c.expense?.programNumber || "";
-        const type = c.creditType === "capital" ? "تملک دارایی" : "هزینه";
-        return {
-          value: num,
-          label: `${num}${c.capital?.projectTitle ? ` — ${c.capital.projectTitle}` : ""}${c.capital?.projectPlanTitle ? ` / ${c.capital.projectPlanTitle}` : ""} (${type})`,
-        };
-      })
-      .filter((o) => o.value);
-  }, [data]);
-
-  if (loading) {
-    return (
-      <div className="flex items-center gap-2">
-        <Label className={labelCls}>شماره برنامه/طرح</Label>
-        <input
-          type="text" inputMode="numeric" className={inputCls}
-          placeholder="در حال بارگیری..." value={value ?? ""}
-          onChange={(e) => onChange(e.target.value.replace(/\D/g, ""))}
-          dir="ltr" disabled
-        />
-      </div>
-    );
-  }
-
-  if (options.length === 0) {
-    return (
-      <div className="flex items-center gap-2">
-        <Label className={labelCls}>شماره برنامه/طرح</Label>
-        <input
-          type="text" inputMode="numeric" className={inputCls}
-          placeholder="عدد وارد کنید..." value={value ?? ""}
-          onChange={(e) => onChange(e.target.value.replace(/\D/g, ""))}
-          dir="ltr"
-        />
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex items-center gap-2">
-      <Label className={labelCls}>شماره برنامه/طرح</Label>
-      <div className="flex-1">
-        <SearchableSelect
-          value={value ?? ""}
-          onChange={(v) => onChange(v || "")}
-          options={options}
-          placeholder="انتخاب از اعتبارهای تعریف‌شده..."
-          searchable
-        />
-      </div>
-    </div>
-  );
-}
 
 function getSubAccountTitle(rowNum) {
   return subAccountTitles.find((t) => t.row === rowNum);
@@ -183,6 +124,42 @@ function formatNumber(val) {
 function parseNumber(str) {
   const clean = toEnglishDigits(str);
   return parseInt(clean, 10) || 0;
+}
+
+function adjustDateToFiscalYear(dateStr, targetFiscalYear) {
+  if (!targetFiscalYear) return dateStr || "";
+  const fyEng = toEnglishDigits(targetFiscalYear);
+
+  if (!dateStr || dateStr === "0" || dateStr === "00000000") {
+    const todayFormatter = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { year: 'numeric', month: 'numeric', day: 'numeric' });
+    const todayParts = toEnglishDigits(todayFormatter.format(new Date())).split("/");
+    const month = (todayParts[1] || "01").padStart(2, "0");
+    const day = (todayParts[2] || "01").padStart(2, "0");
+    return toPersianDigits(`${fyEng}/${month}/${day}`);
+  }
+
+  const cleanStr = toEnglishDigits(dateStr);
+  const parts = cleanStr.split("/");
+  if (parts.length === 3) {
+    const month = parts[1].padStart(2, "0");
+    const day = parts[2].padStart(2, "0");
+    return toPersianDigits(`${fyEng}/${month}/${day}`);
+  }
+  return dateStr;
+}
+
+function getNextSequentialDocNo(targetFY, allDocs = []) {
+  const fyStr = String(targetFY || "1405");
+  const yearDocs = allDocs.filter(d => String(d.fiscal_year || d.fiscalYear || "").includes(fyStr));
+  let maxNo = 0;
+  yearDocs.forEach(d => {
+    const rawNo = String(d.document_number || d.docNo || "").replace(/\D/g, "");
+    const num = parseInt(rawNo, 10);
+    if (!isNaN(num) && num > 0 && num < 100000000) {
+      if (num > maxNo) maxNo = num;
+    }
+  });
+  return String(maxNo + 1);
 }
 
 const EMPTY_ROW = {
@@ -383,14 +360,16 @@ function SanamaNumericInput({ value, onChange, inputCls }) {
 // wrapper: label کوچک خاکستری بالا، input پایین
 function SanamaWrap({ title, children, wide = false }) {
   return (
-    <div className={`flex flex-col gap-1 min-w-0 ${wide ? "sm:col-span-2" : ""}`}>
+    <div className={`flex flex-col gap-1 min-w-0 w-full overflow-hidden ${wide ? "sm:col-span-2" : ""}`}>
       <span
         className="text-[10px] font-medium text-muted-foreground/80 leading-none truncate"
         title={title}
       >
         {title}
       </span>
-      {children}
+      <div className="w-full min-w-0">
+        {children}
+      </div>
     </div>
   );
 }
@@ -469,8 +448,8 @@ function SanamaField({ rowDef, value, onChange, optional }) {
   if ("default" in rowDef) {
     if (rowDef.row === 8) {
       return (
-        <SanamaWrap title={rowDef.title}>
-          <CreditCodeSanamaField value={value} onChange={onChange} labelCls="" inputCls={inputCls} />
+        <SanamaWrap title={rowDef.title} wide>
+          <CreditCodeSanamaField value={value} onChange={onChange} inputCls={inputCls} />
         </SanamaWrap>
       );
     }
@@ -492,7 +471,7 @@ function SanamaField({ rowDef, value, onChange, optional }) {
   if (rowDef.types) {
     return (
       <SanamaWrap title={rowDef.title} wide>
-        <PersonSanamaField value={value} onChange={onChange} labelCls="" required={!optional} />
+        <PersonSanamaField value={value} onChange={onChange} showLabel={false} labelCls="" required={!optional} />
       </SanamaWrap>
     );
   }
@@ -788,19 +767,55 @@ function VoucherPrintContent({ header, rows, totalDebit, totalCredit, diff, toda
 // ---- component اصلی ----
 export default function ManualDocument() {
   const { user: currentUser } = useAuth();
+  const { selectedFiscalYear } = useFiscalYear();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const urlParamId = new URLSearchParams(location.search).get("id");
+  const initialDocId = location.state?.copyMode ? null : (location.state?.docId || urlParamId);
+  const copySourceId = location.state?.copyMode ? location.state?.docId : null;
+
+  const [docId, setDocId] = useState(initialDocId);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState(null);
+
   const today = new Date().toLocaleDateString("fa-IR").replace(/\//g, "/");
 
-  const [header, setHeader] = useState({
-    fiscalYear: "",
+  const activeFY = selectedFiscalYear || localStorage.getItem("activeFiscalYear") || "1405";
+
+  const [header, setHeader] = useState(() => ({
+    fiscalYear: activeFY,
     docNo: "",
-    docDate: today,
+    docDate: adjustDateToFiscalYear(today, activeFY),
     docType: "موقت",
     access: "عادی",
     desc: "",
     letterNo: "",
-    letterDate: "",
+    letterDate: adjustDateToFiscalYear(today, activeFY),
     status: "صدور سند",
-  });
+  }));
+
+  useEffect(() => {
+    if (selectedFiscalYear) {
+      api.get("/api/documents").then((res) => {
+        const allDocs = res.data?.data || [];
+        const nextNo = getNextSequentialDocNo(selectedFiscalYear, allDocs);
+        setHeader((h) => ({
+          ...h,
+          fiscalYear: selectedFiscalYear,
+          docNo: docId ? h.docNo : nextNo,
+          docDate: adjustDateToFiscalYear(h.docDate, selectedFiscalYear),
+          letterDate: h.letterDate ? adjustDateToFiscalYear(h.letterDate, selectedFiscalYear) : adjustDateToFiscalYear("", selectedFiscalYear),
+        }));
+      }).catch(() => {
+        setHeader((h) => ({
+          ...h,
+          fiscalYear: selectedFiscalYear,
+          docDate: adjustDateToFiscalYear(h.docDate, selectedFiscalYear),
+          letterDate: h.letterDate ? adjustDateToFiscalYear(h.letterDate, selectedFiscalYear) : adjustDateToFiscalYear("", selectedFiscalYear),
+        }));
+      });
+    }
+  }, [selectedFiscalYear, docId]);
 
   const [fiscalYears, setFiscalYears] = useState([]);
 
@@ -934,14 +949,6 @@ export default function ManualDocument() {
         if (res.data?.success) {
           const list = res.data.data || [];
           setFiscalYears(list);
-          if (list.length > 0) {
-            setHeader(h => {
-              if (!h.fiscalYear) {
-                return { ...h, fiscalYear: String(list[0].year) };
-              }
-              return h;
-            });
-          }
         }
       } catch (err) {
         console.error("Error loading fiscal years:", err);
@@ -956,40 +963,76 @@ export default function ManualDocument() {
   const activeRow = rows.find((r) => r.id === activeRowId) ?? rows[0];
   const showSanamaFields = needsSanamaFields(activeRow?.subAccount);
 
-  const location = useLocation();
-  const navigate = useNavigate();
-  const docId = location.state?.copyMode ? null : (location.state?.docId || new URLSearchParams(location.search).get("id"));
-  const copySourceId = location.state?.copyMode ? location.state?.docId : null;
-
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState(null);
+  useEffect(() => {
+    setDocId(initialDocId);
+  }, [initialDocId]);
 
   useEffect(() => {
-    const sourceId = docId || copySourceId;
-    if (!sourceId) return;
-
     let isMounted = true;
     async function fetchDoc() {
+      const sourceId = docId || copySourceId;
+
+      if (!sourceId) {
+        // اگر کاربر درخواست ثبت سند جدید داده، چک کنیم که آیا پیش‌نویس دارد یا نه
+        try {
+          const res = await api.get("/api/documents");
+          if (!isMounted) return;
+          const allDocs = res.data.data || [];
+          const existingDraft = allDocs.find((d) => d.status === "DRAFT");
+          if (existingDraft) {
+            setDocId(existingDraft._id);
+            navigate(`/document-setup/manual-doc?id=${existingDraft._id}`, { replace: true });
+            setMessage({
+              type: "error",
+              text: `شما یک سند پیش‌نویس (شماره سند: ${existingDraft.document_number || "نامشخص"}) در سیستم دارید. لطفاً ابتدا آن را تکمیل یا حذف کنید تا بتوانید سند جدیدی ثبت نمایید.`,
+            });
+            return;
+          }
+          const nextNo = getNextSequentialDocNo(activeFY, allDocs);
+          setHeader((h) => ({ ...h, docNo: nextNo }));
+        } catch (err) {
+          console.error("Error checking draft documents:", err);
+        }
+        return;
+      }
+
       setLoading(true);
       try {
         const res = await api.get(`/api/documents/${sourceId}`);
         if (!isMounted) return;
         const doc = res.data.data;
         if (doc) {
+          const targetFY = selectedFiscalYear || String(doc.fiscal_year || "1405");
+          let docNoVal = doc.document_number || "";
+          if (copySourceId) {
+            try {
+              const resAll = await api.get("/api/documents");
+              docNoVal = getNextSequentialDocNo(targetFY, resAll.data?.data || []);
+            } catch {
+              docNoVal = "۱";
+            }
+          }
+
           setHeader({
-            fiscalYear: String(doc.fiscal_year || "1404"),
-            // در حالت کپی، شماره سند پاک می‌شه تا سند جدید صادر بشه
-            docNo: copySourceId ? "" : (doc.document_number || ""),
-            docDate: doc.document_date || today,
+            fiscalYear: targetFY,
+            docNo: docNoVal,
+            docDate: adjustDateToFiscalYear(doc.document_date || today, targetFY),
             docType: doc.rawHeader?.docType ||
                      (doc.document_type === "CLOSING" ? "اختتامیه" :
                       doc.document_type === "TRANSFER" ? "دائم" : "موقت"),
             access: doc.rawHeader?.access || "عادی",
             desc: copySourceId ? `کپی از سند ${doc.document_number}` : (doc.description || ""),
             letterNo: doc.reference_number || "",
-            letterDate: doc.rawHeader?.letterDate || "",
-            status: "صدور سند",
+            letterDate: doc.rawHeader?.letterDate ? adjustDateToFiscalYear(doc.rawHeader.letterDate, targetFY) : adjustDateToFiscalYear("", targetFY),
+            status: doc.status === "DRAFT" ? "پیش‌نویس" : "صدور سند",
           });
+
+          if (doc.status === "DRAFT") {
+            setMessage({
+              type: "error",
+              text: `این سند در وضعیت «پیش‌نویس» قرار دارد (شماره سند: ${doc.document_number}). لطفاً پس از اصلاح موارد، روی «ثبت تغییرات» کلیک کنید.`,
+            });
+          }
 
           if (doc.rawRows && doc.rawRows.length > 0) {
             const sanitizedRows = doc.rawRows.map(r => {
@@ -1037,6 +1080,15 @@ export default function ManualDocument() {
   }, [docId, copySourceId]);
 
   async function handleSave() {
+    // ─── بررسی انتخاب تاریخ سند ──────────────────────────────────────────
+    if (!header.docDate || !String(header.docDate).trim() || String(header.docDate).trim() === "—") {
+      setMessage({
+        type: "error",
+        text: "تاریخ سند را تنظیم کنید",
+      });
+      return;
+    }
+
     // ─── بررسی سطوح دسترسی بر اساس نقش و مجوزها ───────────────────────────
     if (currentUser && currentUser.role !== "admin") {
       if (docId) {
@@ -1049,18 +1101,6 @@ export default function ManualDocument() {
           setMessage({ type: "error", text: "دسترسی غیرمجاز. شما مجوز ایجاد سند جدید را ندارید." });
           return;
         }
-      }
-
-      let statusMapped = "DRAFT";
-      if (header.status === "رد شده") {
-        statusMapped = "CANCELLED";
-      } else if (["پرداخت و دریافت", "دفترداری", "اعتمادات", "بایگانی"].includes(header.status)) {
-        statusMapped = "CONFIRMED";
-      }
-
-      if (statusMapped === "CONFIRMED" && !currentUser.permissions?.["doc.approve"]) {
-        setMessage({ type: "error", text: "دسترسی غیرمجاز. شما مجوز تایید و نهایی‌سازی اسناد را ندارید." });
-        return;
       }
 
       // ─── بررسی محدودیت‌های مبالغ مالی کاربر ──────────────────────────────────
@@ -1081,55 +1121,79 @@ export default function ManualDocument() {
       }
     }
 
-    if (diff !== 0) {
-      setMessage({ type: "error", text: "سند تراز نیست! اختلاف بدهکار و بستانکار باید صفر باشد." });
-      return;
-    }
+    // ─── بررسی خطاهایی که باعث ثبت سند به صورت پیش‌نویس (DRAFT) می‌شوند ───
+    let hasValidationError = false;
+    let validationErrorMessage = "";
 
+    // ۱. بررسی کامل بودن حداقل یک ردیف
     const validRows = rows.filter(r => r.group && r.account && r.subAccount);
     if (validRows.length === 0) {
-      setMessage({ type: "error", text: "حداقل یک ردیف کامل (گروه، کل، معین) الزامی است." });
-      return;
+      hasValidationError = true;
+      validationErrorMessage = "حداقل یک ردیف کامل (گروه، کل، معین) الزامی است.";
     }
 
-    // ─── بررسی قانون موجودی معین‌های بدهکار ───────────────────────────────
-    const balanceRows = rows
-      .filter(r => r.subAccount)
-      .map(r => ({
-        subAccount: r.subAccount,
-        debit:  parseNumber(r.debit),
-        credit: parseNumber(r.credit),
-      }));
-    const balanceError = await checkDebitNatureBalance(balanceRows, docId || null);
-    if (balanceError) {
-      setMessage({ type: "error", text: balanceError });
-      return;
+    // ۲. بررسی تراز بودن سند (اختلاف بدهکار و بستانکار)
+    if (!hasValidationError && diff !== 0) {
+      hasValidationError = true;
+      validationErrorMessage = `سند ناتراز است (اختلاف: ${Math.abs(diff).toLocaleString("fa-IR")} ریال).`;
     }
 
-    // بررسی الزامات سناما برای تمامی ردیف‌ها
-    for (let i = 0; i < rows.length; i++) {
-      const r = rows[i];
-      if (r.group && r.account && r.subAccount) {
-        const requiredRows = getRequiredRows(r.subAccount);
-        const creditTypeValue = r.sanamaFields?.["sanama_5"];
-        const isNotifiedCredit = creditTypeValue === "2" || creditTypeValue === "ابلاغی";
+    // ۳. بررسی موجودی معین‌های بدهکار
+    if (!hasValidationError) {
+      const balanceRows = rows
+        .filter(r => r.subAccount)
+        .map(r => ({
+          subAccount: r.subAccount,
+          debit:  parseNumber(r.debit),
+          credit: parseNumber(r.credit),
+        }));
+      const balanceError = await checkDebitNatureBalance(balanceRows, docId || null);
+      if (balanceError) {
+        hasValidationError = true;
+        validationErrorMessage = balanceError;
+      }
+    }
 
-        for (const rowNum of requiredRows) {
-          // ردیف ۱۵ (ابلاغ دهنده) فقط برای اعتبار ابلاغی الزامی است
-          if (rowNum === 15 && !isNotifiedCredit) continue;
+    // ۴. بررسی الزامات سناما برای تمامی ردیف‌ها
+    if (!hasValidationError) {
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i];
+        if (r.group && r.account && r.subAccount) {
+          const requiredRows = getRequiredRows(r.subAccount);
+          const creditTypeValue = r.sanamaFields?.["sanama_5"];
+          const isNotifiedCredit = creditTypeValue === "2" || creditTypeValue === "ابلاغی";
 
-          const rowDef = getSubAccountTitle(rowNum);
-          const fieldKey = `sanama_${rowNum}`;
-          const isOptional = OPTIONAL_ROWS.has(rowNum);
-          const val = r.sanamaFields?.[fieldKey];
-          if (!isOptional && (!val || String(val).trim() === "")) {
-            setMessage({
-              type: "error",
-              text: `در ردیف ${i + 1}، پر کردن فیلد الزامی سناما «${rowDef?.title ?? `ردیف ${rowNum}`}» برای معین ${r.subAccount} اجباری است.`
-            });
-            return;
+          for (const rowNum of requiredRows) {
+            if (rowNum === 15 && !isNotifiedCredit) continue;
+
+            const rowDef = getSubAccountTitle(rowNum);
+            const fieldKey = `sanama_${rowNum}`;
+            const isOptional = OPTIONAL_ROWS.has(rowNum);
+            const val = r.sanamaFields?.[fieldKey];
+            if (!isOptional && (!val || String(val).trim() === "")) {
+              hasValidationError = true;
+              validationErrorMessage = `در ردیف ${i + 1}، پر کردن فیلد الزامی سناما «${rowDef?.title ?? `ردیف ${rowNum}`}» برای معین ${r.subAccount} اجباری است.`;
+              break;
+            }
           }
         }
+        if (hasValidationError) break;
+      }
+    }
+
+    // ─── تعیین وضعیت سند به جهت ارسال به سرور ───
+    let statusMapped = "DRAFT";
+    if (!hasValidationError) {
+      if (header.status === "رد شده") {
+        statusMapped = "CANCELLED";
+      } else if (["پرداخت و دریافت", "دفترداری", "اعتمادات", "بایگانی"].includes(header.status)) {
+        statusMapped = "CONFIRMED";
+      } else {
+        statusMapped = "CONFIRMED";
+      }
+
+      if (currentUser && currentUser.role !== "admin" && statusMapped === "CONFIRMED" && !currentUser.permissions?.["doc.approve"]) {
+        statusMapped = "DRAFT";
       }
     }
 
@@ -1137,8 +1201,16 @@ export default function ManualDocument() {
     setMessage(null);
 
     try {
+      const finalDocDate = adjustDateToFiscalYear(header.docDate, header.fiscalYear);
+
+      const updatedHeader = {
+        ...header,
+        docDate: finalDocDate,
+        status: hasValidationError ? "پیش‌نویس" : (statusMapped === "CONFIRMED" ? "صدور سند" : "پیش‌نویس")
+      };
+
       const sensitiveState = {
-        header,
+        header: updatedHeader,
         rows: rows.map(r => ({
           ...r,
           account_name: getSubAccounts(r.group, r.account).find(s => s.code === r.subAccount)?.title || "",
@@ -1154,16 +1226,10 @@ export default function ManualDocument() {
         docTypeMapped = "TRANSFER";
       }
 
-      let statusMapped = "DRAFT";
-      if (header.status === "رد شده") {
-        statusMapped = "CANCELLED";
-      } else if (["پرداخت و دریافت", "دفترداری", "اعتمادات", "بایگانی"].includes(header.status)) {
-        statusMapped = "CONFIRMED";
-      }
-
       const payload = {
         document_type: docTypeMapped,
         fiscal_year: Number(header.fiscalYear) || 1404,
+        document_date: finalDocDate,
         status: statusMapped,
         ciphertext: encryptedHex,
       };
@@ -1172,53 +1238,78 @@ export default function ManualDocument() {
         ? await api.put(`/api/documents/${docId}`, payload)
         : await api.post("/api/documents", payload);
       
-      setMessage({ 
-        type: "success", 
-        text: docId 
-          ? `تغییرات سند شماره ${res.data.data.document_number} با موفقیت ذخیره شد.`
-          : `سند با شماره ${res.data.data.document_number} با موفقیت ثبت شد و به صورت رمزنگاری‌شده ذخیره گردید.` 
-      });
+      const savedDocNumber = res.data.data.document_number;
+      const savedDocId = res.data.data._id || docId;
+
+      if (savedDocId) {
+        setDocId(savedDocId);
+        navigate(`/document-setup/manual-doc?id=${savedDocId}`, { replace: true });
+      }
+
+      setHeader(prev => ({
+        ...prev,
+        status: hasValidationError ? "پیش‌نویس" : "صدور سند",
+        docNo: savedDocNumber || prev.docNo
+      }));
+
       clearBalanceCache();
-      
-      if (!docId && res.data.data.document_number) {
-        setH("docNo", res.data.data.document_number);
+
+      if (hasValidationError) {
+        setMessage({ 
+          type: "error", 
+          text: `سند شماره ${savedDocNumber} به دلیل وجود ایراد به صورت پیش‌نویس ثبت گردید: (${validationErrorMessage}) — لطفاً پس از اصلاح موارد، مجدداً جهت ثبت نهایی کلیک کنید.` 
+        });
+      } else {
+        setMessage({ 
+          type: "success", 
+          text: `تغییرات سند شماره ${savedDocNumber} با موفقیت نهایی و ثبت شد.` 
+        });
       }
     } catch (err) {
       console.error("Save error:", err);
       const errData = err.response?.data;
-      if (errData?.error_code === "CREDIT_EXCEEDS_DEBIT") {
-        setMessage({
-          type: "error",
-          text: errData.message,
-        });
-      } else {
-        setMessage({ type: "error", text: errData?.message || "خطا در ثبت سند در سرور. اتصال را بررسی کنید." });
-      }
+      setMessage({ type: "error", text: errData?.message || "خطا در ثبت سند در سرور. اتصال را بررسی کنید." });
     } finally {
       setLoading(false);
     }
   }
 
-  function handleNew() {
-    const firstYear = fiscalYears.length > 0 ? String(fiscalYears[0].year) : "";
+  async function handleNew() {
+    const activeFY = selectedFiscalYear || localStorage.getItem("activeFiscalYear") || "1405";
+    let nextNo = "1";
+    try {
+      const res = await api.get("/api/documents");
+      const allDocs = res.data.data || [];
+      const existingDraft = allDocs.find((d) => d.status === "DRAFT");
+      if (existingDraft) {
+        setMessage({
+          type: "error",
+          text: `امکان ثبت سند جدید وجود ندارد! شما یک سند پیش‌نویس (شماره سند: ${existingDraft.document_number || "نامشخص"}) در سیستم دارید. لطفاً ابتدا آن را تکمیل یا حذف نمایید.`,
+        });
+        return;
+      }
+      nextNo = getNextSequentialDocNo(activeFY, allDocs);
+    } catch (err) {
+      console.error("Error checking draft on handleNew:", err);
+    }
+
     setHeader({
-      fiscalYear: firstYear,
-      docNo: "",
-      docDate: today,
+      fiscalYear: activeFY,
+      docNo: nextNo,
+      docDate: adjustDateToFiscalYear(today, activeFY),
       docType: "موقت",
       access: "عادی",
       desc: "",
       letterNo: "",
-      letterDate: "",
+      letterDate: adjustDateToFiscalYear(today, activeFY),
       status: "صدور سند",
     });
+    setDocId(null);
     const newId = Date.now();
     setRows([{ ...EMPTY_ROW, id: newId }]);
     setActiveRowId(newId);
     setMessage(null);
-    if (docId) {
-      navigate("/document-setup/manual-doc", { replace: true });
-    }
+    navigate("/document-setup/manual-doc", { replace: true });
   }
 
   const setH = useCallback((k, v) => setHeader((p) => ({ ...p, [k]: v })), []);
@@ -1311,21 +1402,32 @@ export default function ManualDocument() {
                   <Label className={labelCls}>دوره مالی</Label>
                   <div className="flex-1">
                     <SearchableSelect
-                      value={header.fiscalYear}
-                      onChange={(v) => setH("fiscalYear", v || "")}
-                      options={fiscalYears.map((fy) => ({ value: String(fy.year), label: `${fy.year}` }))}
+                      value={header.fiscalYear || selectedFiscalYear}
+                      onChange={() => {}}
+                      options={(fiscalYears.length > 0 ? fiscalYears : [{ year: header.fiscalYear || selectedFiscalYear }]).map((fy) => ({ value: String(fy.year), label: `${fy.year}` }))}
                       placeholder="دوره مالی..."
                       searchable={false}
+                      disabled={true}
                     />
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Label className={labelCls}>شماره سند</Label>
-                  <Input className={inputCls} value={header.docNo} onChange={(e) => setH("docNo", e.target.value)} />
+                  <Input
+                    className={`${inputCls} font-bold font-mono bg-muted text-muted-foreground cursor-not-allowed`}
+                    value={header.docNo ? toPersianDigits(header.docNo) : "خودکار"}
+                    disabled={true}
+                    readOnly
+                  />
                 </div>
                 <div className="flex items-center gap-2">
                   <Label className={labelCls}>تاریخ سند</Label>
-                  <PersianDatePicker className="h-8 text-xs rounded-md border bg-white focus:border-primary" value={header.docDate} onChange={(e) => setH("docDate", e?.target?.value ?? e)} />
+                  <PersianDatePicker
+                    className="h-8 text-xs rounded-md border bg-white focus:border-primary"
+                    value={header.docDate}
+                    fixedYear={header.fiscalYear || selectedFiscalYear}
+                    onChange={(e) => setH("docDate", e?.target?.value ?? e)}
+                  />
                 </div>
               </div>
 
@@ -1361,7 +1463,12 @@ export default function ManualDocument() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Label className={labelCls}>تاریخ نامه</Label>
-                  <PersianDatePicker className="h-8 text-xs rounded-md border bg-white focus:border-primary" value={header.letterDate} onChange={(e) => setH("letterDate", e?.target?.value ?? e)} />
+                  <PersianDatePicker
+                    className="h-8 text-xs rounded-md border bg-white focus:border-primary"
+                    value={header.letterDate}
+                    fixedYear={header.fiscalYear || selectedFiscalYear}
+                    onChange={(e) => setH("letterDate", e?.target?.value ?? e)}
+                  />
                 </div>
               </div>
 

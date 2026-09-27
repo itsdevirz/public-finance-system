@@ -2,6 +2,7 @@ import React, { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Landmark, Loader2, AlertCircle, RefreshCw } from "lucide-react";
 import { AuthProvider } from "./context/AuthContext";
+import { FiscalYearProvider } from "./context/FiscalYearContext";
 import { AssetProvider } from "./context/AssetContext";
 import { InventoryProvider } from "./context/InventoryContext";
 import { TabProvider } from "./context/TabContext";
@@ -15,6 +16,7 @@ import NotFound from "./pages/NotFound";
 import Dashboard from "./pages/Dashboard";
 import { buildLayoutRoutes } from "./config/appRoutes";
 import { Button } from "./components/ui/button";
+import { useAmountPlusShortcut } from "./hooks/useAmountPlusShortcut";
 
 const GuaranteeContractForm = lazy(() => import("./modules/treasury/pages/GuaranteeContractForm"));
 const DepositManualForm = lazy(() => import("./modules/treasury/pages/DepositManualForm"));
@@ -91,6 +93,7 @@ function AppRoutes({ routes }) {
 }
 
 function Layout() {
+  useAmountPlusShortcut();
   return (
     <AssetProvider>
       <InventoryProvider>
@@ -117,21 +120,23 @@ export default function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <BrowserRouter>
-          <Suspense fallback={<PageLoader />}>
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route
-                path="/*"
-                element={
-                  <PrivateRoute>
-                    <Layout />
-                  </PrivateRoute>
-                }
-              />
-            </Routes>
-          </Suspense>
-        </BrowserRouter>
+        <FiscalYearProvider>
+          <BrowserRouter>
+            <Suspense fallback={<PageLoader />}>
+              <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route
+                  path="/*"
+                  element={
+                    <PrivateRoute>
+                      <Layout />
+                    </PrivateRoute>
+                  }
+                />
+              </Routes>
+            </Suspense>
+          </BrowserRouter>
+        </FiscalYearProvider>
       </AuthProvider>
     </ErrorBoundary>
   );

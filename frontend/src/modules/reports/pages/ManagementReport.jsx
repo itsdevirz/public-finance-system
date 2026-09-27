@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import api from "@/api";
+import { useFiscalYear } from "@/context/FiscalYearContext";
 import { printTable } from "@/lib/printUtils";
 import { getDefaultDateRange, getCurrentPersianYear } from "@/lib/fiscalUtils";
 
@@ -56,6 +57,7 @@ function getDefaultId(pathname) {
 export default function ManagementReport() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { selectedFiscalYear } = useFiscalYear();
   const [active, setActive] = useState(() => getDefaultId(location.pathname));
   const current = SIDEBAR_ITEMS.find((i) => i.id === active);
 
@@ -76,10 +78,14 @@ export default function ManagementReport() {
   // ── فیلترها ──
   const [dateFrom, setDateFrom] = useState(defaultRange.dateFrom);
   const [dateTo, setDateTo] = useState(defaultRange.dateTo);
-  const [fiscalYear, setFiscalYear] = useState(String(currentYear));
+  const [fiscalYear, setFiscalYear] = useState(selectedFiscalYear || String(currentYear));
   const [compareYear, setCompareYear] = useState(String(currentYear - 1));
 
   const [fiscalYears, setFiscalYears] = useState([]);
+
+  useEffect(() => {
+    if (selectedFiscalYear) setFiscalYear(selectedFiscalYear);
+  }, [selectedFiscalYear]);
 
   // بارگذاری لیست سال‌های مالی
   useEffect(() => {
@@ -89,13 +95,14 @@ export default function ManagementReport() {
         label: `${y.year} — ${y.title}`,
       }));
       setFiscalYears(list);
-      // اگر سال‌های مالی در سرور ثبت شده‌اند، سال اول را به عنوان پیش‌فرض بگذار
-      if (list.length > 0) {
+      if (selectedFiscalYear) {
+        setFiscalYear(selectedFiscalYear);
+      } else if (list.length > 0) {
         setFiscalYear(list[0].value);
         setCompareYear(list.length > 1 ? list[1].value : String(parseInt(list[0].value) - 1));
       }
     }).catch(() => {});
-  }, []);
+  }, [selectedFiscalYear]);
 
   // دریافت اطلاعات از سرور
   const loadData = useCallback(async () => {

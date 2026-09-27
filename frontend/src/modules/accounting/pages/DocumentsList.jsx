@@ -12,31 +12,32 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import api from "@/api";
+import { useFiscalYear } from "@/context/FiscalYearContext";
 import { toPersianDigits } from "@/components/ui/persian-date-picker";
 
 // ─── ثوابت ────────────────────────────────────────────────────────────────────
 const DOC_TYPE_LABEL = {
   PETTY_CASH_PAYMENT: "پرداخت تنخواه",
-  GENERAL_PAYMENT:    "پرداخت عمومی",
-  REVENUE:            "درآمد",
-  TRANSFER:           "انتقال",
-  CLOSING:            "اختتامیه",
+  GENERAL_PAYMENT: "پرداخت عمومی",
+  REVENUE: "درآمد",
+  TRANSFER: "انتقال",
+  CLOSING: "اختتامیه",
 };
 const DOC_TYPE_COLOR = {
   PETTY_CASH_PAYMENT: "bg-amber-100 text-amber-700 border-amber-200",
-  GENERAL_PAYMENT:    "bg-blue-100 text-blue-700 border-blue-200",
-  REVENUE:            "bg-emerald-100 text-emerald-700 border-emerald-200",
-  TRANSFER:           "bg-violet-100 text-violet-700 border-violet-200",
-  CLOSING:            "bg-slate-100 text-slate-600 border-slate-200",
+  GENERAL_PAYMENT: "bg-blue-100 text-blue-700 border-blue-200",
+  REVENUE: "bg-emerald-100 text-emerald-700 border-emerald-200",
+  TRANSFER: "bg-violet-100 text-violet-700 border-violet-200",
+  CLOSING: "bg-slate-100 text-slate-600 border-slate-200",
 };
 const STATUS_LABEL = { DRAFT: "پیش‌نویس", CONFIRMED: "تایید شده", CANCELLED: "ابطال شده" };
 const STATUS_COLOR = {
-  DRAFT:     "bg-orange-100 text-orange-600 border-orange-200",
+  DRAFT: "bg-orange-100 text-orange-600 border-orange-200",
   CONFIRMED: "bg-emerald-100 text-emerald-700 border-emerald-200",
   CANCELLED: "bg-rose-100 text-rose-600 border-rose-200",
 };
 const STATUS_ICON = {
-  DRAFT:     Clock,
+  DRAFT: Clock,
   CONFIRMED: CheckCircle2,
   CANCELLED: Ban,
 };
@@ -46,12 +47,26 @@ function fmt(n) {
   return Number(n).toLocaleString("fa-IR");
 }
 
+function formatDocDate(dateStr, fiscalYear) {
+  if (!dateStr || dateStr === "—") return "—";
+  if (!fiscalYear) return toPersianDigits(dateStr);
+  const fyStr = String(fiscalYear);
+  const cleanStr = String(dateStr).replace(/[۰-۹]/g, ch => "۰۱۲۳۴۵۶۷۸۹".indexOf(ch).toString());
+  const parts = cleanStr.split("/");
+  if (parts.length === 3) {
+    const month = parts[1].padStart(2, "0");
+    const day = parts[2].padStart(2, "0");
+    return toPersianDigits(`${fyStr}/${month}/${day}`);
+  }
+  return toPersianDigits(dateStr);
+}
+
 // ─── Modal جزئیات سند ─────────────────────────────────────────────────────────
 function DocDetailModal({ doc, onClose, onDelete, onConfirm }) {
-  const totalDebit  = doc.lines?.reduce((s, l) => s + (l.debit  ?? 0), 0) ?? 0;
+  const totalDebit = doc.lines?.reduce((s, l) => s + (l.debit ?? 0), 0) ?? 0;
   const totalCredit = doc.lines?.reduce((s, l) => s + (l.credit ?? 0), 0) ?? 0;
-  const balanced    = totalDebit === totalCredit;
-  const StatusIcon  = STATUS_ICON[doc.status] ?? Clock;
+  const balanced = totalDebit === totalCredit;
+  const StatusIcon = STATUS_ICON[doc.status] ?? Clock;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" dir="rtl">
@@ -77,10 +92,10 @@ function DocDetailModal({ doc, onClose, onDelete, onConfirm }) {
         {/* meta */}
         <div className="px-6 py-4 grid grid-cols-2 md:grid-cols-4 gap-4 border-b bg-muted/10 shrink-0">
           {[
-            { label: "شماره سند",  value: doc.document_number, mono: true },
-            { label: "دوره مالی",  value: doc.fiscal_year, mono: true },
-            { label: "تاریخ سند",  value: doc.document_date ? toPersianDigits(doc.document_date) : "—" },
-            { label: "مرجع",       value: doc.reference_number ?? "—", mono: true },
+            { label: "شماره سند", value: doc.document_number, mono: true },
+            { label: "دوره مالی", value: doc.fiscal_year, mono: true },
+            { label: "تاریخ سند", value: formatDocDate(doc.document_date, doc.fiscal_year) },
+            { label: "مرجع", value: doc.reference_number ?? "—", mono: true },
           ].map(({ label, value, mono }) => (
             <div key={label} className="flex flex-col gap-0.5">
               <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</span>
@@ -174,8 +189,8 @@ function DocDetailModal({ doc, onClose, onDelete, onConfirm }) {
               <Trash2 className="h-3.5 w-3.5" />حذف سند
             </Button>
             {doc.status === "DRAFT" && (
-              <Button size="sm" onClick={() => onConfirm(doc._id, doc.document_number)} className="gap-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white">
-                <CheckCircle2 className="h-3.5 w-3.5" />تأیید و قطعی‌سازی سند
+              <Button size="sm" disabled className="gap-1.5 text-xs font-bold bg-muted text-muted-foreground border border-muted-foreground/20 cursor-not-allowed opacity-60" title="سند پیش‌نویس هنوز آماده تأیید نیست. لطفاً ابتدا آن را ویرایش و تکمیل نمایید.">
+                <Ban className="h-3.5 w-3.5 text-orange-500" />تأیید غیرفعال است (پیش‌نویس)
               </Button>
             )}
           </div>
@@ -209,21 +224,28 @@ function SortHeader({ label, field, sortBy, sortDir, onSort }) {
 // ─── صفحه اصلی ────────────────────────────────────────────────────────────────
 export default function DocumentsList() {
   const navigate = useNavigate();
+  const { selectedFiscalYear } = useFiscalYear();
 
-  const [docs, setDocs]           = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [error, setError]         = useState(null);
-  const [selected, setSelected]   = useState(null);   // modal
+  const [docs, setDocs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selected, setSelected] = useState(null);   // modal
 
   // فیلترها
-  const [search, setSearch]       = useState("");
+  const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("ALL");
-  const [filterType,   setFilterType]   = useState("ALL");
-  const [filterYear,   setFilterYear]   = useState("");
-  const [showFilters,  setShowFilters]  = useState(false);
+  const [filterType, setFilterType] = useState("ALL");
+  const [filterYear, setFilterYear] = useState(selectedFiscalYear || "");
+  const [showFilters, setShowFilters] = useState(false);
+
+  useEffect(() => {
+    if (selectedFiscalYear) {
+      setFilterYear(selectedFiscalYear);
+    }
+  }, [selectedFiscalYear]);
 
   // مرتب‌سازی
-  const [sortBy,  setSortBy]  = useState("document_number");
+  const [sortBy, setSortBy] = useState("document_number");
   const [sortDir, setSortDir] = useState("desc");
 
   const fetchDocs = useCallback(async () => {
@@ -252,6 +274,11 @@ export default function DocumentsList() {
   };
 
   const handleConfirm = async (id, docNumber) => {
+    const targetDoc = docs.find(d => d._id === id);
+    if (targetDoc?.status === "DRAFT") {
+      alert(`سند شماره ${docNumber || ""} در وضعیت «پیش‌نویس» قرار دارد و هنوز تکمیل و آماده تأیید نشده است. لطفاً ابتدا آن را ویرایش و ثبت نهایی نمایید.`);
+      return;
+    }
     if (!window.confirm(`آیا از تأیید و نهایی‌سازی سند شماره ${docNumber} مطمئن هستید؟`)) return;
     try {
       const res = await api.patch(`/api/documents/${id}/confirm`);
@@ -272,13 +299,29 @@ export default function DocumentsList() {
     else { setSortBy(field); setSortDir("asc"); }
   }
 
+  // اسناد مربوط به دوره مالی انتخابی/فعال
+  const yearDocs = useMemo(() => {
+    if (!filterYear) return docs;
+    return docs.filter(d => {
+      const dYear = String(d.fiscal_year || d.fiscalYear || d.document_date?.slice(0, 4) || "");
+      return dYear.includes(filterYear);
+    });
+  }, [docs, filterYear]);
+
+  // خلاصه آماری (بر اساس اسناد دوره مالی فعال)
+  const stats = useMemo(() => ({
+    total: yearDocs.length,
+    draft: yearDocs.filter(d => d.status === "DRAFT").length,
+    confirmed: yearDocs.filter(d => d.status === "CONFIRMED").length,
+    cancelled: yearDocs.filter(d => d.status === "CANCELLED").length,
+  }), [yearDocs]);
+
   // فیلتر + جستجو + مرتب‌سازی
   const filtered = useMemo(() => {
-    let list = [...docs];
+    let list = [...yearDocs];
 
     if (filterStatus !== "ALL") list = list.filter(d => d.status === filterStatus);
-    if (filterType   !== "ALL") list = list.filter(d => d.document_type === filterType);
-    if (filterYear)             list = list.filter(d => String(d.fiscal_year).includes(filterYear));
+    if (filterType !== "ALL") list = list.filter(d => d.document_type === filterType);
 
     if (search.trim()) {
       const q = search.trim().toLowerCase();
@@ -286,7 +329,7 @@ export default function DocumentsList() {
         d.document_number?.toLowerCase().includes(q) ||
         d.description?.toLowerCase().includes(q) ||
         d.reference_number?.toLowerCase().includes(q) ||
-        String(d.fiscal_year).includes(q) ||
+        String(d.fiscal_year || d.fiscalYear || "").includes(q) ||
         d.lines?.some(l =>
           l.account_code?.toLowerCase().includes(q) ||
           l.account_name?.toLowerCase().includes(q) ||
@@ -305,21 +348,26 @@ export default function DocumentsList() {
     });
 
     return list;
-  }, [docs, search, filterStatus, filterType, filterYear, sortBy, sortDir]);
+  }, [yearDocs, search, filterStatus, filterType, sortBy, sortDir]);
 
-  const hasFilters = filterStatus !== "ALL" || filterType !== "ALL" || filterYear !== "";
+  const hasFilters = filterStatus !== "ALL" || filterType !== "ALL" || search.trim() !== "" || (filterYear !== (selectedFiscalYear || ""));
 
   function clearFilters() {
-    setFilterStatus("ALL"); setFilterType("ALL"); setFilterYear(""); setSearch("");
+    setFilterStatus("ALL");
+    setFilterType("ALL");
+    setFilterYear(selectedFiscalYear || "");
+    setSearch("");
   }
 
-  // خلاصه آماری
-  const stats = useMemo(() => ({
-    total:     docs.length,
-    draft:     docs.filter(d => d.status === "DRAFT").length,
-    confirmed: docs.filter(d => d.status === "CONFIRMED").length,
-    cancelled: docs.filter(d => d.status === "CANCELLED").length,
-  }), [docs]);
+  const handleCreateManualDoc = () => {
+    const draftDoc = docs.find((d) => d.status === "DRAFT");
+    if (draftDoc) {
+      alert(`خطا: شما یک سند پیش‌نویس (شماره سند: ${draftDoc.document_number || "نامشخص"}) در سیستم دارید. لطفاً ابتدا آن را تکمیل یا حذف نمایید تا مجاز به ثبت سند جدید شوید.`);
+      navigate(`/document-setup/manual-doc?id=${draftDoc._id}`);
+    } else {
+      navigate("/document-setup/manual-doc");
+    }
+  };
 
   return (
     <PageShell>
@@ -342,7 +390,7 @@ export default function DocumentsList() {
             <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
             بروزرسانی
           </Button>
-          <Button size="sm" onClick={() => navigate("/document-setup/manual-doc")} className="gap-1.5 h-9 text-xs">
+          <Button size="sm" onClick={handleCreateManualDoc} className="gap-1.5 h-9 text-xs">
             <FileText className="h-3.5 w-3.5" />صدور سند دستی
           </Button>
         </div>
@@ -351,10 +399,10 @@ export default function DocumentsList() {
       {/* کارت‌های آماری */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5" dir="rtl">
         {[
-          { label: "کل اسناد",    value: stats.total,     color: "text-foreground",        bg: "bg-muted/40" },
-          { label: "پیش‌نویس",   value: stats.draft,     color: "text-orange-600",         bg: "bg-orange-50" },
-          { label: "تایید شده",  value: stats.confirmed, color: "text-emerald-700",        bg: "bg-emerald-50" },
-          { label: "ابطال شده",  value: stats.cancelled, color: "text-rose-600",           bg: "bg-rose-50" },
+          { label: "کل اسناد", value: stats.total, color: "text-foreground", bg: "bg-muted/40" },
+          { label: "پیش‌نویس", value: stats.draft, color: "text-orange-600", bg: "bg-orange-50" },
+          { label: "تایید شده", value: stats.confirmed, color: "text-emerald-700", bg: "bg-emerald-50" },
+          { label: "ابطال شده", value: stats.cancelled, color: "text-rose-600", bg: "bg-rose-50" },
         ].map(({ label, value, color, bg }) => (
           <div key={label} className={cn("rounded-xl border px-4 py-3 flex items-center gap-3", bg)}>
             <span className={cn("text-2xl font-extrabold font-mono", color)}>{value}</span>
@@ -399,7 +447,7 @@ export default function DocumentsList() {
 
             {/* تعداد نتایج */}
             <span className="text-xs text-muted-foreground bg-muted rounded-full px-2.5 py-1">
-              {filtered.length} نتیجه از {docs.length}
+              {filtered.length} نتیجه از {yearDocs.length}
             </span>
           </div>
 
@@ -469,7 +517,7 @@ export default function DocumentsList() {
                 </p>
               </div>
               {docs.length === 0 && (
-                <Button size="sm" onClick={() => navigate("/document-setup/manual-doc")} className="gap-1.5 mt-1 text-xs">
+                <Button size="sm" onClick={handleCreateManualDoc} className="gap-1.5 mt-1 text-xs">
                   <FileText className="h-3.5 w-3.5" />صدور سند دستی
                 </Button>
               )}
@@ -480,9 +528,8 @@ export default function DocumentsList() {
                 <thead>
                   <tr className="border-b bg-muted/40">
                     <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground w-12">#</th>
-                    <SortHeader label="شماره سند"   field="document_number" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
-                    <SortHeader label="دوره مالی"   field="fiscal_year"     sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
-                    <SortHeader label="تاریخ سند"   field="document_date"   sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
+                    <SortHeader label="دوره مالی" field="fiscal_year" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
+                    <SortHeader label="تاریخ سند" field="document_date" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
                     <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">نوع سند</th>
                     <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">وضعیت</th>
                     <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">کدهای حساب</th>
@@ -494,7 +541,7 @@ export default function DocumentsList() {
                 </thead>
                 <tbody>
                   {filtered.map((doc, idx) => {
-                    const totalD = doc.lines?.reduce((s, l) => s + (l.debit  ?? 0), 0) ?? 0;
+                    const totalD = doc.lines?.reduce((s, l) => s + (l.debit ?? 0), 0) ?? 0;
                     const totalC = doc.lines?.reduce((s, l) => s + (l.credit ?? 0), 0) ?? 0;
                     const balanced = totalD === totalC;
                     const StatusIcon = STATUS_ICON[doc.status] ?? Clock;
@@ -508,14 +555,6 @@ export default function DocumentsList() {
                         {/* ردیف */}
                         <td className="px-4 py-3 text-center text-xs text-muted-foreground/60">{idx + 1}</td>
 
-                        {/* شماره سند */}
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-1.5">
-                            <Hash className="h-3 w-3 text-muted-foreground/40 shrink-0" />
-                            <span className="font-mono text-xs font-medium text-foreground">{doc.document_number}</span>
-                          </div>
-                        </td>
-
                         {/* دوره مالی */}
                         <td className="px-4 py-3 text-center">
                           <span className="font-mono text-xs text-foreground/80">{doc.fiscal_year}</span>
@@ -525,7 +564,7 @@ export default function DocumentsList() {
                         <td className="px-4 py-3">
                           <span className="text-xs text-muted-foreground flex items-center gap-1">
                             <CalendarDays className="h-3 w-3 shrink-0" />
-                            {doc.document_date ? toPersianDigits(doc.document_date) : "—"}
+                            {formatDocDate(doc.document_date, doc.fiscal_year)}
                           </span>
                         </td>
 
@@ -580,9 +619,12 @@ export default function DocumentsList() {
                         <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                           <div className="flex items-center gap-1">
                             {doc.status === "DRAFT" && (
-                              <button onClick={() => handleConfirm(doc._id, doc.document_number)}
-                                className="rounded-lg p-1 text-emerald-600 hover:bg-emerald-100 transition-all font-bold"
-                                title="تأیید و قطعی‌سازی سند">
+                              <button
+                                disabled
+                                onClick={(e) => { e.stopPropagation(); handleConfirm(doc._id, doc.document_number); }}
+                                className="rounded-lg p-1 text-muted-foreground/40 cursor-not-allowed opacity-50"
+                                title="سند پیش‌نویس هنوز آماده تأیید نیست. لطفاً ابتدا آن را ویرایش و تکمیل نمایید."
+                              >
                                 <CheckCircle2 className="h-4 w-4" />
                               </button>
                             )}

@@ -9,7 +9,7 @@ import { Users, AlertCircle, Loader2 } from "lucide-react";
  * اشخاص را از API می‌گیرد و به صورت dropdown نمایش می‌دهد.
  * اگر هیچ شخصی ثبت نشده باشد، پیام راهنما و لینک به صفحه تعریف اشخاص نشان می‌دهد.
  */
-export function PersonSanamaField({ value, onChange, labelCls = "", required = true }) {
+export function PersonSanamaField({ value, onChange, labelCls = "", required = true, showLabel = true }) {
   const { options, loading, error } = usePersons();
   const navigate = useNavigate();
 
@@ -23,8 +23,8 @@ export function PersonSanamaField({ value, onChange, labelCls = "", required = t
 
   if (loading) {
     return (
-      <div className="space-y-1">
-        {label}
+      <div className="space-y-1 w-full min-w-0">
+        {showLabel && label}
         <div className="flex items-center gap-2 h-9 px-2.5 rounded-lg border border-input bg-background/60 text-xs text-muted-foreground">
           <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
           در حال بارگیری اشخاص...
@@ -35,8 +35,8 @@ export function PersonSanamaField({ value, onChange, labelCls = "", required = t
 
   if (error) {
     return (
-      <div className="space-y-1">
-        {label}
+      <div className="space-y-1 w-full min-w-0">
+        {showLabel && label}
         <div className="flex items-center gap-2 h-9 px-2.5 rounded-lg border border-rose-200 bg-rose-50 text-xs text-rose-700">
           <AlertCircle className="h-3.5 w-3.5 shrink-0" />
           {error}
@@ -47,8 +47,8 @@ export function PersonSanamaField({ value, onChange, labelCls = "", required = t
 
   if (options.length === 0) {
     return (
-      <div className="space-y-1">
-        {label}
+      <div className="space-y-1 w-full min-w-0">
+        {showLabel && label}
         <div className="flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2">
           <div className="flex items-center gap-2">
             <AlertCircle className="h-3.5 w-3.5 shrink-0 text-amber-600" />
@@ -69,8 +69,8 @@ export function PersonSanamaField({ value, onChange, labelCls = "", required = t
   }
 
   return (
-    <div className="space-y-1">
-      {label}
+    <div className="space-y-1 w-full min-w-0">
+      {showLabel && label}
       <SearchableSelect
         value={value ?? ""}
         onChange={(v) => onChange(v || "")}

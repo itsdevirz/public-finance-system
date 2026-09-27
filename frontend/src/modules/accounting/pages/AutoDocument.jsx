@@ -19,6 +19,7 @@ import sanamaRequirements from "@/data/sanamaRequirements.json";
 import subAccountTitles from "@/data/subAccountTitles.json";
 import { checkDebitNatureBalance } from "@/lib/accountBalanceCheck";
 import { PersonSanamaField } from "@/components/ui/person-sanama-field";
+import { CreditCodeSanamaField } from "@/components/ui/credit-code-sanama-field";
 import ShebaInput from "@/components/ui/sheba-input";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -85,6 +86,15 @@ function SanamaField({ rowDef, value, onChange }) {
   // ردیف ۲۱ — اشخاص: از PersonSanamaField استفاده می‌شود
   if (rowDef.types) {
     return <PersonSanamaField value={value} onChange={onChange} required />;
+  }
+  // ردیف ۸ — شماره برنامه/طرح
+  if (rowDef.row === 8) {
+    return (
+      <div className="space-y-1 sm:col-span-2 min-w-0 w-full overflow-hidden">
+        {label}
+        <CreditCodeSanamaField value={value} onChange={onChange} inputCls={cls} />
+      </div>
+    );
   }
   // عددی (default)
   if (rowDef.row === 31 || (rowDef.title && rowDef.title.includes("شبا"))) {

@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import api from "@/api";
+import { useFiscalYear } from "@/context/FiscalYearContext";
 import { printTable } from "@/lib/printUtils";
 
 const SIDEBAR_ITEMS = [
@@ -48,11 +49,12 @@ function fmtNum(n) {
 export default function BudgetReport() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { selectedFiscalYear } = useFiscalYear();
   const [active, setActive] = useState(() => getDefaultId(location.pathname));
   const current = SIDEBAR_ITEMS.find((i) => i.id === active);
 
   // ── فیلترهای گزارش عملکرد بودجه ──
-  const [fiscalYear, setFiscalYear] = useState("");
+  const [fiscalYear, setFiscalYear] = useState(selectedFiscalYear || "");
   const [orgUnit, setOrgUnit] = useState("");
   const [program, setProgram] = useState("");
   const [project, setProject] = useState("");
@@ -68,6 +70,10 @@ export default function BudgetReport() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    if (selectedFiscalYear) setFiscalYear(selectedFiscalYear);
+  }, [selectedFiscalYear]);
+
   // بارگذاری سال‌های مالی در زمان مونت شدن
   useEffect(() => {
     api.get("/api/fiscal-years")
@@ -77,10 +83,14 @@ export default function BudgetReport() {
           label: `${y.year} — ${y.title}`,
         }));
         setFiscalYears(list);
-        if (list.length > 0) setFiscalYear(list[0].value);
+        if (selectedFiscalYear) {
+          setFiscalYear(selectedFiscalYear);
+        } else if (list.length > 0) {
+          setFiscalYear(list[0].value);
+        }
       })
       .catch(() => {});
-  }, []);
+  }, [selectedFiscalYear]);
 
   // بارگذاری فیلترهای پویا با تغییر سال مالی
   useEffect(() => {

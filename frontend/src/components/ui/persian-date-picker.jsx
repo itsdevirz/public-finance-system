@@ -135,10 +135,12 @@ function getWeekdayOfFirst(jy, jm) {
   return (gDate.getDay() + 1) % 7;
 }
 
-export function PersianDatePicker({ value = "", onChange, className = "", placeholder = "۱۴۰۵/۰۱/۰۱", disabled = false, required = false }) {
+export function PersianDatePicker({ value = "", onChange, className = "", placeholder = "۱۴۰۵/۰۱/۰۱", disabled = false, required = false, fixedYear = null }) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
   
+  const fyNum = fixedYear ? parseInt(toEnglishDigits(fixedYear), 10) : null;
+
   // Safely extract string value even if object or event was passed
   const safeVal = typeof value === "object" && value !== null ? (value.target?.value ?? value.value ?? "") : (value ?? "");
   const englishVal = toEnglishDigits(safeVal);
@@ -153,11 +155,17 @@ export function PersianDatePicker({ value = "", onChange, className = "", placeh
   const currentJd = parseInt(todayParts[2], 10) || 1;
 
   // View year and month in picker
-  const [viewYear, setViewYear] = useState(currentJy);
+  const [viewYear, setViewYear] = useState(() => (fyNum && !isNaN(fyNum) ? fyNum : currentJy));
   const [viewMonth, setViewMonth] = useState(currentJm);
 
   useEffect(() => {
-    if (parts.length === 3) {
+    if (fyNum && !isNaN(fyNum)) {
+      setViewYear(fyNum);
+      if (parts.length === 3) {
+        const m = parseInt(parts[1], 10);
+        if (m >= 1 && m <= 12) setViewMonth(m);
+      }
+    } else if (parts.length === 3) {
       const y = parseInt(parts[0], 10);
       const m = parseInt(parts[1], 10);
       if (y >= 1300 && y <= 1500 && m >= 1 && m <= 12) {
@@ -165,7 +173,7 @@ export function PersianDatePicker({ value = "", onChange, className = "", placeh
         setViewMonth(m);
       }
     }
-  }, [safeVal]);
+  }, [safeVal, fixedYear, fyNum]);
 
   // Click outside listener to close popup
   useEffect(() => {
@@ -190,6 +198,15 @@ export function PersianDatePicker({ value = "", onChange, className = "", placeh
     const val = e.target.value;
     let filtered = toEnglishDigits(val).replace(/[^0-9/]/g, "");
     if (filtered.length > 10) filtered = filtered.substring(0, 10);
+
+    if (fyNum && !isNaN(fyNum)) {
+      const p = filtered.split("/");
+      if (p[0] && p[0].length >= 4) {
+        p[0] = fyNum.toString();
+        filtered = p.join("/");
+      }
+    }
+
     const finalVal = toPersianDigits(filtered);
     triggerChange(finalVal);
   };
@@ -198,13 +215,21 @@ export function PersianDatePicker({ value = "", onChange, className = "", placeh
     let val = toEnglishDigits(e.target.value);
     let digits = val.replace(/\D/g, "");
     if (digits.length === 8) {
-      const formatted = `${digits.substring(0, 4)}/${digits.substring(4, 6)}/${digits.substring(6, 8)}`;
+      let yStr = digits.substring(0, 4);
+      if (fyNum && !isNaN(fyNum)) yStr = fyNum.toString();
+      const formatted = `${yStr}/${digits.substring(4, 6)}/${digits.substring(6, 8)}`;
       triggerChange(toPersianDigits(formatted));
+    } else if (fyNum && !isNaN(fyNum) && val.includes("/")) {
+      const p = val.split("/");
+      if (p.length === 3) {
+        const formatted = `${fyNum}/${p[1].padStart(2, "0")}/${p[2].padStart(2, "0")}`;
+        triggerChange(toPersianDigits(formatted));
+      }
     }
   };
 
   const selectDay = (day) => {
-    const yStr = viewYear.toString();
+    const yStr = (fyNum && !isNaN(fyNum)) ? fyNum.toString() : viewYear.toString();
     const mStr = viewMonth.toString().padStart(2, "0");
     const dStr = day.toString().padStart(2, "0");
     const finalVal = toPersianDigits(`${yStr}/${mStr}/${dStr}`);
@@ -215,7 +240,9 @@ export function PersianDatePicker({ value = "", onChange, className = "", placeh
   const nextMonth = () => {
     if (viewMonth === 12) {
       setViewMonth(1);
-      setViewYear(viewYear + 1);
+      if (!fyNum) {
+        setViewYear(viewYear + 1);
+      }
     } else {
       setViewMonth(viewMonth + 1);
     }
@@ -224,14 +251,17 @@ export function PersianDatePicker({ value = "", onChange, className = "", placeh
   const prevMonth = () => {
     if (viewMonth === 1) {
       setViewMonth(12);
-      setViewYear(viewYear - 1);
+      if (!fyNum) {
+        setViewYear(viewYear - 1);
+      }
     } else {
       setViewMonth(viewMonth - 1);
     }
   };
 
-  const daysInMonth = getDaysInMonth(viewYear, viewMonth);
-  const weekdayOfFirst = getWeekdayOfFirst(viewYear, viewMonth);
+  const effectiveYear = (fyNum && !isNaN(fyNum)) ? fyNum : viewYear;
+  const daysInMonth = getDaysInMonth(effectiveYear, viewMonth);
+  const weekdayOfFirst = getWeekdayOfFirst(effectiveYear, viewMonth);
 
   // Render day grid cells
   const dayCells = [];
@@ -239,11 +269,11 @@ export function PersianDatePicker({ value = "", onChange, className = "", placeh
     dayCells.push(<div key={`empty-${i}`} className="h-8 w-8" />);
   }
   
-  const selectedDay = parts.length === 3 && parseInt(parts[0], 10) === viewYear && parseInt(parts[1], 10) === viewMonth ? parseInt(parts[2], 10) : null;
+  const selectedDay = parts.length === 3 && parseInt(parts[0], 10) === effectiveYear && parseInt(parts[1], 10) === viewMonth ? parseInt(parts[2], 10) : null;
 
   for (let d = 1; d <= daysInMonth; d++) {
     const isSelected = selectedDay === d;
-    const isToday = currentJy === viewYear && currentJm === viewMonth && currentJd === d;
+    const isToday = currentJy === effectiveYear && currentJm === viewMonth && currentJd === d;
     dayCells.push(
       <button
         key={`day-${d}`}
@@ -262,7 +292,16 @@ export function PersianDatePicker({ value = "", onChange, className = "", placeh
     );
   }
 
-  const displayValue = (value === "0" || value === 0 || value === "00000000" || !value) ? "" : toPersianDigits(value);
+  let displayRaw = safeVal;
+  if (fyNum && !isNaN(fyNum) && displayRaw) {
+    const eng = toEnglishDigits(displayRaw);
+    const p = eng.split("/");
+    if (p.length === 3 && p[0] !== String(fyNum)) {
+      p[0] = String(fyNum);
+      displayRaw = p.join("/");
+    }
+  }
+  const displayValue = (displayRaw === "0" || displayRaw === 0 || displayRaw === "00000000" || !displayRaw) ? "" : toPersianDigits(displayRaw);
 
   return (
     <div className="relative inline-block w-full" ref={containerRef} dir="rtl">
@@ -294,14 +333,18 @@ export function PersianDatePicker({ value = "", onChange, className = "", placeh
         <div className="absolute z-50 right-0 mt-1 w-72 rounded-2xl border border-border bg-white p-3 text-popover-foreground shadow-2xl animate-in fade-in slide-in-from-top-1 duration-150">
           {/* Header */}
           <div className="flex items-center justify-between gap-1 mb-3">
-            <button
-              type="button"
-              onClick={() => setViewYear(viewYear - 1)}
-              className="rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors text-xs font-bold"
-              title="سال قبل"
-            >
-              &lt;&lt;
-            </button>
+            {!fyNum ? (
+              <button
+                type="button"
+                onClick={() => setViewYear(viewYear - 1)}
+                className="rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors text-xs font-bold"
+                title="سال قبل"
+              >
+                &lt;&lt;
+              </button>
+            ) : (
+              <div className="w-5" />
+            )}
             <button
               type="button"
               onClick={prevMonth}
@@ -312,7 +355,7 @@ export function PersianDatePicker({ value = "", onChange, className = "", placeh
             </button>
             
             <div className="flex-1 text-center text-xs font-bold text-foreground">
-              {MONTH_NAMES[viewMonth - 1]} {toPersianDigits(viewYear)}
+              {MONTH_NAMES[viewMonth - 1]} {toPersianDigits(effectiveYear)}
             </div>
 
             <button
@@ -323,14 +366,18 @@ export function PersianDatePicker({ value = "", onChange, className = "", placeh
             >
               &gt;
             </button>
-            <button
-              type="button"
-              onClick={() => setViewYear(viewYear + 1)}
-              className="rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors text-xs font-bold"
-              title="سال بعد"
-            >
-              &gt;&gt;
-            </button>
+            {!fyNum ? (
+              <button
+                type="button"
+                onClick={() => setViewYear(viewYear + 1)}
+                className="rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors text-xs font-bold"
+                title="سال بعد"
+              >
+                &gt;&gt;
+              </button>
+            ) : (
+              <div className="w-5" />
+            )}
           </div>
 
           {/* Weekday Labels */}

@@ -9,6 +9,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import { Scale, RefreshCw, Wallet, AlignLeft, XCircle, Search, Printer, FileDown, ChevronLeft, RotateCcw, Loader2, AlertCircle, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import api from "@/api";
+import { useFiscalYear } from "@/context/FiscalYearContext";
 import { printTable } from "@/lib/printUtils";
 import { cn } from "@/lib/utils";
 
@@ -98,13 +99,14 @@ function getDefaultId(pathname) {
 }
 
 export default function AccountsReport() {
+  const { selectedFiscalYear } = useFiscalYear();
   const navigate = useNavigate();
   const location = useLocation();
   const [active, setActive] = useState(() => getDefaultId(location.pathname));
   const current = SIDEBAR_ITEMS.find((i) => i.id === active);
 
   // ── فیلترهای ریز گردش حساب ──
-  const [fiscalYear,   setFiscalYear]   = useState("");
+  const [fiscalYear,   setFiscalYear]   = useState(selectedFiscalYear || "");
   const [dateFrom,     setDateFrom]     = useState("");
   const [dateTo,       setDateTo]       = useState(() => today());
   const [accountCode,  setAccountCode]  = useState("");
@@ -128,6 +130,10 @@ export default function AccountsReport() {
   const [fetchError,   setFetchError]   = useState("");
   const [errors,       setErrors]       = useState({});
 
+  useEffect(() => {
+    if (selectedFiscalYear) setFiscalYear(selectedFiscalYear);
+  }, [selectedFiscalYear]);
+
   // بارگذاری سال‌های مالی
   useEffect(() => {
     api.get("/api/fiscal-years").then((r) => {
@@ -136,9 +142,13 @@ export default function AccountsReport() {
         label: `${y.year} — ${y.title}`,
       }));
       setFiscalYears(list);
-      if (list.length > 0) setFiscalYear(list[0].value);
+      if (selectedFiscalYear) {
+        setFiscalYear(selectedFiscalYear);
+      } else if (list.length > 0) {
+        setFiscalYear(list[0].value);
+      }
     }).catch(() => {});
-  }, []);
+  }, [selectedFiscalYear]);
 
   // بارگذاری کل حساب‌ها (بدون فیلتر ۳ رقم، همه حساب‌ها)
   useEffect(() => {

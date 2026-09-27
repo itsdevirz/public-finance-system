@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import api from "@/api";
+import { useFiscalYear } from "@/context/FiscalYearContext";
 import { printTable } from "@/lib/printUtils";
 import { getDefaultDateRange } from "@/lib/fiscalUtils";
 
@@ -59,6 +60,7 @@ function getDefaultId(pathname) {
 export default function FinancialReport() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { selectedFiscalYear } = useFiscalYear();
   const [active, setActive] = useState(() => getDefaultId(location.pathname));
   const current = SIDEBAR_ITEMS.find((i) => i.id === active);
 
@@ -70,10 +72,14 @@ export default function FinancialReport() {
 
   // ── فیلترها ──
   const defaultRange = getDefaultDateRange();
-  const [fiscalYear, setFiscalYear] = useState("");
+  const [fiscalYear, setFiscalYear] = useState(selectedFiscalYear || "");
   const [dateFrom, setDateFrom] = useState(defaultRange.dateFrom);
   const [dateTo, setDateTo] = useState(defaultRange.dateTo);
   const [queryMeta, setQueryMeta] = useState(null);
+
+  useEffect(() => {
+    if (selectedFiscalYear) setFiscalYear(selectedFiscalYear);
+  }, [selectedFiscalYear]);
 
   // بارگذاری سال‌های مالی
   useEffect(() => {
@@ -83,9 +89,13 @@ export default function FinancialReport() {
         label: `${y.year} — ${y.title}`,
       }));
       setFiscalYears(list);
-      if (list.length > 0) setFiscalYear(list[0].value);
+      if (selectedFiscalYear) {
+        setFiscalYear(selectedFiscalYear);
+      } else if (list.length > 0) {
+        setFiscalYear(list[0].value);
+      }
     }).catch(() => {});
-  }, []);
+  }, [selectedFiscalYear]);
 
   useEffect(() => {
     setActive(getDefaultId(location.pathname));
