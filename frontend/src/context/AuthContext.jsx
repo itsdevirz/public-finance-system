@@ -32,7 +32,9 @@ export function AuthProvider({ children }) {
           sessionStorage.removeItem("isOfflineMode");
           setUser(null);
           setLoading(false);
-          window.location.href = "/login";
+          if (window.location.pathname !== "/login") {
+            window.location.href = "/login";
+          }
         } else {
           if (!user) {
             setUser({
@@ -73,7 +75,7 @@ export function AuthProvider({ children }) {
     // پایش غیرهمزمان وضعیت سلامت نشست در فواصل زمانی مشخص (۳۰ ثانیه)
     const intervalId = setInterval(() => {
       const currentIsOffline = sessionStorage.getItem("isOfflineMode") === "true";
-      if (currentIsOffline) return;
+      if (currentIsOffline || !user) return;
 
       const now = Date.now();
       const idleMs = now - lastUserActivityTime;
@@ -97,7 +99,9 @@ export function AuthProvider({ children }) {
         if (isMounted) setUser(null);
 
         alert(`به دلیل ${roundedIdleMin} دقیقه عدم فعالیت به صورت سیستمی نشست شما خاتمه یافت.`);
-        window.location.href = "/login";
+        if (window.location.pathname !== "/login") {
+          window.location.href = "/login";
+        }
         return;
       }
 
@@ -112,7 +116,9 @@ export function AuthProvider({ children }) {
             if (isMounted) setUser(null);
             const msg = err.response?.data?.message || "نشست شما توسط مدیر سیستم خاتمه یافت.";
             alert(msg);
-            window.location.href = "/login";
+            if (window.location.pathname !== "/login") {
+              window.location.href = "/login";
+            }
           }
         });
     }, 30000);

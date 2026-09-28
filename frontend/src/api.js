@@ -113,7 +113,9 @@ api.interceptors.response.use(
     if (status === 401 && !isAuthUrl) {
       sessionStorage.removeItem("csrfToken");
       sessionStorage.removeItem("isOfflineMode");
-      window.location.href = "/login";
+      if (typeof window !== "undefined" && window.location && window.location.pathname !== "/login") {
+        window.location.href = "/login";
+      }
     }
     return Promise.reject(err);
   }

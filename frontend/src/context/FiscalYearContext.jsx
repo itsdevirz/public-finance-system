@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { useAuth } from "./AuthContext";
 import api from "@/api";
 
 const FiscalYearContext = createContext(null);
 
 export function FiscalYearProvider({ children }) {
+  const { user } = useAuth();
   const [fiscalYears, setFiscalYears] = useState([]);
   const [selectedFiscalYear, setSelectedFiscalYearState] = useState(() => {
     return localStorage.getItem("activeFiscalYear") || "1405";
@@ -11,6 +13,10 @@ export function FiscalYearProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   const fetchFiscalYears = useCallback(async () => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
     try {
       const res = await api.get("/api/fiscal-years");
       const list = res.data?.data || [];
@@ -31,11 +37,15 @@ export function FiscalYearProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
-    fetchFiscalYears();
-  }, [fetchFiscalYears]);
+    if (user) {
+      fetchFiscalYears();
+    } else {
+      setLoading(false);
+    }
+  }, [fetchFiscalYears, user]);
 
   const setSelectedFiscalYear = (yearStr) => {
     const strVal = String(yearStr);
