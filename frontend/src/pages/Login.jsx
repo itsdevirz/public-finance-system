@@ -21,7 +21,6 @@ export default function Login() {
   const [error, setError] = useState("");
   const [canEvict, setCanEvict] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [testingConnection, setTestingConnection] = useState(false);
 
   // Setup mode states
   const [isSetupMode, setIsSetupMode] = useState(false);
@@ -50,6 +49,7 @@ export default function Login() {
       .then((res) => {
         if (res?.data && res.data.hasAdmin === false) {
           setIsSetupMode(true);
+          setUsername("admin");
         }
       })
       .catch((err) => {
@@ -60,59 +60,23 @@ export default function Login() {
       });
   }, []);
 
-  async function handleDiagnoseAndFix() {
-    setTestingConnection(true);
-    setError("");
-    try {
-      const health = await checkBackendHealth();
-      if (health.isOnline) {
-        setError("");
-        await handleSubmit(null);
-      } else {
-        // ورود هوشمند در حالت محلی پشتیبان
-        await login(username || "admin", password || "admin123", rememberMe);
-      }
-    } catch (_) {
-      await login(username || "admin", password || "admin123", rememberMe);
-    } finally {
-      setTestingConnection(false);
-    }
-  }
-
   async function handleSubmit(e, forceEvict = false) {
     if (e) e.preventDefault();
     setError("");
     setCanEvict(false);
     setLoading(true);
+    const targetUsername = isSetupMode ? "admin" : username;
     try {
       if (isSetupMode) {
-        await api.post("/api/auth/register", { username, password, role: "admin" });
-        await login(username, password, rememberMe, forceEvict);
+        await api.post("/api/auth/register", { username: "admin", password, role: "admin" });
+        await login("admin", password, rememberMe, forceEvict);
       } else {
-        await login(username, password, rememberMe, forceEvict);
+        await login(targetUsername, password, rememberMe, forceEvict);
       }
     } catch (err) {
       const isNetworkOrCorsError = err?.message === "Network Error" || !err?.response;
-      
-      if (isNetworkOrCorsError) {
-        const health = await checkBackendHealth();
-        if (health.isOnline) {
-          try {
-            await login(username, password, rememberMe, forceEvict);
-            setLoading(false);
-            return;
-          } catch (_) {}
-        }
-        // اگر سرور آفلاین است، ورود هوشمند با پایداری محلی بدون بلاک شدن کاربر
-        try {
-          await login(username || "admin", password || "admin123", rememberMe, forceEvict);
-          setLoading(false);
-          return;
-        } catch (_) {}
-      }
-
       const fallbackMessage = isNetworkOrCorsError
-        ? "خطا در ارتباط با سرور یا محدودیت CORS. لطفاً از روشن بودن سرور و تطابق پورت مطمئن شوید."
+        ? "خطا در ارتباط با سرور. لطفاً از روشن بودن سرور و اتصال شبکه مطمئن شوید."
         : (isSetupMode
           ? "خطا در تعریف مدیر سیستم. لطفاً مجدداً تلاش کنید."
           : "خطا در ورود به سامانه. لطفاً نام کاربری و رمز عبور را بررسی کنید.");
@@ -126,23 +90,13 @@ export default function Login() {
 
       logFailureOccurrence({
         userMessage: displayedError,
-        action: isNetworkOrCorsError
-          ? "شکست در ارتباط با سرور یا محدودیت CORS (عدم تطابق پورت یا خاموش بودن سرور)"
-          : `تلاش ناموفق جهت ورود به سامانه برای کاربر '${username || "نامشخص"}'`,
+        action: isSetupMode ? "ثبت مدیر اولیه سیستم" : `تلاش ناموفق جهت ورود به سامانه برای کاربر '${targetUsername}'`,
         resource: isSetupMode ? "/api/auth/register" : "/api/auth/login",
         method: "POST",
         errorCode: err?.response?.status || 0,
-        errorType: isNetworkOrCorsError ? "CORS_OR_NETWORK_ERROR" : "LOGIN_FAILURE",
+        errorType: isNetworkOrCorsError ? "NETWORK_ERROR" : "LOGIN_FAILURE",
         rawError: err,
-        username: username || "anonymous",
-        details: {
-          isSetupMode,
-          isNetworkOrCorsError,
-          statusText: err?.response?.statusText || "No Response (Server Offline/Blocked)",
-          reasonDescription: isNetworkOrCorsError
-            ? "ارتباط با سرور برقرار نشد یا درخواست توسط محدودیت‌های CORS بلاک گردید."
-            : "اطلاعات ورود اشتباه است یا حساب کاربری مسدود گردیده است."
-        }
+        username: targetUsername || "anonymous"
       });
     }
   }
@@ -153,27 +107,9 @@ export default function Login() {
     setCertLoading(true);
     setError("");
     try {
-      // Automatic login with default admin credentials for certificate simulation
-      await login("admin", "admin123");
-      setActiveModal(null);
-    } catch (err) {
-      const certErrMsg = "خطا در احراز هویت با گواهی دیجیتال. لطفاً از اتصال توکن اطمینان حاصل کنید.";
+      const certErrMsg = "سرویس احراز هویت با گواهی دیجیتال (توکن سخت‌افزاری) در حال حاضر فعال نمی‌باشد.";
       setError(certErrMsg);
       setActiveModal(null);
-
-      logFailureOccurrence({
-        userMessage: certErrMsg,
-        action: "شکست در احراز هویت با گواهی دیجیتال",
-        resource: "/api/auth/cert-login",
-        method: "POST",
-        errorCode: err?.response?.status || 401,
-        errorType: "CERT_AUTH_FAILURE",
-        rawError: err,
-        username: "cert_user",
-        details: {
-          reasonDescription: "عدم شناسایی توکن سخت‌افزاری یا خطای امضای دیجیتال"
-        }
-      });
     } finally {
       setCertLoading(false);
     }
@@ -374,13 +310,13 @@ export default function Login() {
                   <motion.div
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold flex items-center gap-2.5 text-right shadow-sm"
+                    className="p-4 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold flex items-start gap-3 text-right shadow-sm"
                   >
-                    <Sparkles className="w-5 h-5 text-amber-600 shrink-0 animate-pulse" />
+                    <Sparkles className="w-5 h-5 text-amber-600 shrink-0 mt-0.5 animate-pulse" />
                     <div>
-                      <p className="font-extrabold text-amber-900">راه‌اندازی اولیه سیستم (ثبت اولین مدیر)</p>
-                      <p className="text-[11px] font-medium text-amber-700 mt-0.5">
-                        هیچ کاربری ثبت نشده است. لطفاً مشخصات مدیر ارشد سیستم را وارد کنید.
+                      <p className="font-extrabold text-amber-950 text-sm">پیکربندی اولیه سیستم (تعریف مدیر ارشد)</p>
+                      <p className="text-xs font-medium text-amber-800 mt-1 leading-relaxed">
+                        چون هیچ کاربری در سامانه تعریف نشده است، ابتدا باید حساب مدیر ارشد سیستم (<code className="font-mono bg-amber-200/80 px-1.5 py-0.5 rounded text-amber-950 font-bold">admin</code>) ایجاد شود. لطفاً رمز عبور دلخواه برای حساب مدیر را تعیین کنید.
                       </p>
                     </div>
                   </motion.div>
@@ -397,25 +333,6 @@ export default function Login() {
                       <X className="w-4 h-4 text-red-500 shrink-0" />
                       <span>{error}</span>
                     </div>
-
-                    <button
-                      type="button"
-                      onClick={handleDiagnoseAndFix}
-                      disabled={testingConnection}
-                      className="mt-1 w-full py-2.5 px-3 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-extrabold text-xs transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
-                    >
-                      {testingConnection ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>در حال پایش و برطرف‌سازی خطای ارتباط با سرور...</span>
-                        </>
-                      ) : (
-                        <>
-                          <RefreshCw className="w-4 h-4" />
-                          <span>تست خودکار ارتباط با سرور و ورود هوشمند</span>
-                        </>
-                      )}
-                    </button>
 
                     {canEvict && (
                       <button
@@ -436,8 +353,11 @@ export default function Login() {
                 
                 {/* Username Input Field */}
                 <div className="space-y-1.5 text-right">
-                  <Label htmlFor="username" className="text-xs font-bold text-slate-700">
-                    {isSetupMode ? "نام کاربری مدیر ارشد (Admin)" : "نام کاربری"}
+                  <Label htmlFor="username" className="text-xs font-bold text-slate-700 flex items-center justify-between">
+                    <span>{isSetupMode ? "نام کاربری مدیر ارشد سیستم" : "نام کاربری"}</span>
+                    {isSetupMode && (
+                      <span className="text-[11px] text-amber-800 bg-amber-100 px-2 py-0.5 rounded-md font-bold">غیرقابل تغییر (admin)</span>
+                    )}
                   </Label>
                   <div className="relative">
                     <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-slate-400">
@@ -446,12 +366,15 @@ export default function Login() {
                     <Input
                       id="username"
                       type="text"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
+                      value={isSetupMode ? "admin" : username}
+                      onChange={(e) => !isSetupMode && setUsername(e.target.value)}
                       placeholder="نام کاربری خود را وارد کنید"
                       required
+                      readOnly={isSetupMode}
                       disabled={loading}
-                      className="h-12 pr-10 pl-4 rounded-xl border-slate-200 bg-slate-50/50 text-slate-800 placeholder:text-slate-400 text-sm font-medium focus:bg-white focus:border-[#094843] focus:ring-2 focus:ring-[#094843]/15 transition-all shadow-sm"
+                      className={`h-12 pr-10 pl-4 rounded-xl border-slate-200 text-slate-800 placeholder:text-slate-400 text-sm font-medium focus:bg-white focus:border-[#094843] focus:ring-2 focus:ring-[#094843]/15 transition-all shadow-sm ${
+                        isSetupMode ? "bg-slate-100/90 text-slate-600 font-bold select-none cursor-not-allowed" : "bg-slate-50/50"
+                      }`}
                     />
                   </div>
                 </div>

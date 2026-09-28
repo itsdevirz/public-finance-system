@@ -19,45 +19,6 @@ export function AuthProvider({ children }) {
     const activityEvents = ["mousemove", "keydown", "mousedown", "touchstart", "scroll", "wheel"];
     activityEvents.forEach((evt) => window.addEventListener(evt, handleUserActivity, { passive: true }));
 
-    const sessionToken = sessionStorage.getItem("token");
-    const leftoverLocalToken = localStorage.getItem("token");
-    const isOffline = sessionStorage.getItem("isOfflineMode") === "true";
-
-    // اگر حالت پشتیبان محلی (آفلاین) فعال باشد
-    if (isOffline) {
-      checkBackendHealth().then((health) => {
-        if (!isMounted) return;
-        if (health.isOnline) {
-          // سرور دوباره آنلاین شده است - خروج از حالت آفلاین و هدایت به ورود مجدد
-          sessionStorage.removeItem("isOfflineMode");
-          setUser(null);
-          setLoading(false);
-          if (window.location.pathname !== "/login") {
-            window.location.href = "/login";
-          }
-        } else {
-          if (!user) {
-            setUser({
-              id: "admin-offline",
-              username: localStorage.getItem("rememberedUsername") || "admin",
-              fullName: "مدیر سیستم (حالت پشتیبان محلی)",
-              role: "admin",
-              isOfflineMode: true,
-              idleTimeoutMinutes: 60
-            });
-          }
-          setLoading(false);
-        }
-      }).catch(() => {
-        if (!isMounted) return;
-        setLoading(false);
-      });
-
-      return () => {
-        activityEvents.forEach((evt) => window.removeEventListener(evt, handleUserActivity));
-      };
-    }
-
     // بررسی اولیه صحت نشست فعال بر اساس کوکی امن هنگام بارگذاری
     api.get("/api/auth/me")
       .then((res) => {
@@ -131,49 +92,25 @@ export function AuthProvider({ children }) {
   }, [user?.id]);
 
   async function login(username, password, rememberMe = true, evictOtherSessions = false) {
-    try {
-      const res = await api.post("/api/auth/login", { username, password, evictOtherSessions });
-      
-      sessionStorage.removeItem("isOfflineMode");
+    const res = await api.post("/api/auth/login", { username, password, evictOtherSessions });
+    
+    sessionStorage.removeItem("isOfflineMode");
 
-      if (rememberMe) {
-        localStorage.setItem("rememberedUsername", username);
-      } else {
-        localStorage.removeItem("rememberedUsername");
-      }
-
-      if (res.data.sessionNotice) {
-        sessionStorage.setItem("sessionNotice", JSON.stringify(res.data.sessionNotice));
-      } else {
-        sessionStorage.removeItem("sessionNotice");
-      }
-      localStorage.removeItem("sessionNotice");
-
-      setUser(res.data.user);
-      return res.data.user;
-    } catch (err) {
-      const isNetworkOrCorsError = err?.message === "Network Error" || !err?.response;
-      if (isNetworkOrCorsError && (username === "admin" || password || username)) {
-        // 🌟 مکانیزم هوشمند پایداری (Fallback): ورود به سامانه در صورت قطعی سرور
-        const offlineUser = {
-          id: "admin-offline",
-          username: username || "admin",
-          fullName: "مدیر سیستم (حالت پشتیبان محلی)",
-          role: "admin",
-          isOfflineMode: true,
-          idleTimeoutMinutes: 60
-        };
-
-        sessionStorage.setItem("isOfflineMode", "true");
-        if (rememberMe) {
-          localStorage.setItem("rememberedUsername", username);
-        }
-
-        setUser(offlineUser);
-        return offlineUser;
-      }
-      throw err;
+    if (rememberMe) {
+      localStorage.setItem("rememberedUsername", username);
+    } else {
+      localStorage.removeItem("rememberedUsername");
     }
+
+    if (res.data.sessionNotice) {
+      sessionStorage.setItem("sessionNotice", JSON.stringify(res.data.sessionNotice));
+    } else {
+      sessionStorage.removeItem("sessionNotice");
+    }
+    localStorage.removeItem("sessionNotice");
+
+    setUser(res.data.user);
+    return res.data.user;
   }
 
   async function logout() {
