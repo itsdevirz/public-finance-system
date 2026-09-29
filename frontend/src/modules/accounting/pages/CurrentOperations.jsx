@@ -11,7 +11,7 @@ import { encrypt } from "@/lib/crypto";
 import { PersianDatePicker, toPersianDigits } from "@/components/ui/persian-date-picker";
 import {
   Search, Eye, CheckCircle2, AlertCircle, ArrowUpDown, ChevronLeft,
-  ChevronRight, BookOpen, Layers, Trash2, X, RotateCcw, FileText, Save
+  ChevronRight, BookOpen, Layers, Trash2, X, RotateCcw, FileText, Save, Sparkles
 } from "lucide-react";
 import { INITIAL_TEMPLATES } from "@/data/operationsTemplates";
 
@@ -890,8 +890,8 @@ export default function CurrentOperations({ categoryFilter = null, pageTitle = "
                             required
                             value={postFields.description}
                             onChange={e => setPostFields(p => ({ ...p, description: e.target.value }))}
-                            placeholder="شرح سند را وارد کنید..."
-                            className="h-9 text-xs"
+                            placeholder="مثلاً: از محل طرح سیلبند این موافقتنامه ثبت شده"
+                            className="h-9 text-xs w-full"
                           />
                         </div>
                       </div>

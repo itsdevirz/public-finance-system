@@ -12,7 +12,7 @@ import { encrypt } from "@/lib/crypto";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import {
   Search, CheckCircle2, AlertCircle, X, FileText, Save,
-  Zap, ChevronDown, Layers, Hash
+  Zap, ChevronDown, Layers, Hash, MessageSquareText
 } from "lucide-react";
 import { INITIAL_TEMPLATES } from "@/data/operationsTemplates";
 import sanamaRequirements from "@/data/sanamaRequirements.json";
@@ -264,7 +264,10 @@ export default function AutoDocument() {
     setSearch("");
     setSanamaValues({});
     setLineAmounts({});
-    setDocFields((p) => ({ ...p, description: `ثبت سند بابت ${tpl.description}` }));
+    setDocFields((p) => ({
+      ...p,
+      description: p.description && p.description.trim() !== "" ? p.description : `ثبت سند بابت ${tpl.description}`
+    }));
     setMessage(null);
   };
 
@@ -405,6 +408,56 @@ export default function AutoDocument() {
           )}
         </AnimatePresence>
 
+        {/* ─── کادر شرح سند و اطلاعات اولیه ─── */}
+        <Card className="mb-4 border-primary/20 bg-card shadow-sm">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center justify-between border-b pb-2">
+              <Label className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                <MessageSquareText className="h-4 w-4 text-primary" />
+                کادر شرح سند (توضیحات عمومی صدور اتوماتیک)
+              </Label>
+              <Badge variant="outline" className="text-[10px] bg-primary/5 text-primary border-primary/20">
+                شرح سند
+              </Badge>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold">دوره مالی <span className="text-rose-500">*</span></Label>
+                <select value={docFields.fiscalYear} onChange={(e) => setDocFields((p) => ({ ...p, fiscalYear: e.target.value }))}
+                  className="w-full h-9 text-xs rounded-lg border border-input bg-background px-3 focus:outline-none focus:ring-2 focus:ring-ring/30">
+                  {fiscalYears.map((fy) => <option key={fy._id} value={String(fy.year)}>{fy.year}</option>)}
+                  {fiscalYears.length === 0 && <option value="1405">۱۴۰۵</option>}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold">تاریخ سند</Label>
+                <PersianDatePicker value={docFields.documentDate} onChange={(e) => setDocFields((p) => ({ ...p, documentDate: e.target.value }))} className="h-9 text-xs w-full" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold flex items-center justify-between">
+                  <span>شرح سند <span className="text-rose-500">*</span></span>
+                  {selectedTemplate && (
+                    <button
+                      type="button"
+                      onClick={() => setDocFields(p => ({ ...p, description: `ثبت سند بابت ${selectedTemplate.description}` }))}
+                      className="text-[10px] text-primary hover:underline"
+                    >
+                      درج شرح الگو
+                    </button>
+                  )}
+                </Label>
+                <Input
+                  value={docFields.description}
+                  onChange={(e) => setDocFields((p) => ({ ...p, description: e.target.value }))}
+                  placeholder="مثلاً: از محل طرح سیلبند این موافقتنامه ثبت شده"
+                  className="h-9 text-xs font-medium w-full"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* ─── ۱. نوع حسابداری ─── */}
         <Card className="mb-4">
           <CardContent className="p-4 space-y-3">
@@ -475,29 +528,6 @@ export default function AutoDocument() {
 
         {selectedTemplate && (
           <>
-            {/* ─── ۳. اطلاعات سند ─── */}
-            <Card className="mb-4">
-              <CardContent className="p-4">
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs font-semibold">دوره مالی <span className="text-rose-500">*</span></Label>
-                    <select value={docFields.fiscalYear} onChange={(e) => setDocFields((p) => ({ ...p, fiscalYear: e.target.value }))}
-                      className="w-full h-9 text-xs rounded-lg border border-input bg-background px-3 focus:outline-none focus:ring-2 focus:ring-ring/30">
-                      {fiscalYears.map((fy) => <option key={fy._id} value={String(fy.year)}>{fy.year}</option>)}
-                      {fiscalYears.length === 0 && <option value="1405">۱۴۰۵</option>}
-                    </select>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs font-semibold">تاریخ سند</Label>
-                    <PersianDatePicker value={docFields.documentDate} onChange={(e) => setDocFields((p) => ({ ...p, documentDate: e.target.value }))} className="h-9 text-xs" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs font-semibold">شرح سند</Label>
-                    <Input value={docFields.description} onChange={(e) => setDocFields((p) => ({ ...p, description: e.target.value }))} placeholder="شرح سند..." className="h-9 text-xs" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
 
             {/* ─── ۴. جدول آرتیکل‌ها + الزامات سناما هر کد ─── */}
             <Card className="mb-4">
