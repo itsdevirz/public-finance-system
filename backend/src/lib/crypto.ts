@@ -89,6 +89,9 @@ export function decryptDocument(doc: any): any {
         lines: (rows || []).map((r: any) => ({
           account_code: r.subAccount || r.account_code || "",
           account_name: r.account_name || "",
+          subAccount: r.subAccount || r.account_code || "",
+          subAccountName: r.account_name || "",
+          detailAccount: r.subAccount || r.detailAccount || r.account_code || "",
           debit: parseInt(toEnglishDigits(r.debit), 10) || 0,
           credit: parseInt(toEnglishDigits(r.credit), 10) || 0,
           description: r.desc || r.description || "",

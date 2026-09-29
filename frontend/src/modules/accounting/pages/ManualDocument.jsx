@@ -84,6 +84,20 @@ function getSubAccountTitle(rowNum) {
   return subAccountTitles.find((t) => t.row === rowNum);
 }
 
+function getCreditInfoAutoValue(subAccountCode) {
+  if (!subAccountCode) return null;
+  const clean = toEnglishDigits(subAccountCode).trim();
+  if (!clean) return null;
+  const lastChar = clean.slice(-1);
+  if (lastChar === "1" || lastChar === "3") {
+    return "1"; // "برنامه"
+  }
+  if (lastChar === "2" || lastChar === "4") {
+    return "2"; // "طرح"
+  }
+  return null;
+}
+
 function getRequiredRows(subAccountCode) {
   return sanamaRequirements[subAccountCode]?.requiredRows ?? [];
 }
@@ -239,10 +253,15 @@ const DocRow = React.memo(({ row, idx, onChange, onDelete, onDuplicate, isActive
 
   function setSubAccount(val) {
     onActivate?.();
+    const autoCreditInfo = getCreditInfoAutoValue(val);
+    const initialSanama = {};
+    if (autoCreditInfo) {
+      initialSanama["sanama_6"] = autoCreditInfo;
+    }
     onChange({
       ...row,
       subAccount: val,
-      sanamaFields: {},
+      sanamaFields: initialSanama,
       isSanamaConfirmed: false,
       lastTouchTimestamp: Date.now(),
     });
@@ -435,13 +454,18 @@ function SanamaField({ rowDef, value, onChange, optional, disabled = false, hasE
   // dropdown ساده
   if (rowDef.values) {
     const opts = rowDef.values.map((v) => ({ value: String(v.type), label: v.title }));
+    let selVal = value !== undefined && value !== null ? String(value) : "";
+    const matchByTitle = rowDef.values.find((v) => v.title === selVal || String(v.type) === selVal);
+    if (matchByTitle) {
+      selVal = String(matchByTitle.type);
+    }
     return (
       <SanamaWrap title={rowDef.title} hasError={hasError}>
         <SearchableSelect
-          value={value !== undefined && value !== null ? String(value) : ""}
+          value={selVal}
           onChange={(v) => onChange(v || "")}
           options={opts}
-          placeholder={placeholder}
+          placeholder={disabled && !selVal ? "غیرفعال" : placeholder}
           searchable={opts.length > 8}
           disabled={disabled}
           className={errSelectCls}
@@ -581,6 +605,13 @@ function SanamaExtraFields({ row, allRows, onSanamaChange, onConfirmRow, onEditR
       : { bar: "bg-muted", header: "bg-muted/30    border-border", badge: "bg-muted text-muted-foreground border-border", label: "—", amount: "text-muted-foreground" };
 
   const creditTypeValue = row.sanamaFields?.["sanama_5"];
+  const autoCreditInfo = getCreditInfoAutoValue(row.subAccount);
+
+  useEffect(() => {
+    if (autoCreditInfo && requiredRows.includes(6) && row.sanamaFields?.["sanama_6"] !== autoCreditInfo) {
+      onSanamaChange?.("sanama_6", autoCreditInfo);
+    }
+  }, [row.subAccount, requiredRows, row.sanamaFields, autoCreditInfo, onSanamaChange]);
 
   const handleConfirmSanama = () => {
     const newErrors = {};
@@ -633,17 +664,18 @@ function SanamaExtraFields({ row, allRows, onSanamaChange, onConfirmRow, onEditR
     const isNotifiedCredit = creditTypeValue === "2" || creditTypeValue === "ابلاغی";
     if (rowNum === 15 && !isNotifiedCredit) return null;
 
+    const autoVal = rowNum === 6 ? autoCreditInfo : null;
     const fieldKey = `sanama_${rowNum}`;
-    const val = row.sanamaFields?.[fieldKey];
+    const val = autoVal || row.sanamaFields?.[fieldKey];
     if (!val || val === "0" || val === "") return null;
 
     let displayVal = val;
     if (rowDef.values) {
-      const match = rowDef.values.find((v) => String(v.type) === String(val));
+      const match = rowDef.values.find((v) => String(v.type) === String(val) || v.title === String(val));
       if (match) displayVal = match.title;
     } else if (rowDef.groups) {
       for (const g of rowDef.groups) {
-        const match = g.values.find((v) => String(v.type) === String(val));
+        const match = g.values.find((v) => String(v.type) === String(val) || v.title === String(val));
         if (match) { displayVal = match.title; break; }
       }
     }
@@ -781,6 +813,10 @@ function SanamaExtraFields({ row, allRows, onSanamaChange, onConfirmRow, onEditR
             let disabled = false;
             let optional = OPTIONAL_ROWS.has(rowNum);
 
+            if (rowNum === 6 && autoCreditInfo) {
+              disabled = true;
+            }
+
             if (hasBothChapters) {
               if (rowNum === 11 && isRow9Filled) {
                 disabled = true;
@@ -792,7 +828,7 @@ function SanamaExtraFields({ row, allRows, onSanamaChange, onConfirmRow, onEditR
             }
 
             const fieldKey = `sanama_${rowNum}`;
-            const fieldVal = row.sanamaFields?.[fieldKey];
+            const fieldVal = (rowNum === 6 && autoCreditInfo) ? autoCreditInfo : row.sanamaFields?.[fieldKey];
             const hasErr = Boolean(fieldErrors[fieldKey]);
             return (
               <SanamaField
@@ -1149,13 +1185,18 @@ export default function ManualDocument() {
           const res = await api.get("/api/documents");
           if (!isMounted) return;
           const allDocs = res.data.data || [];
-          const existingDraft = allDocs.find((d) => d.status === "DRAFT");
+          const existingDraft = allDocs.find((d) => {
+            if (d.status !== "DRAFT") return false;
+            if (!activeFY) return true;
+            const dYear = String(d.fiscal_year || d.fiscalYear || d.document_date?.slice(0, 4) || "");
+            return dYear.includes(String(activeFY));
+          });
           if (existingDraft) {
             setDocId(existingDraft._id);
             navigate(`/document-setup/manual-doc?id=${existingDraft._id}`, { replace: true });
             setMessage({
               type: "error",
-              text: `شما یک سند پیش‌نویس (شماره سند: ${existingDraft.document_number || "نامشخص"}) در سیستم دارید. لطفاً ابتدا آن را تکمیل یا حذف کنید تا بتوانید سند جدیدی ثبت نمایید.`,
+              text: `شما یک سند پیش‌نویس (شماره سند: ${existingDraft.document_number || "نامشخص"}) در این سال مالی دارید. لطفاً ابتدا آن را تکمیل یا حذف کنید تا بتوانید سند جدیدی ثبت نمایید.`,
             });
             return;
           }
@@ -1444,11 +1485,16 @@ export default function ManualDocument() {
     try {
       const res = await api.get("/api/documents");
       const allDocs = res.data.data || [];
-      const existingDraft = allDocs.find((d) => d.status === "DRAFT");
+      const existingDraft = allDocs.find((d) => {
+        if (d.status !== "DRAFT") return false;
+        if (!activeFY) return true;
+        const dYear = String(d.fiscal_year || d.fiscalYear || d.document_date?.slice(0, 4) || "");
+        return dYear.includes(String(activeFY));
+      });
       if (existingDraft) {
         setMessage({
           type: "error",
-          text: `امکان ثبت سند جدید وجود ندارد! شما یک سند پیش‌نویس (شماره سند: ${existingDraft.document_number || "نامشخص"}) در سیستم دارید. لطفاً ابتدا آن را تکمیل یا حذف نمایید.`,
+          text: `امکان ثبت سند جدید وجود ندارد! شما یک سند پیش‌نویس (شماره سند: ${existingDraft.document_number || "نامشخص"}) در این سال مالی دارید. لطفاً ابتدا آن را تکمیل یا حذف نمایید.`,
         });
         return;
       }

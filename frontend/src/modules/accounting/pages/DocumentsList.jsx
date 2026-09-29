@@ -360,9 +360,15 @@ export default function DocumentsList() {
   }
 
   const handleCreateManualDoc = () => {
-    const draftDoc = docs.find((d) => d.status === "DRAFT");
+    const targetFY = filterYear || selectedFiscalYear;
+    const draftDoc = docs.find((d) => {
+      if (d.status !== "DRAFT") return false;
+      if (!targetFY) return true;
+      const dYear = String(d.fiscal_year || d.fiscalYear || d.document_date?.slice(0, 4) || "");
+      return dYear.includes(String(targetFY));
+    });
     if (draftDoc) {
-      alert(`خطا: شما یک سند پیش‌نویس (شماره سند: ${draftDoc.document_number || "نامشخص"}) در سیستم دارید. لطفاً ابتدا آن را تکمیل یا حذف نمایید تا مجاز به ثبت سند جدید شوید.`);
+      alert(`خطا: شما یک سند پیش‌نویس (شماره سند: ${draftDoc.document_number || "نامشخص"}) در دوره مالی انتخابی دارید. لطفاً ابتدا آن را تکمیل یا حذف نمایید تا مجاز به ثبت سند جدید شوید.`);
       navigate(`/document-setup/manual-doc?id=${draftDoc._id}`);
     } else {
       navigate("/document-setup/manual-doc");
@@ -527,7 +533,7 @@ export default function DocumentsList() {
               <table className="w-full text-sm" dir="rtl">
                 <thead>
                   <tr className="border-b bg-muted/40">
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground w-12">#</th>
+                    <SortHeader label="شماره سند" field="document_number" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
                     <SortHeader label="دوره مالی" field="fiscal_year" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
                     <SortHeader label="تاریخ سند" field="document_date" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
                     <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">نوع سند</th>
@@ -552,8 +558,10 @@ export default function DocumentsList() {
                         onClick={() => setSelected(doc)}
                         className="border-b last:border-0 hover:bg-primary/[0.03] cursor-pointer transition-colors group"
                       >
-                        {/* ردیف */}
-                        <td className="px-4 py-3 text-center text-xs text-muted-foreground/60">{idx + 1}</td>
+                        {/* شماره سند */}
+                        <td className="px-4 py-3 text-center">
+                          <span className="font-mono text-xs font-bold text-foreground">{doc.document_number ?? "—"}</span>
+                        </td>
 
                         {/* دوره مالی */}
                         <td className="px-4 py-3 text-center">

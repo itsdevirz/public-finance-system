@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Save, Info, CheckCircle2, Pencil, Trash2, Plus, X,
   ChevronLeft, Eye, FileText, AlertTriangle, RefreshCw,
@@ -12,6 +12,8 @@ import { Label } from "@/components/ui/label";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { cn } from "@/lib/utils";
 import api from "@/api";
+import { useFiscalYear } from "@/context/FiscalYearContext";
+import { PersianDatePicker, toPersianDigits } from "@/components/ui/persian-date-picker";
 
 // ══════════════════════════════════════════════════════════════════════════════
 // ثوابت
@@ -43,7 +45,7 @@ const CAPITAL_CHAPTER_OPTIONS = [
 const CREDIT_TYPE_OPTIONS = [
   { value: "expense", label: "هزینه" },
   { value: "capital", label: "تملک دارایی‌های سرمایه‌ای" },
-  { value: "other",   label: "سایر منابع" },
+  { value: "other", label: "سایر منابع" },
 ];
 
 const EXPENSE_KIND_LABEL = {
@@ -79,7 +81,7 @@ const CREDIT_TYPE_LABEL = {
 const CREDIT_TYPE_COLOR = {
   expense: "bg-blue-100 text-blue-700 border-blue-200",
   capital: "bg-violet-100 text-violet-700 border-violet-200",
-  other:   "bg-amber-100 text-amber-700 border-amber-200",
+  other: "bg-amber-100 text-amber-700 border-amber-200",
 };
 const CREDIT_KIND_COLOR = {
   approved: "bg-emerald-100 text-emerald-700 border-emerald-200",
@@ -124,7 +126,36 @@ const ALL_SUB_CHAPTERS_GROUPED = [
 ];
 const SUB_CHAPTER_LABEL = Object.fromEntries(ALL_SUB_CHAPTERS_GROUPED.map(o => [o.value, o.label]));
 
-const INITIAL_EXPENSE = { expenseKind: "", programNumber: "", expenseChapter: "", expenseSubChapter: "" };
+export function getCreditTitle(item) {
+  if (!item) return "—";
+  if (item.title) return item.title;
+
+  const ct = item.creditType;
+
+  if (ct === "capital" || item.capital) {
+    const titles = [item.capital?.projectTitle, item.capital?.projectPlanTitle].filter(Boolean);
+    if (titles.length > 0) return titles.join(" / ");
+    if (item.capital?.projectNumber) return `طرح شماره ${item.capital.projectNumber}`;
+  }
+
+  if (ct === "expense" || item.expense) {
+    if (item.expense?.programTitle) return item.expense.programTitle;
+    if (item.expense?.expenseSubChapter) {
+      const label = SUB_CHAPTER_LABEL[item.expense.expenseSubChapter];
+      if (label) return label.replace(/^\d+\s*—\s*/, "");
+    }
+    if (item.expense?.expenseChapter) {
+      const label = EXPENSE_CHAPTER_LABEL[item.expense.expenseChapter];
+      if (label) return label.replace(/^\d+\s*—\s*/, "");
+    }
+    if (item.expense?.programNumber) return `برنامه شماره ${item.expense.programNumber}`;
+  }
+
+  if (item.description) return item.description;
+  return "—";
+}
+
+const INITIAL_EXPENSE = { expenseKind: "", programNumber: "", programTitle: "", expenseChapter: "", expenseSubChapter: "" };
 const INITIAL_CAPITAL = { projectNumber: "", projectTitle: "", projectPlanTitle: "", capitalChapter: "" };
 const INITIAL_FORM = {
   creditKind: "approved", creditType: "", notifierRow: "",
@@ -148,7 +179,33 @@ function Field({ label, required, children, fullWidth, className }) {
 }
 
 function ExpenseFields({ data, onChange }) {
-  function set(field, val) { onChange({ ...data, [field]: val }); }
+  function set(field, val) {
+    if (field === "expenseChapter") {
+      const newPrefix = String(val).slice(0, 2);
+      const currentSub = data.expenseSubChapter;
+      const isValidSub = currentSub && String(currentSub).startsWith(newPrefix);
+      onChange({
+        ...data,
+        expenseChapter: val,
+        expenseSubChapter: isValidSub ? currentSub : "",
+      });
+    } else {
+      onChange({ ...data, [field]: val });
+    }
+  }
+
+  const subChapterOptions = useMemo(() => {
+    if (!data.expenseChapter) return [];
+    const prefix = String(data.expenseChapter).slice(0, 2);
+    return ALL_SUB_CHAPTERS_GROUPED.filter(item => item.value.startsWith(prefix));
+  }, [data.expenseChapter]);
+
+  const subChapterPlaceholder = !data.expenseChapter
+    ? "ابتدا فصل را انتخاب کنید..."
+    : subChapterOptions.length === 0
+      ? "ریزفصلی برای این فصل وجود ندارد"
+      : "انتخاب ریزفصل";
+
   return (
     <div className="grid grid-cols-2 gap-x-6 gap-y-4" dir="rtl">
       <Field label="نوع هزینه" required>
@@ -160,13 +217,22 @@ function ExpenseFields({ data, onChange }) {
         <Input value={data.programNumber} onChange={e => set("programNumber", e.target.value)}
           placeholder="شماره برنامه" className="h-9 text-sm" dir="ltr" />
       </Field>
+      <Field label="عنوان برنامه / هزینه">
+        <Input value={data.programTitle ?? ""} onChange={e => set("programTitle", e.target.value)}
+          placeholder="عنوان برنامه یا هزینه" className="h-9 text-sm" />
+      </Field>
       <Field label="فصول" required>
         <SearchableSelect value={data.expenseChapter} onChange={v => set("expenseChapter", v)}
           options={EXPENSE_CHAPTER_OPTIONS} placeholder="انتخاب فصل" />
       </Field>
       <Field label="ریزفصل هزینه" required fullWidth>
-        <SearchableSelect value={data.expenseSubChapter} onChange={v => set("expenseSubChapter", v)}
-          options={ALL_SUB_CHAPTERS_GROUPED} placeholder="انتخاب ریزفصل" />
+        <SearchableSelect
+          value={data.expenseSubChapter}
+          onChange={v => set("expenseSubChapter", v)}
+          options={subChapterOptions}
+          placeholder={subChapterPlaceholder}
+          disabled={!data.expenseChapter}
+        />
       </Field>
     </div>
   );
@@ -213,22 +279,31 @@ function Badge({ children, className }) {
 function CreditModal({ mode, item, onClose, onSaved }) {
   // mode: "view" | "edit" | "add"
   const isView = mode === "view";
-  const isAdd  = mode === "add";
+  const isAdd = mode === "add";
+
+  const { selectedFiscalYear } = useFiscalYear();
 
   const [form, setForm] = useState(() => {
-    if (isAdd) return { ...INITIAL_FORM, expense: { ...INITIAL_EXPENSE }, capital: { ...INITIAL_CAPITAL } };
+    const initialDate = item?.registerDate || item?.date || `${selectedFiscalYear || "1405"}/01/01`;
+    if (isAdd) return {
+      ...INITIAL_FORM,
+      registerDate: initialDate,
+      expense: { ...INITIAL_EXPENSE },
+      capital: { ...INITIAL_CAPITAL }
+    };
     return {
-      creditKind:      item?.creditKind      ?? "approved",
-      creditType:      item?.creditType      ?? "",
-      notifierRow:     item?.notifierRow     ?? "",
-      expense:         { ...INITIAL_EXPENSE, ...(item?.expense  ?? {}) },
-      capital:         { ...INITIAL_CAPITAL, ...(item?.capital  ?? {}) },
+      registerDate: initialDate,
+      creditKind: item?.creditKind ?? "approved",
+      creditType: item?.creditType ?? "",
+      notifierRow: item?.notifierRow ?? "",
+      expense: { ...INITIAL_EXPENSE, ...(item?.expense ?? {}) },
+      capital: { ...INITIAL_CAPITAL, ...(item?.capital ?? {}) },
       otherHasExpense: item?.otherHasExpense ?? false,
       otherHasCapital: item?.otherHasCapital ?? false,
     };
   });
   const [saving, setSaving] = useState(false);
-  const [error,  setError]  = useState(null);
+  const [error, setError] = useState(null);
   const [localMode, setLocalMode] = useState(mode);
 
   const isEditing = localMode === "edit" || localMode === "add";
@@ -253,10 +328,15 @@ function CreditModal({ mode, item, onClose, onSaved }) {
     setSaving(true);
     setError(null);
     try {
+      const payload = {
+        ...form,
+        fiscal_year: selectedFiscalYear,
+        fiscalYear: selectedFiscalYear,
+      };
       if (!isAdd) {
-        await api.put(`/api/credits/definitions/${item._id}`, form);
+        await api.put(`/api/credits/definitions/${item._id}`, payload);
       } else {
-        await api.post("/api/credits/definitions", form);
+        await api.post("/api/credits/definitions", payload);
       }
       onSaved(isAdd ? "افزوده" : "ویرایش");
     } catch (err) {
@@ -331,19 +411,36 @@ function CreditModal({ mode, item, onClose, onSaved }) {
             )}
           </div>
 
-          {/* نوع (هزینه/تملک/سایر) */}
-          <div>
+          {/* نوع و تاریخ ثبت */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="نوع" required={isEditing}>
               {isEditing ? (
-                <div className="max-w-xs">
-                  <SearchableSelect value={form.creditType}
-                    onChange={v => { setForm(f => ({ ...f, creditType: v })); setError(null); }}
-                    options={CREDIT_TYPE_OPTIONS} placeholder="انتخاب نوع اعتبار" searchable={false} />
-                </div>
+                <SearchableSelect value={form.creditType}
+                  onChange={v => { setForm(f => ({ ...f, creditType: v })); setError(null); }}
+                  options={CREDIT_TYPE_OPTIONS} placeholder="انتخاب نوع اعتبار" searchable={false} />
               ) : (
                 <Badge className={CREDIT_TYPE_COLOR[item?.creditType] ?? "bg-muted text-muted-foreground border-border"}>
                   {CREDIT_TYPE_LABEL[item?.creditType] ?? "—"}
                 </Badge>
+              )}
+            </Field>
+
+            <Field label="تاریخ ثبت" required={isEditing}>
+              {isEditing ? (
+                <PersianDatePicker
+                  value={form.registerDate}
+                  onChange={(val) => {
+                    const strVal = typeof val === "object" && val !== null ? (val.target?.value ?? val.value ?? String(val)) : String(val);
+                    setForm(f => ({ ...f, registerDate: strVal }));
+                    setError(null);
+                  }}
+                  fixedYear={selectedFiscalYear}
+                  placeholder={`${selectedFiscalYear || "1405"}/01/01`}
+                />
+              ) : (
+                <span className="text-sm font-semibold text-foreground font-mono">
+                  {form.registerDate ? toPersianDigits(form.registerDate) : "—"}
+                </span>
               )}
             </Field>
           </div>
@@ -357,11 +454,11 @@ function CreditModal({ mode, item, onClose, onSaved }) {
               {isEditing
                 ? <ExpenseFields data={form.expense} onChange={d => setForm(f => ({ ...f, expense: d }))} />
                 : <DetailGrid rows={[
-                    { label: "نوع هزینه",    value: EXPENSE_KIND_LABEL[item?.expense?.expenseKind]           },
-                    { label: "شماره برنامه", value: item?.expense?.programNumber, mono: true                 },
-                    { label: "فصل",          value: EXPENSE_CHAPTER_LABEL[item?.expense?.expenseChapter]     },
-                    { label: "ریزفصل",       value: SUB_CHAPTER_LABEL[item?.expense?.expenseSubChapter]      },
-                  ]} />
+                  { label: "نوع هزینه", value: EXPENSE_KIND_LABEL[item?.expense?.expenseKind] },
+                  { label: "شماره برنامه", value: item?.expense?.programNumber, mono: true },
+                  { label: "فصل", value: EXPENSE_CHAPTER_LABEL[item?.expense?.expenseChapter] },
+                  { label: "ریزفصل", value: SUB_CHAPTER_LABEL[item?.expense?.expenseSubChapter] },
+                ]} />
               }
             </div>
           )}
@@ -375,11 +472,11 @@ function CreditModal({ mode, item, onClose, onSaved }) {
               {isEditing
                 ? <CapitalFields data={form.capital} onChange={d => setForm(f => ({ ...f, capital: d }))} />
                 : <DetailGrid rows={[
-                    { label: "شماره طرح", value: item?.capital?.projectNumber, mono: true           },
-                    { label: "فصل",         value: CAPITAL_CHAPTER_LABEL[item?.capital?.capitalChapter] },
-                    { label: "عنوان طرح", value: item?.capital?.projectTitle                        },
-                    { label: "عنوان پروژه", value: item?.capital?.projectPlanTitle                  },
-                  ]} />
+                  { label: "شماره طرح", value: item?.capital?.projectNumber, mono: true },
+                  { label: "فصل", value: CAPITAL_CHAPTER_LABEL[item?.capital?.capitalChapter] },
+                  { label: "عنوان طرح", value: item?.capital?.projectTitle },
+                  { label: "عنوان پروژه", value: item?.capital?.projectPlanTitle },
+                ]} />
               }
             </div>
           )}
@@ -419,18 +516,18 @@ function CreditModal({ mode, item, onClose, onSaved }) {
               )}
               {!isEditing && item?.otherHasExpense && (
                 <DetailGrid rows={[
-                  { label: "نوع هزینه",    value: EXPENSE_KIND_LABEL[item?.expense?.expenseKind]       },
-                  { label: "شماره برنامه", value: item?.expense?.programNumber, mono: true             },
-                  { label: "فصل",          value: EXPENSE_CHAPTER_LABEL[item?.expense?.expenseChapter] },
-                  { label: "ریزفصل",       value: SUB_CHAPTER_LABEL[item?.expense?.expenseSubChapter]  },
+                  { label: "نوع هزینه", value: EXPENSE_KIND_LABEL[item?.expense?.expenseKind] },
+                  { label: "شماره برنامه", value: item?.expense?.programNumber, mono: true },
+                  { label: "فصل", value: EXPENSE_CHAPTER_LABEL[item?.expense?.expenseChapter] },
+                  { label: "ریزفصل", value: SUB_CHAPTER_LABEL[item?.expense?.expenseSubChapter] },
                 ]} />
               )}
               {!isEditing && item?.otherHasCapital && (
                 <DetailGrid rows={[
-                  { label: "شماره طرح",   value: item?.capital?.projectNumber, mono: true            },
-                  { label: "فصل",         value: CAPITAL_CHAPTER_LABEL[item?.capital?.capitalChapter] },
-                  { label: "عنوان طرح",   value: item?.capital?.projectTitle                         },
-                  { label: "عنوان پروژه", value: item?.capital?.projectPlanTitle                     },
+                  { label: "شماره طرح", value: item?.capital?.projectNumber, mono: true },
+                  { label: "فصل", value: CAPITAL_CHAPTER_LABEL[item?.capital?.capitalChapter] },
+                  { label: "عنوان طرح", value: item?.capital?.projectTitle },
+                  { label: "عنوان پروژه", value: item?.capital?.projectPlanTitle },
                 ]} />
               )}
             </div>
@@ -444,10 +541,10 @@ function CreditModal({ mode, item, onClose, onSaved }) {
               </p>
               {isEditing
                 ? <Field label="ردیف دستگاه ابلاغ‌دهنده" required>
-                    <Input value={form.notifierRow} onChange={setF("notifierRow")}
-                      placeholder="ردیف دستگاه ابلاغ‌دهنده را وارد کنید"
-                      className="h-9 text-sm max-w-sm" dir="ltr" />
-                  </Field>
+                  <Input value={form.notifierRow} onChange={setF("notifierRow")}
+                    placeholder="ردیف دستگاه ابلاغ‌دهنده را وارد کنید"
+                    className="h-9 text-sm max-w-sm" dir="ltr" />
+                </Field>
                 : <DetailGrid rows={[{ label: "ردیف ابلاغ‌دهنده", value: item?.notifierRow, mono: true }]} />
               }
             </div>
@@ -456,7 +553,6 @@ function CreditModal({ mode, item, onClose, onSaved }) {
           {/* تاریخ */}
           {!isAdd && item?.createdAt && (
             <div className="flex items-center gap-4 text-xs text-muted-foreground border-t pt-3">
-              <span>ثبت: {new Date(item.createdAt).toLocaleDateString("fa-IR")}</span>
               {item.updatedAt && item.updatedAt !== item.createdAt && (
                 <span>آخرین ویرایش: {new Date(item.updatedAt).toLocaleDateString("fa-IR")}</span>
               )}
@@ -551,8 +647,8 @@ function CreditRow({ item, index, onView, onEdit, onDelete }) {
       <td className="px-4 py-3 text-center text-xs text-muted-foreground/70 w-12">{index + 1}</td>
 
       {/* نوع اعتبار */}
-      <td className="px-4 py-3 w-28">
-        <span className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold", CREDIT_KIND_COLOR[item.creditKind ?? "approved"])}>
+      <td className="px-3 py-3 whitespace-nowrap shrink-0">
+        <span className={cn("inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[11px] font-semibold shadow-2xs", CREDIT_KIND_COLOR[item.creditKind ?? "approved"])}>
           {item.creditKind === "notified"
             ? <><Bell className="h-2.5 w-2.5" />ابلاغی</>
             : <><BadgeCheck className="h-2.5 w-2.5" />مصوب</>}
@@ -560,9 +656,16 @@ function CreditRow({ item, index, onView, onEdit, onDelete }) {
       </td>
 
       {/* نوع */}
-      <td className="px-4 py-3 w-44">
-        <span className={cn("inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold", CREDIT_TYPE_COLOR[ct] ?? "bg-muted text-muted-foreground border-border")}>
+      <td className="px-3 py-3 whitespace-nowrap shrink-0">
+        <span className={cn("inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[11px] font-semibold shadow-2xs", CREDIT_TYPE_COLOR[ct] ?? "bg-muted text-muted-foreground border-border")}>
           {CREDIT_TYPE_LABEL[ct] ?? "—"}
+        </span>
+      </td>
+
+      {/* عنوان */}
+      <td className="px-3 py-3 text-xs font-medium text-foreground">
+        <span className="font-semibold text-foreground/90 truncate max-w-[280px] block leading-relaxed" title={getCreditTitle(item)}>
+          {getCreditTitle(item)}
         </span>
       </td>
 
@@ -596,8 +699,8 @@ function CreditRow({ item, index, onView, onEdit, onDelete }) {
       </td>
 
       {/* تاریخ ثبت */}
-      <td className="px-4 py-3 w-28 text-xs text-muted-foreground/70 text-center">
-        {item.createdAt ? new Date(item.createdAt).toLocaleDateString("fa-IR") : "—"}
+      <td className="px-4 py-3 w-28 text-xs text-muted-foreground/90 text-center font-mono font-semibold">
+        {item.registerDate ? toPersianDigits(item.registerDate) : (item.createdAt ? new Date(item.createdAt).toLocaleDateString("fa-IR") : "—")}
       </td>
 
       {/* عملیات */}
@@ -628,8 +731,8 @@ function CreditRow({ item, index, onView, onEdit, onDelete }) {
 // صفحه اصلی
 // ══════════════════════════════════════════════════════════════════════════════
 export default function CreditForm() {
-  const [credits, setCredits]     = useState([]);
-  const [loading, setLoading]     = useState(true);
+  const [credits, setCredits] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
 
@@ -637,7 +740,7 @@ export default function CreditForm() {
   const [modal, setModal] = useState(null); // { mode: "view"|"edit"|"add", item?: object }
   // delete state
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const [deleting, setDeleting]         = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchCredits = useCallback(async () => {
     setLoading(true);
@@ -765,12 +868,13 @@ export default function CreditForm() {
               <table className="w-full text-sm" dir="rtl">
                 <thead>
                   <tr className="border-b bg-muted/40">
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground w-12">#</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground w-28">اعتبار</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground w-44">نوع</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">خلاصه اطلاعات</th>
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground w-28">تاریخ ثبت</th>
-                    <th className="px-4 py-3 w-28" />
+                    <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground w-12 whitespace-nowrap">#</th>
+                    <th className="px-3 py-3 text-right text-xs font-semibold text-muted-foreground whitespace-nowrap">اعتبار</th>
+                    <th className="px-3 py-3 text-right text-xs font-semibold text-muted-foreground whitespace-nowrap">نوع</th>
+                    <th className="px-3 py-3 text-right text-xs font-semibold text-muted-foreground whitespace-nowrap min-w-[200px]">عنوان</th>
+                    <th className="px-3 py-3 text-right text-xs font-semibold text-muted-foreground whitespace-nowrap">خلاصه اطلاعات</th>
+                    <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground w-28 whitespace-nowrap">تاریخ ثبت</th>
+                    <th className="px-3 py-3 w-24" />
                   </tr>
                 </thead>
                 <tbody>

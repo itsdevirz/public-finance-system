@@ -18,6 +18,8 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "framer-motion": "^12.43.0",
+    "highcharts": "^13.1.1",
+    "highcharts-react-official": "^3.2.3",
     "lucide-react": "^1.37.0",
     "postcss": "^8.5.26",
     "react": "^18.3.1",

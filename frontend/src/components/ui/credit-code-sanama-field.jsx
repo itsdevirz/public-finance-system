@@ -10,11 +10,14 @@ export function CreditCodeSanamaField({ value, onChange, inputCls, disabled = fa
     return data.data
       .filter((c) => c.expense?.programNumber || c.capital?.projectNumber)
       .map((c) => {
-        const num  = c.capital?.projectNumber || c.expense?.programNumber || "";
-        const type = c.creditType === "capital" ? "تملک دارایی" : "هزینه";
+        const num = c.capital?.projectNumber || c.expense?.programNumber || "";
+        const title = c.capital?.projectTitle || c.expense?.programTitle || "";
+        const planTitle = c.capital?.projectPlanTitle || "";
+        const isNotified = c.creditKind === "notified" || c.credit_kind === "notified" || c.kind === "notified";
+        const kindLabel = isNotified ? "ابلاغی" : "مصوب";
         return {
           value: num,
-          label: `${num}${c.capital?.projectTitle ? ` — ${c.capital.projectTitle}` : ""}${c.capital?.projectPlanTitle ? ` / ${c.capital.projectPlanTitle}` : ""} (${type})`,
+          label: `${num}${title ? ` — ${title}` : ""}${planTitle ? ` / ${planTitle}` : ""} (${kindLabel})`,
         };
       })
       .filter((o) => o.value);

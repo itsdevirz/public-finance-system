@@ -9,20 +9,31 @@ import { Badge } from "@/components/ui/badge";
 
 import { PersianDatePicker, toPersianDigits } from "@/components/ui/persian-date-picker";
 import { Separator } from "@/components/ui/separator";
-import { Copy, Search, ChevronDown, FileText, X, ArrowRightLeft, Sliders, CheckSquare, Settings, Eye, Clock, Layers, ShieldCheck } from "lucide-react";
+import { Copy, Plus, Trash2, Search, ChevronDown, FileText, X, ArrowRightLeft, Sliders, CheckSquare, Settings, Eye, Clock, Layers, ShieldCheck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import api from "@/api";
 import { cn } from "@/lib/utils";
+import { encrypt } from "@/lib/crypto";
+import { useFiscalYear } from "@/context/FiscalYearContext";
 
 const STATUS_LABEL = { DRAFT: "پیش‌نویس", CONFIRMED: "تایید شده", CANCELLED: "ابطال شده" };
 const STATUS_COLOR = {
-  DRAFT:     "bg-orange-50 text-orange-700 border-orange-200",
+  DRAFT: "bg-orange-50 text-orange-700 border-orange-200",
   CONFIRMED: "bg-emerald-50 text-emerald-700 border-emerald-200",
   CANCELLED: "bg-rose-50 text-rose-700 border-rose-200",
 };
 
+function parseNumericAmount(val) {
+  if (val === null || val === undefined || val === "") return 0;
+  if (typeof val === "number") return isNaN(val) ? 0 : val;
+  const englishStr = String(val).replace(/[۰-۹]/g, ch => "۰۱۲۳۴۵۶۷۸۹".indexOf(ch).toString());
+  const cleanStr = englishStr.replace(/[^\d]/g, "");
+  return parseInt(cleanStr, 10) || 0;
+}
+
 export default function CopyDocument() {
   const navigate = useNavigate();
+  const { fiscalYears, selectedFiscalYear } = useFiscalYear();
   const today = new Date().toLocaleDateString("fa-IR").replace(/\//g, "/");
 
   const [docs, setDocs] = useState([]);
@@ -40,13 +51,20 @@ export default function CopyDocument() {
     docNoType: "auto", // auto, manual
     manualDocNo: "",
     docDate: today,
-    fiscalYear: "1405",
+    fiscalYear: selectedFiscalYear || "1405",
     fiscalPeriod: "تیرماه",
     branch: "شعبه اصفهان",
     orgUnit: "امور مالی اصفهان",
     docType: "روزنامه",
     description: ""
   });
+
+  useEffect(() => {
+    if (selectedFiscalYear) {
+      setNewDocInfo(info => ({ ...info, fiscalYear: selectedFiscalYear }));
+      setBulkCopy(bulk => ({ ...bulk, targetYear: selectedFiscalYear }));
+    }
+  }, [selectedFiscalYear]);
 
   const [copyOptions, setCopyOptions] = useState({
     allItems: true,
@@ -62,7 +80,8 @@ export default function CopyDocument() {
     budgets: true,
     taxes: true,
     refNo: true,
-    customerInfo: true
+    customerInfo: true,
+    detailAccounts: true
   });
 
   // Dimension replacements/mappings
@@ -151,10 +170,12 @@ export default function CopyDocument() {
   // Calculate totals of selected source doc
   const sourceTotals = useMemo(() => {
     if (!selectedDoc) return { debit: 0, credit: 0, linesCount: 0 };
-    const lines = selectedDoc.lines || [];
-    const debit = lines.reduce((s, l) => s + (l.debit || 0), 0);
-    const credit = lines.reduce((s, l) => s + (l.credit || 0), 0);
-    return { debit, credit, linesCount: lines.length };
+    const sourceRows = (selectedDoc.rawRows && selectedDoc.rawRows.length > 0)
+      ? selectedDoc.rawRows
+      : (selectedDoc.lines || []);
+    const debit = sourceRows.reduce((s, l) => s + parseNumericAmount(l.debit), 0);
+    const credit = sourceRows.reduce((s, l) => s + parseNumericAmount(l.credit), 0);
+    return { debit, credit, linesCount: sourceRows.length };
   }, [selectedDoc]);
 
   // ---------------------------------------------------------------------------
@@ -163,12 +184,24 @@ export default function CopyDocument() {
   const targetPreview = useMemo(() => {
     if (!selectedDoc) return { debit: 0, credit: 0, linesCount: 0, lines: [] };
 
-    let lines = (selectedDoc.lines || []).map((l, index) => {
-      let debit = l.debit || 0;
-      let credit = l.credit || 0;
+    if (!copyOptions.allItems) {
+      return { debit: 0, credit: 0, linesCount: 0, lines: [] };
+    }
+
+    const sourceRows = (selectedDoc.rawRows && selectedDoc.rawRows.length > 0)
+      ? selectedDoc.rawRows
+      : (selectedDoc.lines || []);
+
+    let lines = sourceRows.map((l, index) => {
+      let subAccountCode = l.subAccount || l.detailAccount || l.account_code || "";
+      let groupCode = l.group || (subAccountCode ? subAccountCode.charAt(0) : "");
+      let accountGroup = l.account || (subAccountCode ? subAccountCode.substring(0, 3) : "");
+
+      let debit = parseNumericAmount(l.debit);
+      let credit = parseNumericAmount(l.credit);
 
       // Adjust amounts
-      if (amountSetting === "zero" || !copyOptions.amounts) {
+      if (amountSetting === "zero" || !copyOptions.amounts || copyOptions.accountsOnly) {
         debit = 0;
         credit = 0;
       } else if (amountSetting === "debitOnly") {
@@ -189,32 +222,53 @@ export default function CopyDocument() {
       }
 
       // Mappings and replacements
-      let lineDesc = copyOptions.lineDesc ? l.description : "";
-      let costCenter = copyOptions.costCenters ? (l.costCenter || "بخش اداری") : "";
-      let project = copyOptions.projects ? (l.project || "فناوری اطلاعات") : "";
+      let lineDesc = copyOptions.lineDesc ? (l.desc || l.description || "") : "";
+      let costCenter = copyOptions.costCenters ? (l.costCenter || "") : "";
+      let project = copyOptions.projects ? (l.project || "") : "";
 
-      if (mappings.costCenter.enabled && costCenter === mappings.costCenter.from) {
+      if (mappings.costCenter?.enabled && costCenter === mappings.costCenter.from) {
         costCenter = mappings.costCenter.to;
       }
-      if (mappings.project.enabled && project === mappings.project.from) {
+      if (mappings.project?.enabled && project === mappings.project.from) {
         project = mappings.project.to;
       }
 
       // Apply global code mappings if exists
-      let accountCode = l.account_code || "";
-      const globalAcctMap = globalMappings.find(m => m.type === "حساب معین" && m.oldCode === accountCode);
+      const globalAcctMap = globalMappings.find(m => m.type === "حساب معین" && m.oldCode === subAccountCode);
       if (globalAcctMap) {
-        accountCode = globalAcctMap.newCode;
+        subAccountCode = globalAcctMap.newCode;
+        groupCode = subAccountCode.charAt(0) || "";
+        accountGroup = subAccountCode.substring(0, 3);
       }
+
+      // Sub-accounts / Tafsili
+      let subAccount = copyOptions.detailAccounts ? subAccountCode : "";
+      let subAccountName = copyOptions.detailAccounts ? (l.subAccountName || l.account_name || "") : "";
+      let detailAccount = copyOptions.detailAccounts ? subAccountCode : "";
 
       return {
         ...l,
-        account_code: accountCode,
+        id: index + 1,
+        group: groupCode,
+        account: accountGroup,
+        account_code: subAccountCode,
+        account_name: l.account_name || "",
+        subAccount,
+        subAccountName,
+        detailAccount,
         debit,
         credit,
+        desc: lineDesc,
         description: lineDesc,
-        costCenter,
-        project
+        costCenter: copyOptions.costCenters ? costCenter : undefined,
+        project: copyOptions.projects ? project : undefined,
+        currency: copyOptions.currencyInfo ? l.currency : undefined,
+        currencyRate: copyOptions.currencyInfo ? l.currencyRate : undefined,
+        fundingSource: copyOptions.fundingSource ? l.fundingSource : undefined,
+        is_budgetary: copyOptions.budgets ? l.is_budgetary : undefined,
+        sanamaFields: copyOptions.budgets ? (l.sanamaFields || {}) : {},
+        taxInfo: copyOptions.taxes ? l.taxInfo : undefined,
+        customer: copyOptions.customerInfo ? (l.customer || l.customerInfo) : undefined,
       };
     });
 
@@ -239,17 +293,60 @@ export default function CopyDocument() {
     setError(null);
 
     try {
+      const sensitiveState = {
+        header: {
+          docNo: newDocInfo.docNoType === "manual" ? newDocInfo.manualDocNo : "",
+          docDate: newDocInfo.docDate,
+          docType: newDocInfo.docType,
+          fiscalYear: newDocInfo.fiscalYear,
+          desc: newDocInfo.description,
+          letterNo: copyOptions.refNo ? (selectedDoc.reference_number || "") : "",
+          status: newStatus === "CONFIRMED" ? "صدور سند" : "پیش‌نویس"
+        },
+        rows: targetPreview.lines.map((l, idx) => ({
+          id: idx + 1,
+          group: l.group || (l.subAccount ? l.subAccount.charAt(0) : ""),
+          account: l.account || (l.subAccount ? l.subAccount.substring(0, 3) : ""),
+          subAccount: copyOptions.detailAccounts ? (l.subAccount || l.detailAccount || l.account_code || "") : "",
+          account_name: l.account_name || "",
+          debit: l.debit ? l.debit.toString() : "0",
+          credit: l.credit ? l.credit.toString() : "0",
+          desc: l.description || l.desc || "",
+          sanamaFields: copyOptions.budgets ? (l.sanamaFields || {}) : {},
+          isSanamaConfirmed: true
+        }))
+      };
+
+      const encryptedHex = await encrypt(JSON.stringify(sensitiveState));
+
       const payload = {
         document_type: newDocInfo.docType === "افتتاحیه" || newDocInfo.docType === "اختتامیه" ? "CLOSING" : "GENERAL_PAYMENT",
         fiscal_year: Number(newDocInfo.fiscalYear),
         status: newStatus,
         document_date: newDocInfo.docDate,
         description: newDocInfo.description,
+        reference_number: copyOptions.refNo ? selectedDoc.reference_number : undefined,
+        attachments: copyOptions.attachments ? selectedDoc.attachments : undefined,
+        files: copyOptions.files ? selectedDoc.files : undefined,
+        ciphertext: encryptedHex,
         lines: targetPreview.lines.map(l => ({
-          account_code: l.account_code,
+          account_code: l.subAccount || l.detailAccount || l.account_code || "",
+          account_name: l.account_name || "",
+          subAccount: copyOptions.detailAccounts ? (l.subAccount || l.detailAccount || l.account_code || "") : "",
+          subAccountName: l.subAccountName || l.account_name || "",
+          detailAccount: copyOptions.detailAccounts ? (l.detailAccount || l.subAccount || l.account_code || "") : "",
           debit: l.debit,
           credit: l.credit,
-          description: l.description || ""
+          description: l.description || l.desc || "",
+          costCenter: l.costCenter,
+          project: l.project,
+          currency: l.currency,
+          currencyRate: l.currencyRate,
+          fundingSource: l.fundingSource,
+          is_budgetary: l.is_budgetary,
+          sanamaFields: l.sanamaFields,
+          taxInfo: l.taxInfo,
+          customer: l.customer
         }))
       };
 
@@ -453,9 +550,15 @@ export default function CopyDocument() {
                     onChange={(e) => setNewDocInfo({ ...newDocInfo, fiscalYear: e.target.value })}
                     className="w-full h-9 text-xs rounded-lg border border-input bg-background px-3 font-semibold focus:outline-none focus:ring-1 focus:ring-primary"
                   >
-                    <option value="1405">۱۴۰۵</option>
-                    <option value="1406">۱۴۰۶ (سال مالی بعد)</option>
-                    <option value="1404">۱۴۰۴</option>
+                    {fiscalYears && fiscalYears.length > 0 ? (
+                      fiscalYears.map((fy) => (
+                        <option key={fy._id || fy.year} value={String(fy.year)}>
+                          {toPersianDigits(fy.year)} {fy.title ? `(${fy.title})` : ""}
+                        </option>
+                      ))
+                    ) : (
+                      <option value={selectedFiscalYear || "1405"}>{toPersianDigits(selectedFiscalYear || "1405")}</option>
+                    )}
                   </select>
                 </div>
               </div>
@@ -522,33 +625,69 @@ export default function CopyDocument() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-5">
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2">
-                {[
-                  { key: "allItems", label: "کپی تمام آرتیکل‌ها" },
-                  { key: "accountsOnly", label: "کپی فقط حساب‌ها (مبالغ صفر)" },
-                  { key: "amounts", label: "کپی مبالغ بدهکار/بستانکار" },
-                  { key: "lineDesc", label: "کپی شرح ردیف‌های آرتیکل" },
-                  { key: "attachments", label: "کپی مدارک مثبته و پیوست‌ها" },
-                  { key: "files", label: "کپی فایل‌های اسکن شده" },
-                  { key: "currencyInfo", label: "کپی اطلاعات ارزی (ارز/نرخ)" },
-                  { key: "costCenters", label: "کپی مراکز هزینه آرتیکل" },
-                  { key: "projects", label: "کپی پروژه‌های ثبت‌شده" },
-                  { key: "fundingSource", label: "کپی منبع مالی و اعتباری" },
-                  { key: "budgets", label: "کپی اطلاعات بودجه‌ای سناما" },
-                  { key: "taxes", label: "کپی اطلاعات و جرایم مالیاتی" },
-                  { key: "refNo", label: "کپی شماره مرجع / نامه اداری" },
-                  { key: "customerInfo", label: "کپی اطلاعات اشخاص/طرف‌حساب" }
-                ].map((opt) => (
-                  <label key={opt.key} className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={copyOptions[opt.key]}
-                      onChange={(e) => setCopyOptions({ ...copyOptions, [opt.key]: e.target.checked })}
-                      className="rounded border-border text-primary focus:ring-primary h-4 w-4"
-                    />
-                    <span className="text-xs font-semibold text-foreground/80">{opt.label}</span>
-                  </label>
-                ))}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6" dir="rtl">
+                {/* ستون راست (مطابق تصویر) */}
+                <div className="space-y-3">
+                  {[
+                    { key: "allItems", label: "کپی تمام آرتیکل‌ها" },
+                    { key: "lineDesc", label: "کپی شرح ردیف‌های آرتیکل" },
+                    { key: "currencyInfo", label: "کپی اطلاعات ارزی (ارز/نرخ)" },
+                    { key: "fundingSource", label: "کپی منبع مالی و اعتباری" },
+                    { key: "refNo", label: "کپی شماره مرجع / نامه اداری" },
+                  ].map((opt) => (
+                    <label key={opt.key} className="flex items-center gap-2.5 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={copyOptions[opt.key]}
+                        onChange={(e) => setCopyOptions({ ...copyOptions, [opt.key]: e.target.checked })}
+                        className="rounded border-border text-primary focus:ring-primary h-4 w-4"
+                      />
+                      <span className="text-xs font-semibold text-foreground/85">{opt.label}</span>
+                    </label>
+                  ))}
+                </div>
+
+                {/* ستون وسط (مطابق تصویر) */}
+                <div className="space-y-3">
+                  {[
+                    { key: "accountsOnly", label: "کپی فقط حساب‌ها (مبالغ صفر)" },
+                    { key: "attachments", label: "کپی مدارک مثبته و پیوست‌ها" },
+                    { key: "costCenters", label: "کپی مراكز هزینه آرتیکل" },
+                    { key: "budgets", label: "کپی اطلاعات بودجه‌ای سناما" },
+                    { key: "customerInfo", label: "کپی اطلاعات اشخاص/طرف‌حساب" },
+                  ].map((opt) => (
+                    <label key={opt.key} className="flex items-center gap-2.5 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={copyOptions[opt.key]}
+                        onChange={(e) => setCopyOptions({ ...copyOptions, [opt.key]: e.target.checked })}
+                        className="rounded border-border text-primary focus:ring-primary h-4 w-4"
+                      />
+                      <span className="text-xs font-semibold text-foreground/85">{opt.label}</span>
+                    </label>
+                  ))}
+                </div>
+
+                {/* ستون چپ (مطابق تصویر) */}
+                <div className="space-y-3">
+                  {[
+                    { key: "amounts", label: "کپی مبالغ بدهکار/بستانکار" },
+                    { key: "files", label: "کپی فایل‌های اسکن شده" },
+                    { key: "projects", label: "کپی پروژه‌های ثبت‌شده" },
+                    { key: "taxes", label: "کپی اطلاعات و جرایم مالیاتی" },
+                    { key: "detailAccounts", label: "کپی تفصیلی‌ها" },
+                  ].map((opt) => (
+                    <label key={opt.key} className="flex items-center gap-2.5 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={copyOptions[opt.key]}
+                        onChange={(e) => setCopyOptions({ ...copyOptions, [opt.key]: e.target.checked })}
+                        className="rounded border-border text-primary focus:ring-primary h-4 w-4"
+                      />
+                      <span className="text-xs font-semibold text-foreground/85">{opt.label}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -811,7 +950,7 @@ export default function CopyDocument() {
               {activeErpPanel === "bulk" && (
                 <div className="space-y-4">
                   <h4 className="text-sm font-bold text-foreground">تنظیمات کپی گروهی و بازه‌ای اسناد</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="space-y-1">
                       <Label className="text-xs font-semibold">از شماره سند</Label>
                       <Input value={bulkCopy.fromDocNo} onChange={(e) => setBulkCopy({ ...bulkCopy, fromDocNo: e.target.value })} placeholder="100" className="h-9 text-xs font-mono" />
@@ -822,18 +961,21 @@ export default function CopyDocument() {
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs font-semibold">سال مالی مقصد</Label>
-                      <select value={bulkCopy.targetYear} onChange={(e) => setBulkCopy({ ...bulkCopy, targetYear: e.target.value })} className="w-full h-9 text-xs rounded-lg border px-3 bg-background">
-                        <option value="1406">۱۴۰۶</option>
-                        <option value="1405">۱۴۰۵</option>
+                      <select value={bulkCopy.targetYear} onChange={(e) => setBulkCopy({ ...bulkCopy, targetYear: e.target.value })} className="w-full h-9 text-xs rounded-lg border px-3 bg-background font-semibold">
+                        {fiscalYears && fiscalYears.length > 0 ? (
+                          fiscalYears.map((fy) => (
+                            <option key={fy._id || fy.year} value={String(fy.year)}>
+                              {toPersianDigits(fy.year)} {fy.title ? `(${fy.title})` : ""}
+                            </option>
+                          ))
+                        ) : (
+                          <option value={selectedFiscalYear || "1405"}>{toPersianDigits(selectedFiscalYear || "1405")}</option>
+                        )}
                       </select>
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs font-semibold">ماه/دوره مقصد</Label>
-                      <Input value={bulkCopy.targetPeriod} onChange={(e) => setBulkCopy({ ...bulkCopy, targetPeriod: e.target.value })} className="h-9 text-xs font-semibold" />
                     </div>
                   </div>
                   <div className="flex justify-end">
-                    <Button onClick={() => alert("کپی گروهی با موفقیت انجام شد و ۱۵۰ سند به سال مالی جدید منتقل گردید.")} className="gap-2 bg-primary font-bold text-xs h-9">
+                    <Button onClick={() => alert(`کپی گروهی با موفقیت انجام شد و اسناد به سال مالی ${toPersianDigits(bulkCopy.targetYear)} منتقل گردیدند.`)} className="gap-2 bg-primary font-bold text-xs h-9">
                       <Copy className="h-3.5 w-3.5" /> اجرای عملیات انتقال گروهی اسناد
                     </Button>
                   </div>
@@ -962,7 +1104,7 @@ export default function CopyDocument() {
                   <tr className="bg-muted/40 border-b h-9 font-bold text-muted-foreground">
                     <th className="px-3 w-12">ردیف</th>
                     <th className="px-3">معین حسابداری مقصد</th>
-                    <th className="px-3">بخش/شعبه</th>
+                    <th className="px-3">کد / نام تفصیلی</th>
                     <th className="px-3">مرکز هزینه</th>
                     <th className="px-3">پروژه</th>
                     <th className="px-3 text-left">بدهکار (ریال)</th>
@@ -974,8 +1116,8 @@ export default function CopyDocument() {
                   {targetPreview.lines.map((l, index) => (
                     <tr key={index} className="h-10 hover:bg-muted/10">
                       <td className="px-3 text-muted-foreground font-semibold">{index + 1}</td>
-                      <td className="px-3 font-mono font-bold text-foreground">{l.account_code}</td>
-                      <td className="px-3 font-semibold text-foreground/80">{newDocInfo.branch}</td>
+                      <td className="px-3 font-mono font-bold text-foreground">{l.account_code} {l.account_name ? `(${l.account_name})` : ""}</td>
+                      <td className="px-3 font-semibold text-primary font-mono">{l.subAccount || l.detailAccount ? `${l.subAccount || l.detailAccount}${l.subAccountName ? ` - ${l.subAccountName}` : ""}` : "—"}</td>
                       <td className="px-3 font-semibold text-foreground/80">{l.costCenter || "—"}</td>
                       <td className="px-3 font-semibold text-foreground/80">{l.project || "—"}</td>
                       <td className="px-3 text-left font-mono font-extrabold text-blue-700">{l.debit > 0 ? l.debit.toLocaleString("fa-IR") : "۰"}</td>
