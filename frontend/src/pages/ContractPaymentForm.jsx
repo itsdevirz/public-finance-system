@@ -322,11 +322,12 @@ export default function ContractPaymentForm() {
   };
 
   const handleGrossAmountChange = (val) => {
-    const gross = Number(val) || 0;
+    const gross = val === "" ? "" : (Number(val) || 0);
+    const grossNum = Number(gross) || 0;
     setForm((prev) => {
       const nextDeductions = prev.deductions_list.map((item) => {
         if (item.calc_method === "درصدی") {
-          const amt = Math.round(gross * (Number(item.percent || 0) / 100));
+          const amt = Math.round(grossNum * (Number(item.percent || 0) / 100));
           return { ...item, amount: amt, calculated_amount: amt };
         }
         return item;
@@ -342,7 +343,7 @@ export default function ContractPaymentForm() {
   const handleProgressPercentChange = (val) => {
     setForm((prev) => ({
       ...prev,
-      progress_percent: Number(val) || 0,
+      progress_percent: val === "" ? "" : (Number(val) || 0),
     }));
   };
 
@@ -571,7 +572,27 @@ export default function ContractPaymentForm() {
         <head>
           <title>رسید پرداخت قرارداد - ${form.payment_number}</title>
           <style>
-            body { font-family: Tahoma, sans-serif; font-size: 11px; margin: 30px; line-height: 1.6; }
+            body { font-family: Tahoma, sans-serif; font-size: 11px; margin: 30px; line-height: 1.6; position: relative; }
+            body::before {
+              content: "" !important;
+              position: fixed !important;
+              top: 50% !important;
+              left: 50% !important;
+              transform: translate(-50%, -50%) !important;
+              width: 450px !important;
+              height: 450px !important;
+              max-width: 65vw !important;
+              max-height: 65vh !important;
+              background-image: url('/company_logo.png') !important;
+              background-repeat: no-repeat !important;
+              background-position: center !important;
+              background-size: contain !important;
+              opacity: 0.08 !important;
+              pointer-events: none !important;
+              z-index: -1 !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
             h2 { text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; }
             .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
             .summary { margin-top: 30px; font-weight: bold; border-top: 1px solid #ccc; padding-top: 10px; }

@@ -182,6 +182,27 @@ export default function EmployeeMissions() {
       font-family: "Tahoma", "Arial", sans-serif;
       font-size: 11px; line-height: 1.7; color: #111;
       direction: rtl; -webkit-print-color-adjust: exact; print-color-adjust: exact;
+      position: relative;
+    }
+    body::before {
+      content: "" !important;
+      position: fixed !important;
+      top: 50% !important;
+      left: 50% !important;
+      transform: translate(-50%, -50%) !important;
+      width: 450px !important;
+      height: 450px !important;
+      max-width: 65vw !important;
+      max-height: 65vh !important;
+      background-image: url('/company_logo.png') !important;
+      background-repeat: no-repeat !important;
+      background-position: center !important;
+      background-size: contain !important;
+      opacity: 0.08 !important;
+      pointer-events: none !important;
+      z-index: -1 !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
     }
     .outer-border { border: 2.5px double #111; padding: 14px; }
     .header { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; border-bottom: 2px solid #111; padding-bottom: 10px; margin-bottom: 12px; }

@@ -132,6 +132,9 @@ function calcPayrollRow(emp, decree, attRec, advances, loans, selectedYear, sele
   const grossSalary = earnedBaseSalary + housingAllow + groceryAllow + childAllow
                     + seniority + responsibility + expertise + transportAllow + other + overtimePay + customAllowancesSum;
 
+  // مبنای کسر بیمه (حقوق ناخالص مشمول)
+  const insBase = grossSalary;
+
   // تعیین نوع پوشش بیمه درمان و تامین اجتماعی: انحصار متقابل (یک کارمند فقط تامین اجتماعی یا خدمات درمانی دارد)
   const healthStatus = String(decree?.healthInsuranceStatus || emp?.healthInsuranceStatus || "2");
   const pensionFund = String(decree?.pensionFund || emp?.pensionFund || "8");
@@ -223,6 +226,7 @@ function calcPayrollRow(emp, decree, attRec, advances, loans, selectedYear, sele
     other,
     overtimePay,
     grossSalary,
+    insBase,
     // ۵ کسر اصلی + سایر کسورات (همگی کاهنده حقوق)
     monthlyTax,
     insEmployee,
@@ -391,7 +395,27 @@ export default function PayrollCalculate() {
   <title>لیست حقوق ${monthLabel} ${selectedYear}</title>
   <style>
     @page { size: A4 landscape; margin: 8mm 10mm; }
-    body { font-family: Tahoma, sans-serif; font-size: 10px; color: #111; direction: rtl; }
+    body { font-family: Tahoma, sans-serif; font-size: 10px; color: #111; direction: rtl; position: relative; }
+    body::before {
+      content: "" !important;
+      position: fixed !important;
+      top: 50% !important;
+      left: 50% !important;
+      transform: translate(-50%, -50%) !important;
+      width: 450px !important;
+      height: 450px !important;
+      max-width: 65vw !important;
+      max-height: 65vh !important;
+      background-image: url('/company_logo.png') !important;
+      background-repeat: no-repeat !important;
+      background-position: center !important;
+      background-size: contain !important;
+      opacity: 0.08 !important;
+      pointer-events: none !important;
+      z-index: -1 !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
     .hdr { display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #222; padding-bottom:8px; margin-bottom:10px; }
     .hdr h1 { font-size:13px; font-weight:900; }
     table { width:100%; border-collapse:collapse; }

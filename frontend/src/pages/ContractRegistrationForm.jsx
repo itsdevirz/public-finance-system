@@ -383,7 +383,27 @@ export default function ContractRegistrationForm() {
         <head>
           <title>خلاصه قرارداد - ${form.contract_number}</title>
           <style>
-            body { font-family: Tahoma, sans-serif; font-size: 12px; margin: 30px; line-height: 1.6; }
+            body { font-family: Tahoma, sans-serif; font-size: 12px; margin: 30px; line-height: 1.6; position: relative; }
+            body::before {
+              content: "" !important;
+              position: fixed !important;
+              top: 50% !important;
+              left: 50% !important;
+              transform: translate(-50%, -50%) !important;
+              width: 450px !important;
+              height: 450px !important;
+              max-width: 65vw !important;
+              max-height: 65vh !important;
+              background-image: url('/company_logo.png') !important;
+              background-repeat: no-repeat !important;
+              background-position: center !important;
+              background-size: contain !important;
+              opacity: 0.08 !important;
+              pointer-events: none !important;
+              z-index: -1 !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
             h2 { text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; }
             .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
             .item { border-bottom: 1px dashed #ccc; padding: 5px 0; }
@@ -765,8 +785,8 @@ export default function ContractRegistrationForm() {
                   <Field label="مدت قرارداد (روز)">
                     <Input
                       type="number"
-                      value={form.duration}
-                      onChange={(e) => setForm((prev) => ({ ...prev, duration: parseInt(e.target.value, 10) }))}
+                      value={form.duration ?? ""}
+                      onChange={(e) => setForm((prev) => ({ ...prev, duration: e.target.value === "" ? "" : parseInt(e.target.value, 10) }))}
                       className="h-9 text-sm text-center font-mono"
                       dir="ltr"
                     />
@@ -787,8 +807,8 @@ export default function ContractRegistrationForm() {
                   <Field label="نرخ ارز">
                     <Input
                       type="number"
-                      value={form.exchange_rate}
-                      onChange={(e) => setForm((prev) => ({ ...prev, exchange_rate: Number(e.target.value) }))}
+                      value={form.exchange_rate ?? ""}
+                      onChange={(e) => setForm((prev) => ({ ...prev, exchange_rate: e.target.value === "" ? "" : Number(e.target.value) }))}
                       className="h-9 text-sm text-center font-mono"
                       dir="ltr"
                     />

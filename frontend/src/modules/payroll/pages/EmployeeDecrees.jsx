@@ -12,6 +12,11 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Modal } from "@/components/ui/modal";
 import { FileText, Plus, Pencil, Trash2, Printer, Save, ShieldCheck, Info, X, Search, Settings } from "lucide-react";
 
+export function toEnglishDigits(str) {
+  if (str === null || str === undefined) return "";
+  return String(str).replace(/[۰-۹]/g, d => "۰۱۲۳۴۵۶۷۸۹".indexOf(d));
+}
+
 // Initial Form state based on official administrative decree specs
 const INITIAL_FORM = {
   decreeNo: "",
@@ -171,16 +176,17 @@ export default function EmployeeDecrees() {
 
   // Auto-generate decree number
   useEffect(() => {
+    const currentYear = selectedFiscalYear || "1405";
     if (!editingId && employeeDecrees && employeeDecrees.length > 0) {
       const numbers = employeeDecrees
         .map(d => d.decreeNo)
-        .filter(n => n && n.startsWith(`DEC-${selectedFiscalYear || "1405"}-`))
-        .map(n => Number(n.replace(`DEC-${selectedFiscalYear || "1405"}-`, "")))
+        .filter(n => n && toEnglishDigits(n).startsWith(`DEC-${currentYear}-`))
+        .map(n => Number(toEnglishDigits(n).replace(`DEC-${currentYear}-`, "")))
         .filter(num => !isNaN(num));
       const nextNum = numbers.length > 0 ? Math.max(...numbers) + 1 : employeeDecrees.length + 1;
-      setForm(f => ({ ...f, decreeNo: `DEC-${selectedFiscalYear || "1405"}-${String(nextNum).padStart(3, "0")}` }));
+      setForm(f => ({ ...f, decreeNo: `DEC-${currentYear}-${String(nextNum).padStart(3, "0")}` }));
     } else if (!editingId) {
-      setForm(f => ({ ...f, decreeNo: `DEC-${selectedFiscalYear || "1405"}-001` }));
+      setForm(f => ({ ...f, decreeNo: `DEC-${currentYear}-001` }));
     }
   }, [employeeDecrees, editingId, showForm, selectedFiscalYear]);
 
@@ -194,7 +200,7 @@ export default function EmployeeDecrees() {
 
   // Auto-fill values when employee selected
   function handleEmployeeChange(empId) {
-    const emp = (employees || []).find(e => (e._id === empId || e.id === empId));
+    const emp = (employees || []).find(e => (String(e._id) === String(empId) || String(e.id) === String(empId)));
     if (emp) {
       setForm(f => ({
         ...f,
@@ -210,14 +216,17 @@ export default function EmployeeDecrees() {
 
   // Filtered decrees
   const filteredDecrees = useMemo(() => {
+    const targetYear = toEnglishDigits(selectedFiscalYear || "1405");
     return (employeeDecrees || []).filter(d => {
-      const emp = (employees || []).find(e => (e._id === d.employeeId || e.id === d.employeeId));
-      const empName = emp ? `${emp.firstName} ${emp.lastName}` : "";
-      const empCode = emp ? emp.code : "";
+      const emp = (employees || []).find(e => (String(e._id) === String(d.employeeId) || String(e.id) === String(d.employeeId)));
+      const empName = emp ? `${emp.firstName || ""} ${emp.lastName || ""}`.trim() : "";
+      const empCode = emp ? emp.code || "" : "";
       const searchLower = search.toLowerCase();
 
-      const dYear = String(d.fiscalYear || d.fiscal_year || d.issueDate?.slice(0, 4) || d.effectiveDate?.slice(0, 4) || "");
-      const matchYear = !selectedFiscalYear || !dYear || dYear === String(selectedFiscalYear);
+      const rawYear = String(d.fiscalYear || d.fiscal_year || d.issueDate?.slice(0, 4) || d.effectiveDate?.slice(0, 4) || "");
+      const dYear = toEnglishDigits(rawYear);
+
+      const matchYear = !targetYear || !dYear || dYear === targetYear;
 
       return (
         matchYear &&
@@ -252,11 +261,18 @@ export default function EmployeeDecrees() {
       setErrorMsg("");
       setSuccessMsg("");
 
+      const currentYear = selectedFiscalYear || "1405";
+      const decreePayload = {
+        ...form,
+        fiscalYear: form.fiscalYear || currentYear,
+        fiscal_year: form.fiscal_year || currentYear
+      };
+
       let result;
       if (editingId) {
-        result = await updateConfig("employee_decrees", { ...form, id: editingId, _id: editingId });
+        result = await updateConfig("employee_decrees", { ...decreePayload, id: editingId, _id: editingId });
       } else {
-        result = await addConfig("employee_decrees", form);
+        result = await addConfig("employee_decrees", decreePayload);
       }
 
       if (result) {
@@ -295,7 +311,7 @@ export default function EmployeeDecrees() {
 
   // Open official print preview
   function triggerPrint(decree) {
-    const emp = (employees || []).find(e => (e._id === decree.employeeId || e.id === decree.employeeId));
+    const emp = (employees || []).find(e => (String(e._id) === String(decree.employeeId) || String(e.id) === String(decree.employeeId)));
     setSelectedDecreeForPrint({
       ...decree,
       // Section 1: Identity & Personnel
@@ -385,6 +401,27 @@ export default function EmployeeDecrees() {
       padding: 5px;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
+      position: relative;
+    }
+    body::before {
+      content: "" !important;
+      position: fixed !important;
+      top: 50% !important;
+      left: 50% !important;
+      transform: translate(-50%, -50%) !important;
+      width: 450px !important;
+      height: 450px !important;
+      max-width: 65vw !important;
+      max-height: 65vh !important;
+      background-image: url('/company_logo.png') !important;
+      background-repeat: no-repeat !important;
+      background-position: center !important;
+      background-size: contain !important;
+      opacity: 0.08 !important;
+      pointer-events: none !important;
+      z-index: -1 !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
     }
     .text-center { text-align: center !important; }
     .text-left { text-align: left !important; }
@@ -824,15 +861,15 @@ export default function EmployeeDecrees() {
                 <div className="bg-blue-50/50 p-3 rounded-xl border border-blue-100 mb-4 grid grid-cols-1 md:grid-cols-4 gap-3">
                   <div>
                     <Label className="text-xs font-semibold text-blue-900">۱. حق شغل (ریال)</Label>
-                    <Input type="number" value={form.jobPay} onChange={e => handleChange("jobPay", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left font-bold" />
+                    <Input type="number" value={form.jobPay ?? ""} onChange={e => handleChange("jobPay", e.target.value === "" ? "" : Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left font-bold" />
                   </div>
                   <div>
                     <Label className="text-xs font-semibold text-blue-900">۲. فوق العاده مدیریت (ریال)</Label>
-                    <Input type="number" value={form.managementAllowance} onChange={e => handleChange("managementAllowance", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left font-bold" />
+                    <Input type="number" value={form.managementAllowance ?? ""} onChange={e => handleChange("managementAllowance", e.target.value === "" ? "" : Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left font-bold" />
                   </div>
                   <div>
                     <Label className="text-xs font-semibold text-blue-900">۳. حق شاغل (ریال)</Label>
-                    <Input type="number" value={form.employeePay} onChange={e => handleChange("employeePay", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left font-bold" />
+                    <Input type="number" value={form.employeePay ?? ""} onChange={e => handleChange("employeePay", e.target.value === "" ? "" : Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left font-bold" />
                   </div>
                   <div className="bg-blue-600 text-white p-2 rounded-lg flex flex-col justify-center items-center">
                     <span className="text-[10px]">جمع حقوق ثابت (الف)</span>
@@ -843,79 +880,79 @@ export default function EmployeeDecrees() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-right">
                   <div>
                     <Label className="text-xs font-semibold">۴. ب) تفاوت تطبیق (ریال)</Label>
-                    <Input type="number" value={form.adaptationDiff} onChange={e => handleChange("adaptationDiff", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
+                    <Input type="number" value={form.adaptationDiff ?? ""} onChange={e => handleChange("adaptationDiff", e.target.value === "" ? "" : Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
                   </div>
                   <div>
                     <Label className="text-xs font-semibold">۵. ث) فوق العاده مناطق کمتر توسعه یافته (ریال)</Label>
-                    <Input type="number" value={form.underdevelopedAreaAllowance} onChange={e => handleChange("underdevelopedAreaAllowance", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
+                    <Input type="number" value={form.underdevelopedAreaAllowance ?? ""} onChange={e => handleChange("underdevelopedAreaAllowance", e.target.value === "" ? "" : Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
                   </div>
                   <div>
                     <Label className="text-xs font-semibold">۶. ج) فوق العاده بدی آب و هوا (ریال)</Label>
-                    <Input type="number" value={form.badWeatherAllowance} onChange={e => handleChange("badWeatherAllowance", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
+                    <Input type="number" value={form.badWeatherAllowance ?? ""} onChange={e => handleChange("badWeatherAllowance", e.target.value === "" ? "" : Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
                   </div>
                   <div>
                     <Label className="text-xs font-semibold">۷. ح) فوق العاده ایثارگری (ریال)</Label>
-                    <Input type="number" value={form.sacrificeAllowance} onChange={e => handleChange("sacrificeAllowance", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
+                    <Input type="number" value={form.sacrificeAllowance ?? ""} onChange={e => handleChange("sacrificeAllowance", e.target.value === "" ? "" : Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
                   </div>
                   <div>
                     <Label className="text-xs font-semibold">۸. خ) خدمت در مناطق جنگ زده (ریال)</Label>
-                    <Input type="number" value={form.warZoneAllowance} onChange={e => handleChange("warZoneAllowance", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
+                    <Input type="number" value={form.warZoneAllowance ?? ""} onChange={e => handleChange("warZoneAllowance", e.target.value === "" ? "" : Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
                   </div>
                   <div>
                     <Label className="text-xs font-semibold">۹. د) فوق العاده سختی شرایط کار (ریال)</Label>
-                    <Input type="number" value={form.hardshipAllowance} onChange={e => handleChange("hardshipAllowance", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
+                    <Input type="number" value={form.hardshipAllowance ?? ""} onChange={e => handleChange("hardshipAllowance", e.target.value === "" ? "" : Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
                   </div>
                   <div>
                     <Label className="text-xs font-semibold">۱۰. ر) کمک هزینه عائله مندی (ریال)</Label>
-                    <Input type="number" value={form.familyAllowance} onChange={e => handleChange("familyAllowance", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
+                    <Input type="number" value={form.familyAllowance ?? ""} onChange={e => handleChange("familyAllowance", e.target.value === "" ? "" : Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
                   </div>
                   <div>
                     <Label className="text-xs font-semibold">۱۱. ز) کمک هزینه اولاد (ریال)</Label>
-                    <Input type="number" value={form.childAllowance} onChange={e => handleChange("childAllowance", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
+                    <Input type="number" value={form.childAllowance ?? ""} onChange={e => handleChange("childAllowance", e.target.value === "" ? "" : Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
                   </div>
                   <div>
                     <Label className="text-xs font-semibold">۱۲. س) فوق العاده محل خدمت (ریال)</Label>
-                    <Input type="number" value={form.locationAllowance} onChange={e => handleChange("locationAllowance", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
+                    <Input type="number" value={form.locationAllowance ?? ""} onChange={e => handleChange("locationAllowance", e.target.value === "" ? "" : Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
                   </div>
                   <div>
                     <Label className="text-xs font-semibold">۱۳. ع) فوق العاده ویژه (ریال)</Label>
-                    <Input type="number" value={form.specialAllowance} onChange={e => handleChange("specialAllowance", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
+                    <Input type="number" value={form.specialAllowance ?? ""} onChange={e => handleChange("specialAllowance", e.target.value === "" ? "" : Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
                   </div>
                   <div>
                     <Label className="text-xs font-semibold">۱۴. ص) فوق العاده ویژه (نخبگان) (ریال)</Label>
-                    <Input type="number" value={form.eliteSpecialAllowance} onChange={e => handleChange("eliteSpecialAllowance", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
+                    <Input type="number" value={form.eliteSpecialAllowance ?? ""} onChange={e => handleChange("eliteSpecialAllowance", e.target.value === "" ? "" : Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
                   </div>
                   <div>
                     <Label className="text-xs font-semibold">۱۵. ش) فوق العاده شغل بند 5 (ریال)</Label>
-                    <Input type="number" value={form.band5JobAllowance} onChange={e => handleChange("band5JobAllowance", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
+                    <Input type="number" value={form.band5JobAllowance ?? ""} onChange={e => handleChange("band5JobAllowance", e.target.value === "" ? "" : Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
                   </div>
                   <div>
                     <Label className="text-xs font-semibold">۱۶. غ) اجرا ماده 51 (ریال)</Label>
-                    <Input type="number" value={form.article51Execution} onChange={e => handleChange("article51Execution", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
+                    <Input type="number" value={form.article51Execution ?? ""} onChange={e => handleChange("article51Execution", e.target.value === "" ? "" : Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
                   </div>
                   <div>
                     <Label className="text-xs font-semibold">۱۷. حق جذب (ریال)</Label>
-                    <Input type="number" value={form.attractionAllowance} onChange={e => handleChange("attractionAllowance", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
+                    <Input type="number" value={form.attractionAllowance ?? ""} onChange={e => handleChange("attractionAllowance", e.target.value === "" ? "" : Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
                   </div>
                   <div>
                     <Label className="text-xs font-semibold">۱۸. سایر (ریال)</Label>
-                    <Input type="number" value={form.otherAllowances} onChange={e => handleChange("otherAllowances", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
+                    <Input type="number" value={form.otherAllowances ?? ""} onChange={e => handleChange("otherAllowances", e.target.value === "" ? "" : Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
                   </div>
                   <div>
                     <Label className="text-xs font-semibold">۱۹. جمع تفاوت های جزء (1) بند (الف) 97 و تفاوت بند (ی) 8</Label>
-                    <Input type="number" value={form.item97and8Diff} onChange={e => handleChange("item97and8Diff", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
+                    <Input type="number" value={form.item97and8Diff ?? ""} onChange={e => handleChange("item97and8Diff", e.target.value === "" ? "" : Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
                   </div>
                   <div>
                     <Label className="text-xs font-semibold">۲۰. مابه التفاوت حداقل حکم قرارداد کارکنان (ریال)</Label>
-                    <Input type="number" value={form.minContractDecreeDiff} onChange={e => handleChange("minContractDecreeDiff", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
+                    <Input type="number" value={form.minContractDecreeDiff ?? ""} onChange={e => handleChange("minContractDecreeDiff", e.target.value === "" ? "" : Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
                   </div>
                   <div>
                     <Label className="text-xs font-semibold">۲۱. ترمیم حقوق (ریال)</Label>
-                    <Input type="number" value={form.salaryRestoration} onChange={e => handleChange("salaryRestoration", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
+                    <Input type="number" value={form.salaryRestoration ?? ""} onChange={e => handleChange("salaryRestoration", e.target.value === "" ? "" : Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
                   </div>
                   <div>
                     <Label className="text-xs font-semibold">۲۲. فوق العاده خاص (ریال)</Label>
-                    <Input type="number" value={form.particularSpecialAllowance} onChange={e => handleChange("particularSpecialAllowance", Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
+                    <Input type="number" value={form.particularSpecialAllowance ?? ""} onChange={e => handleChange("particularSpecialAllowance", e.target.value === "" ? "" : Number(e.target.value))} className="h-9 text-xs mt-1 font-mono text-left" />
                   </div>
                 </div>
 
@@ -980,8 +1017,8 @@ export default function EmployeeDecrees() {
                       </TableCell>
                     </TableRow>
                   ) : filteredDecrees.map(d => {
-                    const emp = (employees || []).find(e => (e._id === d.employeeId || e.id === d.employeeId));
-                    const empName = emp ? `${emp.firstName} ${emp.lastName}` : "—";
+                    const emp = (employees || []).find(e => (String(e._id) === String(d.employeeId) || String(e.id) === String(d.employeeId)));
+                    const empName = emp ? `${emp.firstName || ""} ${emp.lastName || ""}`.trim() : "—";
                     const gross = calcTotalDecreeSalary(d);
 
                     return (

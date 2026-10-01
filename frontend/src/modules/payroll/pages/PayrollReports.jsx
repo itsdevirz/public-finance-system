@@ -807,7 +807,27 @@ export default function PayrollReports() {
   <title>${reportName} - سال ${selectedYear}</title>
   <style>
     @page { size: ${orientation}; margin: 8mm 10mm; }
-    body { font-family: Tahoma, sans-serif; font-size: 10px; color: #111; direction: rtl; padding: 10px; margin: 0; }
+    body { font-family: Tahoma, sans-serif; font-size: 10px; color: #111; direction: rtl; padding: 10px; margin: 0; position: relative; }
+    body::before {
+      content: "" !important;
+      position: fixed !important;
+      top: 50% !important;
+      left: 50% !important;
+      transform: translate(-50%, -50%) !important;
+      width: 450px !important;
+      height: 450px !important;
+      max-width: 65vw !important;
+      max-height: 65vh !important;
+      background-image: url('/company_logo.png') !important;
+      background-repeat: no-repeat !important;
+      background-position: center !important;
+      background-size: contain !important;
+      opacity: 0.08 !important;
+      pointer-events: none !important;
+      z-index: -1 !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
     .hdr { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #222; padding-bottom: 8px; margin-bottom: 15px; }
     .hdr h1 { font-size: 14px; font-weight: 900; margin: 0; }
     .hdr .info { font-size: 9px; text-align: left; }
@@ -2056,7 +2076,7 @@ export default function PayrollReports() {
                       const thead = `<tr><th>ردیف</th><th>نام پرسنل</th><th>سال/ماه</th><th>حقوق پایه</th><th>اضافه‌کاری</th><th>ناخالص</th><th>بیمه ت.ا</th><th>بیمه درمان</th><th>مالیات</th><th>مساعده</th><th>اقساط وام</th><th>جمع کسورات</th><th class="em">خالص دریافتی</th></tr>`;
                       const tbody = cumulativeData.rows.map((r, i) => `<tr><td>${i+1}</td><td><b>${r.name}</b><br/><small>${r.code}</small></td><td>${r.mLabel} ${r.year}</td><td class="r">${fmt(r.earnedBaseSalary)}</td><td class="r">${fmt(r.overtimePay)}</td><td class="r b">${fmt(r.grossSalary)}</td><td class="r">${fmt(r.insEmployee)}</td><td class="r">${fmt(r.healthInsEmployee)}</td><td class="r">${fmt(r.monthlyTax)}</td><td class="r">${fmt(r.advanceDeduct)}</td><td class="r">${fmt(r.loanDeduct)}</td><td class="r">${fmt(r.totalDeductions)}</td><td class="r em b">${fmt(r.netSalary)}</td></tr>`).join("");
                       const tfoot = `<tr class="tot"><td colspan="3">جمع کل (${toPersianDigits(cumulativeData.rows.length)} رکورد)</td><td class="r">${fmt(cumulativeData.totals.earnedBaseSalary)}</td><td class="r">${fmt(cumulativeData.totals.overtimePay)}</td><td class="r b">${fmt(cumulativeData.totals.grossSalary)}</td><td class="r">${fmt(cumulativeData.totals.insEmployee)}</td><td class="r">${fmt(cumulativeData.totals.healthInsEmployee)}</td><td class="r">${fmt(cumulativeData.totals.monthlyTax)}</td><td class="r">${fmt(cumulativeData.totals.advanceDeduct)}</td><td class="r">${fmt(cumulativeData.totals.loanDeduct)}</td><td class="r">${fmt(cumulativeData.totals.totalDeductions)}</td><td class="r em b">${fmt(cumulativeData.totals.netSalary)}</td></tr>`;
-                      win.document.write(`<!DOCTYPE html><html dir="rtl" lang="fa"><head><meta charset="UTF-8"/><title>گزارش تجمیعی</title><style>@page{size:A3 landscape;margin:8mm 10mm}body{font-family:Tahoma,sans-serif;font-size:9.5px;color:#111;direction:rtl}.hdr{display:flex;justify-content:space-between;border-bottom:2px solid #333;padding-bottom:8px;margin-bottom:14px}.hdr h1{font-size:14px;font-weight:900;margin:0}table{width:100%;border-collapse:collapse}th,td{border:1px solid #444;padding:4px 6px;font-size:9px}thead th{background:#1e3a8a;color:#fff;font-weight:bold;text-align:center}.r{text-align:left;font-family:Courier,monospace}.b{font-weight:bold}.em{color:#065f46;font-weight:bold}.tot td{background:#f0fdf4!important;font-weight:bold;border-top:2px solid #1e3a8a}</style></head><body><div class="hdr"><div><h1>گزارش تجمیعی حقوق و دستمزد</h1><div style="font-size:10px;margin-top:4px;color:#444">سازمان: <strong>${orgName}</strong> | پرسنل: <strong>${empLabel}</strong> | دوره: <strong>${periodLabel}</strong></div></div><div style="font-size:9px;text-align:left">تاریخ چاپ: ${toPersianDigits(new Date().toLocaleDateString("fa-IR"))}<br/>تعداد رکورد: ${toPersianDigits(cumulativeData.rows.length)}</div></div><table><thead>${thead}</thead><tbody>${tbody}${tfoot}</tbody></table><script>window.onload=function(){setTimeout(function(){window.print();window.close();},300);}<\/script></body></html>`);
+                      win.document.write(`<!DOCTYPE html><html dir="rtl" lang="fa"><head><meta charset="UTF-8"/><title>گزارش تجمیعی</title><style>@page{size:A3 landscape;margin:8mm 10mm}body{font-family:Tahoma,sans-serif;font-size:9.5px;color:#111;direction:rtl;position:relative}body::before{content:""!important;position:fixed!important;top:50%!important;left:50%!important;transform:translate(-50%,-50%)!important;width:450px!important;height:450px!important;max-width:65vw!important;max-height:65vh!important;background-image:url('/company_logo.png')!important;background-repeat:no-repeat!important;background-position:center!important;background-size:contain!important;opacity:0.08!important;pointer-events:none!important;z-index:-1!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}.hdr{display:flex;justify-content:space-between;border-bottom:2px solid #333;padding-bottom:8px;margin-bottom:14px}.hdr h1{font-size:14px;font-weight:900;margin:0}table{width:100%;border-collapse:collapse}th,td{border:1px solid #444;padding:4px 6px;font-size:9px}thead th{background:#1e3a8a;color:#fff;font-weight:bold;text-align:center}.r{text-align:left;font-family:Courier,monospace}.b{font-weight:bold}.em{color:#065f46;font-weight:bold}.tot td{background:#f0fdf4!important;font-weight:bold;border-top:2px solid #1e3a8a}</style></head><body><div class="hdr"><div><h1>گزارش تجمیعی حقوق و دستمزد</h1><div style="font-size:10px;margin-top:4px;color:#444">سازمان: <strong>${orgName}</strong> | پرسنل: <strong>${empLabel}</strong> | دوره: <strong>${periodLabel}</strong></div></div><div style="font-size:9px;text-align:left">تاریخ چاپ: ${toPersianDigits(new Date().toLocaleDateString("fa-IR"))}<br/>تعداد رکورد: ${toPersianDigits(cumulativeData.rows.length)}</div></div><table><thead>${thead}</thead><tbody>${tbody}${tfoot}</tbody></table><script>window.onload=function(){setTimeout(function(){window.print();window.close();},300);}<\/script></body></html>`);
                       win.document.close();
                     }} className="bg-fuchsia-600 hover:bg-fuchsia-700 text-white h-8 text-[11px] px-3 gap-1.5">
                       <Printer className="h-3.5 w-3.5" /> چاپ

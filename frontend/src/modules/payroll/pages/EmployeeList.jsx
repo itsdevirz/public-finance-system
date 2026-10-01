@@ -123,7 +123,7 @@ export default function EmployeeList() {
   const totalRialsSum = totalPointsSum * coef;
 
   function handlePointChange(field, val) {
-    setPointsForm(f => ({ ...f, [field]: Number(val) }));
+    setPointsForm(f => ({ ...f, [field]: val === "" ? "" : Number(val) }));
   }
 
   // Save scores to employee record
@@ -349,8 +349,8 @@ export default function EmployeeList() {
               <div className="flex items-center gap-2 max-w-xs">
                 <Input
                   type="number"
-                  value={pointsForm.salaryCoefficient}
-                  onChange={e => setPointsForm(f => ({ ...f, salaryCoefficient: Number(e.target.value) }))}
+                  value={pointsForm.salaryCoefficient ?? ""}
+                  onChange={e => setPointsForm(f => ({ ...f, salaryCoefficient: e.target.value === "" ? "" : Number(e.target.value) }))}
                   className="h-8 text-xs font-mono text-left font-bold w-32 bg-white dark:bg-slate-900"
                 />
                 <span className="text-xs font-bold text-slate-600">ریال</span>
@@ -376,13 +376,13 @@ export default function EmployeeList() {
                       <Input
                         type="number"
                         min="0"
-                        value={pointsForm.jobPayPoints}
+                        value={pointsForm.jobPayPoints ?? ""}
                         onChange={e => handlePointChange("jobPayPoints", e.target.value)}
                         className="h-8 text-xs font-mono text-center font-bold"
                       />
                     </td>
                     <td className="px-3 py-2 text-left font-mono font-bold text-emerald-700">
-                      {(pointsForm.jobPayPoints * coef).toLocaleString("fa-IR")}
+                      {((Number(pointsForm.jobPayPoints) || 0) * coef).toLocaleString("fa-IR")}
                     </td>
                   </tr>
 
@@ -393,13 +393,13 @@ export default function EmployeeList() {
                       <Input
                         type="number"
                         min="0"
-                        value={pointsForm.managementAllowancePoints}
+                        value={pointsForm.managementAllowancePoints ?? ""}
                         onChange={e => handlePointChange("managementAllowancePoints", e.target.value)}
                         className="h-8 text-xs font-mono text-center font-bold"
                       />
                     </td>
                     <td className="px-3 py-2 text-left font-mono font-bold text-emerald-700">
-                      {(pointsForm.managementAllowancePoints * coef).toLocaleString("fa-IR")}
+                      {((Number(pointsForm.managementAllowancePoints) || 0) * coef).toLocaleString("fa-IR")}
                     </td>
                   </tr>
 
@@ -410,13 +410,13 @@ export default function EmployeeList() {
                       <Input
                         type="number"
                         min="0"
-                        value={pointsForm.employeePayPoints}
+                        value={pointsForm.employeePayPoints ?? ""}
                         onChange={e => handlePointChange("employeePayPoints", e.target.value)}
                         className="h-8 text-xs font-mono text-center font-bold"
                       />
                     </td>
                     <td className="px-3 py-2 text-left font-mono font-bold text-emerald-700">
-                      {(pointsForm.employeePayPoints * coef).toLocaleString("fa-IR")}
+                      {((Number(pointsForm.employeePayPoints) || 0) * coef).toLocaleString("fa-IR")}
                     </td>
                   </tr>
 
@@ -435,135 +435,135 @@ export default function EmployeeList() {
                     <td className="text-center">۴</td>
                     <td>ب) تفاوت تطبیق</td>
                     <td className="p-2">
-                      <Input type="number" min="0" value={pointsForm.adaptationDiffPoints} onChange={e => handlePointChange("adaptationDiffPoints", e.target.value)} className="h-8 text-xs font-mono text-center" />
+                      <Input type="number" min="0" value={pointsForm.adaptationDiffPoints ?? ""} onChange={e => handlePointChange("adaptationDiffPoints", e.target.value)} className="h-8 text-xs font-mono text-center" />
                     </td>
-                    <td className="px-3 py-2 text-left font-mono">{(pointsForm.adaptationDiffPoints * coef).toLocaleString("fa-IR")}</td>
+                    <td className="px-3 py-2 text-left font-mono">{((Number(pointsForm.adaptationDiffPoints) || 0) * coef).toLocaleString("fa-IR")}</td>
                   </tr>
 
                   <tr className="border-b">
                     <td className="text-center">۵</td>
                     <td>ث) فوق العاده مناطق کمتر توسعه یافته</td>
                     <td className="p-2">
-                      <Input type="number" min="0" value={pointsForm.underdevelopedAreaAllowancePoints} onChange={e => handlePointChange("underdevelopedAreaAllowancePoints", e.target.value)} className="h-8 text-xs font-mono text-center" />
+                      <Input type="number" min="0" value={pointsForm.underdevelopedAreaAllowancePoints ?? ""} onChange={e => handlePointChange("underdevelopedAreaAllowancePoints", e.target.value)} className="h-8 text-xs font-mono text-center" />
                     </td>
-                    <td className="px-3 py-2 text-left font-mono">{(pointsForm.underdevelopedAreaAllowancePoints * coef).toLocaleString("fa-IR")}</td>
+                    <td className="px-3 py-2 text-left font-mono">{((Number(pointsForm.underdevelopedAreaAllowancePoints) || 0) * coef).toLocaleString("fa-IR")}</td>
                   </tr>
 
                   <tr className="border-b">
                     <td className="text-center">۶</td>
                     <td>ج) فوق العاده بدی آب و هوا</td>
                     <td className="p-2">
-                      <Input type="number" min="0" value={pointsForm.badWeatherAllowancePoints} onChange={e => handlePointChange("badWeatherAllowancePoints", e.target.value)} className="h-8 text-xs font-mono text-center" />
+                      <Input type="number" min="0" value={pointsForm.badWeatherAllowancePoints ?? ""} onChange={e => handlePointChange("badWeatherAllowancePoints", e.target.value)} className="h-8 text-xs font-mono text-center" />
                     </td>
-                    <td className="px-3 py-2 text-left font-mono">{(pointsForm.badWeatherAllowancePoints * coef).toLocaleString("fa-IR")}</td>
+                    <td className="px-3 py-2 text-left font-mono">{((Number(pointsForm.badWeatherAllowancePoints) || 0) * coef).toLocaleString("fa-IR")}</td>
                   </tr>
 
                   <tr className="border-b">
                     <td className="text-center">۷</td>
                     <td>ح) فوق العاده ایثارگری</td>
                     <td className="p-2">
-                      <Input type="number" min="0" value={pointsForm.sacrificeAllowancePoints} onChange={e => handlePointChange("sacrificeAllowancePoints", e.target.value)} className="h-8 text-xs font-mono text-center" />
+                      <Input type="number" min="0" value={pointsForm.sacrificeAllowancePoints ?? ""} onChange={e => handlePointChange("sacrificeAllowancePoints", e.target.value)} className="h-8 text-xs font-mono text-center" />
                     </td>
-                    <td className="px-3 py-2 text-left font-mono">{(pointsForm.sacrificeAllowancePoints * coef).toLocaleString("fa-IR")}</td>
+                    <td className="px-3 py-2 text-left font-mono">{((Number(pointsForm.sacrificeAllowancePoints) || 0) * coef).toLocaleString("fa-IR")}</td>
                   </tr>
 
                   <tr className="border-b">
                     <td className="text-center">۸</td>
                     <td>خ) خدمت در مناطق جنگ زده</td>
                     <td className="p-2">
-                      <Input type="number" min="0" value={pointsForm.warZoneAllowancePoints} onChange={e => handlePointChange("warZoneAllowancePoints", e.target.value)} className="h-8 text-xs font-mono text-center" />
+                      <Input type="number" min="0" value={pointsForm.warZoneAllowancePoints ?? ""} onChange={e => handlePointChange("warZoneAllowancePoints", e.target.value)} className="h-8 text-xs font-mono text-center" />
                     </td>
-                    <td className="px-3 py-2 text-left font-mono">{(pointsForm.warZoneAllowancePoints * coef).toLocaleString("fa-IR")}</td>
+                    <td className="px-3 py-2 text-left font-mono">{((Number(pointsForm.warZoneAllowancePoints) || 0) * coef).toLocaleString("fa-IR")}</td>
                   </tr>
 
                   <tr className="border-b">
                     <td className="text-center">۹</td>
                     <td>د) فوق العاده سختی شرایط کار</td>
                     <td className="p-2">
-                      <Input type="number" min="0" value={pointsForm.hardshipAllowancePoints} onChange={e => handlePointChange("hardshipAllowancePoints", e.target.value)} className="h-8 text-xs font-mono text-center" />
+                      <Input type="number" min="0" value={pointsForm.hardshipAllowancePoints ?? ""} onChange={e => handlePointChange("hardshipAllowancePoints", e.target.value)} className="h-8 text-xs font-mono text-center" />
                     </td>
-                    <td className="px-3 py-2 text-left font-mono">{(pointsForm.hardshipAllowancePoints * coef).toLocaleString("fa-IR")}</td>
+                    <td className="px-3 py-2 text-left font-mono">{((Number(pointsForm.hardshipAllowancePoints) || 0) * coef).toLocaleString("fa-IR")}</td>
                   </tr>
 
                   <tr className="border-b">
                     <td className="text-center">۱۰</td>
                     <td>ر) کمک هزینه عائله مندی</td>
                     <td className="p-2">
-                      <Input type="number" min="0" value={pointsForm.familyAllowancePoints} onChange={e => handlePointChange("familyAllowancePoints", e.target.value)} className="h-8 text-xs font-mono text-center" />
+                      <Input type="number" min="0" value={pointsForm.familyAllowancePoints ?? ""} onChange={e => handlePointChange("familyAllowancePoints", e.target.value)} className="h-8 text-xs font-mono text-center" />
                     </td>
-                    <td className="px-3 py-2 text-left font-mono">{(pointsForm.familyAllowancePoints * coef).toLocaleString("fa-IR")}</td>
+                    <td className="px-3 py-2 text-left font-mono">{((Number(pointsForm.familyAllowancePoints) || 0) * coef).toLocaleString("fa-IR")}</td>
                   </tr>
 
                   <tr className="border-b">
                     <td className="text-center">۱۱</td>
                     <td>ز) کمک هزینه اولاد</td>
                     <td className="p-2">
-                      <Input type="number" min="0" value={pointsForm.childAllowancePoints} onChange={e => handlePointChange("childAllowancePoints", e.target.value)} className="h-8 text-xs font-mono text-center" />
+                      <Input type="number" min="0" value={pointsForm.childAllowancePoints ?? ""} onChange={e => handlePointChange("childAllowancePoints", e.target.value)} className="h-8 text-xs font-mono text-center" />
                     </td>
-                    <td className="px-3 py-2 text-left font-mono">{(pointsForm.childAllowancePoints * coef).toLocaleString("fa-IR")}</td>
+                    <td className="px-3 py-2 text-left font-mono">{((Number(pointsForm.childAllowancePoints) || 0) * coef).toLocaleString("fa-IR")}</td>
                   </tr>
 
                   <tr className="border-b">
                     <td className="text-center">۱۲</td>
                     <td>س) فوق العاده محل خدمت</td>
                     <td className="p-2">
-                      <Input type="number" min="0" value={pointsForm.locationAllowancePoints} onChange={e => handlePointChange("locationAllowancePoints", e.target.value)} className="h-8 text-xs font-mono text-center" />
+                      <Input type="number" min="0" value={pointsForm.locationAllowancePoints ?? ""} onChange={e => handlePointChange("locationAllowancePoints", e.target.value)} className="h-8 text-xs font-mono text-center" />
                     </td>
-                    <td className="px-3 py-2 text-left font-mono">{(pointsForm.locationAllowancePoints * coef).toLocaleString("fa-IR")}</td>
+                    <td className="px-3 py-2 text-left font-mono">{((Number(pointsForm.locationAllowancePoints) || 0) * coef).toLocaleString("fa-IR")}</td>
                   </tr>
 
                   <tr className="border-b">
                     <td className="text-center">۱۳</td>
                     <td>ع) فوق العاده ویژه</td>
                     <td className="p-2">
-                      <Input type="number" min="0" value={pointsForm.specialAllowancePoints} onChange={e => handlePointChange("specialAllowancePoints", e.target.value)} className="h-8 text-xs font-mono text-center" />
+                      <Input type="number" min="0" value={pointsForm.specialAllowancePoints ?? ""} onChange={e => handlePointChange("specialAllowancePoints", e.target.value)} className="h-8 text-xs font-mono text-center" />
                     </td>
-                    <td className="px-3 py-2 text-left font-mono">{(pointsForm.specialAllowancePoints * coef).toLocaleString("fa-IR")}</td>
+                    <td className="px-3 py-2 text-left font-mono">{((Number(pointsForm.specialAllowancePoints) || 0) * coef).toLocaleString("fa-IR")}</td>
                   </tr>
 
                   <tr className="border-b">
                     <td className="text-center">۱۴</td>
                     <td>ص) فوق العاده ویژه (نخبگان)</td>
                     <td className="p-2">
-                      <Input type="number" min="0" value={pointsForm.eliteSpecialAllowancePoints} onChange={e => handlePointChange("eliteSpecialAllowancePoints", e.target.value)} className="h-8 text-xs font-mono text-center" />
+                      <Input type="number" min="0" value={pointsForm.eliteSpecialAllowancePoints ?? ""} onChange={e => handlePointChange("eliteSpecialAllowancePoints", e.target.value)} className="h-8 text-xs font-mono text-center" />
                     </td>
-                    <td className="px-3 py-2 text-left font-mono">{(pointsForm.eliteSpecialAllowancePoints * coef).toLocaleString("fa-IR")}</td>
+                    <td className="px-3 py-2 text-left font-mono">{((Number(pointsForm.eliteSpecialAllowancePoints) || 0) * coef).toLocaleString("fa-IR")}</td>
                   </tr>
 
                   <tr className="border-b">
                     <td className="text-center">۱۵</td>
                     <td>ش) فوق العاده شغل بند 5</td>
                     <td className="p-2">
-                      <Input type="number" min="0" value={pointsForm.band5JobAllowancePoints} onChange={e => handlePointChange("band5JobAllowancePoints", e.target.value)} className="h-8 text-xs font-mono text-center" />
+                      <Input type="number" min="0" value={pointsForm.band5JobAllowancePoints ?? ""} onChange={e => handlePointChange("band5JobAllowancePoints", e.target.value)} className="h-8 text-xs font-mono text-center" />
                     </td>
-                    <td className="px-3 py-2 text-left font-mono">{(pointsForm.band5JobAllowancePoints * coef).toLocaleString("fa-IR")}</td>
+                    <td className="px-3 py-2 text-left font-mono">{((Number(pointsForm.band5JobAllowancePoints) || 0) * coef).toLocaleString("fa-IR")}</td>
                   </tr>
 
                   <tr className="border-b">
                     <td className="text-center">۱۶</td>
                     <td>غ) اجرا ماده 51</td>
                     <td className="p-2">
-                      <Input type="number" min="0" value={pointsForm.article51ExecutionPoints} onChange={e => handlePointChange("article51ExecutionPoints", e.target.value)} className="h-8 text-xs font-mono text-center" />
+                      <Input type="number" min="0" value={pointsForm.article51ExecutionPoints ?? ""} onChange={e => handlePointChange("article51ExecutionPoints", e.target.value)} className="h-8 text-xs font-mono text-center" />
                     </td>
-                    <td className="px-3 py-2 text-left font-mono">{(pointsForm.article51ExecutionPoints * coef).toLocaleString("fa-IR")}</td>
+                    <td className="px-3 py-2 text-left font-mono">{((Number(pointsForm.article51ExecutionPoints) || 0) * coef).toLocaleString("fa-IR")}</td>
                   </tr>
 
                   <tr className="border-b">
                     <td className="text-center">۱۷</td>
                     <td>حق جذب</td>
                     <td className="p-2">
-                      <Input type="number" min="0" value={pointsForm.attractionAllowancePoints} onChange={e => handlePointChange("attractionAllowancePoints", e.target.value)} className="h-8 text-xs font-mono text-center" />
+                      <Input type="number" min="0" value={pointsForm.attractionAllowancePoints ?? ""} onChange={e => handlePointChange("attractionAllowancePoints", e.target.value)} className="h-8 text-xs font-mono text-center" />
                     </td>
-                    <td className="px-3 py-2 text-left font-mono">{(pointsForm.attractionAllowancePoints * coef).toLocaleString("fa-IR")}</td>
+                    <td className="px-3 py-2 text-left font-mono">{((Number(pointsForm.attractionAllowancePoints) || 0) * coef).toLocaleString("fa-IR")}</td>
                   </tr>
 
                   <tr className="border-b">
                     <td className="text-center">۱۸</td>
                     <td>سایر</td>
                     <td className="p-2">
-                      <Input type="number" min="0" value={pointsForm.otherAllowancesPoints} onChange={e => handlePointChange("otherAllowancesPoints", e.target.value)} className="h-8 text-xs font-mono text-center" />
+                      <Input type="number" min="0" value={pointsForm.otherAllowancesPoints ?? ""} onChange={e => handlePointChange("otherAllowancesPoints", e.target.value)} className="h-8 text-xs font-mono text-center" />
                     </td>
-                    <td className="px-3 py-2 text-left font-mono">{(pointsForm.otherAllowancesPoints * coef).toLocaleString("fa-IR")}</td>
+                    <td className="px-3 py-2 text-left font-mono">{((Number(pointsForm.otherAllowancesPoints) || 0) * coef).toLocaleString("fa-IR")}</td>
                   </tr>
 
                 </TableBody>

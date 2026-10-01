@@ -437,6 +437,28 @@ export default function EmployeeContracts() {
       padding: 5px;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
+      position: relative;
+    }
+
+    body::before {
+      content: "" !important;
+      position: fixed !important;
+      top: 50% !important;
+      left: 50% !important;
+      transform: translate(-50%, -50%) !important;
+      width: 450px !important;
+      height: 450px !important;
+      max-width: 65vw !important;
+      max-height: 65vh !important;
+      background-image: url('/company_logo.png') !important;
+      background-repeat: no-repeat !important;
+      background-position: center !important;
+      background-size: contain !important;
+      opacity: 0.08 !important;
+      pointer-events: none !important;
+      z-index: -1 !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
     }
 
     .text-center { text-align: center !important; }
@@ -809,40 +831,40 @@ export default function EmployeeContracts() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <Label className="text-xs font-semibold">مزد پایه روزانه (ریال)</Label>
-                    <Input type="number" value={form.dailyBaseSalary} onChange={e => handleChange("dailyBaseSalary", Number(e.target.value))} className="h-9 text-xs mt-1.5 font-mono text-left font-bold" />
+                    <Input type="number" value={form.dailyBaseSalary ?? ""} onChange={e => handleChange("dailyBaseSalary", e.target.value === "" ? "" : Number(e.target.value))} className="h-9 text-xs mt-1.5 font-mono text-left font-bold" />
                     <span className="text-[10px] text-muted-foreground block mt-1">مزد مبنای ماهانه ۳۰ روزه: {monthlyBaseSalary.toLocaleString("fa-IR")} ریال</span>
                   </div>
                   <div>
                     <Label className="text-xs font-semibold">حق مسکن ماهانه (ریال)</Label>
-                    <Input type="number" value={form.housingAllowance} onChange={e => handleChange("housingAllowance", Number(e.target.value))} className="h-9 text-xs mt-1.5 font-mono text-left" />
+                    <Input type="number" value={form.housingAllowance ?? ""} onChange={e => handleChange("housingAllowance", e.target.value === "" ? "" : Number(e.target.value))} className="h-9 text-xs mt-1.5 font-mono text-left" />
                   </div>
                   <div>
                     <Label className="text-xs font-semibold">بن خواربار و معیشت ماهانه (ریال)</Label>
-                    <Input type="number" value={form.groceryAllowance} onChange={e => handleChange("groceryAllowance", Number(e.target.value))} className="h-9 text-xs mt-1.5 font-mono text-left" />
+                    <Input type="number" value={form.groceryAllowance ?? ""} onChange={e => handleChange("groceryAllowance", e.target.value === "" ? "" : Number(e.target.value))} className="h-9 text-xs mt-1.5 font-mono text-left" />
                   </div>
                   <div>
                     <Label className="text-xs font-semibold">حق اولاد ماهانه (ریال)</Label>
-                    <Input type="number" value={form.childAllowance} onChange={e => handleChange("childAllowance", Number(e.target.value))} className="h-9 text-xs mt-1.5 font-mono text-left" />
+                    <Input type="number" value={form.childAllowance ?? ""} onChange={e => handleChange("childAllowance", e.target.value === "" ? "" : Number(e.target.value))} className="h-9 text-xs mt-1.5 font-mono text-left" />
                   </div>
                   <div>
                     <Label className="text-xs font-semibold">حق مسئولیت / مدیریت (ریال)</Label>
-                    <Input type="number" value={form.responsibilityAllowance} onChange={e => handleChange("responsibilityAllowance", Number(e.target.value))} className="h-9 text-xs mt-1.5 font-mono text-left" />
+                    <Input type="number" value={form.responsibilityAllowance ?? ""} onChange={e => handleChange("responsibilityAllowance", e.target.value === "" ? "" : Number(e.target.value))} className="h-9 text-xs mt-1.5 font-mono text-left" />
                   </div>
                   <div>
                     <Label className="text-xs font-semibold">حق جذب و تخصص ماهانه (ریال)</Label>
-                    <Input type="number" value={form.expertiseAllowance} onChange={e => handleChange("expertiseAllowance", Number(e.target.value))} className="h-9 text-xs mt-1.5 font-mono text-left" />
+                    <Input type="number" value={form.expertiseAllowance ?? ""} onChange={e => handleChange("expertiseAllowance", e.target.value === "" ? "" : Number(e.target.value))} className="h-9 text-xs mt-1.5 font-mono text-left" />
                   </div>
                   <div>
                     <Label className="text-xs font-semibold">هزینه ایاب و ذهاب ماهانه (ریال)</Label>
-                    <Input type="number" value={form.transportAllowance} onChange={e => handleChange("transportAllowance", Number(e.target.value))} className="h-9 text-xs mt-1.5 font-mono text-left" />
+                    <Input type="number" value={form.transportAllowance ?? ""} onChange={e => handleChange("transportAllowance", e.target.value === "" ? "" : Number(e.target.value))} className="h-9 text-xs mt-1.5 font-mono text-left" />
                   </div>
                   <div>
                     <Label className="text-xs font-semibold">سایر مزایای مستمر ماهانه (ریال)</Label>
-                    <Input type="number" value={form.otherAllowances} onChange={e => handleChange("otherAllowances", Number(e.target.value))} className="h-9 text-xs mt-1.5 font-mono text-left" />
+                    <Input type="number" value={form.otherAllowances ?? ""} onChange={e => handleChange("otherAllowances", e.target.value === "" ? "" : Number(e.target.value))} className="h-9 text-xs mt-1.5 font-mono text-left" />
                   </div>
                   <div>
                     <Label className="text-xs font-semibold">مرخصی استحقاقی سالانه (قانون کار: ۲۶ روز)</Label>
-                    <Input type="number" value={form.annualLeaveDays} onChange={e => handleChange("annualLeaveDays", Number(e.target.value))} className="h-9 text-xs mt-1.5 font-mono text-left" />
+                    <Input type="number" value={form.annualLeaveDays ?? ""} onChange={e => handleChange("annualLeaveDays", e.target.value === "" ? "" : Number(e.target.value))} className="h-9 text-xs mt-1.5 font-mono text-left" />
                   </div>
                 </div>
 

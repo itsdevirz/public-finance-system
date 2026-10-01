@@ -369,7 +369,27 @@ export default function SanamaFormsViewer() {
         <title>${formTitle || "گزارش فرم عملکرد"}</title>
         <style>
           @page { size: A4 landscape; margin: 10mm; }
-          body { font-family: Tahoma, Vazir, sans-serif; font-size: 11px; direction: rtl; color: #111; padding: 20px; }
+          body { font-family: Tahoma, Vazir, sans-serif; font-size: 11px; direction: rtl; color: #111; padding: 20px; position: relative; }
+          body::before {
+            content: "" !important;
+            position: fixed !important;
+            top: 50% !important;
+            left: 50% !important;
+            transform: translate(-50%, -50%) !important;
+            width: 450px !important;
+            height: 450px !important;
+            max-width: 65vw !important;
+            max-height: 65vh !important;
+            background-image: url('/company_logo.png') !important;
+            background-repeat: no-repeat !important;
+            background-position: center !important;
+            background-size: contain !important;
+            opacity: 0.08 !important;
+            pointer-events: none !important;
+            z-index: -1 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
           .hdr { border-bottom: 2px solid #1e3a8a; padding-bottom: 10px; margin-bottom: 20px; text-align: center; }
           .hdr h1 { font-size: 18px; color: #1e3a8a; margin: 0 0 5px 0; }
           .hdr p { font-size: 11px; color: #475569; margin: 0; }

@@ -378,7 +378,27 @@ export default function PayslipForm() {
   <meta charset="UTF-8"/>
   <title>فیش حقوقی - ${selectedCalc.employeeName}</title>
   <style>
-    body { font-family: Tahoma, sans-serif; font-size: 11px; color: #111; direction: rtl; padding: 15px; margin: 0; }
+    body { font-family: Tahoma, sans-serif; font-size: 11px; color: #111; direction: rtl; padding: 15px; margin: 0; position: relative; }
+    body::before {
+      content: "" !important;
+      position: fixed !important;
+      top: 50% !important;
+      left: 50% !important;
+      transform: translate(-50%, -50%) !important;
+      width: 450px !important;
+      height: 450px !important;
+      max-width: 65vw !important;
+      max-height: 65vh !important;
+      background-image: url('/company_logo.png') !important;
+      background-repeat: no-repeat !important;
+      background-position: center !important;
+      background-size: contain !important;
+      opacity: 0.08 !important;
+      pointer-events: none !important;
+      z-index: -1 !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
     .payslip-container { max-width: 800px; margin: 0 auto; page-break-after: always; }
     .payslip-border { border: 2px solid #333; border-radius: 8px; padding: 15px; background: #fff; }
     .payslip-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 12px; }
@@ -489,7 +509,27 @@ export default function PayslipForm() {
   <meta charset="UTF-8"/>
   <title>چاپ گروهی فیش‌های حقوقی</title>
   <style>
-    body { font-family: Tahoma, sans-serif; font-size: 11px; color: #111; direction: rtl; padding: 15px; margin: 0; }
+    body { font-family: Tahoma, sans-serif; font-size: 11px; color: #111; direction: rtl; padding: 15px; margin: 0; position: relative; }
+    body::before {
+      content: "" !important;
+      position: fixed !important;
+      top: 50% !important;
+      left: 50% !important;
+      transform: translate(-50%, -50%) !important;
+      width: 450px !important;
+      height: 450px !important;
+      max-width: 65vw !important;
+      max-height: 65vh !important;
+      background-image: url('/company_logo.png') !important;
+      background-repeat: no-repeat !important;
+      background-position: center !important;
+      background-size: contain !important;
+      opacity: 0.08 !important;
+      pointer-events: none !important;
+      z-index: -1 !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
     .payslip-container { max-width: 800px; margin: 0 auto 30px auto; page-break-after: always; }
     .payslip-border { border: 2px solid #333; border-radius: 8px; padding: 15px; background: #fff; }
     .payslip-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 12px; }

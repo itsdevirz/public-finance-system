@@ -166,7 +166,27 @@ export default function LoanList() {
   <meta charset="UTF-8"/>
   <title>کارت اقساط وام - ${loan.employeeName}</title>
   <style>
-    body { font-family: Tahoma, sans-serif; font-size: 11px; color: #111; direction: rtl; padding: 20px; }
+    body { font-family: Tahoma, sans-serif; font-size: 11px; color: #111; direction: rtl; padding: 20px; position: relative; }
+    body::before {
+      content: "" !important;
+      position: fixed !important;
+      top: 50% !important;
+      left: 50% !important;
+      transform: translate(-50%, -50%) !important;
+      width: 450px !important;
+      height: 450px !important;
+      max-width: 65vw !important;
+      max-height: 65vh !important;
+      background-image: url('/company_logo.png') !important;
+      background-repeat: no-repeat !important;
+      background-position: center !important;
+      background-size: contain !important;
+      opacity: 0.08 !important;
+      pointer-events: none !important;
+      z-index: -1 !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
     .card-border { border: 2px solid #222; border-radius: 8px; padding: 20px; background: #fff; }
     .card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #222; padding-bottom: 12px; margin-bottom: 15px; }
     .card-header h2 { margin: 0; font-size: 14px; font-weight: bold; }
@@ -269,7 +289,27 @@ export default function LoanList() {
   <title>گزارش مانده وام‌های پرسنل</title>
   <style>
     @page { size: A4 landscape; margin: 8mm 10mm; }
-    body { font-family: Tahoma, sans-serif; font-size: 10px; color: #111; direction: rtl; }
+    body { font-family: Tahoma, sans-serif; font-size: 10px; color: #111; direction: rtl; position: relative; }
+    body::before {
+      content: "" !important;
+      position: fixed !important;
+      top: 50% !important;
+      left: 50% !important;
+      transform: translate(-50%, -50%) !important;
+      width: 450px !important;
+      height: 450px !important;
+      max-width: 65vw !important;
+      max-height: 65vh !important;
+      background-image: url('/company_logo.png') !important;
+      background-repeat: no-repeat !important;
+      background-position: center !important;
+      background-size: contain !important;
+      opacity: 0.08 !important;
+      pointer-events: none !important;
+      z-index: -1 !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
     .hdr { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #222; padding-bottom: 8px; margin-bottom: 12px; }
     .hdr h1 { font-size: 13px; margin: 0; font-weight: bold; }
     table { width: 100%; border-collapse: collapse; }

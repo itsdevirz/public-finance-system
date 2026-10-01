@@ -352,7 +352,27 @@ export default function TaxTables() {
   <title>جدول مالیات حقوق — سال ${t.year}</title>
   <style>
     @page { size: A4 portrait; margin: 14mm 14mm; }
-    body { font-family: Tahoma, sans-serif; font-size: 11px; color: #111; direction: rtl; }
+    body { font-family: Tahoma, sans-serif; font-size: 11px; color: #111; direction: rtl; position: relative; }
+    body::before {
+      content: "" !important;
+      position: fixed !important;
+      top: 50% !important;
+      left: 50% !important;
+      transform: translate(-50%, -50%) !important;
+      width: 450px !important;
+      height: 450px !important;
+      max-width: 65vw !important;
+      max-height: 65vh !important;
+      background-image: url('/company_logo.png') !important;
+      background-repeat: no-repeat !important;
+      background-position: center !important;
+      background-size: contain !important;
+      opacity: 0.08 !important;
+      pointer-events: none !important;
+      z-index: -1 !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
     .hdr { display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #222; padding-bottom:10px; margin-bottom:14px; }
     h1 { font-size:14px; font-weight:900; }
     .law-ref { font-size:9px; color:#666; margin-top:2px; }

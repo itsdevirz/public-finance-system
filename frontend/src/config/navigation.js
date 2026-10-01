@@ -249,40 +249,49 @@ export const TOP_NAV = [
   // ۸ — سیستم حقوق و دستمزد
   {
     to: "/payroll", label: "سیستم حقوق و دستمزد", num: 8, subItems: [
-      { to: "/payroll/dashboard", label: "داشبورد حقوق" },
       {
-        to: "/payroll/employees", label: "اطلاعات کارکنان", children: [
-          { to: "/payroll/employees/new", label: "ثبت کارمند جدید" },
-          { to: "/payroll/employees/list", label: "لیست کارکنان" },
-          { to: "/payroll/employees/contracts", label: "قراردادها" },
-          { to: "/payroll/employees/decrees", label: "احکام حقوقی" },
+        to: "/payroll/administrative", label: "واحد اداری (امور اداری و پرسنلی)", children: [
+          { to: "/payroll/dashboard", label: "داشبورد اداری حقوق" },
+          {
+            to: "/payroll/employees", label: "اطلاعات پرسنلی و کارگزینی", children: [
+              { to: "/payroll/employees/new", label: "ثبت کارمند جدید" },
+              { to: "/payroll/employees/list", label: "لیست پرسنل" },
+              { to: "/payroll/employees/decrees", label: "احکام حقوقی و کارگزینی" },
+              { to: "/payroll/employees/contracts", label: "قراردادهای پرسنل" },
+            ]
+          },
+          {
+            to: "/payroll/attendance", label: "حضور و غیاب و کارکرد", children: [
+              { to: "/payroll/attendance/register", label: "ثبت کارکرد ماهانه" },
+              { to: "/payroll/attendance/list", label: "لیست کارکرد پرسنل" },
+              { to: "/payroll/attendance/leave", label: "مرخصی‌ها" },
+              { to: "/payroll/attendance/mission", label: "مأموریت‌ها" },
+            ]
+          },
         ]
       },
       {
-        to: "/payroll/attendance", label: "حضور و غیاب", children: [
-          { to: "/payroll/attendance/register", label: "ثبت کارکرد ماه" },
-          { to: "/payroll/attendance/list", label: "لیست کارکرد" },
-          { to: "/payroll/attendance/leave", label: "مرخصی‌ها" },
-          { to: "/payroll/attendance/mission", label: "مأموریت" },
+        to: "/payroll/financial", label: "واحد مالی (امور مالی و حسابداری)", children: [
+          { to: "/payroll/dashboard", label: "داشبورد مالی حقوق" },
+          {
+            to: "/payroll/calculate", label: "محاسبه و پردازش حقوق", children: [
+              { to: "/payroll/calculate/monthly", label: "محاسبه حقوق ماهانه" },
+              { to: "/payroll/calculate/settings", label: "تنظیمات کارگاه و حقوق" },
+              { to: "/payroll/calculate/tax-table", label: "جدول مالیات حقوق" },
+              { to: "/payroll/calculate/insurance", label: "تنظیمات و نرخ‌های بیمه" },
+            ]
+          },
+          { to: "/payroll/payslip", label: "فیش حقوقی" },
+          {
+            to: "/payroll/loans", label: "وام و مساعده", children: [
+              { to: "/payroll/loans/list", label: "لیست وام‌ها" },
+              { to: "/payroll/loans/new", label: "ثبت وام جدید" },
+              { to: "/payroll/loans/advance", label: "ثبت و کسر مساعده" },
+            ]
+          },
+          { to: "/payroll/reports", label: "گزارش‌ها و دیسکت‌های مالی" },
         ]
       },
-      {
-        to: "/payroll/calculate", label: "محاسبه حقوق", children: [
-          { to: "/payroll/calculate/monthly", label: "محاسبه ماهانه" },
-          { to: "/payroll/calculate/settings", label: "تنظیمات محاسبه" },
-          { to: "/payroll/calculate/tax-table", label: "جدول مالیات" },
-          { to: "/payroll/calculate/insurance", label: "تنظیمات بیمه" },
-        ]
-      },
-      { to: "/payroll/payslip", label: "فیش حقوقی" },
-      {
-        to: "/payroll/loans", label: "وام و مساعده", children: [
-          { to: "/payroll/loans/new", label: "ثبت وام" },
-          { to: "/payroll/loans/list", label: "لیست وام‌ها" },
-          { to: "/payroll/loans/advance", label: "مساعده" },
-        ]
-      },
-      { to: "/payroll/reports", label: "گزارش‌ها" },
     ],
   },
 

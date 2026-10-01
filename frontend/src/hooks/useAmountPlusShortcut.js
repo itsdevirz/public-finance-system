@@ -30,11 +30,54 @@ function setNativeInputValue(element, value) {
   element.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
+function isZeroValue(val) {
+  if (val == null) return false;
+  const s = String(val).trim();
+  if (s === "0" || s === "۰" || s === "0.00" || s === "۰.۰۰" || s === "00") return true;
+  const eng = toEnglishDigits(s).replace(/,/g, "").replace(/،/g, "").trim();
+  return eng === "0" || eng === "0.00";
+}
+
 export function useAmountPlusShortcut() {
   useEffect(() => {
-    function handleKeyDown(e) {
-      if (e.key !== "+" && e.code !== "NumpadAdd") return;
+    function handleFocusIn(e) {
+      const el = e.target;
+      if (!el || (el.tagName !== "INPUT" && el.tagName !== "TEXTAREA")) return;
+      if (el.disabled || el.readOnly) return;
+      const type = (el.getAttribute("type") || "text").toLowerCase();
+      if (["checkbox", "radio", "submit", "button", "file", "password", "search", "date", "time", "color"].includes(type)) {
+        return;
+      }
 
+      if (isZeroValue(el.value)) {
+        setTimeout(() => {
+          try {
+            if (document.activeElement === el) {
+              el.select();
+            }
+          } catch (_) {}
+        }, 10);
+      }
+    }
+
+    function handleInput(e) {
+      const el = e.target;
+      if (!el || (el.tagName !== "INPUT" && el.tagName !== "TEXTAREA")) return;
+      if (el.disabled || el.readOnly) return;
+      const type = (el.getAttribute("type") || "text").toLowerCase();
+      if (["checkbox", "radio", "submit", "button", "file", "password", "search", "date", "time", "color"].includes(type)) {
+        return;
+      }
+
+      const val = el.value || "";
+      if (/^[0۰]+[1-9۱-۹]/.test(val)) {
+        const eng = toEnglishDigits(val).replace(/^0+/, "");
+        const cleaned = /[۰-۹]/.test(val) ? toPersianDigits(eng) : eng;
+        setNativeInputValue(el, cleaned);
+      }
+    }
+
+    function handleKeyDown(e) {
       const el = document.activeElement;
       if (!el || (el.tagName !== "INPUT" && el.tagName !== "TEXTAREA")) return;
       if (el.disabled || el.readOnly) return;
@@ -43,6 +86,19 @@ export function useAmountPlusShortcut() {
       if (["checkbox", "radio", "submit", "button", "file", "password", "search", "date", "time", "color"].includes(type)) {
         return;
       }
+
+      // Handle Backspace on default zero (0 / ۰) value
+      if (e.key === "Backspace" || e.code === "Backspace") {
+        if (isZeroValue(el.value)) {
+          e.preventDefault();
+          e.stopPropagation();
+          setNativeInputValue(el, "");
+          return;
+        }
+      }
+
+      // Handle Plus shortcut (+ or NumpadAdd)
+      if (e.key !== "+" && e.code !== "NumpadAdd") return;
 
       const name = (el.name || "").toLowerCase();
       const id = (el.id || "").toLowerCase();
@@ -108,7 +164,13 @@ export function useAmountPlusShortcut() {
       setNativeInputValue(el, finalFormatted);
     }
 
+    document.addEventListener("focusin", handleFocusIn, true);
+    document.addEventListener("input", handleInput, true);
     window.addEventListener("keydown", handleKeyDown, true);
-    return () => window.removeEventListener("keydown", handleKeyDown, true);
+    return () => {
+      document.removeEventListener("focusin", handleFocusIn, true);
+      document.removeEventListener("input", handleInput, true);
+      window.removeEventListener("keydown", handleKeyDown, true);
+    };
   }, []);
 }
