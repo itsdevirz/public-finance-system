@@ -1356,7 +1356,6 @@ export default function EmployeeRegisterForm() {
                       min="0"
                       value={form.frontMonths}
                       onChange={(e) => handleChange("frontMonths", Math.max(0, parseInt(e.target.value) || 0))}
-                      disabled={form.sacrificeRelation === "ندارد" && form.frontMonths === 0 && form.disabilityPercent === 0}
                       className="h-9 text-xs font-mono text-center"
                     />
                   </div>
@@ -1368,7 +1367,6 @@ export default function EmployeeRegisterForm() {
                       max="30"
                       value={form.frontDays}
                       onChange={(e) => handleChange("frontDays", Math.min(30, Math.max(0, parseInt(e.target.value) || 0)))}
-                      disabled={form.sacrificeRelation === "ندارد" && form.frontMonths === 0 && form.disabilityPercent === 0}
                       className="h-9 text-xs font-mono text-center"
                     />
                   </div>
@@ -1385,7 +1383,6 @@ export default function EmployeeRegisterForm() {
                     max="100"
                     value={form.disabilityPercent}
                     onChange={(e) => handleChange("disabilityPercent", Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))}
-                    disabled={form.sacrificeRelation === "ندارد" && form.frontMonths === 0 && form.disabilityPercent === 0}
                     className={cn("h-9 text-xs font-mono text-center font-bold", errors.disabilityPercent && "border-rose-500")}
                   />
                   {errors.disabilityPercent && <span className="text-[10px] text-rose-500 font-bold block mt-1">{errors.disabilityPercent}</span>}
@@ -1404,7 +1401,6 @@ export default function EmployeeRegisterForm() {
                       min="0"
                       value={form.captivityMonths}
                       onChange={(e) => handleChange("captivityMonths", Math.max(0, parseInt(e.target.value) || 0))}
-                      disabled={form.sacrificeRelation === "ندارد" && form.frontMonths === 0 && form.disabilityPercent === 0}
                       className="h-9 text-xs font-mono text-center"
                     />
                   </div>
@@ -1416,7 +1412,6 @@ export default function EmployeeRegisterForm() {
                       max="30"
                       value={form.captivityDays}
                       onChange={(e) => handleChange("captivityDays", Math.min(30, Math.max(0, parseInt(e.target.value) || 0)))}
-                      disabled={form.sacrificeRelation === "ندارد" && form.frontMonths === 0 && form.disabilityPercent === 0}
                       className="h-9 text-xs font-mono text-center"
                     />
                   </div>
