@@ -267,6 +267,21 @@ router.post("/fix-numbers", async (c) => {
   return c.json({ success: true, message: `${res.updated} سند شماره‌گذاری شد`, ...res });
 });
 
+function syncDocumentWorkflowStep(doc: any) {
+  if (!doc) return doc;
+  const status = (doc.status || "").trim();
+  const history = doc.workflowHistory || [];
+
+  if (status === "CONFIRMED" || status === "صدور سند قطعی" || status === "FINAL") {
+    doc.workflowStep = "FINAL";
+    doc.currentAssigneeRole = "تکمیل شده";
+  } else if (!doc.workflowStep || (history.length === 0 && doc.workflowStep !== "ACCOUNTANT")) {
+    doc.workflowStep = "REGULATOR";
+    doc.currentAssigneeRole = "تنظیم حساب";
+  }
+  return doc;
+}
+
 // GET /api/documents — با projection برای کاهش داده منتقله
 router.get("/", async (c) => {
   const db = getDb();
@@ -290,7 +305,7 @@ router.get("/", async (c) => {
         doc.document_date = `${fyStr}/${parts[1].padStart(2, "0")}/${parts[2].padStart(2, "0")}`;
       }
     }
-    return doc;
+    return syncDocumentWorkflowStep(doc);
   });
   return c.json({ data: decrypted, message: "لیست اسناد" });
 });
@@ -353,7 +368,7 @@ router.get("/:id", async (c) => {
       decrypted.document_date = `${fyStr}/${parts[1].padStart(2, "0")}/${parts[2].padStart(2, "0")}`;
     }
   }
-  return c.json({ data: decrypted });
+  return c.json({ data: syncDocumentWorkflowStep(decrypted) });
 });
 
 router.post("/", async (c) => {
@@ -424,15 +439,18 @@ router.post("/", async (c) => {
       ...body,
       document_number,
       document_date: resolvedDate,
-      status: body.status ?? "DRAFT",
+      status: body.status ?? "ثبت اولیه",
       lines: resolvedLines,
+      workflowStep: body.workflowStep ?? "REGULATOR",
+      currentAssigneeRole: body.currentAssigneeRole ?? "تنظیم حساب",
+      workflowHistory: body.workflowHistory ?? [],
     } as JournalDocument);
 
   const inserted = await getDb()
     .collection<JournalDocument>("journal_documents")
     .findOne({ _id: result.insertedId });
   const decrypted = decryptDocument(serialize(inserted as Record<string, unknown>));
-  return c.json({ message: "سند ثبت شد", data: decrypted }, 201);
+  return c.json({ message: "سند ثبت شد", data: syncDocumentWorkflowStep(decrypted) }, 201);
 });
 
 router.patch("/:id/confirm", async (c) => {
@@ -493,6 +511,22 @@ router.put("/:id", async (c) => {
     permissions = user?.permissions || {};
     if (!permissions["doc.edit"]) {
       return c.json({ message: "دسترسی غیرمجاز. شما مجوز ویرایش اسناد را ندارید." }, 403);
+    }
+  }
+
+  const existingDoc = await db.collection<JournalDocument>("journal_documents").findOne({ _id: new ObjectId(id) });
+  if (!existingDoc) return c.json({ message: "سند یافت نشد" }, 404);
+
+  const uStr = `${user?.position || ""} ${user?.role || ""} ${payload?.role || ""}`.toLowerCase();
+  const isSysAdmin = payload?.role === "admin" || user?.isAdmin === true || uStr.includes("admin") || uStr.includes("مدیر سیستم") || uStr.includes("مدیرکل");
+
+  if (!isSysAdmin) {
+    const status = (existingDoc.status || "").trim();
+    const currentStep = existingDoc.workflowStep || "REGULATOR";
+    const isReturned = status.includes("برگشت") || status.includes("ابطال") || status === "REJECTED";
+
+    if (currentStep !== "ACCOUNTANT" && currentStep !== "DRAFT" && !isReturned) {
+      return c.json({ message: "خطا: این سند جهت بررسی به تنظیم حساب یا مراحل بعدی ارسال شده است و دیگر در کارتابل شما قابل تغییر نمی‌باشد." }, 403);
     }
   }
 
@@ -576,20 +610,31 @@ router.delete("/:id", async (c) => {
   const payload = (c.get as any)("jwtPayload") as any;
   const db = getDb();
 
+  let user: any = null;
+  if (payload?.sub && ObjectId.isValid(payload.sub)) {
+    user = await db.collection("users").findOne({ _id: new ObjectId(payload.sub) });
+  }
+
+  const uStr = `${user?.position || ""} ${user?.role || ""} ${payload?.role || ""}`.toLowerCase();
+  const isAdmin = payload?.role === "admin" || user?.isAdmin === true || uStr.includes("admin") || uStr.includes("مدیر سیستم") || uStr.includes("مدیرکل");
+
+  if (!isAdmin) {
+    return c.json({ message: "خطا: دسترسی غیرمجاز. حذف اسناد فقط توسط مدیر سیستم (فول اکسس) امکان‌پذیر است." }, 403);
+  }
+
   const existingDoc = await db.collection<JournalDocument>("journal_documents").findOne({ _id: new ObjectId(id) });
   if (!existingDoc) return c.json({ message: "سند یافت نشد" }, 404);
-
-  const status = (existingDoc.status || "").trim();
-  if (status === "CONFIRMED" || status === "صدور سند قطعی" || status === "FINAL" || existingDoc.workflowStep === "FINAL") {
-    return c.json({ message: "خطا: امکان حذف سندی که توسط رئیس دستگاه تأیید نهایی و قطعی شده است وجود ندارد." }, 403);
-  }
 
   const res = await db
     .collection<JournalDocument>("journal_documents")
     .deleteOne({ _id: new ObjectId(id) });
 
   if (res.deletedCount === 0) return c.json({ message: "سند یافت نشد" }, 404);
-  return c.json({ message: "سند با موفقیت حذف شد" });
+
+  // بازمرتب‌سازی شماره اسناد پس از حذف کامل و فیزیکی رکورد از دیتابیس
+  await fixAndMigrateDocumentNumbers();
+
+  return c.json({ message: "سند با موفقیت به‌طور کامل و فیزیکی از دیتابیس حذف گردید" });
 });
 
 // POST /api/documents/:id/workflow/approve — تایید و ارجاع به مرحله بعدی روال
@@ -740,7 +785,7 @@ router.post("/:id/workflow/reject", async (c) => {
     prevRole = "مدیر مالی و ذیحساب";
   }
 
-  const statusStr = `ابطال‌شده (برگشت از ${userDisplay})`;
+  const statusStr = `برگشت از ${userDisplay}`;
 
   const historyItem = {
     action: "REJECT",

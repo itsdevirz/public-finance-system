@@ -11,17 +11,37 @@ export interface JournalLine {
   is_budgetary?: boolean;
 }
 
+export interface WorkflowHistoryItem {
+  action: string;
+  user: string;
+  date: string;
+  fromStep?: string;
+  toStep?: string;
+  reason?: string;
+}
+
 export interface JournalDocument {
   _id?: ObjectId;
   document_number: string;
-  document_type: "PETTY_CASH_PAYMENT" | "GENERAL_PAYMENT" | "REVENUE" | "TRANSFER" | "CLOSING";
-  status: "DRAFT" | "CONFIRMED" | "CANCELLED";
+  document_type: "PETTY_CASH_PAYMENT" | "GENERAL_PAYMENT" | "REVENUE" | "TRANSFER" | "CLOSING" | string;
+  status: "DRAFT" | "CONFIRMED" | "CANCELLED" | string;
   fiscal_year: number;
   document_date?: string;
   description?: string;
   reference_number?: string;
   lines: JournalLine[]; // embedded
   ciphertext?: string;
+  workflowStep?: string;
+  currentAssigneeRole?: string;
+  returnedUser?: string;
+  rejectionReason?: string;
+  workflowHistory?: WorkflowHistoryItem[];
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  confirmedBy?: string;
+  rawHeader?: Record<string, any>;
+  rawRows?: Record<string, any>[];
 }
 
 // ─── Checks ───────────────────────────────────────────────────────────────────

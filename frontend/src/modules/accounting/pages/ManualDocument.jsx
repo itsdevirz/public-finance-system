@@ -10,7 +10,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Plus, Trash2, Save, Printer, RotateCcw,
   FileText, CheckCircle2, Ban, X, AlertCircle,
-  Check, FileEdit, Copy
+  Check, FileEdit, Copy, GitFork
 } from "lucide-react";
 import api from "@/api";
 import { useApiCache } from "@/hooks/useApiCache";
@@ -27,6 +27,7 @@ import { checkDebitNatureBalance, clearBalanceCache } from "@/lib/accountBalance
 import { useAuth } from "@/context/AuthContext";
 import { useFiscalYear } from "@/context/FiscalYearContext";
 import { useTabs } from "@/context/TabContext";
+import { DocWorkflowTreeModal } from "@/modules/accounting/components/DocWorkflowTreeModal";
 
 // ---- helpers ----
 const allGroups = sanamaCodes.groups.map((g) => ({ code: g.code, title: g.title, accounts: g.accounts }));
@@ -1221,6 +1222,8 @@ export default function ManualDocument() {
   const [rows, setRows] = useState([{ ...EMPTY_ROW, id: 1 }]);
   const [activeRowId, setActiveRowId] = useState(1);
   const [isReadOnly, setIsReadOnly] = useState(false);
+  const [loadedDoc, setLoadedDoc] = useState(null);
+  const [showTreeModal, setShowTreeModal] = useState(false);
 
   const activeRow = rows.find((r) => r.id === activeRowId) ?? rows[0];
   const showSanamaFields = needsSanamaFields(activeRow?.subAccount);
@@ -1235,6 +1238,7 @@ export default function ManualDocument() {
       const sourceId = docId || copySourceId;
 
       if (!sourceId) {
+        setLoadedDoc(null);
         // اگر کاربر درخواست ثبت سند جدید داده، چک کنیم که آیا پیش‌نویس دارد یا نه
         try {
           const res = await api.get("/api/documents");
@@ -1269,8 +1273,16 @@ export default function ManualDocument() {
         if (!isMounted) return;
         const doc = res.data.data;
         if (doc) {
+          setLoadedDoc(doc);
           const isDocFinal = (doc.status === "CONFIRMED" || doc.status === "صدور سند قطعی" || doc.status === "FINAL" || doc.workflowStep === "FINAL") && !copySourceId;
-          setIsReadOnly(isDocFinal);
+          const uStr = currentUser
+            ? `${currentUser.position || ""} ${currentUser.role || ""} ${currentUser.userGroup || ""} ${currentUser.workflowLevel || ""} ${currentUser.username || ""}`.toLowerCase()
+            : "admin";
+          const isAdminUser = !currentUser || currentUser.isAdmin === true || uStr.includes("admin") || uStr.includes("مدیر سیستم") || uStr.includes("مدیرکل");
+          const isCurrentStepAccountant = doc.workflowStep === "ACCOUNTANT" || doc.workflowStep === "DRAFT" || (doc.status || "").includes("برگشت") || (doc.status || "").includes("ابطال");
+          
+          const canEditThisDoc = copySourceId ? true : (isAdminUser || isCurrentStepAccountant);
+          setIsReadOnly(!canEditThisDoc);
 
           const targetFY = selectedFiscalYear || String(doc.fiscal_year || "1405");
           let docNoVal = doc.document_number || "";
@@ -1319,11 +1331,18 @@ export default function ManualDocument() {
             returnedUser: returnedUserVal,
           });
 
-          if (isDocFinal) {
-            setMessage({
-              type: "warning",
-              text: `🔒 این سند (شماره سند: ${doc.document_number}) به صورت قطعی و نهایی تأیید شده است. تمامی اطلاعات در حالت فقط‌خواندنی قرار دارد و امکان تغییر وجود ندارد.`,
-            });
+          if (!canEditThisDoc && !copySourceId) {
+            if (isDocFinal) {
+              setMessage({
+                type: "warning",
+                text: `🔒 این سند (شماره سند: ${doc.document_number}) به صورت قطعی و نهایی تأیید شده است. تمامی اطلاعات در حالت فقط‌خواندنی قرار دارد و امکان تغییر وجود ندارد.`,
+              });
+            } else {
+              setMessage({
+                type: "warning",
+                text: `🔒 این سند (شماره سند: ${doc.document_number}) جهت بررسی به تنظیم حساب / مراحل بعد ارسال شده و در کارتابل شما دیگر قابل تغییر نمی‌باشد.`,
+              });
+            }
           } else if (doc.status === "DRAFT") {
             setMessage({
               type: "error",
@@ -2392,6 +2411,18 @@ export default function ManualDocument() {
                 رد
               </Button>
 
+              {loadedDoc && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5 h-8 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200 font-bold"
+                  onClick={() => setShowTreeModal(true)}
+                >
+                  <GitFork className="h-3.5 w-3.5 text-blue-600" />
+                  درختواره گردش کار
+                </Button>
+              )}
+
               <div className="flex items-center gap-1 mr-auto">
                 <Button
                   size="sm"
@@ -2804,6 +2835,13 @@ export default function ManualDocument() {
         `}</style>
         <VoucherPrintContent header={header} rows={rows} totalDebit={totalDebit} totalCredit={totalCredit} diff={diff} today={today} allGroups={allGroups} />
       </div>
+
+      {showTreeModal && loadedDoc && (
+        <DocWorkflowTreeModal
+          doc={loadedDoc}
+          onClose={() => setShowTreeModal(false)}
+        />
+      )}
     </PageShell>
   );
 }
