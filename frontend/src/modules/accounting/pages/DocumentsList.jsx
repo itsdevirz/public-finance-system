@@ -4,7 +4,7 @@ import {
   Search, RefreshCw, FileText, Eye, ChevronLeft,
   ChevronDown, ChevronUp, X, Filter, AlertTriangle,
   CheckCircle2, Clock, Ban, Hash, CalendarDays,
-  Layers, ChevronsUpDown, Edit3, Trash2,
+  Layers, ChevronsUpDown, Edit3, Trash2, GitFork,
 } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,9 +13,10 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import api from "@/api";
 import { useFiscalYear } from "@/context/FiscalYearContext";
+import { useAuth } from "@/context/AuthContext";
 import { toPersianDigits } from "@/components/ui/persian-date-picker";
 
-// ─── ثوابت ────────────────────────────────────────────────────────────────────
+// ─── ثوابت و روال کارتابل ──────────────────────────────────────────────────────
 const DOC_TYPE_LABEL = {
   PETTY_CASH_PAYMENT: "پرداخت تنخواه",
   GENERAL_PAYMENT: "پرداخت عمومی",
@@ -30,17 +31,75 @@ const DOC_TYPE_COLOR = {
   TRANSFER: "bg-violet-100 text-violet-700 border-violet-200",
   CLOSING: "bg-slate-100 text-slate-600 border-slate-200",
 };
-const STATUS_LABEL = { DRAFT: "پیش‌نویس", CONFIRMED: "تایید شده", CANCELLED: "ابطال شده" };
-const STATUS_COLOR = {
-  DRAFT: "bg-orange-100 text-orange-600 border-orange-200",
-  CONFIRMED: "bg-emerald-100 text-emerald-700 border-emerald-200",
-  CANCELLED: "bg-rose-100 text-rose-600 border-rose-200",
+
+const STATUS_LABEL = {
+  DRAFT: "پیش‌نویس",
+  REGISTERED: "ثبت اولیه",
+  CONFIRMED: "تأییدشده",
+  FINAL: "صدور سند قطعی",
+  CANCELLED: "ابطال‌شده",
+  "پیش‌نویس": "پیش‌نویس",
+  "ثبت اولیه": "ثبت اولیه",
+  "تأییدشده": "تأییدشده",
+  "صدور سند قطعی": "صدور سند قطعی",
+  "ابطال‌شده": "ابطال‌شده",
 };
+
+const STATUS_COLOR = {
+  DRAFT: "bg-amber-100 text-amber-700 border-amber-200",
+  REGISTERED: "bg-blue-100 text-blue-700 border-blue-200",
+  CONFIRMED: "bg-emerald-100 text-emerald-700 border-emerald-200",
+  FINAL: "bg-indigo-100 text-indigo-700 border-indigo-200",
+  CANCELLED: "bg-rose-100 text-rose-700 border-rose-200",
+  "پیش‌نویس": "bg-amber-100 text-amber-700 border-amber-200",
+  "ثبت اولیه": "bg-blue-100 text-blue-700 border-blue-200",
+  "تأییدشده": "bg-emerald-100 text-emerald-700 border-emerald-200",
+  "صدور سند قطعی": "bg-indigo-100 text-indigo-700 border-indigo-200",
+  "ابطال‌شده": "bg-rose-100 text-rose-700 border-rose-200",
+};
+
 const STATUS_ICON = {
   DRAFT: Clock,
+  REGISTERED: FileText,
   CONFIRMED: CheckCircle2,
+  FINAL: CheckCircle2,
   CANCELLED: Ban,
+  "پیش‌نویس": Clock,
+  "ثبت اولیه": FileText,
+  "تأییدشده": CheckCircle2,
+  "صدور سند قطعی": CheckCircle2,
+  "ابطال‌شده": Ban,
 };
+
+
+function getNextRoleTarget(currentStep) {
+  if (currentStep === "ACCOUNTANT" || currentStep === "DRAFT" || currentStep === "REGULATOR" || !currentStep) {
+    return { nextRole: "رئیس امور مالی", actionLabel: "تأیید و ارسال به رئیس امور مالی" };
+  }
+  if (currentStep === "FIN_HEAD") {
+    return { nextRole: "مدیر مالی و ذیحساب", actionLabel: "تأیید و ارسال به مدیر مالی و ذیحساب" };
+  }
+  if (currentStep === "FIN_DIRECTOR") {
+    return { nextRole: "رئیس دستگاه اجرایی", actionLabel: "تأیید و ارسال به رئیس دستگاه اجرایی" };
+  }
+  if (currentStep === "AGENCY_HEAD") {
+    return { nextRole: "تکمیل شده", actionLabel: "تأیید نهایی و صدور سند قطعی" };
+  }
+  return { nextRole: "تکمیل شده", actionLabel: "تأیید و نهایی‌سازی" };
+}
+
+function getPrevRoleTarget(currentStep) {
+  if (currentStep === "AGENCY_HEAD") {
+    return "مدیر مالی و ذیحساب";
+  }
+  if (currentStep === "FIN_DIRECTOR") {
+    return "رئیس امور مالی";
+  }
+  if (currentStep === "FIN_HEAD") {
+    return "تنظیم حساب";
+  }
+  return "حسابدار";
+}
 
 function fmt(n) {
   if (n === null || n === undefined || n === 0) return "—";
@@ -61,12 +120,351 @@ function formatDocDate(dateStr, fiscalYear) {
   return toPersianDigits(dateStr);
 }
 
+function canUserApproveOrReject(user, doc) {
+  if (!doc) return false;
+
+  const status = (doc.status || "").trim();
+  if (status === "CONFIRMED" || status === "صدور سند قطعی" || status === "FINAL") {
+    return false;
+  }
+
+  const uStr = user
+    ? `${user.position || ""} ${user.role || ""} ${user.userGroup || ""} ${user.workflowLevel || ""} ${user.username || ""}`.toLowerCase()
+    : "admin تنظیم حساب";
+
+  const isAdmin = !user || user.isAdmin === true || uStr.includes("admin") || uStr.includes("مدیر سیستم") || uStr.includes("مدیرکل");
+
+  const currentStep = doc.workflowStep || "REGULATOR";
+
+  // مرحله تنظیم حساب (اسناد ثبت‌شده توسط حسابدار)
+  if (currentStep === "ACCOUNTANT" || currentStep === "DRAFT" || currentStep === "REGULATOR" || status === "پیش‌نویس" || status === "ثبت اولیه") {
+    if (uStr.includes("حسابدار") && !uStr.includes("تنظیم") && !uStr.includes("رئیس") && !uStr.includes("مدیر") && !isAdmin) {
+      return false;
+    }
+    return isAdmin || uStr.includes("تنظیم") || uStr.includes("regulator") || uStr.includes("drafter");
+  }
+
+  // مرحله رئیس امور مالی
+  if (currentStep === "FIN_HEAD") {
+    return isAdmin || uStr.includes("رئیس امور مالی") || uStr.includes("fin_head");
+  }
+
+  // مرحله مدیر مالی و ذیحساب
+  if (currentStep === "FIN_DIRECTOR") {
+    return isAdmin || uStr.includes("مدیر مالی") || uStr.includes("ذیحساب") || uStr.includes("fin_director");
+  }
+
+  // مرحله رئیس دستگاه اجرایی
+  if (currentStep === "AGENCY_HEAD") {
+    return isAdmin || uStr.includes("رئیس دستگاه") || uStr.includes("agency_head");
+  }
+
+  return isAdmin;
+}
+
+function canUserEdit(user, doc) {
+  if (!doc) return false;
+  const status = (doc.status || "").trim();
+  if (status === "CONFIRMED" || status === "صدور سند قطعی" || status === "FINAL") {
+    return false;
+  }
+
+  const uStr = user
+    ? `${user.position || ""} ${user.role || ""} ${user.userGroup || ""} ${user.workflowLevel || ""} ${user.username || ""}`.toLowerCase()
+    : "admin";
+
+  const isAdmin = !user || user.isAdmin === true || uStr.includes("admin") || uStr.includes("مدیر سیستم");
+  if (isAdmin) return true;
+
+  const currentStep = doc.workflowStep || "REGULATOR";
+
+  if (currentStep === "ACCOUNTANT" || currentStep === "DRAFT" || status.includes("برگشت") || status.includes("ابطال")) {
+    return true;
+  }
+
+  return false;
+}
+
+function canUserDeleteDoc(user, doc) {
+  if (!doc) return false;
+
+  const status = (doc.status || "").trim();
+
+  // اگر سند قطعی شده باشد (تأیید نهایی توسط رئیس دستگاه)، حذف کلاً غیرفعال است
+  if (status === "CONFIRMED" || status === "صدور سند قطعی" || status === "FINAL" || doc.workflowStep === "FINAL") {
+    return false;
+  }
+
+  const uStr = user
+    ? `${user.position || ""} ${user.role || ""} ${user.userGroup || ""} ${user.workflowLevel || ""} ${user.username || ""}`.toLowerCase()
+    : "admin";
+
+  const isAdmin = !user || user.isAdmin === true || uStr.includes("admin") || uStr.includes("مدیر سیستم");
+  if (isAdmin) return true;
+
+  // تا زمانی که سند به تأیید نهایی نرسیده، کاربرانی که دسترسی اقدام دارند حق حذف سند را دارا می‌باشند
+  return canUserApproveOrReject(user, doc) || canUserEdit(user, doc);
+}
+
+function isDocumentVisibleToUser(user, doc) {
+  if (!doc) return false;
+
+  const status = (doc.status || "").trim();
+
+  // اسناد قطعی‌شده برای تمام نقش‌ها قابل مشاهده است
+  if (status === "CONFIRMED" || status === "صدور سند قطعی" || status === "FINAL") {
+    return true;
+  }
+
+  const uStr = user
+    ? `${user.position || ""} ${user.role || ""} ${user.userGroup || ""} ${user.workflowLevel || ""} ${user.username || ""}`.toLowerCase()
+    : "admin";
+
+  const isAdmin = !user || user.isAdmin === true || uStr.includes("admin") || uStr.includes("مدیر سیستم") || uStr.includes("مدیرکل");
+  if (isAdmin) return true;
+
+  const currentStep = doc.workflowStep || "REGULATOR";
+  const isAccountant = uStr.includes("حسابدار") && !uStr.includes("تنظیم") && !uStr.includes("رئیس") && !uStr.includes("مدیر");
+  const isRegulator = uStr.includes("تنظیم") || uStr.includes("regulator") || uStr.includes("drafter");
+  const isFinHead = uStr.includes("رئیس امور مالی") || uStr.includes("fin_head");
+  const isFinDirector = uStr.includes("مدیر مالی") || uStr.includes("ذیحساب") || uStr.includes("fin_director");
+  const isAgencyHead = uStr.includes("رئیس دستگاه") || uStr.includes("agency_head");
+
+  // مرحله ۱: اسناد اولیه در انتظار تنظیم حساب
+  if (currentStep === "ACCOUNTANT" || currentStep === "DRAFT" || currentStep === "REGULATOR" || status === "پیش‌نویس" || status === "ثبت اولیه") {
+    return isRegulator || isAccountant;
+  }
+
+  // مرحله ۲: در انتظار رئیس امور مالی
+  if (currentStep === "FIN_HEAD") {
+    return isFinHead || isRegulator || isAccountant;
+  }
+
+  // مرحله ۳: در انتظار مدیر مالی و ذیحساب
+  if (currentStep === "FIN_DIRECTOR") {
+    return isFinDirector || isFinHead || isRegulator || isAccountant;
+  }
+
+  // مرحله ۴: در انتظار رئیس دستگاه
+  if (currentStep === "AGENCY_HEAD") {
+    return isAgencyHead || isFinDirector || isFinHead || isRegulator || isAccountant;
+  }
+
+  return true;
+}
+
+// ─── Modal درختواره و تاریخچه گردش کاری سند ─────────────────────────────────
+function DocWorkflowTreeModal({ doc, onClose }) {
+  if (!doc) return null;
+
+  const history = doc.workflowHistory || [];
+  const currentStep = doc.workflowStep || "REGULATOR";
+  const status = (doc.status || "").trim();
+  const isFinalized = status === "CONFIRMED" || status === "صدور سند قطعی" || status === "FINAL" || currentStep === "FINAL";
+
+  const STEPS = [
+    { key: "ACCOUNTANT", roleName: "حسابدار", title: "ثبت اولیه و صدور سند", icon: FileText },
+    { key: "REGULATOR", roleName: "تنظیم حساب", title: "بررسی و تنظیم حساب", icon: Clock },
+    { key: "FIN_HEAD", roleName: "رئیس امور مالی", title: "تأیید رئیس امور مالی", icon: CheckCircle2 },
+    { key: "FIN_DIRECTOR", roleName: "مدیر مالی و ذیحساب", title: "تأیید مدیر مالی و ذیحساب", icon: CheckCircle2 },
+    { key: "AGENCY_HEAD", roleName: "رئیس دستگاه اجرایی", title: "تأیید نهایی و صدور سند قطعی", icon: CheckCircle2 },
+  ];
+
+  const getStepStatus = (stepKey, index) => {
+    if (stepKey === "ACCOUNTANT") {
+      const creatorName = doc.createdBy || doc.rawHeader?.registeredBy || doc.user || "حسابدار";
+      return {
+        completed: true,
+        actionText: "ثبت اولیه سند",
+        user: creatorName,
+        date: doc.createdAt || doc.document_date || "—",
+        badgeColor: "bg-blue-100 text-blue-700 border-blue-200",
+      };
+    }
+
+    const stepHistory = history.filter(h => h.fromStep === stepKey || h.toStep === stepKey);
+    const lastAction = stepHistory[stepHistory.length - 1];
+
+    if (lastAction) {
+      if (lastAction.action === "REJECT" && lastAction.fromStep === stepKey) {
+        return {
+          completed: false,
+          rejected: true,
+          actionText: "رد سند و ارجاع به گام قبل",
+          user: lastAction.user,
+          date: lastAction.date,
+          reason: lastAction.reason,
+          badgeColor: "bg-rose-100 text-rose-700 border-rose-200",
+        };
+      }
+      if (lastAction.action === "APPROVE") {
+        return {
+          completed: true,
+          actionText: "تأیید و ارسال به مرحله بعد",
+          user: lastAction.user,
+          date: lastAction.date,
+          badgeColor: "bg-emerald-100 text-emerald-700 border-emerald-200",
+        };
+      }
+    }
+
+    if (isFinalized) {
+      return {
+        completed: true,
+        actionText: "تأیید شده نهایی",
+        badgeColor: "bg-emerald-100 text-emerald-700 border-emerald-200",
+      };
+    }
+
+    if (currentStep === stepKey) {
+      return {
+        current: true,
+        actionText: "در انتظار اقدام در کارتابل",
+        badgeColor: "bg-amber-100 text-amber-700 border-amber-200 animate-pulse",
+      };
+    }
+
+    return {
+      pending: true,
+      actionText: "در صف انتظار",
+      badgeColor: "bg-muted text-muted-foreground border-border",
+    };
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" dir="rtl">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-md" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl border bg-background shadow-2xl flex flex-col">
+        {/* هدر مدال */}
+        <div className="flex items-center justify-between border-b px-6 py-4 bg-muted/30 rounded-t-3xl shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary border border-primary/20">
+              <GitFork className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-foreground">درختواره و سوابق گردش کاری سند</h2>
+              <p className="text-xs text-muted-foreground font-mono">شماره سند: {doc.document_number} | دوره مالی: {doc.fiscal_year}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="rounded-xl p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* بدنه درختواره */}
+        <div className="p-6 space-y-6 flex-1">
+          <div className="flex items-center justify-between p-3.5 rounded-2xl border bg-muted/20">
+            <span className="text-xs font-bold text-muted-foreground">وضعیت کنونی سند:</span>
+            <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold", STATUS_COLOR[doc.status] ?? "bg-muted")}>
+              {STATUS_LABEL[doc.status] ?? doc.status}
+            </span>
+          </div>
+
+          <div className="relative pr-4 space-y-6 before:absolute before:right-[27px] before:top-3 before:bottom-3 before:w-0.5 before:bg-gradient-to-b before:from-primary/80 before:via-emerald-500/40 before:to-muted">
+            {STEPS.map((step, idx) => {
+              const info = getStepStatus(step.key, idx);
+
+              return (
+                <div key={step.key} className="relative flex items-start gap-4 group">
+                  <div className={cn(
+                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-bold z-10 transition-all shadow-sm",
+                    info.completed ? "bg-emerald-600 text-white border-emerald-600 shadow-emerald-200" :
+                    info.rejected ? "bg-rose-600 text-white border-rose-600 shadow-rose-200" :
+                    info.current ? "bg-amber-500 text-white border-amber-500 ring-4 ring-amber-100" :
+                    "bg-background text-muted-foreground border-border"
+                  )}>
+                    {info.completed ? <CheckCircle2 className="h-4 w-4" /> :
+                     info.rejected ? <Ban className="h-4 w-4" /> :
+                     info.current ? <Clock className="h-4 w-4 animate-spin" /> :
+                     (idx + 1)}
+                  </div>
+
+                  <div className={cn(
+                    "flex-1 rounded-2xl border p-4 transition-all shadow-sm",
+                    info.rejected ? "bg-rose-50/60 border-rose-200 dark:bg-rose-950/20" :
+                    info.completed ? "bg-emerald-50/40 border-emerald-200 dark:bg-emerald-950/20" :
+                    info.current ? "bg-amber-50/50 border-amber-200 dark:bg-amber-950/20" :
+                    "bg-background border-border/80 opacity-70"
+                  )}>
+                    <div className="flex items-center justify-between flex-wrap gap-2 mb-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-extrabold text-foreground">{step.roleName}</span>
+                        <span className="text-[11px] text-muted-foreground font-medium">({step.title})</span>
+                      </div>
+                      <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full border", info.badgeColor)}>
+                        {info.actionText}
+                      </span>
+                    </div>
+
+                    {info.user && (
+                      <p className="text-xs text-foreground/80 font-medium mt-1">
+                        • اقدام کننده: <span className="font-bold text-foreground">{info.user}</span>
+                      </p>
+                    )}
+
+                    {info.date && (
+                      <p className="text-[11px] text-muted-foreground font-mono mt-0.5">
+                        • زمان اقدام: {toPersianDigits(info.date.replace("T", " ").slice(0, 19))}
+                      </p>
+                    )}
+
+                    {info.reason && (
+                      <div className="mt-2.5 p-2.5 rounded-xl bg-rose-100/80 text-rose-900 border border-rose-300 text-xs space-y-1">
+                        <p className="font-bold flex items-center gap-1">
+                          <AlertTriangle className="h-3.5 w-3.5 text-rose-600 shrink-0" />
+                          دلیل رد سند:
+                        </p>
+                        <p className="pr-4 leading-relaxed font-semibold">{info.reason}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {history.length > 0 && (
+            <div className="mt-6 pt-4 border-t space-y-3">
+              <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                <FileText className="h-3.5 w-3.5 text-primary" />
+                ریز سوابق رویدادها ({history.length} مورد)
+              </h4>
+              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                {history.map((h, i) => (
+                  <div key={i} className="text-xs p-2.5 rounded-xl border bg-muted/20 flex justify-between items-center flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold",
+                        h.action === "APPROVE" ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800")}>
+                        {h.action === "APPROVE" ? "تأیید" : "رد"}
+                      </span>
+                      <span className="font-medium text-foreground">{h.user}</span>
+                    </div>
+                    {h.reason && <span className="text-rose-700 font-semibold truncate max-w-[220px]" title={h.reason}>دلیل: {h.reason}</span>}
+                    <span className="text-[10px] text-muted-foreground font-mono">{toPersianDigits(h.date?.replace("T", " ")?.slice(0, 19) || "")}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="border-t px-6 py-3 bg-muted/20 rounded-b-3xl shrink-0 flex justify-end">
+          <Button variant="outline" size="sm" onClick={onClose} className="gap-1 text-xs">
+            <X className="h-3.5 w-3.5" />بستن
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Modal جزئیات سند ─────────────────────────────────────────────────────────
-function DocDetailModal({ doc, onClose, onDelete, onConfirm }) {
+function DocDetailModal({ doc, onClose, onDelete, onWorkflowApprove, onWorkflowReject, currentUser }) {
   const totalDebit = doc.lines?.reduce((s, l) => s + (l.debit ?? 0), 0) ?? 0;
   const totalCredit = doc.lines?.reduce((s, l) => s + (l.credit ?? 0), 0) ?? 0;
   const balanced = totalDebit === totalCredit;
   const StatusIcon = STATUS_ICON[doc.status] ?? Clock;
+  const canApprove = canUserApproveOrReject(currentUser, doc);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" dir="rtl">
@@ -183,15 +581,36 @@ function DocDetailModal({ doc, onClose, onDelete, onConfirm }) {
         </div>
 
         {/* footer */}
-        <div className="border-t px-6 py-3 bg-muted/20 rounded-b-2xl shrink-0 flex justify-between items-center">
+        <div className="border-t px-6 py-3 bg-muted/20 rounded-b-2xl shrink-0 flex justify-between items-center flex-wrap gap-2">
           <div className="flex items-center gap-2">
-            <Button variant="destructive" size="sm" onClick={() => onDelete(doc._id, doc.document_number)} className="gap-1.5 text-xs font-bold">
-              <Trash2 className="h-3.5 w-3.5" />حذف سند
-            </Button>
-            {doc.status === "DRAFT" && (
-              <Button size="sm" disabled className="gap-1.5 text-xs font-bold bg-muted text-muted-foreground border border-muted-foreground/20 cursor-not-allowed opacity-60" title="سند پیش‌نویس هنوز آماده تأیید نیست. لطفاً ابتدا آن را ویرایش و تکمیل نمایید.">
-                <Ban className="h-3.5 w-3.5 text-orange-500" />تأیید غیرفعال است (پیش‌نویس)
+            {canUserDeleteDoc(currentUser, doc) && (
+              <Button variant="destructive" size="sm" onClick={() => onDelete(doc._id, doc.document_number)} className="gap-1.5 text-xs font-bold">
+                <Trash2 className="h-3.5 w-3.5" />حذف سند
               </Button>
+            )}
+            {canApprove && (
+              <>
+                <Button
+                  size="sm"
+                  onClick={() => onWorkflowApprove(doc)}
+                  className="gap-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer"
+                  title={getNextRoleTarget(doc.workflowStep).actionLabel}
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  {getNextRoleTarget(doc.workflowStep).actionLabel}
+                </Button>
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onWorkflowReject(doc)}
+                  className="gap-1.5 text-xs font-bold bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 cursor-pointer"
+                  title={`رد سند و برگشت به ${getPrevRoleTarget(doc.workflowStep)}`}
+                >
+                  <Ban className="h-3.5 w-3.5 text-rose-600" />
+                  رد سند و ارجاع
+                </Button>
+              </>
             )}
           </div>
           <Button variant="outline" size="sm" onClick={onClose} className="gap-1.5 text-xs">
@@ -225,11 +644,61 @@ function SortHeader({ label, field, sortBy, sortDir, onSort }) {
 export default function DocumentsList() {
   const navigate = useNavigate();
   const { selectedFiscalYear } = useFiscalYear();
+  const { user: currentUser } = useAuth();
 
   const [docs, setDocs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selected, setSelected] = useState(null);   // modal
+  const [treeDoc, setTreeDoc] = useState(null);     // tree modal
+
+  // مدال رد سند
+  const [rejectingDoc, setRejectingDoc] = useState(null);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [submittingWorkflow, setSubmittingWorkflow] = useState(false);
+
+  const handleWorkflowApprove = async (doc) => {
+    const stepInfo = getNextRoleTarget(doc.workflowStep);
+    if (!window.confirm(`آیا از «${stepInfo.actionLabel}» برای سند شماره ${doc.document_number || ""} مطمئن هستید؟`)) return;
+    setSubmittingWorkflow(true);
+    try {
+      const res = await api.post(`/api/documents/${doc._id}/workflow/approve`);
+      if (res.data?.success) {
+        fetchDocs();
+        if (selected && selected._id === doc._id) setSelected(null);
+      }
+    } catch (err) {
+      console.error("Workflow approve error:", err);
+      alert(err?.response?.data?.message || "خطا در تایید سند.");
+    } finally {
+      setSubmittingWorkflow(false);
+    }
+  };
+
+  const handleWorkflowRejectSubmit = async () => {
+    if (!rejectingDoc) return;
+    if (!rejectionReason.trim()) {
+      alert("لطفاً دلیل رد سند را وارد نمایید.");
+      return;
+    }
+    setSubmittingWorkflow(true);
+    try {
+      const res = await api.post(`/api/documents/${rejectingDoc._id}/workflow/reject`, {
+        reason: rejectionReason.trim(),
+      });
+      if (res.data?.success) {
+        setRejectingDoc(null);
+        setRejectionReason("");
+        fetchDocs();
+        if (selected && selected._id === rejectingDoc._id) setSelected(null);
+      }
+    } catch (err) {
+      console.error("Workflow reject error:", err);
+      alert(err?.response?.data?.message || "خطا در رد سند.");
+    } finally {
+      setSubmittingWorkflow(false);
+    }
+  };
 
   // فیلترها
   const [search, setSearch] = useState("");
@@ -299,14 +768,17 @@ export default function DocumentsList() {
     else { setSortBy(field); setSortDir("asc"); }
   }
 
-  // اسناد مربوط به دوره مالی انتخابی/فعال
+  // اسناد مربوط به دوره مالی انتخابی/فعال و فیلتر شده بر اساس روال کارتابل نقش کاربر
   const yearDocs = useMemo(() => {
-    if (!filterYear) return docs;
-    return docs.filter(d => {
-      const dYear = String(d.fiscal_year || d.fiscalYear || d.document_date?.slice(0, 4) || "");
-      return dYear.includes(filterYear);
-    });
-  }, [docs, filterYear]);
+    let list = docs;
+    if (filterYear) {
+      list = list.filter(d => {
+        const dYear = String(d.fiscal_year || d.fiscalYear || d.document_date?.slice(0, 4) || "");
+        return dYear.includes(filterYear);
+      });
+    }
+    return list.filter(d => isDocumentVisibleToUser(currentUser, d));
+  }, [docs, filterYear, currentUser]);
 
   // خلاصه آماری (بر اساس اسناد دوره مالی فعال)
   const stats = useMemo(() => ({
@@ -542,7 +1014,7 @@ export default function DocumentsList() {
                     <th className="px-4 py-3 text-right text-xs font-semibold text-blue-600">جمع بدهکار</th>
                     <th className="px-4 py-3 text-right text-xs font-semibold text-rose-600">جمع بستانکار</th>
                     <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">شرح</th>
-                    <th className="px-4 py-3 w-28" />
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground whitespace-nowrap">عملیات</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -621,36 +1093,66 @@ export default function DocumentsList() {
                           <span className="text-xs text-muted-foreground truncate block" title={doc.description}>
                             {doc.description ?? "—"}
                           </span>
+                          {doc.rejectionReason && (
+                            <span className="inline-flex items-center gap-1 text-[10px] text-rose-700 bg-rose-50 border border-rose-200 rounded px-1.5 py-0.5 mt-1 font-semibold" title={`علت رد: ${doc.rejectionReason}`}>
+                              <AlertTriangle className="h-2.5 w-2.5 text-rose-600 shrink-0" />
+                              علت رد: {doc.rejectionReason}
+                            </span>
+                          )}
                         </td>
 
                         {/* عملیات */}
                         <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-                          <div className="flex items-center gap-1">
-                            {doc.status === "DRAFT" && (
-                              <button
-                                disabled
-                                onClick={(e) => { e.stopPropagation(); handleConfirm(doc._id, doc.document_number); }}
-                                className="rounded-lg p-1 text-muted-foreground/40 cursor-not-allowed opacity-50"
-                                title="سند پیش‌نویس هنوز آماده تأیید نیست. لطفاً ابتدا آن را ویرایش و تکمیل نمایید."
-                              >
-                                <CheckCircle2 className="h-4 w-4" />
-                              </button>
+                          <div className="flex items-center justify-center gap-1.5">
+                            {canUserApproveOrReject(currentUser, doc) && (
+                              <>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleWorkflowApprove(doc); }}
+                                  className="rounded-lg p-1.5 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 hover:text-emerald-700 transition-all border border-emerald-200 cursor-pointer"
+                                  title={getNextRoleTarget(doc.workflowStep).actionLabel}
+                                >
+                                  <CheckCircle2 className="h-4 w-4" />
+                                </button>
+
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setRejectingDoc(doc); setRejectionReason(""); }}
+                                  className="rounded-lg p-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 hover:text-rose-700 transition-all border border-rose-200 cursor-pointer"
+                                  title={`رد سند و برگشت به ${getPrevRoleTarget(doc.workflowStep)}`}
+                                >
+                                  <Ban className="h-4 w-4" />
+                                </button>
+                              </>
                             )}
+
+                            {/* ۱. چشمی - مشاهده جزئیات سند */}
                             <button onClick={() => setSelected(doc)}
                               className="rounded-lg p-1 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-all"
-                              title="مشاهده جزئیات">
+                              title="مشاهده جزئیات (چشمی)">
                               <Eye className="h-3.5 w-3.5" />
                             </button>
-                            <button onClick={() => navigate("/document-setup/manual-doc", { state: { docId: doc._id } })}
+
+                            {/* ۲. دکمه ویرایش برای ورود به خود سند در صدور سند دستی (فقط‌خواندنی بعد از قطعی شدن) */}
+                            <button onClick={() => navigate(`/document-setup/manual-doc?id=${doc._id}`)}
                               className="rounded-lg p-1 text-muted-foreground hover:bg-amber-100 hover:text-amber-700 transition-all"
-                              title="ویرایش">
+                              title={doc.status === "CONFIRMED" || doc.status === "صدور سند قطعی" ? "مشاهده سند در صدور سند دستی (فقط‌خواندنی)" : "ویرایش سند"}>
                               <Edit3 className="h-3.5 w-3.5" />
                             </button>
-                            <button onClick={() => handleDelete(doc._id, doc.document_number)}
-                              className="rounded-lg p-1 text-muted-foreground hover:bg-rose-100 hover:text-rose-600 transition-all"
-                              title="حذف">
-                              <Trash2 className="h-3.5 w-3.5" />
+
+                            {/* ۳. علامت درختواره - کل عملیات طی شده و سوابق هر گام */}
+                            <button onClick={() => setTreeDoc(doc)}
+                              className="rounded-lg p-1 text-primary/80 hover:bg-primary/10 hover:text-primary transition-all"
+                              title="درختواره گردش و سوابق سند">
+                              <GitFork className="h-3.5 w-3.5" />
                             </button>
+
+                            {/* حذف - فقط قبل از تایید نهایی قطعی */}
+                            {canUserDeleteDoc(currentUser, doc) && (
+                              <button onClick={() => handleDelete(doc._id, doc.document_number)}
+                                className="rounded-lg p-1 text-muted-foreground hover:bg-rose-100 hover:text-rose-600 transition-all"
+                                title="حذف سند">
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -663,13 +1165,74 @@ export default function DocumentsList() {
         </CardContent>
       </Card>
 
+      {/* مدال تایید دلیل رد سند */}
+      {rejectingDoc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" dir="rtl">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setRejectingDoc(null)} />
+          <div className="relative z-10 w-full max-w-md rounded-2xl border bg-background p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b pb-3">
+              <div className="flex items-center gap-2 text-rose-600 font-bold text-sm">
+                <Ban className="h-5 w-5" />
+                <h3>رد و برگشت سند شماره {rejectingDoc.document_number}</h3>
+              </div>
+              <button onClick={() => setRejectingDoc(null)} className="text-muted-foreground hover:text-foreground">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="text-xs text-muted-foreground space-y-1 bg-amber-50 p-3 rounded-lg border border-amber-200">
+              <p className="font-semibold text-amber-900">• ارجاع به مرحله قبل: کاربر <strong>«{getPrevRoleTarget(rejectingDoc.workflowStep)}»</strong></p>
+              <p>• ثبت علت رد جهت درج در سوابق سند الزامی است.</p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">دلیل رد سند (الزامی):</label>
+              <textarea
+                rows={3}
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                placeholder="علت رد سند را در این باکس بنویسید..."
+                className="w-full text-xs p-2.5 rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-rose-500"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <Button variant="outline" size="sm" onClick={() => setRejectingDoc(null)} disabled={submittingWorkflow}>
+                انصراف
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleWorkflowRejectSubmit}
+                disabled={submittingWorkflow || !rejectionReason.trim()}
+                className="gap-1.5 bg-rose-600 hover:bg-rose-700 font-bold"
+              >
+                {submittingWorkflow ? "در حال ثبت..." : "ثبت رد سند و برگشت"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal جزئیات */}
       {selected && (
         <DocDetailModal
           doc={selected}
           onClose={() => setSelected(null)}
           onDelete={handleDelete}
-          onConfirm={handleConfirm}
+          onWorkflowApprove={handleWorkflowApprove}
+          onWorkflowReject={(doc) => {
+            setRejectingDoc(doc);
+            setRejectionReason("");
+          }}
+          currentUser={currentUser}
+        />
+      )}
+      {/* Modal درختواره گردش کار */}
+      {treeDoc && (
+        <DocWorkflowTreeModal
+          doc={treeDoc}
+          onClose={() => setTreeDoc(null)}
         />
       )}
     </PageShell>

@@ -5,29 +5,33 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-
-import { FileSignature, Upload, Trash2, Edit3, Check, Printer, CheckCircle2, AlertCircle, Image as ImageIcon, Building2, Layers, Sparkles, X, Plus } from "lucide-react";
+import { FileSignature, Upload, Trash2, Edit3, Check, Printer, CheckCircle2, AlertCircle, Image as ImageIcon, Building2, Layers, Sparkles, X, Plus, UserCheck, ShieldAlert, BookOpen, Warehouse, Calculator, Coins, Landmark, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
+import api from "@/api";
+import { SYSTEM_MODULES, getModuleSignatures, saveModuleSignatures } from "@/lib/moduleRoles";
 
-// لیست پیش‌فرض سمت‌ها جهت ایجاد سریع
-const DEFAULT_ROLES = [
-  { id: "treasurer", label: "ذیحساب و مدیرکل امور مالی", defaultSlot: 3 },
-  { id: "financial_manager", label: "رئیس امور مالی و حسابداری", defaultSlot: 2 },
-  { id: "accountant", label: "تنظیم کننده / کارشناس حسابداری", defaultSlot: 1 },
-  { id: "credit_manager", label: "رئیس اداره اعتبارات و بودجه", defaultSlot: 2 },
-  { id: "deputy_treasurer", label: "معاون ذیحساب", defaultSlot: 3 },
-];
+const ICON_MAP = {
+  BookOpen,
+  Warehouse,
+  Building2,
+  Calculator,
+  Coins,
+  Landmark
+};
 
 export default function ReportSignatureForm() {
-  const [signatures, setSignatures] = useState([]);
-  const [editingId, setEditingId] = useState(null);
+  const [activeModuleKey, setActiveModuleKey] = useState("accounting");
+  const [usersList, setUsersList] = useState([]);
+  const [moduleSignatures, setModuleSignatures] = useState({});
+  const [globalSignatures, setGlobalSignatures] = useState([]);
 
-  // حالت‌های فرم ایجاد/ویرایش امضا
+  const [editingRoleId, setEditingRoleId] = useState(null);
+  const [selectedUserId, setSelectedUserId] = useState("");
   const [userName, setUserName] = useState("");
-  const [userRole, setUserRole] = useState("ذیحساب و مدیرکل امور مالی");
-  const [slot, setSlot] = useState("3"); // 1: راست (تنظیم کننده)، 2: مرکز (مدیر مالی)، 3: چپ (ذیحساب)
-  const [signatureImage, setSignatureImage] = useState(null); // Base64
-  const [stampImage, setStampImage] = useState(null); // Base64
+  const [userRoleTitle, setUserRoleTitle] = useState("");
+  const [slot, setSlot] = useState("1");
+  const [signatureImage, setSignatureImage] = useState(null);
+  const [stampImage, setStampImage] = useState(null);
   const [isActive, setIsActive] = useState(true);
 
   const [errorMsg, setErrorMsg] = useState("");
@@ -37,23 +41,38 @@ export default function ReportSignatureForm() {
   const sigFileRef = useRef(null);
   const stampFileRef = useRef(null);
 
-  // بارگذاری امضاها از localStorage در هنگام شروع
+  const activeModuleDef = SYSTEM_MODULES.find(m => m.key === activeModuleKey) || SYSTEM_MODULES[0];
+
+  // بارگذاری کاربران سیستم
+  useEffect(() => {
+    async function loadUsers() {
+      try {
+        const res = await api.get("/api/users");
+        if (res.data?.success && Array.isArray(res.data.data)) {
+          setUsersList(res.data.data);
+        }
+      } catch (err) {
+        console.error("Error fetching users for signature assignment:", err);
+      }
+    }
+    loadUsers();
+  }, []);
+
+  // بارگذاری امضاکنندگان ماژول فعال
+  useEffect(() => {
+    const currentSignatures = getModuleSignatures(activeModuleKey);
+    setModuleSignatures(prev => ({ ...prev, [activeModuleKey]: currentSignatures }));
+    resetForm();
+  }, [activeModuleKey]);
+
+  // بارگذاری امضاهای کلی از localStorage
   useEffect(() => {
     try {
       const saved = localStorage.getItem("user_report_signatures");
-      if (saved) {
-        setSignatures(JSON.parse(saved));
-      }
+      if (saved) setGlobalSignatures(JSON.parse(saved));
     } catch (_) {}
   }, []);
 
-  // ذخیره‌سازی تغییرات لیست امضاها در localStorage
-  function saveSignaturesToStorage(newList) {
-    setSignatures(newList);
-    localStorage.setItem("user_report_signatures", JSON.stringify(newList));
-  }
-
-  // تبدیل فایل به Base64
   function fileToBase64(file) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -63,7 +82,6 @@ export default function ReportSignatureForm() {
     });
   }
 
-  // آپلود اسکن امضا
   async function handleSignatureUpload(e) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -80,7 +98,6 @@ export default function ReportSignatureForm() {
     }
   }
 
-  // آپلود اسکن مهر
   async function handleStampUpload(e) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -97,76 +114,28 @@ export default function ReportSignatureForm() {
     }
   }
 
-  // ثبت یا بروزرسانی امضای کاربر
-  function handleSubmit(e) {
-    e.preventDefault();
-    if (!userName.trim()) {
-      setErrorMsg("نام و نام خانوادگی کاربر الزامی است.");
-      return;
-    }
-    if (!userRole.trim()) {
-      setErrorMsg("عنوان سازمانی / سمت کاربر الزامی است.");
-      return;
-    }
-    if (!signatureImage) {
-      setErrorMsg("تصویر اسکن شده امضای کاربر الزامی است.");
-      return;
-    }
-
-    try {
-      setIsSaving(true);
-      setErrorMsg("");
-
-      let updatedList = [];
-      if (editingId) {
-        // ویرایش امضای موجود
-        updatedList = signatures.map(item => {
-          if (item.id === editingId) {
-            return {
-              ...item,
-              userName,
-              userRole,
-              slot,
-              signatureImage,
-              stampImage,
-              isActive,
-              updatedAt: new Date().toISOString()
-            };
-          }
-          return item;
-        });
-        setSuccessMsg(`امضای اسکن شده کاربر «${userName}» با موفقیت بروزرسانی شد.`);
-      } else {
-        // افزودن امضای جدید
-        const newItem = {
-          id: "sig-" + Date.now(),
-          userName,
-          userRole,
-          slot,
-          signatureImage,
-          stampImage,
-          isActive,
-          createdAt: new Date().toISOString()
-        };
-        updatedList = [newItem, ...signatures];
-        setSuccessMsg(`امضای اسکن شده جدید برای کاربر «${userName}» ثبت گردید.`);
+  // انتخاب کاربر از لیست سیستم
+  function handleSelectUser(uId) {
+    setSelectedUserId(uId);
+    if (!uId) return;
+    const found = usersList.find(u => String(u._id || u.id) === String(uId));
+    if (found) {
+      const fullName = `${found.firstName || ""} ${found.lastName || ""}`.trim() || found.username;
+      setUserName(fullName);
+      // بررسی اگر کاربر مدیر سیستم است
+      const isAdmin = found.role === "admin" || found.role === "مدیر سیستم" || found.username?.toLowerCase() === "admin";
+      if (isAdmin) {
+        setSuccessMsg(`⚠️ کاربر انتخاب شده «${fullName}» دارای نقش مدیر سیستم است (دسترسی کامل فول اکسس، ولی در صورت عدم تخصیص صریح، در چاپ اسناد نمی‌آید).`);
       }
-
-      saveSignaturesToStorage(updatedList);
-      resetForm();
-      setIsSaving(false);
-    } catch (err) {
-      setIsSaving(false);
-      setErrorMsg("خطا در ذخیره‌سازی امضا: " + err.message);
     }
   }
 
-  // پاکسازی فرم
   function resetForm() {
-    setEditingId(null);
+    setEditingRoleId(null);
+    setSelectedUserId("");
     setUserName("");
-    setUserRole("ذیحساب و مدیرکل امور مالی");
-    setSlot("3");
+    setUserRoleTitle("");
+    setSlot("1");
     setSignatureImage(null);
     setStampImage(null);
     setIsActive(true);
@@ -175,13 +144,13 @@ export default function ReportSignatureForm() {
     if (stampFileRef.current) stampFileRef.current.value = "";
   }
 
-  // ویرایش یک امضا
-  function handleEdit(item) {
-    setEditingId(item.id);
-    setUserName(item.userName);
-    setUserRole(item.userRole);
-    setSlot(item.slot || "3");
-    setSignatureImage(item.signatureImage);
+  function handleEditRoleSignature(item) {
+    setEditingRoleId(item.roleId || item.id);
+    setSelectedUserId(item.userId || "");
+    setUserName(item.userName || "");
+    setUserRoleTitle(item.roleTitle || item.userRole || "");
+    setSlot(String(item.slot || 1));
+    setSignatureImage(item.signatureImage || null);
     setStampImage(item.stampImage || null);
     setIsActive(item.isActive !== false);
     setErrorMsg("");
@@ -189,39 +158,75 @@ export default function ReportSignatureForm() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  // تغییر وضعیت فعال/غیرفعال
-  function handleToggleActive(id) {
-    const updated = signatures.map(item => {
-      if (item.id === id) {
-        return { ...item, isActive: !item.isActive };
-      }
-      return item;
-    });
-    saveSignaturesToStorage(updated);
-  }
+  function handleSaveRoleSignature(e) {
+    e.preventDefault();
+    if (!userName.trim()) {
+      setErrorMsg("نام و نام خانوادگی کاربر انتخابی الزامی است.");
+      return;
+    }
+    if (!userRoleTitle.trim()) {
+      setErrorMsg("عنوان نقش سازمانی الزامی است.");
+      return;
+    }
 
-  // حذف امضا
-  function handleDelete(id, name) {
-    if (window.confirm(`آیا از حذف امضای اسکن شده «${name}» اطمینان دارید؟`)) {
-      const updated = signatures.filter(item => item.id !== id);
-      saveSignaturesToStorage(updated);
-      setSuccessMsg(`امضای کاربر «${name}» با موفقیت حذف گردید.`);
+    try {
+      setIsSaving(true);
+      setErrorMsg("");
+
+      const currentModuleSigs = moduleSignatures[activeModuleKey] || [];
+      const isSystemAdminUser = usersList.some(u => String(u._id || u.id) === String(selectedUserId) && (u.role === "admin" || u.role === "مدیر سیستم"));
+
+      const updatedSig = {
+        roleId: editingRoleId || ("sig-" + Date.now()),
+        roleTitle: userRoleTitle,
+        userId: selectedUserId,
+        userName: userName.trim(),
+        signatureImage,
+        stampImage,
+        slot: Number(slot) || 1,
+        isActive,
+        isSystemAdmin: isSystemAdminUser,
+        updatedAt: new Date().toISOString()
+      };
+
+      const existingIndex = currentModuleSigs.findIndex(s => s.roleId === updatedSig.roleId || s.roleTitle === updatedSig.roleTitle);
+      let newModuleList = [];
+      if (existingIndex >= 0) {
+        newModuleList = [...currentModuleSigs];
+        newModuleList[existingIndex] = updatedSig;
+      } else {
+        newModuleList = [...currentModuleSigs, updatedSig];
+      }
+
+      saveModuleSignatures(activeModuleKey, newModuleList);
+      setModuleSignatures(prev => ({ ...prev, [activeModuleKey]: newModuleList }));
+
+      // ذخیره‌سازی در لیست کلی
+      const newGlobal = [updatedSig, ...globalSignatures.filter(g => g.roleId !== updatedSig.roleId)];
+      setGlobalSignatures(newGlobal);
+      localStorage.setItem("user_report_signatures", JSON.stringify(newGlobal));
+
+      setSuccessMsg(`کاربر «${userName}» با نقش «${userRoleTitle}» در ماژول «${activeModuleDef.title}» ذخیره گردید.`);
+      resetForm();
+      setIsSaving(false);
+    } catch (err) {
+      setIsSaving(false);
+      setErrorMsg("خطا در ذخیره‌سازی امضا: " + err.message);
     }
   }
 
-  // چاپ برگه تست تاییدیه امضاها
-  function handlePrintSignaturesSheet() {
+  function handlePrintModuleSheet() {
     const win = window.open("", "_blank", "width=850,height=950");
     if (!win) return;
 
-    const activeSigs = signatures.filter(s => s.isActive);
+    const currentSigs = (moduleSignatures[activeModuleKey] || []).filter(s => s.isActive);
     const toPersianDigits = str => String(str || "").replace(/[0-9]/g, d => "۰۱۲۳۴۵۶۷۸۹"[d]);
 
     win.document.write(`<!DOCTYPE html>
 <html dir="rtl" lang="fa">
 <head>
   <meta charset="UTF-8"/>
-  <title>برگه تایید نمونه امضاهای اسکن شده رسمی</title>
+  <title>نمونه امضاهای رسمی — ${activeModuleDef.title}</title>
   <style>
     @page { size: A4 portrait; margin: 12mm 15mm; }
     body { font-family: Tahoma, sans-serif; font-size: 11px; color: #111; direction: rtl; padding: 15px; margin: 0; line-height: 1.6; }
@@ -230,9 +235,9 @@ export default function ReportSignatureForm() {
     .header h2 { margin: 0; font-size: 16px; font-weight: bold; }
     .header p { margin: 4px 0 0 0; font-size: 11px; color: #444; }
     .sig-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 20px; }
-    .sig-box { border: 1px solid #ccc; border-radius: 6px; padding: 10px; text-align: center; background: #fdfdfd; min-height: 160px; display: flex; flex-direction: column; justify-content: space-between; }
-    .sig-img { max-height: 60px; max-width: 140px; object-fit: contain; margin: 8px auto; }
-    .stamp-img { max-height: 50px; max-width: 80px; object-fit: contain; margin: 4px auto; }
+    .sig-box { border: 1px solid #ccc; border-radius: 6px; padding: 10px; text-align: center; background: #fdfdfd; min-height: 140px; display: flex; flex-direction: column; justify-content: space-between; }
+    .sig-img { max-height: 55px; max-width: 130px; object-fit: contain; margin: 6px auto; }
+    .stamp-img { max-height: 45px; max-width: 75px; object-fit: contain; margin: 4px auto; }
     .role { font-weight: bold; font-size: 11px; color: #000; }
     .name { font-size: 11px; margin-top: 2px; color: #333; }
   </style>
@@ -240,27 +245,27 @@ export default function ReportSignatureForm() {
 <body>
   <div class="container">
     <div class="header">
-      <h2>وزارت امور اقتصادی و دارایی — اداره کل امور مالی و ذیحسابی</h2>
-      <p>برگه تایید نمونه امضاهای اسکن شده دیجیتال جهت درج پای اسناد و گزارشات مالی</p>
+      <h2>سامانه امور مالی و ذیحسابی — ${activeModuleDef.title}</h2>
+      <p>برگه رسمی تایید کاربران مسئول و امضاکنندگان مجاز بخش ${activeModuleDef.title}</p>
       <div style="font-size: 10px; margin-top: 6px;">تاریخ تنظیم: ${toPersianDigits(new Date().toLocaleDateString("fa-IR"))}</div>
     </div>
 
     <div class="sig-grid">
-      ${activeSigs.map(sig => `
+      ${currentSigs.map(sig => `
         <div class="sig-box">
-          <div class="role">${sig.userRole}</div>
-          <div class="name">${sig.userName}</div>
+          <div class="role">${sig.roleTitle}</div>
+          <div class="name">${sig.userName || 'تخصیص نیافته'}</div>
           <div>
             ${sig.signatureImage ? `<img src="${sig.signatureImage}" class="sig-img" alt="امضا"/>` : ''}
             ${sig.stampImage ? `<img src="${sig.stampImage}" class="stamp-img" alt="مهر"/>` : ''}
           </div>
-          <div style="font-size: 9px; color: #666; border-top: 1px dashed #ddd; pt-4;">محل تایید سناما</div>
+          <div style="font-size: 9px; color: #666; border-top: 1px dashed #ddd; padding-top: 4px;">محل امضا و تایید رسمی</div>
         </div>
       `).join('')}
     </div>
 
-    <div style="margin-top: 40px; font-size: 10px; text-align: justify; background: #f9f9f9; padding: 10px; border-radius: 4px; border: 1px solid #eee;">
-      <strong>تاییدیه ذیحسابی:</strong> تصاویر امضا و مهر فوق جهت درج الکترونیکی در ذیل اسناد حسابداری، فیش‌های حقوقی و ترازنامه‌های مالی دستگاه اسکن و تایید گردیده است.
+    <div style="margin-top: 30px; font-size: 10px; text-align: justify; background: #f9f9f9; padding: 10px; border-radius: 4px; border: 1px solid #eee;">
+      <strong>تاییدیه ذیحسابی و مدیر مالی:</strong> امضاکنندگان و کاربران مسئول فوق برای درج الکترونیکی در اسناد و گزارشات مالی بخش ${activeModuleDef.title} تعیین و تایید گردیده‌اند. (مدیر سیستم دارای دسترسی کامل بوده اما در چاپ اسناد درج نمی‌شود).
     </div>
   </div>
   <script>window.onload = function() { window.print(); };</script>
@@ -269,11 +274,13 @@ export default function ReportSignatureForm() {
     win.document.close();
   }
 
+  const currentModuleSignaturesList = moduleSignatures[activeModuleKey] || [];
+
   return (
     <PageShell>
       <PageHeader
-        title="تنظیم امضای گزارشات و فیش‌ها"
-        description="اسکن، آپلود و مدیریت امضای دیجیتال و مهر رسمی کاربران جهت درج خودکار پای اسناد و گزارشات مالی"
+        title="تعریف و تخصیص امضاکنندگان و کاربران مسئول (نقش‌های ۶گانه)"
+        description="تعریف کاربر و امضای دیجیتال برای نقش‌های مصوب در ۶ بخش: حسابداری عمومی، انبار، اموال، حقوق و دستمزد، اعتبارات جاری و اعتبارات سرمایه‌ای"
       />
 
       <div className="space-y-4 text-right" dir="rtl">
@@ -292,7 +299,45 @@ export default function ReportSignatureForm() {
           </div>
         )}
 
-        {/* هدر کنترل بالای صفحه */}
+        {/* قانون اصلی مدیر سیستم */}
+        <div className="bg-amber-50/90 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800/80 p-4 rounded-2xl flex items-start gap-3 shadow-sm">
+          <ShieldAlert className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+          <div className="text-xs space-y-1">
+            <h4 className="font-extrabold text-amber-900 dark:text-amber-200">
+              🛡️ قانون دسترسی فول اکسس و چاپ اسناد برای «مدیر سیستم»
+            </h4>
+            <p className="text-amber-800 dark:text-amber-300 leading-relaxed font-medium">
+              کاربر با نقش <strong>«مدیر سیستم»</strong> دارای دسترسی کامل و غیرقابل محدودیت (Full Access) به تمام بخش‌های نرم‌افزار است.
+              اما بنا بر قوانین حسابداری عمومی و نظارتی، <strong>نام مدیر سیستم در خروجی چاپی اسناد درج نمی‌شود</strong> مگر آنکه صراحتاً در فرم زیر برای یک نقش مشخص (مانند ذیحساب یا تنظیم حساب) انتخاب شده باشد.
+            </p>
+          </div>
+        </div>
+
+        {/* تب‌های ۶ ماژول اصلی سیستم */}
+        <div className="flex border-b border-slate-200 dark:border-slate-800 overflow-x-auto bg-slate-100/80 dark:bg-slate-900 p-1.5 rounded-2xl gap-1">
+          {SYSTEM_MODULES.map(m => {
+            const IconComponent = ICON_MAP[m.icon] || Layers;
+            const isActiveTab = activeModuleKey === m.key;
+            return (
+              <button
+                key={m.key}
+                type="button"
+                onClick={() => setActiveModuleKey(m.key)}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all whitespace-nowrap cursor-pointer",
+                  isActiveTab
+                    ? "bg-white dark:bg-slate-800 text-blue-700 dark:text-blue-300 shadow-sm border border-slate-200 dark:border-slate-700"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-200/50"
+                )}
+              >
+                <IconComponent className="h-4 w-4" />
+                <span>{m.title}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* هدر ماژول فعال */}
         <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md">
@@ -300,13 +345,13 @@ export default function ReportSignatureForm() {
             </div>
             <div>
               <h3 className="text-sm font-extrabold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                مدیریت امضاهای اسکن شده کاربران
+                تنظیم امضاکنندگان: {activeModuleDef.title}
                 <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-[10px]">
-                  تعداد امضاهای فعال: {signatures.filter(s => s.isActive).length}
+                  تعداد نقش‌های تعریف‌شده: {activeModuleDef.roles.length}
                 </Badge>
               </h3>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                امضاهای بارگذاری شده به طور خودکار پای اسناد حسابداری، فیش‌های حقوقی و صورت‌های مالی قرار می‌گیرند.
+                تخصیص کاربر و اسکن امضا برای نقش‌های مصوب در خروجی چاپی اسناد این ماژول
               </p>
             </div>
           </div>
@@ -315,26 +360,25 @@ export default function ReportSignatureForm() {
             <Button
               variant="outline"
               size="sm"
-              onClick={handlePrintSignaturesSheet}
-              disabled={signatures.length === 0}
-              className="h-9 text-xs gap-1.5 border-blue-300 text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950 font-bold"
+              onClick={handlePrintModuleSheet}
+              className="h-9 text-xs gap-1.5 border-blue-300 text-blue-700 hover:bg-blue-50 font-bold"
             >
-              <Printer className="h-4 w-4" /> چاپ نمونه امضاها
+              <Printer className="h-4 w-4" /> چاپ برگه تایید امضاها
             </Button>
           </div>
         </div>
 
-        {/* کارت ثبت / ویرایش امضای جدید */}
+        {/* فرم تخصیص کاربر و اسکن امضا */}
         <Card className="border-slate-200/80 dark:border-slate-800 shadow-sm">
           <CardHeader className="pb-3 border-b border-slate-100 dark:border-slate-800 flex flex-row items-center justify-between">
             <div className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-blue-600" />
               <h4 className="text-xs font-bold text-slate-800 dark:text-slate-100">
-                {editingId ? "ویرایش امضای اسکن شده کاربر" : "افزودن و اسکن امضای جدید برای کاربر"}
+                {editingRoleId ? "ویرایش امضا و کاربر نقش منتخب" : "تخصیص کاربر و اسکن امضا برای نقش‌های مصوب ماژول"}
               </h4>
             </div>
 
-            {editingId && (
+            {editingRoleId && (
               <Button variant="ghost" size="sm" onClick={resetForm} className="h-7 text-xs text-rose-600 gap-1">
                 <X className="h-3.5 w-3.5" /> انصراف از ویرایش
               </Button>
@@ -342,54 +386,102 @@ export default function ReportSignatureForm() {
           </CardHeader>
 
           <CardContent className="pt-6">
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSaveRoleSignature} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* انتخاب نقش در این ماژول */}
                 <div>
-                  <Label className="text-xs font-semibold">نام و نام خانوادگی کاربر *</Label>
+                  <Label className="text-xs font-semibold">انتخاب نقش مصوب ماژول *</Label>
+                  <select
+                    value={userRoleTitle}
+                    onChange={e => {
+                      setUserRoleTitle(e.target.value);
+                      const foundRole = activeModuleDef.roles.find(r => r.title === e.target.value);
+                      if (foundRole) {
+                        setEditingRoleId(foundRole.id);
+                        setSlot(String(foundRole.defaultSlot || 1));
+                      }
+                    }}
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-xs shadow-sm mt-1.5 font-bold"
+                  >
+                    <option value="">-- انتخاب نقش مورد نظر --</option>
+                    {activeModuleDef.roles.map(r => (
+                      <option key={r.id} value={r.title}>
+                        {r.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* انتخاب کاربر از سیستم */}
+                <div>
+                  <Label className="text-xs font-semibold">انتخاب کاربر از لیست کاربران سیستم *</Label>
+                  <select
+                    value={selectedUserId}
+                    onChange={e => handleSelectUser(e.target.value)}
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-xs shadow-sm mt-1.5 font-bold"
+                  >
+                    <option value="">-- ورود دستی نام یا انتخاب از لیست --</option>
+                    {usersList.map(u => {
+                      const fName = `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.username;
+                      const isAdmin = u.role === "admin" || u.role === "مدیر سیستم";
+                      return (
+                        <option key={u._id || u.id} value={u._id || u.id}>
+                          {fName} ({u.username}) {isAdmin ? "⚡ مدیر سیستم" : `— ${u.role || ""}`}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+
+                {/* نام و نام خانوادگی امضاکننده */}
+                <div>
+                  <Label className="text-xs font-semibold">نام و نام خانوادگی کامل امضاکننده *</Label>
                   <Input
                     value={userName}
                     onChange={e => setUserName(e.target.value)}
                     className="h-9 text-xs mt-1.5 font-bold"
-                    placeholder="مثال: محمدعلی رضایی"
+                    placeholder="مثال: دکتر محمدعلی رضایی"
                   />
                 </div>
+              </div>
 
+              {/* موقعیت امضا در خروجی چاپی */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-xs font-semibold">عنوان سازمانی / سمت در گزارشات *</Label>
-                  <Input
-                    value={userRole}
-                    onChange={e => setUserRole(e.target.value)}
-                    className="h-9 text-xs mt-1.5 font-semibold"
-                    placeholder="مثال: ذیحساب و مدیرکل امور مالی"
-                  />
-                </div>
-
-                <div>
-                  <Label className="text-xs font-semibold">موقعیت و ردیف امضا در ذیل گزارشات</Label>
+                  <Label className="text-xs font-semibold">موقعیت و ردیف امضا در ذیل اسناد چاپی</Label>
                   <select
                     value={slot}
                     onChange={e => setSlot(e.target.value)}
                     className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-xs shadow-sm mt-1.5 font-semibold"
                   >
-                    <option value="1">امضاء اول (سمت راست — تنظیم کننده / کارشناس)</option>
-                    <option value="2">امضاء دوم (مرکز — مدیر مالی / رئیس امور مالی)</option>
-                    <option value="3">امضاء سوم (سمت چپ — ذیحساب / مدیرکل)</option>
+                    <option value="1">امضاء راست (تنظیم‌کننده / کارشناس)</option>
+                    <option value="2">امضاء مرکز (رئیس امور مالی)</option>
+                    <option value="3">امضاء چپ (مدیر مالی / ذیحساب / رئیس دستگاه)</option>
                   </select>
+                </div>
+
+                <div className="flex items-center pt-6 gap-3">
+                  <input
+                    type="checkbox"
+                    id="isActiveModuleSig"
+                    checked={isActive}
+                    onChange={e => setIsActive(e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300 text-blue-600"
+                  />
+                  <label htmlFor="isActiveModuleSig" className="text-xs text-slate-700 dark:text-slate-300 font-bold cursor-pointer">
+                    فعال بودن این نقش جهت درج خودکار در خروجی‌های چاپی اسناد این ماژول
+                  </label>
                 </div>
               </div>
 
-              {/* بخش بارگذاری اسکن امضا و مهر */}
+              {/* آپلود اسکن امضا و مهر */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50/60 dark:bg-slate-900/40 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800">
-                {/* ۱. اسکن امضا */}
+                {/* ۱. امضا */}
                 <div className="space-y-3">
                   <Label className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
                     <ImageIcon className="h-4 w-4 text-blue-600" />
-                    بارگذاری فایل اسکن شده امضای کاربر *
+                    آپلود تصویر اسکن شده امضای کاربر
                   </Label>
-                  <p className="text-[11px] text-muted-foreground">
-                    فایل اسکن امضا ترجیحاً شفاف (PNG/WEBP) یا پس‌زمینه سفید بدون حاشیه (حداکثر ۲ مگابایت)
-                  </p>
-
                   <div className="flex items-center gap-3">
                     <input
                       ref={sigFileRef}
@@ -397,11 +489,11 @@ export default function ReportSignatureForm() {
                       accept="image/png, image/jpeg, image/webp, image/svg+xml"
                       onChange={handleSignatureUpload}
                       className="hidden"
-                      id="uploadSignatureInput"
+                      id="uploadSigModuleInput"
                     />
                     <label
-                      htmlFor="uploadSignatureInput"
-                      className="h-9 px-4 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-sm"
+                      htmlFor="uploadSigModuleInput"
+                      className="h-9 px-4 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-sm"
                     >
                       <Upload className="h-4 w-4 text-blue-600" />
                       انتخاب فایل اسکن امضا...
@@ -414,33 +506,23 @@ export default function ReportSignatureForm() {
                     )}
                   </div>
 
-                  {/* پیش‌نمایش تصویر امضا */}
                   {signatureImage ? (
-                    <div className="mt-2 p-3 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-center relative group">
-                      <img
-                        src={signatureImage}
-                        alt="پیش‌نمایش امضا"
-                        className="max-h-20 max-w-full mx-auto object-contain"
-                      />
-                      <span className="text-[10px] text-slate-400 block mt-1">پیش‌نمایش تصویر اسکن شده امضا</span>
+                    <div className="mt-2 p-3 bg-white dark:bg-slate-950 border rounded-xl text-center">
+                      <img src={signatureImage} alt="امضا" className="max-h-20 max-w-full mx-auto object-contain" />
                     </div>
                   ) : (
-                    <div className="mt-2 h-20 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl flex items-center justify-center text-[11px] text-slate-400">
+                    <div className="mt-2 h-16 border-2 border-dashed border-slate-200 rounded-xl flex items-center justify-center text-[11px] text-slate-400">
                       تصویر امضایی انتخاب نشده است
                     </div>
                   )}
                 </div>
 
-                {/* ۲. اسکن مهر رسمی */}
+                {/* ۲. مهر رسمی */}
                 <div className="space-y-3 border-r-0 md:border-r border-slate-200 dark:border-slate-800 md:pr-6">
                   <Label className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
                     <Building2 className="h-4 w-4 text-emerald-600" />
-                    بارگذاری اسکن مهر رسمی (اختیاری)
+                    آپلود اسکن مهر رسمی (اختیاری)
                   </Label>
-                  <p className="text-[11px] text-muted-foreground">
-                    فایل اسکن شده مهر رسمی ذیحسابی یا دستگاه جهت چاپ پای گزارشات (حداکثر ۲ مگابایت)
-                  </p>
-
                   <div className="flex items-center gap-3">
                     <input
                       ref={stampFileRef}
@@ -448,11 +530,11 @@ export default function ReportSignatureForm() {
                       accept="image/png, image/jpeg, image/webp, image/svg+xml"
                       onChange={handleStampUpload}
                       className="hidden"
-                      id="uploadStampInput"
+                      id="uploadStampModuleInput"
                     />
                     <label
-                      htmlFor="uploadStampInput"
-                      className="h-9 px-4 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-sm"
+                      htmlFor="uploadStampModuleInput"
+                      className="h-9 px-4 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-sm"
                     >
                       <Upload className="h-4 w-4 text-emerald-600" />
                       انتخاب فایل اسکن مهر...
@@ -465,36 +547,16 @@ export default function ReportSignatureForm() {
                     )}
                   </div>
 
-                  {/* پیش‌نمایش تصویر مهر */}
                   {stampImage ? (
-                    <div className="mt-2 p-3 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-center">
-                      <img
-                        src={stampImage}
-                        alt="پیش‌نمایش مهر"
-                        className="max-h-20 max-w-full mx-auto object-contain"
-                      />
-                      <span className="text-[10px] text-slate-400 block mt-1">پیش‌نمایش تصویر اسکن شده مهر</span>
+                    <div className="mt-2 p-3 bg-white dark:bg-slate-950 border rounded-xl text-center">
+                      <img src={stampImage} alt="مهر" className="max-h-20 max-w-full mx-auto object-contain" />
                     </div>
                   ) : (
-                    <div className="mt-2 h-20 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl flex items-center justify-center text-[11px] text-slate-400">
-                      مهر اسکن شده ثبت نشده است
+                    <div className="mt-2 h-16 border-2 border-dashed border-slate-200 rounded-xl flex items-center justify-center text-[11px] text-slate-400">
+                      تصویر مهری انتخاب نشده است
                     </div>
                   )}
                 </div>
-              </div>
-
-              {/* فعال بودن */}
-              <div className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  id="isActiveSig"
-                  checked={isActive}
-                  onChange={e => setIsActive(e.target.checked)}
-                  className="h-4 w-4 rounded border-slate-300 text-blue-600"
-                />
-                <label htmlFor="isActiveSig" className="text-xs text-slate-700 dark:text-slate-300 font-bold cursor-pointer">
-                  فعال بودن این امضا جهت درج خودکار در خروجی‌های چاپی اسناد و گزارشات
-                </label>
               </div>
 
               {/* دکمه ثبت */}
@@ -502,133 +564,103 @@ export default function ReportSignatureForm() {
                 <Button
                   type="submit"
                   disabled={isSaving}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold h-9 text-xs gap-1.5 px-6 shadow-md shadow-blue-500/20"
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold h-9 text-xs gap-1.5 px-6 shadow-md"
                 >
-                  <Plus className="h-4 w-4" />
-                  {editingId ? "ثبت تغییرات امضا" : "ذخیره و ثبت امضای اسکن شده کاربر"}
+                  <Save className="h-4 w-4" />
+                  ذخیره و تخصیص کاربر برای نقش در {activeModuleDef.title}
                 </Button>
               </div>
             </form>
           </CardContent>
         </Card>
 
-        {/* لیست امضاهای ثبت شده */}
+        {/* جدول کاربران و نقش‌های تخصیص داده شده در این ماژول */}
         <Card className="border-slate-200/80 dark:border-slate-800 shadow-sm">
           <CardHeader className="pb-3 border-b border-slate-100 dark:border-slate-800 flex flex-row items-center justify-between">
             <h4 className="text-xs font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-              <Layers className="h-4 w-4 text-blue-600" />
-              لیست امضاها و مهرهای اسکن شده ثبت شده در سیستم
+              <UserCheck className="h-4 w-4 text-blue-600" />
+              جدول وضعیت تخصیص نقش‌های مصوب ماژول: {activeModuleDef.title}
             </h4>
-            <span className="text-[11px] text-muted-foreground font-semibold">
-              تعداد: {signatures.length}
-            </span>
           </CardHeader>
 
           <CardContent className="pt-4">
-            {signatures.length === 0 ? (
-              <div className="py-12 text-center text-muted-foreground text-xs space-y-2">
-                <FileSignature className="h-10 w-10 mx-auto text-slate-300 dark:text-slate-700" />
-                <p className="font-bold">هنوز هیچ امضای اسکن شده‌ای در سیستم ثبت نشده است.</p>
-                <p className="text-[11px]">از فرم بالا می‌توانید تصویر اسکن شده امضا و مهر هر کاربر را آپلود نمایید.</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-xl">
-                <table className="w-full text-xs text-right">
-                  <thead className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold">
-                    <tr>
-                      <th className="p-3">نام و نام خانوادگی</th>
-                      <th className="p-3">عنوان سازمانی / سمت</th>
-                      <th className="p-3">ردیف امضا</th>
-                      <th className="p-3 text-center">تصویر اسکن امضا</th>
-                      <th className="p-3 text-center">تصویر مهر</th>
-                      <th className="p-3 text-center">وضعیت</th>
-                      <th className="p-3 text-center">عملیات</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {signatures.map(item => (
-                      <tr key={item.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                        <td className="p-3 font-bold text-slate-900 dark:text-slate-100">
-                          {item.userName}
+            <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-xl">
+              <table className="w-full text-xs text-right">
+                <thead className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold">
+                  <tr>
+                    <th className="p-3">عنوان نقش مصوب</th>
+                    <th className="p-3">کاربر تخصیص یافته</th>
+                    <th className="p-3">موقعیت امضا</th>
+                    <th className="p-3 text-center">تصویر اسکن امضا</th>
+                    <th className="p-3 text-center">تصویر مهر</th>
+                    <th className="p-3 text-center">وضعیت</th>
+                    <th className="p-3 text-center">عملیات</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {activeModuleDef.roles.map(r => {
+                    const assigned = currentModuleSignaturesList.find(s => s.roleTitle === r.title || s.roleId === r.id);
+                    return (
+                      <tr key={r.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
+                        <td className="p-3 font-extrabold text-blue-900 dark:text-blue-200">
+                          {r.title}
                         </td>
-                        <td className="p-3 text-slate-700 dark:text-slate-300 font-semibold">
-                          {item.userRole}
+                        <td className="p-3 text-slate-900 dark:text-slate-100 font-bold">
+                          {assigned?.userName ? (
+                            <span className="flex items-center gap-1.5">
+                              {assigned.userName}
+                              {assigned.isSystemAdmin && (
+                                <Badge className="bg-amber-100 text-amber-900 border-amber-300 text-[9px]">
+                                  مدیر سیستم
+                                </Badge>
+                              )}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 italic text-[11px]">هنوز کاربر تخصیص داده نشده</span>
+                          )}
                         </td>
                         <td className="p-3">
                           <Badge variant="outline" className="bg-slate-50 text-slate-700 text-[10px]">
-                            {item.slot === "1" ? "امضاء ۱ (راست)" : item.slot === "2" ? "امضاء ۲ (مرکز)" : "امضاء ۳ (چپ)"}
+                            {assigned?.slot === 1 ? "راست (امضا ۱)" : assigned?.slot === 2 ? "مرکز (امضا ۲)" : "چپ (امضا ۳)"}
                           </Badge>
                         </td>
                         <td className="p-3 text-center">
-                          {item.signatureImage ? (
-                            <img
-                              src={item.signatureImage}
-                              alt="امضا"
-                              className="h-10 max-w-[120px] object-contain mx-auto border border-slate-200 dark:border-slate-800 rounded p-1 bg-white"
-                            />
+                          {assigned?.signatureImage ? (
+                            <img src={assigned.signatureImage} alt="امضا" className="h-9 max-w-[110px] object-contain mx-auto border rounded p-0.5 bg-white" />
                           ) : (
                             <span className="text-slate-400 text-[10px]">بدون امضا</span>
                           )}
                         </td>
                         <td className="p-3 text-center">
-                          {item.stampImage ? (
-                            <img
-                              src={item.stampImage}
-                              alt="مهر"
-                              className="h-10 max-w-[80px] object-contain mx-auto border border-slate-200 dark:border-slate-800 rounded p-1 bg-white"
-                            />
+                          {assigned?.stampImage ? (
+                            <img src={assigned.stampImage} alt="مهر" className="h-9 max-w-[70px] object-contain mx-auto border rounded p-0.5 bg-white" />
                           ) : (
                             <span className="text-slate-400 text-[10px]">بدون مهر</span>
                           )}
                         </td>
                         <td className="p-3 text-center">
-                          <button
-                            type="button"
-                            onClick={() => handleToggleActive(item.id)}
-                            className="cursor-pointer"
-                          >
-                            <Badge
-                              className={cn(
-                                "text-[10px] cursor-pointer",
-                                item.isActive
-                                  ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200 border-none"
-                                  : "bg-slate-100 text-slate-600 hover:bg-slate-200 border-none"
-                              )}
-                            >
-                              {item.isActive ? "فعال" : "غیرفعال"}
-                            </Badge>
-                          </button>
+                          <Badge className={assigned?.isActive !== false ? "bg-emerald-100 text-emerald-800 border-none" : "bg-slate-100 text-slate-600 border-none"}>
+                            {assigned?.isActive !== false ? "فعال" : "غیرفعال"}
+                          </Badge>
                         </td>
                         <td className="p-3 text-center">
-                          <div className="flex items-center justify-center gap-1">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEdit(item)}
-                              className="h-7 w-7 p-0 text-blue-600 hover:bg-blue-50"
-                              title="ویرایش"
-                            >
-                              <Edit3 className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDelete(item.id, item.userName)}
-                              className="h-7 w-7 p-0 text-rose-600 hover:bg-rose-50"
-                              title="حذف"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditRoleSignature(assigned || { roleId: r.id, roleTitle: r.title, slot: r.defaultSlot })}
+                            className="h-7 px-2.5 text-blue-600 hover:bg-blue-50 text-[11px] font-bold gap-1"
+                          >
+                            <Edit3 className="h-3.5 w-3.5" />
+                            {assigned ? "ویرایش" : "تخصیص کاربر"}
+                          </Button>
                         </td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </CardContent>
         </Card>
       </div>

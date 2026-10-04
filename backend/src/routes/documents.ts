@@ -574,22 +574,202 @@ router.delete("/:id", async (c) => {
   if (!ObjectId.isValid(id)) return c.json({ message: "شناسه نامعتبر" }, 400);
 
   const payload = (c.get as any)("jwtPayload") as any;
-  const isAdmin = payload.role === "admin";
   const db = getDb();
 
-  if (!isAdmin) {
-    const user = await db.collection("users").findOne({ _id: new ObjectId(payload.sub) });
-    if (!user?.permissions?.["doc.delete"]) {
-      return c.json({ message: "دسترسی غیرمجاز. شما مجوز حذف اسناد را ندارید." }, 403);
-    }
+  const existingDoc = await db.collection<JournalDocument>("journal_documents").findOne({ _id: new ObjectId(id) });
+  if (!existingDoc) return c.json({ message: "سند یافت نشد" }, 404);
+
+  const status = (existingDoc.status || "").trim();
+  if (status === "CONFIRMED" || status === "صدور سند قطعی" || status === "FINAL" || existingDoc.workflowStep === "FINAL") {
+    return c.json({ message: "خطا: امکان حذف سندی که توسط رئیس دستگاه تأیید نهایی و قطعی شده است وجود ندارد." }, 403);
   }
 
-  const res = await getDb()
+  const res = await db
     .collection<JournalDocument>("journal_documents")
     .deleteOne({ _id: new ObjectId(id) });
 
   if (res.deletedCount === 0) return c.json({ message: "سند یافت نشد" }, 404);
   return c.json({ message: "سند با موفقیت حذف شد" });
+});
+
+// POST /api/documents/:id/workflow/approve — تایید و ارجاع به مرحله بعدی روال
+router.post("/:id/workflow/approve", async (c) => {
+  const id = c.req.param("id");
+  if (!ObjectId.isValid(id)) return c.json({ message: "شناسه نامعتبر" }, 400);
+
+  const payload = (c.get as any)("jwtPayload") as any;
+  const db = getDb();
+  let user: any = null;
+  if (payload.sub && ObjectId.isValid(payload.sub)) {
+    user = await db.collection("users").findOne({ _id: new ObjectId(payload.sub) });
+  }
+  const userRole = user?.position || user?.role || payload.role || "کاربر";
+  const userName = user?.name || (user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : user?.username) || payload.username || "کاربر";
+  const userDisplay = `${userName} (${userRole})`;
+
+  const existingDoc = await db.collection<JournalDocument>("journal_documents").findOne({ _id: new ObjectId(id) });
+  if (!existingDoc) return c.json({ message: "سند یافت نشد" }, 404);
+
+  const currentStep = existingDoc.workflowStep || "REGULATOR";
+
+  const userPosition = (user?.position || user?.role || payload.role || "کاربر").trim();
+  const isAdmin = userPosition === "admin" || userPosition === "مدیر سیستم" || user?.isAdmin;
+
+  if (!isAdmin) {
+    if ((currentStep === "ACCOUNTANT" || currentStep === "DRAFT" || currentStep === "REGULATOR") && !userPosition.includes("تنظیم حساب") && userPosition !== "REGULATOR") {
+      return c.json({ message: "خطا: دسترسی غیرمجاز. تأیید سند در این مرحله فقط توسط کاربر «تنظیم حساب» امکان‌پذیر است." }, 403);
+    }
+    if (currentStep === "FIN_HEAD" && !userPosition.includes("رئیس امور مالی") && userPosition !== "FIN_HEAD") {
+      return c.json({ message: "خطا: دسترسی غیرمجاز. تأیید سند در این مرحله فقط توسط «رئیس امور مالی» امکان‌پذیر است." }, 403);
+    }
+    if (currentStep === "FIN_DIRECTOR" && !userPosition.includes("مدیر مالی") && !userPosition.includes("ذیحساب") && userPosition !== "FIN_DIRECTOR") {
+      return c.json({ message: "خطا: دسترسی غیرمجاز. تأیید سند در این مرحله فقط توسط «مدیر مالی و ذیحساب» امکان‌پذیر است." }, 403);
+    }
+    if (currentStep === "AGENCY_HEAD" && !userPosition.includes("رئیس دستگاه") && userPosition !== "AGENCY_HEAD") {
+      return c.json({ message: "خطا: دسترسی غیرمجاز. تأیید سند در این مرحله فقط توسط «رئیس دستگاه اجرایی» امکان‌پذیر است." }, 403);
+    }
+  }
+
+  let nextStep = "FIN_HEAD";
+  let nextRole = "رئیس امور مالی";
+  let nextStatus = "تأیید تنظیم حساب";
+
+  if (currentStep === "ACCOUNTANT" || currentStep === "DRAFT" || currentStep === "REGULATOR") {
+    nextStep = "FIN_HEAD";
+    nextRole = "رئیس امور مالی";
+    nextStatus = "تأیید تنظیم حساب";
+  } else if (currentStep === "FIN_HEAD") {
+    nextStep = "FIN_DIRECTOR";
+    nextRole = "مدیر مالی و ذیحساب";
+    nextStatus = "تأیید رئیس امور مالی";
+  } else if (currentStep === "FIN_DIRECTOR") {
+    nextStep = "AGENCY_HEAD";
+    nextRole = "رئیس دستگاه اجرایی";
+    nextStatus = "تأیید مدیر مالی و ذیحساب";
+  } else if (currentStep === "AGENCY_HEAD") {
+    nextStep = "FINAL";
+    nextRole = "تکمیل شده";
+    nextStatus = "CONFIRMED";
+  }
+
+  const historyItem = {
+    action: "APPROVE",
+    user: userDisplay,
+    date: new Date().toISOString(),
+    fromStep: currentStep,
+    toStep: nextStep,
+  };
+
+  const updateFields: Record<string, unknown> = {
+    workflowStep: nextStep,
+    currentAssigneeRole: nextRole,
+    status: nextStatus === "CONFIRMED" ? "CONFIRMED" : nextStatus,
+    updatedAt: new Date().toISOString(),
+  };
+
+  const res = await db.collection<JournalDocument>("journal_documents").findOneAndUpdate(
+    { _id: new ObjectId(id) },
+    {
+      $set: updateFields,
+      $push: { workflowHistory: historyItem } as any
+    },
+    { returnDocument: "after" }
+  );
+
+  return c.json({ success: true, message: `سند با موفقیت تأیید شد و به ${nextRole} ارسال گردید.`, data: res });
+});
+
+// POST /api/documents/:id/workflow/reject — رد سند و ارجاع به مرحله قبلی همراه با دلیل رد
+router.post("/:id/workflow/reject", async (c) => {
+  const id = c.req.param("id");
+  if (!ObjectId.isValid(id)) return c.json({ message: "شناسه نامعتبر" }, 400);
+
+  const body = await c.req.json();
+  const reason = (body.reason || "").trim();
+  if (!reason) {
+    return c.json({ message: "وارد نمودن دلیل رد سند الزامی است." }, 400);
+  }
+
+  const payload = (c.get as any)("jwtPayload") as any;
+  const db = getDb();
+  let user: any = null;
+  if (payload.sub && ObjectId.isValid(payload.sub)) {
+    user = await db.collection("users").findOne({ _id: new ObjectId(payload.sub) });
+  }
+  const userRole = user?.position || user?.role || payload.role || "کاربر";
+  const userName = user?.name || (user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : user?.username) || payload.username || "کاربر";
+  const userDisplay = `${userName} (${userRole})`;
+
+  const existingDoc = await db.collection<JournalDocument>("journal_documents").findOne({ _id: new ObjectId(id) });
+  if (!existingDoc) return c.json({ message: "سند یافت نشد" }, 404);
+
+  const currentStep = existingDoc.workflowStep || "REGULATOR";
+
+  const userPosition = (user?.position || user?.role || payload.role || "کاربر").trim();
+  const isAdmin = userPosition === "admin" || userPosition === "مدیر سیستم" || user?.isAdmin;
+
+  if (!isAdmin) {
+    if ((currentStep === "ACCOUNTANT" || currentStep === "DRAFT" || currentStep === "REGULATOR") && !userPosition.includes("تنظیم حساب") && userPosition !== "REGULATOR") {
+      return c.json({ message: "خطا: دسترسی غیرمجاز. رد سند در این مرحله فقط توسط کاربر «تنظیم حساب» امکان‌پذیر است." }, 403);
+    }
+    if (currentStep === "FIN_HEAD" && !userPosition.includes("رئیس امور مالی") && userPosition !== "FIN_HEAD") {
+      return c.json({ message: "خطا: دسترسی غیرمجاز. رد سند در این مرحله فقط توسط «رئیس امور مالی» امکان‌پذیر است." }, 403);
+    }
+    if (currentStep === "FIN_DIRECTOR" && !userPosition.includes("مدیر مالی") && !userPosition.includes("ذیحساب") && userPosition !== "FIN_DIRECTOR") {
+      return c.json({ message: "خطا: دسترسی غیرمجاز. رد سند در این مرحله فقط توسط «مدیر مالی و ذیحساب» امکان‌پذیر است." }, 403);
+    }
+    if (currentStep === "AGENCY_HEAD" && !userPosition.includes("رئیس دستگاه") && userPosition !== "AGENCY_HEAD") {
+      return c.json({ message: "خطا: دسترسی غیرمجاز. رد سند در این مرحله فقط توسط «رئیس دستگاه اجرایی» امکان‌پذیر است." }, 403);
+    }
+  }
+
+  let prevStep = "ACCOUNTANT";
+  let prevRole = "حسابدار";
+
+  if (currentStep === "REGULATOR" || currentStep === "ACCOUNTANT" || currentStep === "DRAFT") {
+    prevStep = "ACCOUNTANT";
+    prevRole = "حسابدار";
+  } else if (currentStep === "FIN_HEAD") {
+    prevStep = "REGULATOR";
+    prevRole = "تنظیم حساب";
+  } else if (currentStep === "FIN_DIRECTOR") {
+    prevStep = "FIN_HEAD";
+    prevRole = "رئیس امور مالی";
+  } else if (currentStep === "AGENCY_HEAD") {
+    prevStep = "FIN_DIRECTOR";
+    prevRole = "مدیر مالی و ذیحساب";
+  }
+
+  const statusStr = `ابطال‌شده (برگشت از ${userDisplay})`;
+
+  const historyItem = {
+    action: "REJECT",
+    user: userDisplay,
+    reason,
+    date: new Date().toISOString(),
+    fromStep: currentStep,
+    toStep: prevStep,
+  };
+
+  const updateFields: Record<string, unknown> = {
+    workflowStep: prevStep,
+    currentAssigneeRole: prevRole,
+    status: statusStr,
+    returnedUser: userDisplay,
+    rejectionReason: reason,
+    updatedAt: new Date().toISOString(),
+  };
+
+  const res = await db.collection<JournalDocument>("journal_documents").findOneAndUpdate(
+    { _id: new ObjectId(id) },
+    {
+      $set: updateFields,
+      $push: { workflowHistory: historyItem } as any
+    },
+    { returnDocument: "after" }
+  );
+
+  return c.json({ success: true, message: `سند رد شد و به ${prevRole} برگشت داده شد.`, data: res });
 });
 
 export default router;

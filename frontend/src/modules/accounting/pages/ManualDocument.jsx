@@ -26,6 +26,7 @@ import ShebaInput from "@/components/ui/sheba-input";
 import { checkDebitNatureBalance, clearBalanceCache } from "@/lib/accountBalanceCheck";
 import { useAuth } from "@/context/AuthContext";
 import { useFiscalYear } from "@/context/FiscalYearContext";
+import { useTabs } from "@/context/TabContext";
 
 // ---- helpers ----
 const allGroups = sanamaCodes.groups.map((g) => ({ code: g.code, title: g.title, accounts: g.accounts }));
@@ -979,11 +980,23 @@ function VoucherPrintContent({ header, rows, totalDebit, totalCredit, diff, toda
 export default function ManualDocument() {
   const { user: currentUser } = useAuth();
   const { selectedFiscalYear } = useFiscalYear();
+  const { closeTab, activeTabId, tabs } = useTabs();
   const location = useLocation();
   const navigate = useNavigate();
   const urlParamId = new URLSearchParams(location.search).get("id");
   const initialDocId = location.state?.copyMode ? null : (location.state?.docId || urlParamId);
   const copySourceId = location.state?.copyMode ? location.state?.docId : null;
+
+  const handleExit = useCallback(() => {
+    const currentTab = tabs?.find(t => t.id === activeTabId || t.path?.startsWith("/document-setup/manual-doc"));
+    if (currentTab && closeTab) {
+      closeTab(currentTab.id);
+    } else if (activeTabId && closeTab) {
+      closeTab(activeTabId);
+    } else {
+      navigate("/document-setup/docs-list");
+    }
+  }, [closeTab, activeTabId, tabs, navigate]);
 
   const [docId, setDocId] = useState(initialDocId);
   const [loading, setLoading] = useState(false);
@@ -1002,7 +1015,8 @@ export default function ManualDocument() {
     desc: "",
     letterNo: "",
     letterDate: adjustDateToFiscalYear(today, activeFY),
-    status: "صدور سند",
+    status: "ثبت اولیه",
+    returnedUser: "",
   }));
 
   useEffect(() => {
@@ -1029,6 +1043,21 @@ export default function ManualDocument() {
   }, [selectedFiscalYear, docId]);
 
   const [fiscalYears, setFiscalYears] = useState([]);
+  const [systemUsers, setSystemUsers] = useState([]);
+
+  useEffect(() => {
+    async function loadUsers() {
+      try {
+        const res = await api.get("/api/users");
+        if (res.data?.success) {
+          setSystemUsers(res.data.data || []);
+        }
+      } catch (err) {
+        console.error("Error loading system users:", err);
+      }
+    }
+    loadUsers();
+  }, []);
 
   // مدال‌ها و دیالوگ‌ها
   const [showPrintModal, setShowPrintModal] = useState(false);
@@ -1191,6 +1220,7 @@ export default function ManualDocument() {
 
   const [rows, setRows] = useState([{ ...EMPTY_ROW, id: 1 }]);
   const [activeRowId, setActiveRowId] = useState(1);
+  const [isReadOnly, setIsReadOnly] = useState(false);
 
   const activeRow = rows.find((r) => r.id === activeRowId) ?? rows[0];
   const showSanamaFields = needsSanamaFields(activeRow?.subAccount);
@@ -1239,6 +1269,9 @@ export default function ManualDocument() {
         if (!isMounted) return;
         const doc = res.data.data;
         if (doc) {
+          const isDocFinal = (doc.status === "CONFIRMED" || doc.status === "صدور سند قطعی" || doc.status === "FINAL" || doc.workflowStep === "FINAL") && !copySourceId;
+          setIsReadOnly(isDocFinal);
+
           const targetFY = selectedFiscalYear || String(doc.fiscal_year || "1405");
           let docNoVal = doc.document_number || "";
           if (copySourceId) {
@@ -1247,6 +1280,27 @@ export default function ManualDocument() {
               docNoVal = getNextSequentialDocNo(targetFY, resAll.data?.data || []);
             } catch {
               docNoVal = "۱";
+            }
+          }
+
+          let mappedStatus = "پیش‌نویس";
+          if (doc.status === "CONFIRMED" || doc.status === "FINAL" || doc.status === "صدور سند قطعی" || doc.workflowStep === "FINAL") {
+            mappedStatus = "صدور سند قطعی";
+          } else if (doc.status === "REJECTED" || doc.status?.startsWith("ابطال") || doc.status?.includes("رد") || doc.status?.includes("برگشت")) {
+            mappedStatus = "ابطال‌شده";
+          } else if (doc.status === "APPROVED" || doc.status === "تأییدشده") {
+            mappedStatus = "تأییدشده";
+          } else if (doc.status === "DRAFT" || doc.status === "پیش‌نویس") {
+            mappedStatus = "پیش‌نویس";
+          } else {
+            mappedStatus = "ثبت اولیه";
+          }
+
+          let returnedUserVal = doc.rawHeader?.returnedUser || "";
+          if ((mappedStatus === "ابطال‌شده" || doc.status === "REJECTED") && !returnedUserVal && doc.workflowHistory && doc.workflowHistory.length > 0) {
+            const lastReject = [...doc.workflowHistory].reverse().find(h => h.action === "REJECT" || h.action === "رد" || h.fromStep?.includes("رد"));
+            if (lastReject) {
+              returnedUserVal = lastReject.user;
             }
           }
 
@@ -1261,10 +1315,16 @@ export default function ManualDocument() {
             desc: copySourceId ? `کپی از سند ${doc.document_number}` : (doc.description || ""),
             letterNo: doc.reference_number || "",
             letterDate: doc.rawHeader?.letterDate ? adjustDateToFiscalYear(doc.rawHeader.letterDate, targetFY) : adjustDateToFiscalYear("", targetFY),
-            status: doc.status === "DRAFT" ? "پیش‌نویس" : "صدور سند",
+            status: mappedStatus,
+            returnedUser: returnedUserVal,
           });
 
-          if (doc.status === "DRAFT") {
+          if (isDocFinal) {
+            setMessage({
+              type: "warning",
+              text: `🔒 این سند (شماره سند: ${doc.document_number}) به صورت قطعی و نهایی تأیید شده است. تمامی اطلاعات در حالت فقط‌خواندنی قرار دارد و امکان تغییر وجود ندارد.`,
+            });
+          } else if (doc.status === "DRAFT") {
             setMessage({
               type: "error",
               text: `این سند در وضعیت «پیش‌نویس» قرار دارد (شماره سند: ${doc.document_number}). لطفاً پس از اصلاح موارد، روی «ثبت تغییرات» کلیک کنید.`,
@@ -1317,6 +1377,10 @@ export default function ManualDocument() {
   }, [docId, copySourceId]);
 
   async function handleSave() {
+    if (isReadOnly) {
+      setMessage({ type: "error", text: "خطا: این سند قطعی شده است و امکان ویرایش آن وجود ندارد." });
+      return;
+    }
     // ─── ۱. بررسی سطوح دسترسی اولیه ───────────────────────────────────────
     if (currentUser && currentUser.role !== "admin") {
       if (docId) {
@@ -1436,7 +1500,9 @@ export default function ManualDocument() {
       const updatedHeader = {
         ...header,
         docDate: finalDocDate,
-        status: hasValidationError ? "پیش‌نویس" : (statusMapped === "CONFIRMED" ? "صدور سند" : "پیش‌نویس")
+        status: hasValidationError ? "پیش‌نویس" : (header.status || "ثبت اولیه"),
+        workflowStep: header.workflowStep || "REGULATOR",
+        currentAssigneeRole: header.currentAssigneeRole || "تنظیم حساب",
       };
 
       const sensitiveState = {
@@ -1458,9 +1524,13 @@ export default function ManualDocument() {
 
       const payload = {
         document_type: docTypeMapped,
-        fiscal_year: Number(header.fiscalYear) || 1404,
+        fiscal_year: Number(header.fiscalYear) || 1405,
         document_date: finalDocDate,
-        status: statusMapped,
+        status: hasValidationError ? "DRAFT" : (header.status || "ثبت اولیه"),
+        workflowStep: header.workflowStep || "REGULATOR",
+        currentAssigneeRole: header.currentAssigneeRole || "تنظیم حساب",
+        returnedUser: header.returnedUser || "",
+        rejectionReason: header.rejectionReason || "",
         ciphertext: encryptedHex,
       };
 
@@ -1478,7 +1548,7 @@ export default function ManualDocument() {
 
       setHeader(prev => ({
         ...prev,
-        status: hasValidationError ? "پیش‌نویس" : "صدور سند",
+        status: hasValidationError ? "پیش‌نویس" : (prev.status || "ثبت اولیه"),
         docNo: savedDocNumber || prev.docNo
       }));
 
@@ -1818,8 +1888,21 @@ export default function ManualDocument() {
   const totalCredit = useMemo(() => rows.reduce((s, r) => s + parseNumber(r.credit), 0), [rows]);
   const diff = totalDebit - totalCredit;
 
+  const STATUS_OPTIONS = [
+    { key: "پیش‌نویس", label: "۱. پیش‌نویس", color: "bg-slate-500" },
+    { key: "ثبت اولیه", label: "۲. ثبت اولیه", color: "bg-blue-500" },
+    { key: "تأییدشده", label: "۳. تأییدشده", color: "bg-emerald-500" },
+    { key: "صدور سند قطعی", label: "۴. صدور سند قطعی", color: "bg-green-600" },
+    { key: "ابطال‌شده", label: "۵. برگشت شده از ......", color: "bg-rose-600" },
+  ];
+
   const statusColors = {
-    "صدور سند": "bg-green-500",
+    "پیش‌نویس": "bg-slate-500",
+    "ثبت اولیه": "bg-blue-500",
+    "تأییدشده": "bg-emerald-500",
+    "صدور سند قطعی": "bg-green-600",
+    "ابطال‌شده": "bg-rose-600",
+    "صدور سند": "bg-green-600",
     "در جریان": "bg-amber-400",
     "رد شده": "bg-rose-500",
     "پرداخت و دریافت": "bg-blue-500",
@@ -1828,6 +1911,38 @@ export default function ManualDocument() {
     "بایگانی": "bg-gray-400",
     "حسابداری": "bg-teal-500",
   };
+
+  const userOptions = useMemo(() => {
+    const list = [...(systemUsers || [])];
+    if (currentUser && !list.some((u) => u.username === currentUser.username || u.name === currentUser.name)) {
+      list.unshift(currentUser);
+    }
+    if (list.length === 0) {
+      list.push({
+        name: "you",
+        position: "مدیر مالی",
+      });
+    }
+
+    return list.map((u) => {
+      const uName = u.name || u.fullName || (u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.username) || "کاربر سیستم";
+      const uPos = u.position || u.role || u.userGroup || "مدیر مالی";
+      const fullLabel = `${uName} (${uPos})`;
+      return {
+        value: fullLabel,
+        label: fullLabel,
+      };
+    });
+  }, [systemUsers, currentUser]);
+
+  const formattedReturnedUser = useMemo(() => {
+    if (!header.returnedUser) return "";
+    if (header.returnedUser.includes("(") && header.returnedUser.includes(")")) {
+      return header.returnedUser;
+    }
+    const found = userOptions.find(o => o.value.startsWith(header.returnedUser) || o.value.includes(header.returnedUser));
+    return found ? found.value : header.returnedUser;
+  }, [header.returnedUser, userOptions]);
 
   const inputCls = "h-8 text-xs rounded-md border bg-white focus:border-primary";
   const labelCls = "text-xs text-muted-foreground whitespace-nowrap";
@@ -1954,18 +2069,55 @@ export default function ManualDocument() {
                 />
                 <div className="mt-1">
                   <Label className={`${labelCls} mb-1 block`}>وضعیت سند</Label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {Object.keys(statusColors).map((s) => (
-                      <button
-                        key={s}
-                        onClick={() => setH("status", s)}
-                        className={`rounded-full px-2.5 py-1 text-[10px] font-medium text-white transition-all ${header.status === s ? statusColors[s] + " ring-2 ring-offset-1 ring-current" : "bg-muted text-muted-foreground"
+                  <div className="flex flex-wrap gap-1.5 items-center">
+                    {STATUS_OPTIONS.map((opt) => {
+                      const isSelected =
+                        header.status === opt.key ||
+                        (opt.key === "صدور سند قطعی" && (header.status === "صدور سند قطعی" || header.status === "CONFIRMED" || header.status === "FINAL")) ||
+                        (opt.key === "ثبت اولیه" && (header.status === "ثبت اولیه" || header.status?.startsWith("در انتظار تایید") || header.status === "PENDING" || header.status === "در جریان")) ||
+                        (opt.key === "تأییدشده" && (header.status === "تأییدشده" || header.status === "APPROVED")) ||
+                        (opt.key === "پیش‌نویس" && (header.status === "پیش‌نویس" || header.status === "DRAFT")) ||
+                        (opt.key === "ابطال‌شده" && (header.status === "ابطال‌شده" || header.status?.startsWith("ابطال") || header.status?.includes("برگشت") || header.status?.includes("رد")));
+
+                      let displayLabel = opt.label;
+                      if (opt.key === "ابطال‌شده") {
+                        const returnedName = formattedReturnedUser || header.returnedUser;
+                        displayLabel = `۵. برگشت شده از ${returnedName ? returnedName : "......"}`;
+                      }
+                      return (
+                        <button
+                          key={opt.key}
+                          type="button"
+                          onClick={() => {
+                            setH("status", opt.key);
+                            if (opt.key !== "ابطال‌شده") {
+                              setH("returnedUser", "");
+                            } else if (!header.returnedUser && userOptions.length > 0) {
+                              setH("returnedUser", userOptions[0].value);
+                            }
+                          }}
+                          className={`rounded-full px-2.5 py-1 text-[10px] font-medium text-white transition-all cursor-pointer ${
+                            isSelected ? opt.color + " ring-2 ring-offset-1 ring-current font-bold" : "bg-muted text-muted-foreground hover:bg-muted/80"
                           }`}
-                      >
-                        {s}
-                      </button>
-                    ))}
+                        >
+                          {displayLabel}
+                        </button>
+                      );
+                    })}
                   </div>
+
+                  {(header.status === "ابطال‌شده" || header.status?.startsWith("ابطال") || header.status?.includes("برگشت") || header.status?.includes("رد")) && (
+                    <div className="mt-2.5 flex items-center gap-2 p-2.5 rounded-lg bg-rose-50/90 border border-rose-200" dir="rtl">
+                      <Label className="text-xs text-rose-800 font-semibold whitespace-nowrap">مشخص نمودن کاربر برگشت‌دهنده:</Label>
+                      <SearchableSelect
+                        options={userOptions}
+                        value={formattedReturnedUser || userOptions[0]?.value || ""}
+                        onChange={(val) => setH("returnedUser", val)}
+                        placeholder="انتخاب کاربر برگشت‌دهنده..."
+                        className="h-8 text-xs bg-white border-rose-300 w-64"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -2151,8 +2303,10 @@ export default function ManualDocument() {
               {/* وضعیت سند */}
               <div className="flex items-center gap-3">
                 <span className="text-xs text-muted-foreground">وضعیت سند:</span>
-                <Badge className={`${statusColors[header.status]} text-white text-xs px-3 py-1`}>
-                  {header.status}
+                <Badge className={`${statusColors[header.status] || "bg-rose-600"} text-white text-xs px-3 py-1 font-medium`}>
+                  {(header.status === "ابطال‌شده" || header.status?.startsWith("ابطال") || header.status?.includes("برگشت") || header.status?.includes("رد"))
+                    ? `برگشت شده از ${formattedReturnedUser || header.returnedUser || "......"}`
+                    : header.status}
                 </Badge>
               </div>
 
@@ -2282,8 +2436,8 @@ export default function ManualDocument() {
               <Button
                 size="sm"
                 variant="destructive"
-                className="gap-1.5 h-8 text-xs"
-                onClick={() => navigate("/document-setup")}
+                className="gap-1.5 h-8 text-xs cursor-pointer"
+                onClick={handleExit}
               >
                 <Ban className="h-3.5 w-3.5" />
                 خروج
@@ -2468,10 +2622,32 @@ export default function ManualDocument() {
               </Button>
               <Button
                 size="sm"
-                className="bg-rose-600 hover:bg-rose-700 text-white"
-                onClick={() => {
-                  setHeader(prev => ({ ...prev, status: "رد شده" }));
-                  setMessage({ type: "error", text: `سند مالی رد شد. (علت: ${rejectReason || "بدون توضیحات"})` });
+                className="bg-rose-600 hover:bg-rose-700 text-white font-bold"
+                onClick={async () => {
+                  if (!rejectReason.trim()) {
+                    alert("وارد نمودن دلیل رد سند الزامی است.");
+                    return;
+                  }
+                  const uRole = currentUser?.position || currentUser?.role || "کاربر";
+                  const uName = currentUser?.name || currentUser?.username || "کاربر";
+                  const userDisplay = `${uName} (${uRole})`;
+                  const statusStr = `برگشت شده از ${userDisplay}`;
+
+                  if (docId) {
+                    try {
+                      await api.post(`/api/documents/${docId}/workflow/reject`, { reason: rejectReason.trim() });
+                    } catch (e) {
+                      console.error("Workflow reject error:", e);
+                    }
+                  }
+
+                  setHeader(prev => ({
+                    ...prev,
+                    status: "ابطال‌شده",
+                    returnedUser: userDisplay,
+                    rejectionReason: rejectReason.trim()
+                  }));
+                  setMessage({ type: "error", text: `سند مالی رد شد و به مرحله قبل ارجاع یافت. (علت: ${rejectReason})` });
                   setShowRejectModal(false);
                 }}
               >

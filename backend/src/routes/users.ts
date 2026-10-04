@@ -75,7 +75,7 @@ router.post("/", async (c) => {
       phone: body.phone?.trim() || "",
       email: body.email?.trim() || "",
       department: body.department?.trim() || "حسابداری مالی",
-      position: body.position?.trim() || "کارشناس حسابداری",
+      position: body.position?.trim() || "حسابدار",
       userGroup: body.userGroup?.trim() || "حسابداری",
       directManager: body.directManager?.trim() || "",
       branch: body.branch?.trim() || "شعبه مرکزی",

@@ -26,41 +26,101 @@ const ROLE_PRESETS = {
     "rep.trial": true, "rep.ledger": true, "rep.statement": true,
     "set.users": true, "set.year": true, "audit.view": true
   },
-  "پشتیبانی / کاربر پیشرفته": {
+  "رئیس دستگاه اجرایی": {
     "doc.create": true, "doc.edit": true, "doc.delete": true, "doc.approve": true,
     "acct.view": true, "acct.create": true,
     "rep.trial": true, "rep.ledger": true, "rep.statement": true,
-    "set.users": false, "set.year": false
+    "set.users": true, "set.year": false, "audit.view": true
   },
-  "مدیر مالی": {
+  "رئیس دستگاه": {
     "doc.create": true, "doc.edit": true, "doc.delete": true, "doc.approve": true,
     "acct.view": true, "acct.create": true,
     "rep.trial": true, "rep.ledger": true, "rep.statement": true,
-    "set.users": true, "set.year": true
+    "set.users": true, "set.year": false, "audit.view": true
+  },
+  "مدیر مالی و ذیحساب": {
+    "doc.create": true, "doc.edit": true, "doc.delete": true, "doc.approve": true,
+    "acct.view": true, "acct.create": true,
+    "rep.trial": true, "rep.ledger": true, "rep.statement": true,
+    "set.users": true, "set.year": true, "audit.view": true
+  },
+  "رئیس امور مالی": {
+    "doc.create": true, "doc.edit": true, "doc.delete": true, "doc.approve": true,
+    "acct.view": true, "acct.create": true,
+    "rep.trial": true, "rep.ledger": true, "rep.statement": true,
+    "set.users": false, "set.year": false, "audit.view": true
+  },
+  "تنظیم حساب": {
+    "doc.create": true, "doc.edit": true, "doc.delete": false, "doc.approve": false,
+    "acct.view": true, "acct.create": true,
+    "rep.trial": true, "rep.ledger": true, "rep.statement": false,
+    "set.users": false, "set.year": false, "audit.view": false
   },
   "حسابدار": {
     "doc.create": true, "doc.edit": true, "doc.delete": false, "doc.approve": false,
     "acct.view": true, "acct.create": true,
     "rep.trial": true, "rep.ledger": true, "rep.statement": false,
-    "set.users": false, "set.year": false
+    "set.users": false, "set.year": false, "audit.view": false
+  },
+  "انباردار": {
+    "doc.create": true, "doc.edit": true, "doc.delete": false, "doc.approve": false,
+    "acct.view": true, "acct.create": false,
+    "rep.trial": false, "rep.ledger": false, "rep.statement": false,
+    "set.users": false, "set.year": false, "audit.view": false
+  },
+  "کارشناس اموال": {
+    "doc.create": true, "doc.edit": true, "doc.delete": false, "doc.approve": false,
+    "acct.view": true, "acct.create": false,
+    "rep.trial": false, "rep.ledger": false, "rep.statement": false,
+    "set.users": false, "set.year": false, "audit.view": false
+  },
+  "کارشناس حقوق و دستمزد": {
+    "doc.create": true, "doc.edit": true, "doc.delete": false, "doc.approve": false,
+    "acct.view": true, "acct.create": false,
+    "rep.trial": true, "rep.ledger": false, "rep.statement": false,
+    "set.users": false, "set.year": false, "audit.view": false
+  },
+  "کارشناس اعتبارات جاری": {
+    "doc.create": true, "doc.edit": true, "doc.delete": false, "doc.approve": false,
+    "acct.view": true, "acct.create": false,
+    "rep.trial": true, "rep.ledger": true, "rep.statement": false,
+    "set.users": false, "set.year": false, "audit.view": false
+  },
+  "کارشناس اعتبارات تملک دارایی‌های سرمایه‌ای": {
+    "doc.create": true, "doc.edit": true, "doc.delete": false, "doc.approve": false,
+    "acct.view": true, "acct.create": false,
+    "rep.trial": true, "rep.ledger": true, "rep.statement": false,
+    "set.users": false, "set.year": false, "audit.view": false
+  },
+  "پشتیبانی / کاربر پیشرفته": {
+    "doc.create": true, "doc.edit": true, "doc.delete": true, "doc.approve": true,
+    "acct.view": true, "acct.create": true,
+    "rep.trial": true, "rep.ledger": true, "rep.statement": true,
+    "set.users": false, "set.year": false, "audit.view": true
+  },
+  "مدیر مالی": {
+    "doc.create": true, "doc.edit": true, "doc.delete": true, "doc.approve": true,
+    "acct.view": true, "acct.create": true,
+    "rep.trial": true, "rep.ledger": true, "rep.statement": true,
+    "set.users": true, "set.year": true, "audit.view": true
   },
   "کاربر عادی": {
     "doc.create": true, "doc.edit": false, "doc.delete": false, "doc.approve": false,
     "acct.view": true, "acct.create": false,
     "rep.trial": true, "rep.ledger": false, "rep.statement": false,
-    "set.users": false, "set.year": false
+    "set.users": false, "set.year": false, "audit.view": false
   },
   "خزانه‌دار": {
     "doc.create": true, "doc.edit": true, "doc.delete": false, "doc.approve": false,
     "acct.view": true, "acct.create": false,
     "rep.trial": true, "rep.ledger": true, "rep.statement": false,
-    "set.users": false, "set.year": false
+    "set.users": false, "set.year": false, "audit.view": false
   },
   "سایر موارد": {
     "doc.create": true, "doc.edit": false, "doc.delete": false, "doc.approve": false,
     "acct.view": true, "acct.create": false,
     "rep.trial": false, "rep.ledger": false, "rep.statement": false,
-    "set.users": false, "set.year": false
+    "set.users": false, "set.year": false, "audit.view": false
   }
 };
 
@@ -83,7 +143,7 @@ const INITIAL_USER = {
   phone: "",
   email: "",
   department: "حسابداری مالی",
-  position: "کارشناس حسابداری",
+  position: "حسابدار",
   userGroup: "حسابداری",
   directManager: "",
   branch: "شعبه مرکزی",
@@ -339,9 +399,9 @@ export default function Users() {
       permissions: isAdminUser
         ? { ...ROLE_PRESETS["مدیر سیستم"] }
         : {
-            ...(INITIAL_USER.permissions || {}),
-            ...(user?.permissions || {})
-          },
+          ...(INITIAL_USER.permissions || {}),
+          ...(user?.permissions || {})
+        },
       allowedCostCenters: Array.isArray(user?.allowedCostCenters)
         ? user.allowedCostCenters
         : (INITIAL_USER.allowedCostCenters || []),
@@ -462,9 +522,14 @@ export default function Users() {
       ? { ...ROLE_PRESETS["مدیر سیستم"] }
       : (ROLE_PRESETS[role] ? { ...ROLE_PRESETS[role] } : {});
 
+    const targetPosition = (role === "حسابدار" || role === "تنظیم حساب" || role === "رئیس امور مالی" || role === "مدیر مالی و ذیحساب" || role === "رئیس دستگاه" || role === "رئیس دستگاه اجرایی")
+      ? (role === "رئیس دستگاه اجرایی" ? "رئیس دستگاه" : role)
+      : formState.position;
+
     setFormState({
       ...formState,
       role,
+      position: targetPosition,
       permissions
     });
   };
@@ -641,13 +706,18 @@ export default function Users() {
                       <select
                         disabled={currentUser?.role !== "admin"}
                         value={formState.position}
-                        onChange={(e) => setFormState({ ...formState, position: e.target.value })}
+                        onChange={(e) => {
+                          const newPos = e.target.value;
+                          const permissions = ROLE_PRESETS[newPos] ? { ...ROLE_PRESETS[newPos] } : formState.permissions;
+                          setFormState({ ...formState, position: newPos, role: newPos, permissions });
+                        }}
                         className="w-full h-8.5 text-xs rounded-lg border px-3 bg-background disabled:opacity-80"
                       >
-                        <option value="مدیر مالی">مدیر امور مالی</option>
-                        <option value="رئیس حسابداری">رئیس حسابداری</option>
-                        <option value="کارشناس حسابداری">کارشناس حسابداری</option>
-                        <option value="ذیحساب خزانه‌داری">ذیحساب / خزانه‌دار</option>
+                        <option value="حسابدار">حسابدار</option>
+                        <option value="تنظیم حساب">تنظیم حساب</option>
+                        <option value="رئیس امور مالی">رئیس امور مالی</option>
+                        <option value="مدیر مالی و ذیحساب">مدیر مالی و ذیحساب</option>
+                        <option value="رئیس دستگاه">رئیس دستگاه</option>
                       </select>
                     </div>
                     <div className="space-y-1">
@@ -870,22 +940,29 @@ export default function Users() {
                       onChange={(e) => handleRoleChange(e.target.value)}
                       className="w-full h-8.5 text-xs rounded-lg border px-3 font-semibold disabled:bg-muted disabled:cursor-not-allowed"
                     >
-                      <option value="admin">۱. مدیر سیستم (System Admin)</option>
-                      <option value="پشتیبانی / کاربر پیشرفته">۲. پشتیبانی / کاربر پیشرفته (Advanced Support User)</option>
-                      <option value="مدیر مالی">۳. مدیر مالی (دسترسی ارشد)</option>
-                      <option value="حسابدار">۴. حسابدار</option>
-                      <option value="کاربر عادی">۵. کاربر عادی (Regular User)</option>
-                      <option value="خزانه‌دار">۶. خزانه‌دار</option>
-                      <option value="سایر موارد">۷. سایر موارد (Custom Role)</option>
+                      <option value="admin">۱. مدیر سیستم </option>
+                      <option value="رئیس دستگاه اجرایی">۲. رئیس دستگاه اجرایی</option>
+                      <option value="مدیر مالی و ذیحساب">۳. مدیر مالی و ذیحساب</option>
+                      <option value="رئیس امور مالی">۴. رئیس امور مالی</option>
+                      <option value="تنظیم حساب">۵. تنظیم حساب</option>
+                      <option value="حسابدار">۶. حسابدار (حسابداری عمومی)</option>
+                      <option value="انباردار">۷. انباردار (سیستم انبار)</option>
+                      <option value="کارشناس اموال">۸. کارشناس اموال (سیستم اموال)</option>
+                      <option value="کارشناس حقوق و دستمزد">۹. کارشناس حقوق و دستمزد (حقوق و دستمزد)</option>
+                      <option value="کارشناس اعتبارات جاری">۱۰. کارشناس اعتبارات جاری (اعتبارات جاری)</option>
+                      <option value="کارشناس اعتبارات تملک دارایی‌های سرمایه‌ای">۱۱. کارشناس اعتبارات تملک دارایی‌های سرمایه‌ای</option>
+                      <option value="پشتیبانی / کاربر پیشرفته">۱۲. پشتیبانی / کاربر پیشرفته</option>
+                      <option value="کاربر عادی">۱۳. کاربر عادی</option>
+                      <option value="سایر موارد">۱۴. سایر موارد</option>
                     </select>
                     {selectedUser && (
                       (currentUser?._id && String(currentUser._id) === String(selectedUser._id || selectedUser.id)) ||
                       (currentUser?.username && currentUser.username.toLowerCase() === selectedUser.username?.toLowerCase())
                     ) && (formState.role === "admin" || formState.role === "مدیر سیستم" || selectedUser.username?.toLowerCase() === "admin") && (
-                      <span className="text-[11px] font-bold text-amber-700 dark:text-amber-300 block mt-1">
-                        🛡️ امکان تغییر یا تنزیل نقش حساب مدیر سیستم فعال وجود ندارد.
-                      </span>
-                    )}
+                        <span className="text-[11px] font-bold text-amber-700 dark:text-amber-300 block mt-1">
+                          🛡️ امکان تغییر یا تنزیل نقش حساب مدیر سیستم فعال وجود ندارد.
+                        </span>
+                      )}
                   </div>
 
                   <Separator />
@@ -1353,11 +1430,11 @@ export default function Users() {
                               </Badge>
                             </td>
                             <td className="px-4 font-bold text-primary">
-                               <div>{user.role}</div>
-                               <div className="text-[10px] font-normal text-muted-foreground mt-0.5">
-                                 سقف نشست: <span className="font-bold text-foreground">{user.maxConcurrentSessions ?? 1}</span>
-                               </div>
-                             </td>
+                              <div>{user.role}</div>
+                              <div className="text-[10px] font-normal text-muted-foreground mt-0.5">
+                                سقف نشست: <span className="font-bold text-foreground">{user.maxConcurrentSessions ?? 1}</span>
+                              </div>
+                            </td>
                             <td className="px-4 font-mono text-[10px] text-muted-foreground">{user.lastLogin ? new Date(user.lastLogin).toLocaleString("fa-IR") : "—"}</td>
                             <td className="px-4 text-center">
                               {currentUser?.role === "admin" ? (
@@ -1373,39 +1450,39 @@ export default function Users() {
                                   >
                                     <Edit2 className="h-4 w-4" />
                                   </button>
-                                {(() => {
-                                  const isSelf =
-                                    (currentUser?._id && String(currentUser._id) === String(user._id)) ||
-                                    (currentUser?.id && String(currentUser.id) === String(user._id)) ||
-                                    (currentUser?.username && currentUser.username.toLowerCase() === user.username?.toLowerCase());
-                                  return (
-                                    <button
-                                      onClick={() => !isSelf && handleDelete(user._id, user.username)}
-                                      disabled={isSelf}
-                                      className={cn(
-                                        "transition-colors",
-                                        isSelf
-                                          ? "text-muted-foreground/30 cursor-not-allowed"
-                                          : "text-muted-foreground hover:text-rose-500"
-                                      )}
-                                      title={isSelf ? "شما نمی‌توانید حساب ادمین فعال خودتان را حذف کنید" : "حذف"}
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </button>
-                                  );
-                                })()}
-                              </div>
-                            ) : (
-                              <div className="flex items-center justify-center">
-                                <button onClick={() => handleEditUser(user)} className="text-muted-foreground hover:text-primary transition-colors" title="مشاهده پروفایل">
-                                  <Eye className="h-4 w-4" />
-                                </button>
-                              </div>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })
+                                  {(() => {
+                                    const isSelf =
+                                      (currentUser?._id && String(currentUser._id) === String(user._id)) ||
+                                      (currentUser?.id && String(currentUser.id) === String(user._id)) ||
+                                      (currentUser?.username && currentUser.username.toLowerCase() === user.username?.toLowerCase());
+                                    return (
+                                      <button
+                                        onClick={() => !isSelf && handleDelete(user._id, user.username)}
+                                        disabled={isSelf}
+                                        className={cn(
+                                          "transition-colors",
+                                          isSelf
+                                            ? "text-muted-foreground/30 cursor-not-allowed"
+                                            : "text-muted-foreground hover:text-rose-500"
+                                        )}
+                                        title={isSelf ? "شما نمی‌توانید حساب ادمین فعال خودتان را حذف کنید" : "حذف"}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </button>
+                                    );
+                                  })()}
+                                </div>
+                              ) : (
+                                <div className="flex items-center justify-center">
+                                  <button onClick={() => handleEditUser(user)} className="text-muted-foreground hover:text-primary transition-colors" title="مشاهده پروفایل">
+                                    <Eye className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>
