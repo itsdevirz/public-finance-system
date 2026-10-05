@@ -655,13 +655,20 @@ router.post("/:id/workflow/approve", async (c) => {
   const existingDoc = await db.collection<JournalDocument>("journal_documents").findOne({ _id: new ObjectId(id) });
   if (!existingDoc) return c.json({ message: "سند یافت نشد" }, 404);
 
+  if (existingDoc.isPermanentlyRejected || (existingDoc.rejectionCount || 0) >= 3 || existingDoc.workflowStep === "PERMANENTLY_REJECTED") {
+    return c.json({ message: "خطا: این سند به دلیل رسیدن به حد مجاز (۳ بار رد شدن)، به طور دائم رد شده است و دیگر قابل ارسال یا تأیید نمی‌باشد." }, 403);
+  }
+
   const currentStep = existingDoc.workflowStep || "REGULATOR";
 
   const userPosition = (user?.position || user?.role || payload.role || "کاربر").trim();
   const isAdmin = userPosition === "admin" || userPosition === "مدیر سیستم" || user?.isAdmin;
 
   if (!isAdmin) {
-    if ((currentStep === "ACCOUNTANT" || currentStep === "DRAFT" || currentStep === "REGULATOR") && !userPosition.includes("تنظیم حساب") && userPosition !== "REGULATOR") {
+    if ((currentStep === "ACCOUNTANT" || currentStep === "DRAFT") && !userPosition.includes("حسابدار") && !userPosition.includes("تنظیم") && userPosition !== "ACCOUNTANT") {
+      return c.json({ message: "خطا: دسترسی غیرمجاز. ارسال یا درخواست مجدد تأیید سند در این مرحله فقط توسط کاربر «حسابدار» امکان‌پذیر است." }, 403);
+    }
+    if (currentStep === "REGULATOR" && !userPosition.includes("تنظیم حساب") && userPosition !== "REGULATOR") {
       return c.json({ message: "خطا: دسترسی غیرمجاز. تأیید سند در این مرحله فقط توسط کاربر «تنظیم حساب» امکان‌پذیر است." }, 403);
     }
     if (currentStep === "FIN_HEAD" && !userPosition.includes("رئیس امور مالی") && userPosition !== "FIN_HEAD") {
@@ -675,11 +682,15 @@ router.post("/:id/workflow/approve", async (c) => {
     }
   }
 
-  let nextStep = "FIN_HEAD";
-  let nextRole = "رئیس امور مالی";
-  let nextStatus = "تأیید تنظیم حساب";
+  let nextStep = "REGULATOR";
+  let nextRole = "تنظیم حساب";
+  let nextStatus = "ثبت اولیه";
 
-  if (currentStep === "ACCOUNTANT" || currentStep === "DRAFT" || currentStep === "REGULATOR") {
+  if (currentStep === "ACCOUNTANT" || currentStep === "DRAFT") {
+    nextStep = "REGULATOR";
+    nextRole = "تنظیم حساب";
+    nextStatus = (existingDoc.rejectionCount || 0) > 0 ? "درخواست مجدد (تنظیم حساب)" : "ثبت اولیه";
+  } else if (currentStep === "REGULATOR") {
     nextStep = "FIN_HEAD";
     nextRole = "رئیس امور مالی";
     nextStatus = "تأیید تنظیم حساب";
@@ -698,7 +709,7 @@ router.post("/:id/workflow/approve", async (c) => {
   }
 
   const historyItem = {
-    action: "APPROVE",
+    action: (currentStep === "ACCOUNTANT" || currentStep === "DRAFT") ? "RESUBMIT" : "APPROVE",
     user: userDisplay,
     date: new Date().toISOString(),
     fromStep: currentStep,
@@ -748,13 +759,20 @@ router.post("/:id/workflow/reject", async (c) => {
   const existingDoc = await db.collection<JournalDocument>("journal_documents").findOne({ _id: new ObjectId(id) });
   if (!existingDoc) return c.json({ message: "سند یافت نشد" }, 404);
 
+  if (existingDoc.isPermanentlyRejected || (existingDoc.rejectionCount || 0) >= 3 || existingDoc.workflowStep === "PERMANENTLY_REJECTED") {
+    return c.json({ message: "خطا: این سند به دلیل رسیدن به حد مجاز (۳ بار رد شدن)، به طور دائم رد شده است و دیگر قابل ارسال یا تأیید نمی‌باشد." }, 403);
+  }
+
   const currentStep = existingDoc.workflowStep || "REGULATOR";
 
   const userPosition = (user?.position || user?.role || payload.role || "کاربر").trim();
   const isAdmin = userPosition === "admin" || userPosition === "مدیر سیستم" || user?.isAdmin;
 
   if (!isAdmin) {
-    if ((currentStep === "ACCOUNTANT" || currentStep === "DRAFT" || currentStep === "REGULATOR") && !userPosition.includes("تنظیم حساب") && userPosition !== "REGULATOR") {
+    if ((currentStep === "ACCOUNTANT" || currentStep === "DRAFT") && !userPosition.includes("حسابدار") && userPosition !== "ACCOUNTANT") {
+      return c.json({ message: "خطا: دسترسی غیرمجاز. رد سند در این مرحله امکان‌پذیر نیست." }, 403);
+    }
+    if (currentStep === "REGULATOR" && !userPosition.includes("تنظیم حساب") && userPosition !== "REGULATOR") {
       return c.json({ message: "خطا: دسترسی غیرمجاز. رد سند در این مرحله فقط توسط کاربر «تنظیم حساب» امکان‌پذیر است." }, 403);
     }
     if (currentStep === "FIN_HEAD" && !userPosition.includes("رئیس امور مالی") && userPosition !== "FIN_HEAD") {
@@ -766,6 +784,47 @@ router.post("/:id/workflow/reject", async (c) => {
     if (currentStep === "AGENCY_HEAD" && !userPosition.includes("رئیس دستگاه") && userPosition !== "AGENCY_HEAD") {
       return c.json({ message: "خطا: دسترسی غیرمجاز. رد سند در این مرحله فقط توسط «رئیس دستگاه اجرایی» امکان‌پذیر است." }, 403);
     }
+  }
+
+  const newRejectionCount = (existingDoc.rejectionCount || 0) + 1;
+
+  // اگر به حد مجاز ۳ بار رد شدن رسید
+  if (newRejectionCount >= 3) {
+    const historyItem = {
+      action: "PERMANENT_REJECT",
+      user: userDisplay,
+      reason,
+      date: new Date().toISOString(),
+      fromStep: currentStep,
+      toStep: "PERMANENTLY_REJECTED",
+      rejectionCount: newRejectionCount,
+    };
+
+    const updateFields: Record<string, unknown> = {
+      workflowStep: "PERMANENTLY_REJECTED",
+      currentAssigneeRole: "رد دائم",
+      status: `رد دائم (۳ از ۳)`,
+      rejectionCount: newRejectionCount,
+      isPermanentlyRejected: true,
+      returnedUser: userDisplay,
+      rejectionReason: reason,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const res = await db.collection<JournalDocument>("journal_documents").findOneAndUpdate(
+      { _id: new ObjectId(id) },
+      {
+        $set: updateFields,
+        $push: { workflowHistory: historyItem } as any
+      },
+      { returnDocument: "after" }
+    );
+
+    return c.json({
+      success: true,
+      message: `سند برای بار سوم رد شد و به طور دائم ابطال و رد گردید.`,
+      data: res
+    });
   }
 
   let prevStep = "ACCOUNTANT";
@@ -785,7 +844,7 @@ router.post("/:id/workflow/reject", async (c) => {
     prevRole = "مدیر مالی و ذیحساب";
   }
 
-  const statusStr = `برگشت از ${userDisplay}`;
+  const statusStr = `برگشت از ${userDisplay} (رد ${newRejectionCount} از ۳)`;
 
   const historyItem = {
     action: "REJECT",
@@ -794,12 +853,14 @@ router.post("/:id/workflow/reject", async (c) => {
     date: new Date().toISOString(),
     fromStep: currentStep,
     toStep: prevStep,
+    rejectionCount: newRejectionCount,
   };
 
   const updateFields: Record<string, unknown> = {
     workflowStep: prevStep,
     currentAssigneeRole: prevRole,
     status: statusStr,
+    rejectionCount: newRejectionCount,
     returnedUser: userDisplay,
     rejectionReason: reason,
     updatedAt: new Date().toISOString(),
@@ -814,7 +875,11 @@ router.post("/:id/workflow/reject", async (c) => {
     { returnDocument: "after" }
   );
 
-  return c.json({ success: true, message: `سند رد شد و به ${prevRole} برگشت داده شد.`, data: res });
+  return c.json({
+    success: true,
+    message: `سند رد شد (بار ${newRejectionCount} از ۳) و به ${prevRole} برگشت داده شد.`,
+    data: res
+  });
 });
 
 export default router;

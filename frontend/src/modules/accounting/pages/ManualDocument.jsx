@@ -1003,6 +1003,14 @@ export default function ManualDocument() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
 
+  useEffect(() => {
+    if (!message) return;
+    const timer = setTimeout(() => {
+      setMessage(null);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [message]);
+
   const today = new Date().toLocaleDateString("fa-IR").replace(/\//g, "/");
 
   const activeFY = selectedFiscalYear || localStorage.getItem("activeFiscalYear") || "1405";
@@ -1281,7 +1289,8 @@ export default function ManualDocument() {
           const isAdminUser = !currentUser || currentUser.isAdmin === true || uStr.includes("admin") || uStr.includes("مدیر سیستم") || uStr.includes("مدیرکل");
           const isCurrentStepAccountant = doc.workflowStep === "ACCOUNTANT" || doc.workflowStep === "DRAFT" || (doc.status || "").includes("برگشت") || (doc.status || "").includes("ابطال");
           
-          const canEditThisDoc = copySourceId ? true : (isAdminUser || isCurrentStepAccountant);
+          const isDocPermRejected = doc.isPermanentlyRejected || (doc.rejectionCount || 0) >= 3 || doc.workflowStep === "PERMANENTLY_REJECTED";
+          const canEditThisDoc = copySourceId ? true : (!isDocPermRejected && (isAdminUser || isCurrentStepAccountant));
           setIsReadOnly(!canEditThisDoc);
 
           const targetFY = selectedFiscalYear || String(doc.fiscal_year || "1405");
@@ -1296,7 +1305,9 @@ export default function ManualDocument() {
           }
 
           let mappedStatus = "پیش‌نویس";
-          if (doc.status === "CONFIRMED" || doc.status === "FINAL" || doc.status === "صدور سند قطعی" || doc.workflowStep === "FINAL") {
+          if (isDocPermRejected) {
+            mappedStatus = "ابطال‌شده";
+          } else if (doc.status === "CONFIRMED" || doc.status === "FINAL" || doc.status === "صدور سند قطعی" || doc.workflowStep === "FINAL") {
             mappedStatus = "صدور سند قطعی";
           } else if (doc.status === "REJECTED" || doc.status?.startsWith("ابطال") || doc.status?.includes("رد") || doc.status?.includes("برگشت")) {
             mappedStatus = "ابطال‌شده";
@@ -1310,7 +1321,7 @@ export default function ManualDocument() {
 
           let returnedUserVal = doc.rawHeader?.returnedUser || "";
           if ((mappedStatus === "ابطال‌شده" || doc.status === "REJECTED") && !returnedUserVal && doc.workflowHistory && doc.workflowHistory.length > 0) {
-            const lastReject = [...doc.workflowHistory].reverse().find(h => h.action === "REJECT" || h.action === "رد" || h.fromStep?.includes("رد"));
+            const lastReject = [...doc.workflowHistory].reverse().find(h => h.action === "REJECT" || h.action === "PERMANENT_REJECT" || h.action === "رد" || h.fromStep?.includes("رد"));
             if (lastReject) {
               returnedUserVal = lastReject.user;
             }
@@ -1329,9 +1340,16 @@ export default function ManualDocument() {
             letterDate: doc.rawHeader?.letterDate ? adjustDateToFiscalYear(doc.rawHeader.letterDate, targetFY) : adjustDateToFiscalYear("", targetFY),
             status: mappedStatus,
             returnedUser: returnedUserVal,
+            rejectionCount: doc.rejectionCount || 0,
+            isPermanentlyRejected: isDocPermRejected,
           });
 
-          if (!canEditThisDoc && !copySourceId) {
+          if (isDocPermRejected && !copySourceId) {
+            setMessage({
+              type: "error",
+              text: `⛔ این سند (شماره سند: ${doc.document_number}) به دلیل رسیدن به حد مجاز (۳ بار رد شدن)، به طور دائم رد و ابطال گردیده است. تمامی اطلاعات در حالت فقط‌خواندنی قرار دارد و امکان ارسال یا ویرایش مجدد وجود ندارد.`,
+            });
+          } else if (!canEditThisDoc && !copySourceId) {
             if (isDocFinal) {
               setMessage({
                 type: "warning",
@@ -1339,7 +1357,7 @@ export default function ManualDocument() {
               });
             } else {
               setMessage({
-                type: "warning",
+                type: "success",
                 text: `🔒 این سند (شماره سند: ${doc.document_number}) جهت بررسی به تنظیم حساب / مراحل بعد ارسال شده و در کارتابل شما دیگر قابل تغییر نمی‌باشد.`,
               });
             }
@@ -1975,21 +1993,27 @@ export default function ManualDocument() {
 
       {message && (
         <div
-          className={`mb-4 flex items-center gap-2 rounded-xl border px-4 py-3 text-xs transition-all ${message.type === "success"
-            ? "border-green-200 bg-green-50 text-green-800"
-            : "border-rose-200 bg-rose-50 text-rose-800"
-            }`}
+          className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-2xl border px-5 py-3.5 text-xs font-semibold shadow-2xl transition-all duration-300 animate-in fade-in slide-in-from-top-4 max-w-xl w-[90%] ${
+            message.type === "success"
+              ? "border-emerald-300 bg-emerald-50/95 text-emerald-900 shadow-emerald-500/10"
+              : message.type === "warning"
+              ? "border-amber-300 bg-amber-50/95 text-amber-900 shadow-amber-500/10"
+              : "border-rose-300 bg-rose-50/95 text-rose-900 shadow-rose-500/10"
+          }`}
           dir="rtl"
         >
           {message.type === "success" ? (
-            <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600" />
+            <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
+          ) : message.type === "warning" ? (
+            <AlertCircle className="h-5 w-5 shrink-0 text-amber-600" />
           ) : (
-            <Ban className="h-4 w-4 shrink-0 text-rose-600" />
+            <Ban className="h-5 w-5 shrink-0 text-rose-600" />
           )}
-          <span>{message.text}</span>
+          <span className="leading-relaxed flex-1">{message.text}</span>
           <button
             onClick={() => setMessage(null)}
-            className="mr-auto hover:opacity-80 transition-opacity"
+            className="mr-auto p-1 rounded-lg hover:bg-black/5 transition-colors text-foreground/60 hover:text-foreground cursor-pointer"
+            title="بستن"
           >
             <X className="h-4 w-4" />
           </button>
@@ -2088,7 +2112,7 @@ export default function ManualDocument() {
                 />
                 <div className="mt-1">
                   <Label className={`${labelCls} mb-1 block`}>وضعیت سند</Label>
-                  <div className="flex flex-wrap gap-1.5 items-center">
+                  <div className="flex flex-wrap gap-1.5 items-center select-none">
                     {STATUS_OPTIONS.map((opt) => {
                       const isSelected =
                         header.status === opt.key ||
@@ -2104,39 +2128,17 @@ export default function ManualDocument() {
                         displayLabel = `۵. برگشت شده از ${returnedName ? returnedName : "......"}`;
                       }
                       return (
-                        <button
+                        <div
                           key={opt.key}
-                          type="button"
-                          onClick={() => {
-                            setH("status", opt.key);
-                            if (opt.key !== "ابطال‌شده") {
-                              setH("returnedUser", "");
-                            } else if (!header.returnedUser && userOptions.length > 0) {
-                              setH("returnedUser", userOptions[0].value);
-                            }
-                          }}
-                          className={`rounded-full px-2.5 py-1 text-[10px] font-medium text-white transition-all cursor-pointer ${
-                            isSelected ? opt.color + " ring-2 ring-offset-1 ring-current font-bold" : "bg-muted text-muted-foreground hover:bg-muted/80"
+                          className={`rounded-full px-2.5 py-1 text-[10px] font-medium transition-all cursor-default select-none ${
+                            isSelected ? opt.color + " text-white ring-2 ring-offset-1 ring-current font-bold" : "bg-muted text-muted-foreground/60 opacity-60"
                           }`}
                         >
                           {displayLabel}
-                        </button>
+                        </div>
                       );
                     })}
                   </div>
-
-                  {(header.status === "ابطال‌شده" || header.status?.startsWith("ابطال") || header.status?.includes("برگشت") || header.status?.includes("رد")) && (
-                    <div className="mt-2.5 flex items-center gap-2 p-2.5 rounded-lg bg-rose-50/90 border border-rose-200" dir="rtl">
-                      <Label className="text-xs text-rose-800 font-semibold whitespace-nowrap">مشخص نمودن کاربر برگشت‌دهنده:</Label>
-                      <SearchableSelect
-                        options={userOptions}
-                        value={formattedReturnedUser || userOptions[0]?.value || ""}
-                        onChange={(val) => setH("returnedUser", val)}
-                        placeholder="انتخاب کاربر برگشت‌دهنده..."
-                        className="h-8 text-xs bg-white border-rose-300 w-64"
-                      />
-                    </div>
-                  )}
                 </div>
               </div>
             </div>

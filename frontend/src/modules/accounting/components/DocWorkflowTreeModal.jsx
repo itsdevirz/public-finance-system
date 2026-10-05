@@ -191,13 +191,36 @@ export function DocWorkflowTreeModal({ doc, onClose }) {
 
         {/* بدنه درختواره */}
         <div className="p-6 space-y-6 flex-1">
-          <div className="flex items-center justify-between p-3.5 rounded-2xl border bg-muted/20">
-            <span className="text-xs font-bold text-muted-foreground">وضعیت کنونی سند:</span>
-            <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold",
-              doc.status?.includes("برگشت") ? "bg-amber-100 text-amber-700 border-amber-200" : (STATUS_COLOR[doc.status] ?? "bg-muted"))}>
-              {getCleanStatusLabel(doc.status)}
-            </span>
-          </div>
+          {doc.isPermanentlyRejected || (doc.rejectionCount || 0) >= 3 || doc.workflowStep === "PERMANENTLY_REJECTED" ? (
+            <div className="p-4 rounded-2xl border bg-rose-50 border-rose-200 text-rose-950 flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-2.5">
+                <Ban className="h-6 w-6 text-rose-600 shrink-0" />
+                <div>
+                  <h4 className="text-xs font-extrabold text-rose-900">این سند به طور دائم رد شده است</h4>
+                  <p className="text-[11px] text-rose-700 font-medium">به دلیل رسیدن به حد مجاز (۳ بار رد شدن)، این سند ابطال گردیده و دیگر قابل تأیید نمی‌باشد.</p>
+                </div>
+              </div>
+              <span className="bg-rose-600 text-white font-extrabold text-xs px-3 py-1 rounded-full shadow-xs">
+                تعداد دفعات رد: ۳ از ۳
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between p-3.5 rounded-2xl border bg-muted/20 flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-muted-foreground">وضعیت کنونی سند:</span>
+                <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold",
+                  doc.status?.includes("برگشت") ? "bg-amber-100 text-amber-700 border-amber-200" : (STATUS_COLOR[doc.status] ?? "bg-muted"))}>
+                  {getCleanStatusLabel(doc.status)}
+                </span>
+              </div>
+              {(doc.rejectionCount || 0) > 0 && (
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100/80 border border-amber-300 text-amber-900 text-xs font-bold">
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
+                  <span>تعداد دفعات رد شده: {toPersianDigits(doc.rejectionCount)} از ۳</span>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="relative pr-4 space-y-6 before:absolute before:right-[27px] before:top-3 before:bottom-3 before:w-0.5 before:bg-gradient-to-b before:from-primary/80 before:via-emerald-500/40 before:to-muted">
             {STEPS.map((step, idx) => {

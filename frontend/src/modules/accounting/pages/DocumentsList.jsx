@@ -83,8 +83,14 @@ const STATUS_ICON = {
 };
 
 
-function getNextRoleTarget(currentStep) {
-  if (currentStep === "ACCOUNTANT" || currentStep === "DRAFT" || currentStep === "REGULATOR" || !currentStep) {
+function getNextRoleTarget(currentStep, rejectionCount = 0) {
+  if (currentStep === "ACCOUNTANT" || currentStep === "DRAFT" || !currentStep) {
+    return {
+      nextRole: "تنظیم حساب",
+      actionLabel: rejectionCount > 0 ? "درخواست مجدد تأیید (ارسال به تنظیم حساب)" : "تأیید و ارسال به تنظیم حساب"
+    };
+  }
+  if (currentStep === "REGULATOR") {
     return { nextRole: "رئیس امور مالی", actionLabel: "تأیید و ارسال به رئیس امور مالی" };
   }
   if (currentStep === "FIN_HEAD") {
@@ -139,6 +145,11 @@ function canUserApproveOrReject(user, doc) {
     return false;
   }
 
+  // اگر سند به دلیل ۳ بار رد شدن، به طور دائم رد شده است
+  if (doc.isPermanentlyRejected || (doc.rejectionCount || 0) >= 3 || doc.workflowStep === "PERMANENTLY_REJECTED") {
+    return false;
+  }
+
   const uStr = user
     ? `${user.position || ""} ${user.role || ""} ${user.userGroup || ""} ${user.workflowLevel || ""} ${user.username || ""}`.toLowerCase()
     : "admin";
@@ -147,16 +158,16 @@ function canUserApproveOrReject(user, doc) {
 
   const currentStep = doc.workflowStep || "REGULATOR";
 
-  // ۱. برگشت داده‌شده به حسابدار یا پیش‌نویس
+  // ۱. مرحله حسابدار (امکان ارسال یا درخواست مجدد)
   if (currentStep === "ACCOUNTANT" || currentStep === "DRAFT") {
     const isAccountant = uStr.includes("حسابدار") || uStr.includes("accountant");
-    const isRegulator = uStr.includes("تنظیم") || uStr.includes("regulator");
-    return isAdmin || isAccountant || isRegulator;
+    return isAdmin || isAccountant;
   }
 
   // ۲. مرحله تنظیم حساب
-  if (currentStep === "REGULATOR" || status === "پیش‌نویس" || status === "ثبت اولیه") {
-    return isAdmin || uStr.includes("تنظیم") || uStr.includes("regulator") || uStr.includes("drafter");
+  if (currentStep === "REGULATOR") {
+    const isRegulator = uStr.includes("تنظیم") || uStr.includes("regulator") || uStr.includes("drafter");
+    return isAdmin || isRegulator;
   }
 
   // ۳. مرحله رئیس امور مالی
@@ -181,6 +192,9 @@ function canUserEdit(user, doc) {
   if (!doc) return false;
   const status = (doc.status || "").trim();
   if (status === "CONFIRMED" || status === "صدور سند قطعی" || status === "FINAL") {
+    return false;
+  }
+  if (doc.isPermanentlyRejected || (doc.rejectionCount || 0) >= 3 || doc.workflowStep === "PERMANENTLY_REJECTED") {
     return false;
   }
 
@@ -414,22 +428,24 @@ function DocDetailModal({ doc, onClose, onDelete, onWorkflowApprove, onWorkflowR
                   size="sm"
                   onClick={() => onWorkflowApprove(doc)}
                   className="gap-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer"
-                  title={getNextRoleTarget(doc.workflowStep).actionLabel}
+                  title={getNextRoleTarget(doc.workflowStep, doc.rejectionCount).actionLabel}
                 >
                   <CheckCircle2 className="h-3.5 w-3.5" />
-                  {getNextRoleTarget(doc.workflowStep).actionLabel}
+                  {getNextRoleTarget(doc.workflowStep, doc.rejectionCount).actionLabel}
                 </Button>
 
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => onWorkflowReject(doc)}
-                  className="gap-1.5 text-xs font-bold bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 cursor-pointer"
-                  title={`رد سند و برگشت به ${getPrevRoleTarget(doc.workflowStep)}`}
-                >
-                  <Ban className="h-3.5 w-3.5 text-rose-600" />
-                  رد سند و ارجاع
-                </Button>
+                {doc.workflowStep !== "ACCOUNTANT" && doc.workflowStep !== "DRAFT" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onWorkflowReject(doc)}
+                    className="gap-1.5 text-xs font-bold bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 cursor-pointer"
+                    title={`رد سند و برگشت به ${getPrevRoleTarget(doc.workflowStep)}`}
+                  >
+                    <Ban className="h-3.5 w-3.5 text-rose-600" />
+                    رد سند و ارجاع
+                  </Button>
+                )}
               </>
             )}
 
@@ -891,11 +907,23 @@ export default function DocumentsList() {
 
                         {/* وضعیت */}
                         <td className="px-4 py-3">
-                          <span className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap",
-                            doc.status?.includes("برگشت") ? "bg-amber-100 text-amber-700 border-amber-200" : (STATUS_COLOR[doc.status] ?? "bg-muted text-muted-foreground border-border"))}>
-                            <StatusIcon className="h-2.5 w-2.5" />
-                            {getCleanStatusLabel(doc.status)}
-                          </span>
+                          {doc.isPermanentlyRejected || (doc.rejectionCount || 0) >= 3 || doc.workflowStep === "PERMANENTLY_REJECTED" ? (
+                            <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-extrabold bg-rose-600 text-white border-rose-700 shadow-xs">
+                              <Ban className="h-2.5 w-2.5" />
+                              رد دائم (۳ از ۳)
+                            </span>
+                          ) : (doc.rejectionCount || 0) > 0 && (doc.workflowStep === "ACCOUNTANT" || doc.workflowStep === "DRAFT" || doc.status?.includes("برگشت")) ? (
+                            <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-800 border-amber-300">
+                              <AlertTriangle className="h-2.5 w-2.5 text-amber-600" />
+                              رد شده (تعداد دفعات رد: {toPersianDigits(doc.rejectionCount)} از ۳)
+                            </span>
+                          ) : (
+                            <span className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap",
+                              doc.status?.includes("برگشت") ? "bg-amber-100 text-amber-700 border-amber-200" : (STATUS_COLOR[doc.status] ?? "bg-muted text-muted-foreground border-border"))}>
+                              <StatusIcon className="h-2.5 w-2.5" />
+                              {getCleanStatusLabel(doc.status)}
+                            </span>
+                          )}
                         </td>
 
                         {/* کدهای حساب */}
@@ -942,18 +970,20 @@ export default function DocumentsList() {
                                 <button
                                   onClick={(e) => { e.stopPropagation(); handleWorkflowApprove(doc); }}
                                   className="rounded-lg p-1.5 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 hover:text-emerald-700 transition-all border border-emerald-200 cursor-pointer"
-                                  title={getNextRoleTarget(doc.workflowStep).actionLabel}
+                                  title={getNextRoleTarget(doc.workflowStep, doc.rejectionCount).actionLabel}
                                 >
                                   <CheckCircle2 className="h-4 w-4" />
                                 </button>
 
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); setRejectingDoc(doc); setRejectionReason(""); }}
-                                  className="rounded-lg p-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 hover:text-rose-700 transition-all border border-rose-200 cursor-pointer"
-                                  title={`رد سند و برگشت به ${getPrevRoleTarget(doc.workflowStep)}`}
-                                >
-                                  <Ban className="h-4 w-4" />
-                                </button>
+                                {doc.workflowStep !== "ACCOUNTANT" && doc.workflowStep !== "DRAFT" && (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); setRejectingDoc(doc); setRejectionReason(""); }}
+                                    className="rounded-lg p-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 hover:text-rose-700 transition-all border border-rose-200 cursor-pointer"
+                                    title={`رد سند و برگشت به ${getPrevRoleTarget(doc.workflowStep)}`}
+                                  >
+                                    <Ban className="h-4 w-4" />
+                                  </button>
+                                )}
                               </>
                             )}
 

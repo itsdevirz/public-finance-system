@@ -35,6 +35,8 @@ export interface JournalDocument {
   currentAssigneeRole?: string;
   returnedUser?: string;
   rejectionReason?: string;
+  rejectionCount?: number;
+  isPermanentlyRejected?: boolean;
   workflowHistory?: WorkflowHistoryItem[];
   createdBy?: string;
   createdAt?: string;
