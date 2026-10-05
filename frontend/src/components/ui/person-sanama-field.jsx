@@ -17,7 +17,7 @@ export function PersonSanamaField({ value, onChange, labelCls = "", required = t
     <Label className={`text-[11px] font-semibold text-foreground/80 flex items-center gap-1 ${labelCls}`}>
       {required && <span className="text-rose-500">*</span>}
       <Users className="h-3 w-3 text-primary/70" />
-      اشخاص (NomineeCode)
+      اشخاص
     </Label>
   );
 

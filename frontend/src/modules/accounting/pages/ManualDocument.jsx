@@ -1357,7 +1357,7 @@ export default function ManualDocument() {
               });
             } else {
               setMessage({
-                type: "success",
+                type: "warning",
                 text: `🔒 این سند (شماره سند: ${doc.document_number}) جهت بررسی به تنظیم حساب / مراحل بعد ارسال شده و در کارتابل شما دیگر قابل تغییر نمی‌باشد.`,
               });
             }
@@ -1415,7 +1415,16 @@ export default function ManualDocument() {
 
   async function handleSave() {
     if (isReadOnly) {
-      setMessage({ type: "error", text: "خطا: این سند قطعی شده است و امکان ویرایش آن وجود ندارد." });
+      const isDocFinal = loadedDoc && (loadedDoc.status === "CONFIRMED" || loadedDoc.status === "صدور سند قطعی" || loadedDoc.status === "FINAL" || loadedDoc.workflowStep === "FINAL");
+      const isDocPermRejected = loadedDoc && (loadedDoc.isPermanentlyRejected || (loadedDoc.rejectionCount || 0) >= 3 || loadedDoc.workflowStep === "PERMANENTLY_REJECTED");
+
+      if (isDocPermRejected) {
+        setMessage({ type: "error", text: "خطا: این سند به طور دائم رد و ابطال شده است و امکان ویرایش آن وجود ندارد." });
+      } else if (isDocFinal) {
+        setMessage({ type: "error", text: "خطا: این سند قطعی شده است و امکان ویرایش آن وجود ندارد." });
+      } else {
+        setMessage({ type: "error", text: "خطا: این سند جهت بررسی به مراحل بعدی ارسال شده و در کارتابل شما قابل تغییر نیست." });
+      }
       return;
     }
     // ─── ۱. بررسی سطوح دسترسی اولیه ───────────────────────────────────────

@@ -272,7 +272,12 @@ function syncDocumentWorkflowStep(doc: any) {
   const status = (doc.status || "").trim();
   const history = doc.workflowHistory || [];
 
-  if (status === "CONFIRMED" || status === "صدور سند قطعی" || status === "FINAL") {
+  if (doc.isPermanentlyRejected || (doc.rejectionCount || 0) >= 3 || doc.workflowStep === "PERMANENTLY_REJECTED" || status.includes("رد دائم")) {
+    doc.workflowStep = "PERMANENTLY_REJECTED";
+    doc.currentAssigneeRole = "ابطال‌شده";
+    doc.status = "CANCELLED";
+    doc.isPermanentlyRejected = true;
+  } else if (status === "CONFIRMED" || status === "صدور سند قطعی" || status === "FINAL") {
     doc.workflowStep = "FINAL";
     doc.currentAssigneeRole = "تکمیل شده";
   } else if (!doc.workflowStep || (history.length === 0 && doc.workflowStep !== "ACCOUNTANT")) {
@@ -802,8 +807,8 @@ router.post("/:id/workflow/reject", async (c) => {
 
     const updateFields: Record<string, unknown> = {
       workflowStep: "PERMANENTLY_REJECTED",
-      currentAssigneeRole: "رد دائم",
-      status: `رد دائم (۳ از ۳)`,
+      currentAssigneeRole: "ابطال‌شده",
+      status: "CANCELLED",
       rejectionCount: newRejectionCount,
       isPermanentlyRejected: true,
       returnedUser: userDisplay,

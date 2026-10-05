@@ -141,51 +141,53 @@ function canUserApproveOrReject(user, doc) {
   if (!doc) return false;
 
   const status = (doc.status || "").trim();
-  if (status === "CONFIRMED" || status === "صدور سند قطعی" || status === "FINAL") {
+  if (status === "CONFIRMED" || status === "صدور سند قطعی" || status === "FINAL" || status === "CANCELLED" || status === "ابطال‌شده") {
     return false;
   }
 
   // اگر سند به دلیل ۳ بار رد شدن، به طور دائم رد شده است
-  if (doc.isPermanentlyRejected || (doc.rejectionCount || 0) >= 3 || doc.workflowStep === "PERMANENTLY_REJECTED") {
+  if (doc.isPermanentlyRejected || (doc.rejectionCount || 0) >= 3 || doc.workflowStep === "PERMANENTLY_REJECTED" || status.includes("رد دائم")) {
     return false;
   }
 
   const uStr = user
     ? `${user.position || ""} ${user.role || ""} ${user.userGroup || ""} ${user.workflowLevel || ""} ${user.username || ""}`.toLowerCase()
-    : "admin";
-
-  const isAdmin = !user || user.isAdmin === true || user.role === "admin" || uStr.includes("admin") || uStr.includes("مدیر سیستم") || uStr.includes("مدیرکل");
+    : "";
 
   const currentStep = doc.workflowStep || "REGULATOR";
 
-  // ۱. مرحله حسابدار (امکان ارسال یا درخواست مجدد)
+  const isAccountant = uStr.includes("حسابدار") || uStr.includes("accountant");
+  const isRegulator = uStr.includes("تنظیم") || uStr.includes("regulator") || uStr.includes("drafter");
+  const isFinHead = uStr.includes("رئیس امور مالی") || uStr.includes("fin_head");
+  const isFinDirector = uStr.includes("مدیر مالی") || uStr.includes("ذیحساب") || uStr.includes("fin_director");
+  const isAgencyHead = uStr.includes("رئیس دستگاه") || uStr.includes("agency_head");
+
+  // ۱. مرحله حسابدار (امکان ارسال اولیه یا درخواست مجدد پس از رد)
   if (currentStep === "ACCOUNTANT" || currentStep === "DRAFT") {
-    const isAccountant = uStr.includes("حسابدار") || uStr.includes("accountant");
-    return isAdmin || isAccountant;
+    return isAccountant && !isRegulator && !isFinHead && !isFinDirector && !isAgencyHead;
   }
 
   // ۲. مرحله تنظیم حساب
   if (currentStep === "REGULATOR") {
-    const isRegulator = uStr.includes("تنظیم") || uStr.includes("regulator") || uStr.includes("drafter");
-    return isAdmin || isRegulator;
+    return isRegulator && !isFinHead && !isFinDirector && !isAgencyHead;
   }
 
   // ۳. مرحله رئیس امور مالی
   if (currentStep === "FIN_HEAD") {
-    return isAdmin || uStr.includes("رئیس امور مالی") || uStr.includes("fin_head");
+    return isFinHead && !isFinDirector && !isAgencyHead;
   }
 
   // ۴. مرحله مدیر مالی و ذیحساب
   if (currentStep === "FIN_DIRECTOR") {
-    return isAdmin || uStr.includes("مدیر مالی") || uStr.includes("ذیحساب") || uStr.includes("fin_director");
+    return isFinDirector && !isAgencyHead;
   }
 
   // ۵. مرحله رئیس دستگاه اجرایی
   if (currentStep === "AGENCY_HEAD") {
-    return isAdmin || uStr.includes("رئیس دستگاه") || uStr.includes("agency_head");
+    return isAgencyHead;
   }
 
-  return isAdmin;
+  return false;
 }
 
 function canUserEdit(user, doc) {
@@ -632,16 +634,22 @@ export default function DocumentsList() {
   // خلاصه آماری (بر اساس اسناد دوره مالی فعال)
   const stats = useMemo(() => ({
     total: yearDocs.length,
-    draft: yearDocs.filter(d => d.status === "DRAFT").length,
-    confirmed: yearDocs.filter(d => d.status === "CONFIRMED").length,
-    cancelled: yearDocs.filter(d => d.status === "CANCELLED").length,
+    draft: yearDocs.filter(d => d.status === "DRAFT" || d.status === "پیش‌نویس").length,
+    confirmed: yearDocs.filter(d => d.status === "CONFIRMED" || d.status === "صدور سند قطعی" || d.status === "FINAL").length,
+    cancelled: yearDocs.filter(d => d.status === "CANCELLED" || d.status === "ابطال‌شده" || d.isPermanentlyRejected || (d.rejectionCount || 0) >= 3 || d.workflowStep === "PERMANENTLY_REJECTED" || d.status?.includes("رد دائم")).length,
   }), [yearDocs]);
 
   // فیلتر + جستجو + مرتب‌سازی
   const filtered = useMemo(() => {
     let list = [...yearDocs];
 
-    if (filterStatus !== "ALL") list = list.filter(d => d.status === filterStatus);
+    if (filterStatus !== "ALL") {
+      if (filterStatus === "CANCELLED" || filterStatus === "ابطال‌شده") {
+        list = list.filter(d => d.status === "CANCELLED" || d.status === "ابطال‌شده" || d.isPermanentlyRejected || (d.rejectionCount || 0) >= 3 || d.workflowStep === "PERMANENTLY_REJECTED" || d.status?.includes("رد دائم"));
+      } else {
+        list = list.filter(d => d.status === filterStatus);
+      }
+    }
     if (filterType !== "ALL") list = list.filter(d => d.document_type === filterType);
 
     if (search.trim()) {
@@ -907,12 +915,12 @@ export default function DocumentsList() {
 
                         {/* وضعیت */}
                         <td className="px-4 py-3">
-                          {doc.isPermanentlyRejected || (doc.rejectionCount || 0) >= 3 || doc.workflowStep === "PERMANENTLY_REJECTED" ? (
+                          {doc.isPermanentlyRejected || (doc.rejectionCount || 0) >= 3 || doc.workflowStep === "PERMANENTLY_REJECTED" || doc.status === "CANCELLED" || doc.status === "ابطال‌شده" || doc.status?.includes("رد دائم") ? (
                             <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-extrabold bg-rose-600 text-white border-rose-700 shadow-xs">
                               <Ban className="h-2.5 w-2.5" />
-                              رد دائم (۳ از ۳)
+                              ابطال‌شده (رد دائم ۳ از ۳)
                             </span>
-                          ) : (doc.rejectionCount || 0) > 0 && (doc.workflowStep === "ACCOUNTANT" || doc.workflowStep === "DRAFT" || doc.status?.includes("برگشت")) ? (
+                          ) : (doc.rejectionCount || 0) > 0 && (doc.workflowStep === "ACCOUNTANT" || doc.workflowStep === "DRAFT" || doc.workflowStep === "REGULATOR" || doc.status?.includes("برگشت")) ? (
                             <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-800 border-amber-300">
                               <AlertTriangle className="h-2.5 w-2.5 text-amber-600" />
                               رد شده (تعداد دفعات رد: {toPersianDigits(doc.rejectionCount)} از ۳)
