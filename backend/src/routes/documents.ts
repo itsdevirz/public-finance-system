@@ -280,6 +280,8 @@ function syncDocumentWorkflowStep(doc: any) {
   } else if (status === "CONFIRMED" || status === "صدور سند قطعی" || status === "FINAL") {
     doc.workflowStep = "FINAL";
     doc.currentAssigneeRole = "تکمیل شده";
+  } else if (doc.workflowStep === "AGENCY_HEAD" || status.includes("تأیید مدیر مالی")) {
+    doc.status = "تأییدشده";
   } else if (!doc.workflowStep || (history.length === 0 && doc.workflowStep !== "ACCOUNTANT")) {
     doc.workflowStep = "REGULATOR";
     doc.currentAssigneeRole = "تنظیم حساب";
@@ -706,7 +708,7 @@ router.post("/:id/workflow/approve", async (c) => {
   } else if (currentStep === "FIN_DIRECTOR") {
     nextStep = "AGENCY_HEAD";
     nextRole = "رئیس دستگاه اجرایی";
-    nextStatus = "تأیید مدیر مالی و ذیحساب";
+    nextStatus = "تأییدشده";
   } else if (currentStep === "AGENCY_HEAD") {
     nextStep = "FINAL";
     nextRole = "تکمیل شده";

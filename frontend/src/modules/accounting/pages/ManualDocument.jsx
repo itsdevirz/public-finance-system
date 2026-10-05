@@ -1311,7 +1311,7 @@ export default function ManualDocument() {
             mappedStatus = "صدور سند قطعی";
           } else if (doc.status === "REJECTED" || doc.status?.startsWith("ابطال") || doc.status?.includes("رد") || doc.status?.includes("برگشت")) {
             mappedStatus = "ابطال‌شده";
-          } else if (doc.status === "APPROVED" || doc.status === "تأییدشده") {
+          } else if (doc.status === "APPROVED" || doc.status === "تأییدشده" || doc.workflowStep === "AGENCY_HEAD" || doc.status?.includes("تأیید مدیر مالی")) {
             mappedStatus = "تأییدشده";
           } else if (doc.status === "DRAFT" || doc.status === "پیش‌نویس") {
             mappedStatus = "پیش‌نویس";
