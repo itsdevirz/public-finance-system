@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { Calendar } from "lucide-react";
 
 // ---- Shamsi Calendar Helpers ----
@@ -175,16 +176,56 @@ export function PersianDatePicker({ value = "", onChange, className = "", placeh
     }
   }, [safeVal, fixedYear, fyNum]);
 
-  // Click outside listener to close popup
+  const popupRef = useRef(null);
+  const [popupStyle, setPopupStyle] = useState({});
+
+  const calcStyle = useCallback(() => {
+    if (!containerRef.current) return;
+    const r = containerRef.current.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const panelW = 288;
+    const panelH = 320;
+
+    const spaceBelow = vh - r.bottom - 8;
+    const spaceAbove = r.top - 8;
+    const openUp = spaceBelow < panelH && spaceAbove > spaceBelow;
+    const topVal = openUp ? Math.max(8, r.top - panelH - 4) : Math.min(vh - panelH - 8, r.bottom + 4);
+
+    let rightVal = vw - r.right;
+    const leftEdge = vw - rightVal - panelW;
+    if (leftEdge < 8) rightVal = Math.max(vw - panelW - 8, 8);
+
+    setPopupStyle({
+      position: "fixed",
+      top: `${topVal}px`,
+      right: `${rightVal}px`,
+      width: `${panelW}px`,
+      zIndex: 99999,
+    });
+  }, []);
+
+  // Click outside listener to close popup and handle window resize/scroll
   useEffect(() => {
+    if (!isOpen) return;
+    calcStyle();
     function handleClickOutside(event) {
-      if (containerRef.current && !containerRef.current.contains(event.target)) {
+      if (
+        containerRef.current && !containerRef.current.contains(event.target) &&
+        popupRef.current && !popupRef.current.contains(event.target)
+      ) {
         setIsOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    window.addEventListener("scroll", calcStyle, true);
+    window.addEventListener("resize", calcStyle);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("scroll", calcStyle, true);
+      window.removeEventListener("resize", calcStyle);
+    };
+  }, [isOpen, calcStyle]);
 
   const triggerChange = (val) => {
     if (!onChange) return;
@@ -321,16 +362,25 @@ export function PersianDatePicker({ value = "", onChange, className = "", placeh
         <button
           type="button"
           tabIndex={-1}
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsOpen((prev) => !prev);
+          }}
           disabled={disabled}
-          className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
         >
           <Calendar className="h-4 w-4" />
         </button>
       </div>
 
-      {isOpen && (
-        <div className="absolute z-50 right-0 mt-1 w-72 rounded-2xl border border-border bg-white p-3 text-popover-foreground shadow-2xl animate-in fade-in slide-in-from-top-1 duration-150">
+      {isOpen && typeof document !== "undefined" &&
+        createPortal(
+          <div
+            ref={popupRef}
+            style={popupStyle}
+            dir="rtl"
+            className="rounded-2xl border border-border bg-white p-3 text-popover-foreground shadow-2xl animate-in fade-in slide-in-from-top-1 duration-150 font-sans"
+          >
           {/* Header */}
           <div className="flex items-center justify-between gap-1 mb-3">
             {!fyNum ? (
@@ -391,7 +441,8 @@ export function PersianDatePicker({ value = "", onChange, className = "", placeh
           <div className="grid grid-cols-7 gap-1">
             {dayCells}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

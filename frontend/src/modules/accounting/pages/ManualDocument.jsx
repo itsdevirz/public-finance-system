@@ -10,7 +10,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Plus, Trash2, Save, Printer, RotateCcw,
   FileText, CheckCircle2, Ban, X, AlertCircle,
-  Check, FileEdit, Copy, GitFork
+  Check, FileEdit, Copy, GitFork, Send
 } from "lucide-react";
 import api from "@/api";
 import { useApiCache } from "@/hooks/useApiCache";
@@ -30,6 +30,59 @@ import { useTabs } from "@/context/TabContext";
 import { DocWorkflowTreeModal } from "@/modules/accounting/components/DocWorkflowTreeModal";
 
 // ---- helpers ----
+function getNextRoleTarget(currentStep, rejectionCount = 0) {
+  if (currentStep === "ACCOUNTANT" || currentStep === "DRAFT" || !currentStep) {
+    return {
+      nextRole: "تنظیم حساب",
+      actionLabel: rejectionCount > 0 ? "درخواست مجدد تأیید (ارسال به تنظیم حساب)" : "تأیید و ارسال به تنظیم حساب"
+    };
+  }
+  if (currentStep === "REGULATOR") {
+    return { nextRole: "رئیس امور مالی", actionLabel: "تأیید و ارسال به رئیس امور مالی" };
+  }
+  if (currentStep === "FIN_HEAD") {
+    return { nextRole: "مدیر مالی و ذیحساب", actionLabel: "تأیید و ارسال به مدیر مالی و ذیحساب" };
+  }
+  if (currentStep === "FIN_DIRECTOR") {
+    return { nextRole: "رئیس دستگاه اجرایی", actionLabel: "تأیید و ارسال به رئیس دستگاه اجرایی" };
+  }
+  if (currentStep === "AGENCY_HEAD") {
+    return { nextRole: "تکمیل شده", actionLabel: "تأیید نهایی و صدور سند قطعی" };
+  }
+  return { nextRole: "تکمیل شده", actionLabel: "تأیید و نهایی‌سازی" };
+}
+
+function canUserManageStep(user, step, isReturned = false) {
+  if (!user) return true;
+  const uStr = `${user.position || ""} ${user.role || ""} ${user.userGroup || ""} ${user.workflowLevel || ""} ${user.username || ""}`.toLowerCase();
+  const isAdmin = user.isAdmin === true || user.role === "admin" || uStr.includes("admin") || uStr.includes("مدیر سیستم") || uStr.includes("مدیرکل");
+  if (isAdmin) return true;
+
+  const currentStep = step || "ACCOUNTANT";
+  const isAccountant = uStr.includes("حسابدار") || uStr.includes("accountant");
+  const isRegulator = uStr.includes("تنظیم") || uStr.includes("regulator") || uStr.includes("drafter");
+  const isFinHead = uStr.includes("رئیس امور مالی") || uStr.includes("fin_head");
+  const isFinDirector = uStr.includes("مدیر مالی") || uStr.includes("ذیحساب") || uStr.includes("fin_director");
+  const isAgencyHead = uStr.includes("رئیس دستگاه") || uStr.includes("agency_head");
+
+  if (currentStep === "ACCOUNTANT" || currentStep === "DRAFT" || isReturned) {
+    return isAccountant;
+  }
+  if (currentStep === "REGULATOR") {
+    return isRegulator;
+  }
+  if (currentStep === "FIN_HEAD") {
+    return isFinHead;
+  }
+  if (currentStep === "FIN_DIRECTOR") {
+    return isFinDirector;
+  }
+  if (currentStep === "AGENCY_HEAD") {
+    return isAgencyHead;
+  }
+  return false;
+}
+
 const allGroups = sanamaCodes.groups.map((g) => ({ code: g.code, title: g.title, accounts: g.accounts }));
 
 function numberToPersianWords(num) {
@@ -425,14 +478,14 @@ function SanamaNumericInput({ value, onChange, inputCls, disabled = false, allow
 // wrapper: label کوچک خاکستری بالا، input پایین
 function SanamaWrap({ title, children, wide = false, hasError = false, errorMsg = "این الزام تکمیل شود" }) {
   return (
-    <div className={`flex flex-col gap-1 min-w-0 w-full overflow-hidden ${wide ? "sm:col-span-2" : ""}`}>
+    <div className={`flex flex-col gap-1 min-w-0 w-full overflow-visible ${wide ? "sm:col-span-2" : ""}`}>
       <span
         className={`text-[10px] font-medium leading-none truncate ${hasError ? "text-rose-600 font-semibold" : "text-muted-foreground/80"}`}
         title={title}
       >
         {title}
       </span>
-      <div className="w-full min-w-0">
+      <div className="w-full min-w-0 overflow-visible">
         {children}
       </div>
       {hasError && (
@@ -1001,6 +1054,7 @@ export default function ManualDocument() {
 
   const [docId, setDocId] = useState(initialDocId);
   const [loading, setLoading] = useState(false);
+  const [savingAndSending, setSavingAndSending] = useState(false);
   const [message, setMessage] = useState(null);
 
   useEffect(() => {
@@ -1233,6 +1287,47 @@ export default function ManualDocument() {
   const [loadedDoc, setLoadedDoc] = useState(null);
   const [showTreeModal, setShowTreeModal] = useState(false);
 
+  const nextTarget = useMemo(() => {
+    const step = loadedDoc?.workflowStep || header.workflowStep;
+    const count = loadedDoc?.rejectionCount || header.rejectionCount || 0;
+    return getNextRoleTarget(step, count);
+  }, [loadedDoc?.workflowStep, loadedDoc?.rejectionCount, header.workflowStep, header.rejectionCount]);
+
+  const docStep = loadedDoc?.workflowStep || header.workflowStep || "ACCOUNTANT";
+  const isDocReturned = Boolean(
+    (loadedDoc?.rejectionCount || 0) > 0 ||
+    loadedDoc?.rejectionReason ||
+    (typeof loadedDoc?.status === "string" && (loadedDoc.status.includes("برگشت") || loadedDoc.status.includes("رد"))) ||
+    (typeof header?.status === "string" && (header.status.includes("برگشت") || header.status.includes("رد"))) ||
+    header?.rejectionReason ||
+    (header?.rejectionCount || 0) > 0
+  );
+
+  const canCurrentUserManageDoc = useMemo(() => {
+    if (!docId) return true;
+    return canUserManageStep(currentUser, docStep, isDocReturned);
+  }, [currentUser, docStep, isDocReturned, docId]);
+
+  const sendToLabel = useMemo(() => {
+    const isDocFinal = loadedDoc && (loadedDoc.status === "CONFIRMED" || loadedDoc.status === "صدور سند قطعی" || loadedDoc.status === "FINAL" || loadedDoc.workflowStep === "FINAL");
+    if (isDocFinal) {
+      return "سند قطعی شده است";
+    }
+
+    if (!canCurrentUserManageDoc) {
+      const currentRole = loadedDoc?.currentAssigneeRole || header.currentAssigneeRole;
+      if (currentRole) {
+        return `ارسال شده به ${currentRole}`;
+      }
+      return "ارسال شده به مرحله بعد";
+    }
+
+    if (!nextTarget?.nextRole || nextTarget.nextRole === "تکمیل شده") {
+      return "ثبت و صدور سند قطعی";
+    }
+    return `ثبت و ارسال به ${nextTarget.nextRole}`;
+  }, [nextTarget, canCurrentUserManageDoc, loadedDoc, header.currentAssigneeRole]);
+
   const activeRow = rows.find((r) => r.id === activeRowId) ?? rows[0];
   const showSanamaFields = needsSanamaFields(activeRow?.subAccount);
 
@@ -1283,14 +1378,11 @@ export default function ManualDocument() {
         if (doc) {
           setLoadedDoc(doc);
           const isDocFinal = (doc.status === "CONFIRMED" || doc.status === "صدور سند قطعی" || doc.status === "FINAL" || doc.workflowStep === "FINAL") && !copySourceId;
-          const uStr = currentUser
-            ? `${currentUser.position || ""} ${currentUser.role || ""} ${currentUser.userGroup || ""} ${currentUser.workflowLevel || ""} ${currentUser.username || ""}`.toLowerCase()
-            : "admin";
-          const isAdminUser = !currentUser || currentUser.isAdmin === true || uStr.includes("admin") || uStr.includes("مدیر سیستم") || uStr.includes("مدیرکل");
-          const isCurrentStepAccountant = doc.workflowStep === "ACCOUNTANT" || doc.workflowStep === "DRAFT" || (doc.status || "").includes("برگشت") || (doc.status || "").includes("ابطال");
-          
           const isDocPermRejected = doc.isPermanentlyRejected || (doc.rejectionCount || 0) >= 3 || doc.workflowStep === "PERMANENTLY_REJECTED";
-          const canEditThisDoc = copySourceId ? true : (!isDocPermRejected && (isAdminUser || isCurrentStepAccountant));
+          const isReturned = (doc.rejectionCount || 0) > 0 || (doc.status || "").includes("برگشت") || (doc.status || "").includes("رد") || (doc.status || "").includes("ابطال");
+
+          const canManage = canUserManageStep(currentUser, doc.workflowStep, isReturned);
+          const canEditThisDoc = copySourceId ? true : (!isDocPermRejected && !isDocFinal && canManage);
           setIsReadOnly(!canEditThisDoc);
 
           const targetFY = selectedFiscalYear || String(doc.fiscal_year || "1405");
@@ -1307,12 +1399,12 @@ export default function ManualDocument() {
           let mappedStatus = "پیش‌نویس";
           if (isDocPermRejected) {
             mappedStatus = "ابطال‌شده";
-          } else if (doc.status === "CONFIRMED" || doc.status === "FINAL" || doc.status === "صدور سند قطعی" || doc.workflowStep === "FINAL") {
-            mappedStatus = "صدور سند قطعی";
-          } else if (doc.status === "REJECTED" || doc.status?.startsWith("ابطال") || doc.status?.includes("رد") || doc.status?.includes("برگشت")) {
-            mappedStatus = "ابطال‌شده";
-          } else if (doc.status === "APPROVED" || doc.status === "تأییدشده" || doc.workflowStep === "AGENCY_HEAD" || doc.status?.includes("تأیید مدیر مالی")) {
+          } else if (doc.status === "CONFIRMED" || doc.status === "FINAL" || doc.status === "صدور سند قطعی" || doc.workflowStep === "FINAL" || doc.status === "تأییدشده") {
             mappedStatus = "تأییدشده";
+          } else if (doc.status === "REJECTED" || doc.status?.startsWith("ابطال") || doc.status?.includes("رد") || doc.status?.includes("برگشت")) {
+            mappedStatus = isDocPermRejected ? "ابطال‌شده" : (doc.status || "ثبت اولیه");
+          } else if (doc.status === "APPROVED" || doc.workflowStep === "AGENCY_HEAD") {
+            mappedStatus = "در انتظار تأیید رئیس دستگاه";
           } else if (doc.status === "DRAFT" || doc.status === "پیش‌نویس") {
             mappedStatus = "پیش‌نویس";
           } else {
@@ -1356,9 +1448,10 @@ export default function ManualDocument() {
                 text: `🔒 این سند (شماره سند: ${doc.document_number}) به صورت قطعی و نهایی تأیید شده است. تمامی اطلاعات در حالت فقط‌خواندنی قرار دارد و امکان تغییر وجود ندارد.`,
               });
             } else {
+              const currentAssignee = doc.currentAssigneeRole || (doc.workflowStep === "REGULATOR" ? "تنظیم حساب" : "مراحل بعد");
               setMessage({
                 type: "warning",
-                text: `🔒 این سند (شماره سند: ${doc.document_number}) جهت بررسی به تنظیم حساب / مراحل بعد ارسال شده و در کارتابل شما دیگر قابل تغییر نمی‌باشد.`,
+                text: `🔒 این سند (شماره سند: ${doc.document_number}) در کارتابل «${currentAssignee}» قرار دارد و در کارتابل شما قابل تغییر نمی‌باشد.`,
               });
             }
           } else if (doc.status === "DRAFT") {
@@ -1413,8 +1506,8 @@ export default function ManualDocument() {
     return () => { isMounted = false; };
   }, [docId, copySourceId]);
 
-  async function handleSave() {
-    if (isReadOnly) {
+  async function handleSave(andSend = false) {
+    if (isReadOnly || !canCurrentUserManageDoc) {
       const isDocFinal = loadedDoc && (loadedDoc.status === "CONFIRMED" || loadedDoc.status === "صدور سند قطعی" || loadedDoc.status === "FINAL" || loadedDoc.workflowStep === "FINAL");
       const isDocPermRejected = loadedDoc && (loadedDoc.isPermanentlyRejected || (loadedDoc.rejectionCount || 0) >= 3 || loadedDoc.workflowStep === "PERMANENTLY_REJECTED");
 
@@ -1423,7 +1516,8 @@ export default function ManualDocument() {
       } else if (isDocFinal) {
         setMessage({ type: "error", text: "خطا: این سند قطعی شده است و امکان ویرایش آن وجود ندارد." });
       } else {
-        setMessage({ type: "error", text: "خطا: این سند جهت بررسی به مراحل بعدی ارسال شده و در کارتابل شما قابل تغییر نیست." });
+        const currentAssignee = loadedDoc?.currentAssigneeRole || header.currentAssigneeRole || "مراحل بعدی";
+        setMessage({ type: "error", text: `خطا: این سند در کارتابل «${currentAssignee}» قرار دارد و در کارتابل شما قابل تغییر نیست.` });
       }
       return;
     }
@@ -1474,6 +1568,7 @@ export default function ManualDocument() {
       if (balanceError) {
         setMessage({ type: "error", text: balanceError });
         setLoading(false);
+        setSavingAndSending(false);
         return;
       }
     }
@@ -1523,32 +1618,49 @@ export default function ManualDocument() {
 
     const hasValidationError = validationErrors.length > 0;
 
-    // ─── تعیین وضعیت نهایی جهت ذخیره در سرور ───
-    let statusMapped = "DRAFT";
-    if (!hasValidationError) {
-      if (header.status === "رد شده") {
-        statusMapped = "CANCELLED";
-      } else {
-        statusMapped = "CONFIRMED";
-      }
-
-      if (currentUser && currentUser.role !== "admin" && statusMapped === "CONFIRMED" && !currentUser.permissions?.["doc.approve"]) {
-        statusMapped = "DRAFT";
-      }
+    // در حالت «ثبت و ارسال به ...» اگر سند خطا داشته باشد مانع ارسال می‌شویم
+    if (andSend && hasValidationError) {
+      setMessage({
+        type: "error",
+        text: `امکان ارسال سند وجود ندارد. لطفاً ابتدا موارد زیر را برطرف نمایید: ${validationErrors.join(" | ")}`
+      });
+      return;
     }
 
-    setLoading(true);
+    if (andSend) {
+      setSavingAndSending(true);
+    } else {
+      setLoading(true);
+    }
     setMessage(null);
 
     try {
       const finalDocDate = adjustDateToFiscalYear(header.docDate, header.fiscalYear);
 
+      const isReturnedDoc = Boolean(
+        docId && (
+          (loadedDoc?.rejectionCount || 0) > 0 ||
+          loadedDoc?.rejectionReason ||
+          (typeof loadedDoc?.status === "string" && (loadedDoc.status.includes("برگشت") || loadedDoc.status.includes("رد"))) ||
+          (typeof header?.status === "string" && (header.status.includes("برگشت") || header.status.includes("رد"))) ||
+          header?.rejectionReason ||
+          (header?.rejectionCount || 0) > 0
+        )
+      );
+
+      // در حالت فقط «ثبت سند»: به عنوان پیش‌نویس یا وضعیت فعلی ذخیره می‌شود
+      let nextWorkflowStep = header.workflowStep || (loadedDoc?.workflowStep) || "ACCOUNTANT";
+      let nextAssigneeRole = header.currentAssigneeRole || (loadedDoc?.currentAssigneeRole) || "حسابدار";
+      let nextStatus = hasValidationError
+        ? "پیش‌نویس"
+        : (isReturnedDoc ? "برگشت داده شده" : (header.status || "پیش‌نویس"));
+
       const updatedHeader = {
         ...header,
         docDate: finalDocDate,
-        status: hasValidationError ? "پیش‌نویس" : (header.status || "ثبت اولیه"),
-        workflowStep: header.workflowStep || "REGULATOR",
-        currentAssigneeRole: header.currentAssigneeRole || "تنظیم حساب",
+        status: nextStatus,
+        workflowStep: nextWorkflowStep,
+        currentAssigneeRole: nextAssigneeRole,
       };
 
       const sensitiveState = {
@@ -1572,9 +1684,9 @@ export default function ManualDocument() {
         document_type: docTypeMapped,
         fiscal_year: Number(header.fiscalYear) || 1405,
         document_date: finalDocDate,
-        status: hasValidationError ? "DRAFT" : (header.status || "ثبت اولیه"),
-        workflowStep: header.workflowStep || "REGULATOR",
-        currentAssigneeRole: header.currentAssigneeRole || "تنظیم حساب",
+        status: hasValidationError ? "DRAFT" : nextStatus,
+        workflowStep: nextWorkflowStep,
+        currentAssigneeRole: nextAssigneeRole,
         returnedUser: header.returnedUser || "",
         rejectionReason: header.rejectionReason || "",
         ciphertext: encryptedHex,
@@ -1584,32 +1696,76 @@ export default function ManualDocument() {
         ? await api.put(`/api/documents/${docId}`, payload)
         : await api.post("/api/documents", payload);
 
-      const savedDocNumber = res.data.data.document_number;
-      const savedDocId = res.data.data._id || docId;
+      const savedDocNumber = res.data?.data?.document_number || header.docNo;
+      const savedDocId = res.data?.data?._id || docId;
 
-      if (savedDocId) {
+      if (savedDocId && savedDocId !== docId) {
         setDocId(savedDocId);
         navigate(`/document-setup/manual-doc?id=${savedDocId}`, { replace: true });
       }
 
-      setHeader(prev => ({
-        ...prev,
-        status: hasValidationError ? "پیش‌نویس" : (prev.status || "ثبت اولیه"),
-        docNo: savedDocNumber || prev.docNo
-      }));
-
       clearBalanceCache();
 
-      if (hasValidationError) {
-        setMessage({
-          type: "warning",
-          text: `سند شماره ${savedDocNumber} به عنوان «پیش‌نویس» ذخیره شد (آخرین تغییرات شما حفظ گردید). مواردی که باید برای تایید نهایی اصلاح شوند: ${validationErrors.join(" | ")}`
-        });
+      // اگر کاربر دکمه "ثبت و ارسال به ..." را زده باشد، روال گردش کار را فراخوانی می‌کنیم
+      if (andSend && savedDocId) {
+        const wfRes = await api.post(`/api/documents/${savedDocId}/workflow/approve`);
+        if (wfRes.data?.success) {
+          const updatedDoc = wfRes.data.data;
+          const targetRole = nextTarget?.nextRole || "مرحله بعد";
+          setHeader(prev => ({
+            ...prev,
+            status: updatedDoc?.status || "ثبت اولیه",
+            workflowStep: updatedDoc?.workflowStep,
+            currentAssigneeRole: updatedDoc?.currentAssigneeRole,
+            docNo: savedDocNumber || prev.docNo
+          }));
+          if (loadedDoc) {
+            setLoadedDoc(prev => prev ? ({ ...prev, ...updatedDoc, document_number: savedDocNumber }) : prev);
+          } else {
+            setLoadedDoc({
+              ...(res.data?.data || {}),
+              ...updatedDoc,
+              document_number: savedDocNumber,
+            });
+          }
+
+          // پس از ارسال، چون سند به مرحله بعدی منتقل شده، فرم برای کاربر جاری فقط‌خواندنی می‌شود:
+          setIsReadOnly(true);
+
+          setMessage({
+            type: "success",
+            text: `سند شماره ${savedDocNumber} با موفقیت ثبت و به «${targetRole}» ارسال گردید.`
+          });
+        } else {
+          setMessage({
+            type: "success",
+            text: `سند شماره ${savedDocNumber} با موفقیت ثبت و ارسال شد.`
+          });
+        }
       } else {
-        setMessage({
-          type: "success",
-          text: `سند شماره ${savedDocNumber} با موفقیت تایید و ثبت نهایی گردید.`
-        });
+        setHeader(prev => ({
+          ...prev,
+          status: nextStatus,
+          workflowStep: nextWorkflowStep,
+          currentAssigneeRole: nextAssigneeRole,
+          docNo: savedDocNumber || prev.docNo
+        }));
+
+        if (loadedDoc) {
+          setLoadedDoc(prev => prev ? ({ ...prev, status: nextStatus, workflowStep: nextWorkflowStep, currentAssigneeRole: nextAssigneeRole, document_number: savedDocNumber }) : prev);
+        }
+
+        if (hasValidationError) {
+          setMessage({
+            type: "warning",
+            text: `سند شماره ${savedDocNumber} به عنوان «پیش‌نویس» ذخیره شد (آخرین تغییرات شما حفظ گردید). مواردی که باید برای تایید نهایی اصلاح شوند: ${validationErrors.join(" | ")}`
+          });
+        } else {
+          setMessage({
+            type: "success",
+            text: `سند شماره ${savedDocNumber} با موفقیت ثبت شد.`
+          });
+        }
       }
     } catch (err) {
       console.error("Save error:", err);
@@ -1617,6 +1773,7 @@ export default function ManualDocument() {
       setMessage({ type: "error", text: errData?.message || "خطا در ثبت سند در سرور. اتصال را بررسی کنید." });
     } finally {
       setLoading(false);
+      setSavingAndSending(false);
     }
   }
 
@@ -2362,124 +2519,61 @@ export default function ManualDocument() {
         <Card className="mt-3">
           <CardContent className="p-3">
             <div className="flex flex-wrap items-center gap-2" dir="rtl">
+              {/* ۱. ثبت سند */}
               <Button
                 size="sm"
-                className="gap-1.5 h-8 text-xs bg-green-600 hover:bg-green-700 text-white"
-                onClick={handleSave}
-                disabled={loading}
+                className="gap-1.5 h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() => handleSave(false)}
+                disabled={loading || savingAndSending || isReadOnly || !canCurrentUserManageDoc}
+                title="ثبت و ذخیره تغییرات سند"
               >
                 <Save className="h-3.5 w-3.5" />
-                {loading ? "در حال ثبت..." : "ثبت تغییرات"}
+                {loading && !savingAndSending ? "در حال ثبت..." : "ثبت سند"}
               </Button>
 
+              {/* ۲. ثبت و ارسال به ........ */}
               <Button
                 size="sm"
-                variant="outline"
-                className="gap-1.5 h-8 text-xs hover:bg-blue-50 hover:text-blue-700 border-blue-200"
-                onClick={() => setShowCheckModal(true)}
+                className="gap-1.5 h-8 text-xs bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() => handleSave(true)}
+                disabled={loading || savingAndSending || isReadOnly || !canCurrentUserManageDoc}
+                title={sendToLabel}
               >
-                <FileText className="h-3.5 w-3.5 text-blue-600" />
-                بررسی سند
+                <Send className="h-3.5 w-3.5" />
+                {savingAndSending ? "در حال ارسال..." : sendToLabel}
               </Button>
 
+              {/* ۳. چاپ سند */}
               <Button
                 size="sm"
                 variant="outline"
                 className="gap-1.5 h-8 text-xs bg-amber-500 hover:bg-amber-600 text-white border-amber-600 font-medium shadow-xs"
                 onClick={() => setShowPrintModal(true)}
+                title="چاپ سند"
               >
                 <Printer className="h-3.5 w-3.5" />
                 چاپ سند
               </Button>
 
+              {/* ۴. بستن حساب */}
               <Button
                 size="sm"
                 variant="outline"
-                className="gap-1.5 h-8 text-xs hover:bg-emerald-50 hover:text-emerald-700 border-emerald-200"
-                onClick={() => setShowRemittanceModal(true)}
-              >
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                صدور حواله
-              </Button>
-
-              <Button
-                size="sm"
-                variant="outline"
-                className="gap-1.5 h-8 text-xs hover:bg-slate-100"
-                onClick={() => setShowNewModal(true)}
-              >
-                <Plus className="h-3.5 w-3.5 text-slate-600" />
-                جدید
-              </Button>
-
-              <Button
-                size="sm"
-                variant="outline"
-                className="gap-1.5 h-8 text-xs hover:bg-rose-50 hover:text-rose-700 border-rose-200"
-                onClick={() => setShowRejectModal(true)}
-              >
-                <RotateCcw className="h-3.5 w-3.5 text-rose-600" />
-                رد
-              </Button>
-
-              {loadedDoc && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="gap-1.5 h-8 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200 font-bold"
-                  onClick={() => setShowTreeModal(true)}
-                >
-                  <GitFork className="h-3.5 w-3.5 text-blue-600" />
-                  درختواره گردش کار
-                </Button>
-              )}
-
-              <div className="flex items-center gap-1 mr-auto">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8 text-xs px-2.5"
-                  onClick={() => setMessage({ type: "success", text: "حالت تجمیع ۱ فعال گردید." })}
-                >
-                  تجمیع ۱
-                </Button>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="h-8 text-xs px-2.5"
-                  onClick={() => setMessage({ type: "success", text: "حالت تجمیع ۲ فعال گردید." })}
-                >
-                  تجمیع ۲
-                </Button>
-              </div>
-
-              <div className="flex items-center gap-1.5 border-r border-l px-2">
-                <span className="text-xs text-muted-foreground">تعداد ضمائم:</span>
-                <Input
-                  className="h-7 w-12 text-xs text-center font-bold"
-                  defaultValue="0"
-                  onChange={(e) => {
-                    const count = e.target.value;
-                    setMessage({ type: "success", text: `تعداد ضمائم سند: ${count}` });
-                  }}
-                />
-              </div>
-
-              <Button
-                size="sm"
-                variant="outline"
-                className="gap-1.5 h-8 text-xs hover:bg-purple-50 hover:text-purple-700 border-purple-200"
+                className="gap-1.5 h-8 text-xs hover:bg-purple-50 hover:text-purple-700 border-purple-200 font-medium"
                 onClick={() => setShowCloseAccountModal(true)}
+                title="بستن حساب"
               >
                 <FileText className="h-3.5 w-3.5 text-purple-600" />
                 بستن حساب
               </Button>
 
+              {/* ۵. خروج */}
               <Button
                 size="sm"
                 variant="destructive"
-                className="gap-1.5 h-8 text-xs cursor-pointer"
+                className="gap-1.5 h-8 text-xs cursor-pointer font-medium mr-auto"
                 onClick={handleExit}
+                title="خروج"
               >
                 <Ban className="h-3.5 w-3.5" />
                 خروج
@@ -2683,9 +2777,13 @@ export default function ManualDocument() {
                     }
                   }
 
+                  const nextCount = (loadedDoc?.rejectionCount || 0) + 1;
+                  const isPermReject = nextCount >= 3;
+                  const newStatus = isPermReject ? "ابطال‌شده" : `برگشت از ${userDisplay} (رد ${nextCount} از ۳)`;
                   setHeader(prev => ({
                     ...prev,
-                    status: "ابطال‌شده",
+                    status: newStatus,
+                    workflowStep: isPermReject ? "PERMANENTLY_REJECTED" : "ACCOUNTANT",
                     returnedUser: userDisplay,
                     rejectionReason: rejectReason.trim()
                   }));

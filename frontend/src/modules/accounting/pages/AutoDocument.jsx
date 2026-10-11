@@ -96,6 +96,39 @@ function SanamaField({ rowDef, value, onChange }) {
       </div>
     );
   }
+  // ردیف تاریخ (تاریخ سررسید، تاریخ ایجاد و هر فیلدی که عنوان یا کد آن شامل تاریخ/سررسید/Date باشد)
+  if (
+    rowDef.row === 37 ||
+    (rowDef.xmlCode && rowDef.xmlCode.toLowerCase().includes("date")) ||
+    (rowDef.title && (rowDef.title.includes("تاریخ") || rowDef.title.includes("سررسید") || rowDef.title.includes("زمان")))
+  ) {
+    let dateStr = value ?? "";
+    if (typeof dateStr === "object" && dateStr !== null) {
+      dateStr = dateStr.target?.value ?? dateStr.value ?? "";
+    }
+    dateStr = String(dateStr);
+    if (dateStr === "0" || dateStr === "00000000" || dateStr === "null" || dateStr === "undefined") {
+      dateStr = "";
+    }
+    if (dateStr.length === 8 && !dateStr.includes("/")) {
+      dateStr = `${dateStr.slice(0, 4)}/${dateStr.slice(4, 6)}/${dateStr.slice(6, 8)}`;
+    }
+    return (
+      <div className="space-y-1">
+        {label}
+        <PersianDatePicker
+          value={dateStr}
+          onChange={(e) => {
+            const rawVal = e?.target?.value ?? e;
+            onChange(rawVal || "");
+          }}
+          placeholder="۱۴۰۵/۰۱/۰۱"
+          className={cls}
+        />
+      </div>
+    );
+  }
+
   // عددی (default)
   if (rowDef.row === 31 || (rowDef.title && rowDef.title.includes("شبا"))) {
     return (

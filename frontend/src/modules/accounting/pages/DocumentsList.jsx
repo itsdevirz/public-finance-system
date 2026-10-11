@@ -37,12 +37,12 @@ const STATUS_LABEL = {
   DRAFT: "پیش‌نویس",
   REGISTERED: "ثبت اولیه",
   CONFIRMED: "تأییدشده",
-  FINAL: "صدور سند قطعی",
+  FINAL: "تأییدشده",
   CANCELLED: "ابطال‌شده",
   "پیش‌نویس": "پیش‌نویس",
   "ثبت اولیه": "ثبت اولیه",
   "تأییدشده": "تأییدشده",
-  "صدور سند قطعی": "صدور سند قطعی",
+  "صدور سند قطعی": "تأییدشده",
   "ابطال‌شده": "ابطال‌شده",
 };
 
@@ -60,12 +60,12 @@ const STATUS_COLOR = {
   DRAFT: "bg-amber-100 text-amber-700 border-amber-200",
   REGISTERED: "bg-blue-100 text-blue-700 border-blue-200",
   CONFIRMED: "bg-emerald-100 text-emerald-700 border-emerald-200",
-  FINAL: "bg-indigo-100 text-indigo-700 border-indigo-200",
+  FINAL: "bg-emerald-100 text-emerald-700 border-emerald-200",
   CANCELLED: "bg-rose-100 text-rose-700 border-rose-200",
   "پیش‌نویس": "bg-amber-100 text-amber-700 border-amber-200",
   "ثبت اولیه": "bg-blue-100 text-blue-700 border-blue-200",
   "تأییدشده": "bg-emerald-100 text-emerald-700 border-emerald-200",
-  "صدور سند قطعی": "bg-indigo-100 text-indigo-700 border-indigo-200",
+  "صدور سند قطعی": "bg-emerald-100 text-emerald-700 border-emerald-200",
   "ابطال‌شده": "bg-rose-100 text-rose-700 border-rose-200",
 };
 
@@ -141,12 +141,17 @@ function canUserApproveOrReject(user, doc) {
   if (!doc) return false;
 
   const status = (doc.status || "").trim();
-  if (status === "CONFIRMED" || status === "صدور سند قطعی" || status === "FINAL" || status === "CANCELLED" || status === "ابطال‌شده") {
+  if (status === "CONFIRMED" || status === "صدور سند قطعی" || status === "FINAL") {
     return false;
   }
 
   // اگر سند به دلیل ۳ بار رد شدن، به طور دائم رد شده است
   if (doc.isPermanentlyRejected || (doc.rejectionCount || 0) >= 3 || doc.workflowStep === "PERMANENTLY_REJECTED" || status.includes("رد دائم")) {
+    return false;
+  }
+
+  // اگر سند بدون رد شدن و مستقیماً ابطال شده باشد
+  if ((status === "CANCELLED" || status === "ابطال‌شده") && (doc.rejectionCount || 0) === 0) {
     return false;
   }
 
@@ -204,13 +209,32 @@ function canUserEdit(user, doc) {
     ? `${user.position || ""} ${user.role || ""} ${user.userGroup || ""} ${user.workflowLevel || ""} ${user.username || ""}`.toLowerCase()
     : "admin";
 
-  const isAdmin = !user || user.isAdmin === true || uStr.includes("admin") || uStr.includes("مدیر سیستم");
+  const isAdmin = !user || user.isAdmin === true || user.role === "admin" || uStr.includes("admin") || uStr.includes("مدیر سیستم") || uStr.includes("مدیرکل");
   if (isAdmin) return true;
 
   const currentStep = doc.workflowStep || "REGULATOR";
+  const isReturned = (doc.rejectionCount || 0) > 0 || status.includes("برگشت") || status.includes("ابطال") || status === "REJECTED";
 
-  if (currentStep === "ACCOUNTANT" || currentStep === "DRAFT" || status.includes("برگشت") || status.includes("ابطال")) {
-    return true;
+  const isAccountant = uStr.includes("حسابدار") || uStr.includes("accountant");
+  const isRegulator = uStr.includes("تنظیم") || uStr.includes("regulator") || uStr.includes("drafter");
+  const isFinHead = uStr.includes("رئیس امور مالی") || uStr.includes("fin_head");
+  const isFinDirector = uStr.includes("مدیر مالی") || uStr.includes("ذیحساب") || uStr.includes("fin_director");
+  const isAgencyHead = uStr.includes("رئیس دستگاه") || uStr.includes("agency_head");
+
+  if (currentStep === "ACCOUNTANT" || currentStep === "DRAFT" || isReturned) {
+    return isAccountant;
+  }
+  if (currentStep === "REGULATOR") {
+    return isRegulator;
+  }
+  if (currentStep === "FIN_HEAD") {
+    return isFinHead;
+  }
+  if (currentStep === "FIN_DIRECTOR") {
+    return isFinDirector;
+  }
+  if (currentStep === "AGENCY_HEAD") {
+    return isAgencyHead;
   }
 
   return false;
@@ -343,11 +367,40 @@ function DocDetailModal({ doc, onClose, onDelete, onWorkflowApprove, onWorkflowR
           </div>
           <div className="flex flex-col gap-0.5">
             <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">وضعیت</span>
-            <span className={cn("inline-flex items-center gap-1 w-fit rounded-full border px-2 py-0.5 text-[11px] font-semibold",
-              doc.status?.includes("برگشت") ? "bg-amber-100 text-amber-700 border-amber-200" : (STATUS_COLOR[doc.status] ?? "bg-muted"))}>
-              <StatusIcon className="h-2.5 w-2.5" />
-              {getCleanStatusLabel(doc.status)}
-            </span>
+            {(() => {
+              const isConfirmed = doc.status === "CONFIRMED" || doc.status === "تأییدشده" || doc.status === "صدور سند قطعی" || doc.status === "FINAL" || doc.workflowStep === "FINAL";
+              if (isConfirmed) {
+                return (
+                  <span className="inline-flex items-center gap-1 w-fit rounded-full border px-2.5 py-0.5 text-[11px] font-semibold bg-emerald-100 text-emerald-700 border-emerald-200">
+                    <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                    تأییدشده
+                  </span>
+                );
+              }
+              if (doc.isPermanentlyRejected || (doc.rejectionCount || 0) >= 3 || doc.workflowStep === "PERMANENTLY_REJECTED" || doc.status?.includes("رد دائم")) {
+                return (
+                  <span className="inline-flex items-center gap-1 w-fit rounded-full border px-2.5 py-0.5 text-[11px] font-extrabold bg-rose-600 text-white border-rose-700">
+                    <Ban className="h-3 w-3" />
+                    ابطال‌شده (رد دائم ۳ از ۳)
+                  </span>
+                );
+              }
+              if ((doc.workflowStep === "ACCOUNTANT" || doc.workflowStep === "DRAFT" || doc.status?.includes("برگشت") || doc.status?.includes("رد")) && (doc.rejectionCount || 0) > 0) {
+                return (
+                  <span className="inline-flex items-center gap-1 w-fit rounded-full border px-2.5 py-0.5 text-[11px] font-bold bg-amber-100 text-amber-800 border-amber-300">
+                    <AlertTriangle className="h-3 w-3 text-amber-600" />
+                    رد شده (تعداد دفعات رد: {toPersianDigits(doc.rejectionCount)} از ۳)
+                  </span>
+                );
+              }
+              return (
+                <span className={cn("inline-flex items-center gap-1 w-fit rounded-full border px-2 py-0.5 text-[11px] font-semibold",
+                  doc.status?.includes("برگشت") ? "bg-amber-100 text-amber-700 border-amber-200" : (STATUS_COLOR[doc.status] ?? "bg-muted"))}>
+                  <StatusIcon className="h-2.5 w-2.5" />
+                  {getCleanStatusLabel(doc.status)}
+                </span>
+              );
+            })()}
           </div>
           {doc.description && (
             <div className="col-span-2 flex flex-col gap-0.5">
@@ -915,23 +968,43 @@ export default function DocumentsList() {
 
                         {/* وضعیت */}
                         <td className="px-4 py-3">
-                          {doc.isPermanentlyRejected || (doc.rejectionCount || 0) >= 3 || doc.workflowStep === "PERMANENTLY_REJECTED" || doc.status === "CANCELLED" || doc.status === "ابطال‌شده" || doc.status?.includes("رد دائم") ? (
-                            <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-extrabold bg-rose-600 text-white border-rose-700 shadow-xs">
-                              <Ban className="h-2.5 w-2.5" />
-                              ابطال‌شده (رد دائم ۳ از ۳)
-                            </span>
-                          ) : (doc.rejectionCount || 0) > 0 && (doc.workflowStep === "ACCOUNTANT" || doc.workflowStep === "DRAFT" || doc.workflowStep === "REGULATOR" || doc.status?.includes("برگشت")) ? (
-                            <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-800 border-amber-300">
-                              <AlertTriangle className="h-2.5 w-2.5 text-amber-600" />
-                              رد شده (تعداد دفعات رد: {toPersianDigits(doc.rejectionCount)} از ۳)
-                            </span>
-                          ) : (
-                            <span className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap",
-                              doc.status?.includes("برگشت") ? "bg-amber-100 text-amber-700 border-amber-200" : (STATUS_COLOR[doc.status] ?? "bg-muted text-muted-foreground border-border"))}>
-                              <StatusIcon className="h-2.5 w-2.5" />
-                              {getCleanStatusLabel(doc.status)}
-                            </span>
-                          )}
+                          {(() => {
+                            const isConfirmed = doc.status === "CONFIRMED" || doc.status === "تأییدشده" || doc.status === "صدور سند قطعی" || doc.status === "FINAL" || doc.workflowStep === "FINAL";
+                            if (isConfirmed) {
+                              return (
+                                <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold whitespace-nowrap bg-emerald-100 text-emerald-700 border-emerald-200 shadow-xs">
+                                  <CheckCircle2 className="h-2.5 w-2.5 text-emerald-600" />
+                                  تأییدشده
+                                </span>
+                              );
+                            }
+
+                            if (doc.isPermanentlyRejected || (doc.rejectionCount || 0) >= 3 || doc.workflowStep === "PERMANENTLY_REJECTED" || doc.status?.includes("رد دائم")) {
+                              return (
+                                <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-extrabold bg-rose-600 text-white border-rose-700 shadow-xs">
+                                  <Ban className="h-2.5 w-2.5" />
+                                  ابطال‌شده (رد دائم ۳ از ۳)
+                                </span>
+                              );
+                            }
+
+                            if ((doc.workflowStep === "ACCOUNTANT" || doc.workflowStep === "DRAFT" || doc.status?.includes("برگشت") || doc.status?.includes("رد")) && (doc.rejectionCount || 0) > 0) {
+                              return (
+                                <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-800 border-amber-300">
+                                  <AlertTriangle className="h-2.5 w-2.5 text-amber-600" />
+                                  رد شده (تعداد دفعات رد: {toPersianDigits(doc.rejectionCount)} از ۳)
+                                </span>
+                              );
+                            }
+
+                            return (
+                              <span className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap",
+                                doc.status?.includes("برگشت") ? "bg-amber-100 text-amber-700 border-amber-200" : (STATUS_COLOR[doc.status] ?? "bg-muted text-muted-foreground border-border"))}>
+                                <StatusIcon className="h-2.5 w-2.5" />
+                                {getCleanStatusLabel(doc.status)}
+                              </span>
+                            );
+                          })()}
                         </td>
 
                         {/* کدهای حساب */}

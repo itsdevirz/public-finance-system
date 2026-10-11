@@ -277,11 +277,17 @@ function syncDocumentWorkflowStep(doc: any) {
     doc.currentAssigneeRole = "ابطال‌شده";
     doc.status = "CANCELLED";
     doc.isPermanentlyRejected = true;
-  } else if (status === "CONFIRMED" || status === "صدور سند قطعی" || status === "FINAL") {
+  } else if (doc.workflowStep === "ACCOUNTANT" && (doc.rejectionCount || 0) > 0 && (status === "CANCELLED" || status === "ابطال‌شده")) {
+    const userDisplay = doc.returnedUser || "تنظیم حساب";
+    doc.status = `برگشت از ${userDisplay} (رد ${doc.rejectionCount} از ۳)`;
+    doc.currentAssigneeRole = "حسابدار";
+    doc.isPermanentlyRejected = false;
+  } else if (status === "CONFIRMED" || status === "صدور سند قطعی" || status === "FINAL" || doc.workflowStep === "FINAL" || status === "تأییدشده") {
     doc.workflowStep = "FINAL";
     doc.currentAssigneeRole = "تکمیل شده";
-  } else if (doc.workflowStep === "AGENCY_HEAD" || status.includes("تأیید مدیر مالی")) {
     doc.status = "تأییدشده";
+  } else if (doc.workflowStep === "AGENCY_HEAD") {
+    doc.status = "در انتظار تأیید رئیس دستگاه";
   } else if (!doc.workflowStep || (history.length === 0 && doc.workflowStep !== "ACCOUNTANT")) {
     doc.workflowStep = "REGULATOR";
     doc.currentAssigneeRole = "تنظیم حساب";
@@ -532,8 +538,35 @@ router.put("/:id", async (c) => {
     const currentStep = existingDoc.workflowStep || "REGULATOR";
     const isReturned = status.includes("برگشت") || status.includes("ابطال") || status === "REJECTED";
 
-    if (currentStep !== "ACCOUNTANT" && currentStep !== "DRAFT" && !isReturned) {
-      return c.json({ message: "خطا: این سند جهت بررسی به تنظیم حساب یا مراحل بعدی ارسال شده است و دیگر در کارتابل شما قابل تغییر نمی‌باشد." }, 403);
+    if (existingDoc.isPermanentlyRejected || (existingDoc.rejectionCount || 0) >= 3 || currentStep === "PERMANENTLY_REJECTED") {
+      return c.json({ message: "خطا: این سند به دلیل رد دائمی غیرقابل ویرایش است." }, 403);
+    }
+    if (status === "CONFIRMED" || status === "FINAL" || currentStep === "FINAL") {
+      return c.json({ message: "خطا: این سند قطعی شده است و امکان ویرایش آن وجود ندارد." }, 403);
+    }
+
+    const userPos = `${user?.position || ""} ${user?.role || ""} ${payload?.role || ""}`.toLowerCase();
+    const isAccountant = userPos.includes("حسابدار") || userPos.includes("accountant");
+    const isRegulator = userPos.includes("تنظیم") || userPos.includes("regulator") || userPos.includes("drafter");
+    const isFinHead = userPos.includes("رئیس امور مالی") || userPos.includes("fin_head");
+    const isFinDirector = userPos.includes("مدیر مالی") || userPos.includes("ذیحساب") || userPos.includes("fin_director");
+    const isAgencyHead = userPos.includes("رئیس دستگاه") || userPos.includes("agency_head");
+
+    let isMatch = false;
+    if (currentStep === "ACCOUNTANT" || currentStep === "DRAFT" || isReturned) {
+      isMatch = isAccountant;
+    } else if (currentStep === "REGULATOR") {
+      isMatch = isRegulator;
+    } else if (currentStep === "FIN_HEAD") {
+      isMatch = isFinHead;
+    } else if (currentStep === "FIN_DIRECTOR") {
+      isMatch = isFinDirector;
+    } else if (currentStep === "AGENCY_HEAD") {
+      isMatch = isAgencyHead;
+    }
+
+    if (!isMatch) {
+      return c.json({ message: `خطا: این سند جهت بررسی به «${existingDoc.currentAssigneeRole || "مراحل بعدی"}» ارسال شده است و دیگر در کارتابل شما قابل تغییر نمی‌باشد.` }, 403);
     }
   }
 
@@ -551,6 +584,11 @@ router.put("/:id", async (c) => {
     lines: ciphertext ? [] : lines,
     ...(ciphertext ? { ciphertext } : {}),
   };
+
+  if (body.workflowStep) updateData.workflowStep = body.workflowStep;
+  if (body.currentAssigneeRole) updateData.currentAssigneeRole = body.currentAssigneeRole;
+  if (body.returnedUser !== undefined) updateData.returnedUser = body.returnedUser;
+  if (body.rejectionReason !== undefined) updateData.rejectionReason = body.rejectionReason;
 
   if (body.document_date) {
     updateData.document_date = body.document_date;
@@ -708,11 +746,11 @@ router.post("/:id/workflow/approve", async (c) => {
   } else if (currentStep === "FIN_DIRECTOR") {
     nextStep = "AGENCY_HEAD";
     nextRole = "رئیس دستگاه اجرایی";
-    nextStatus = "تأییدشده";
+    nextStatus = "در انتظار تأیید رئیس دستگاه";
   } else if (currentStep === "AGENCY_HEAD") {
     nextStep = "FINAL";
     nextRole = "تکمیل شده";
-    nextStatus = "CONFIRMED";
+    nextStatus = "تأییدشده";
   }
 
   const historyItem = {
@@ -726,7 +764,7 @@ router.post("/:id/workflow/approve", async (c) => {
   const updateFields: Record<string, unknown> = {
     workflowStep: nextStep,
     currentAssigneeRole: nextRole,
-    status: nextStatus === "CONFIRMED" ? "CONFIRMED" : nextStatus,
+    status: nextStatus,
     updatedAt: new Date().toISOString(),
   };
 
