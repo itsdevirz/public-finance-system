@@ -299,19 +299,7 @@ export default function ReportSignatureForm() {
           </div>
         )}
 
-        {/* قانون اصلی مدیر سیستم */}
-        <div className="bg-amber-50/90 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800/80 p-4 rounded-2xl flex items-start gap-3 shadow-sm">
-          <ShieldAlert className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-          <div className="text-xs space-y-1">
-            <h4 className="font-extrabold text-amber-900 dark:text-amber-200">
-              🛡️ قانون دسترسی فول اکسس و چاپ اسناد برای «مدیر سیستم»
-            </h4>
-            <p className="text-amber-800 dark:text-amber-300 leading-relaxed font-medium">
-              کاربر با نقش <strong>«مدیر سیستم»</strong> دارای دسترسی کامل و غیرقابل محدودیت (Full Access) به تمام بخش‌های نرم‌افزار است.
-              اما بنا بر قوانین حسابداری عمومی و نظارتی، <strong>نام مدیر سیستم در خروجی چاپی اسناد درج نمی‌شود</strong> مگر آنکه صراحتاً در فرم زیر برای یک نقش مشخص (مانند ذیحساب یا تنظیم حساب) انتخاب شده باشد.
-            </p>
-          </div>
-        </div>
+
 
         {/* تب‌های ۶ ماژول اصلی سیستم */}
         <div className="flex border-b border-slate-200 dark:border-slate-800 overflow-x-auto bg-slate-100/80 dark:bg-slate-900 p-1.5 rounded-2xl gap-1">

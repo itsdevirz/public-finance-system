@@ -36,13 +36,13 @@ const DOC_TYPE_COLOR = {
 const STATUS_LABEL = {
   DRAFT: "پیش‌نویس",
   REGISTERED: "ثبت اولیه",
-  CONFIRMED: "تأییدشده",
-  FINAL: "تأییدشده",
+  CONFIRMED: "صدور سند قطعی",
+  FINAL: "صدور سند قطعی",
   CANCELLED: "ابطال‌شده",
   "پیش‌نویس": "پیش‌نویس",
   "ثبت اولیه": "ثبت اولیه",
-  "تأییدشده": "تأییدشده",
-  "صدور سند قطعی": "تأییدشده",
+  "تأییدشده": "صدور سند قطعی",
+  "صدور سند قطعی": "صدور سند قطعی",
   "ابطال‌شده": "ابطال‌شده",
 };
 
@@ -116,6 +116,13 @@ function getPrevRoleTarget(currentStep) {
     return "تنظیم حساب";
   }
   return "حسابدار";
+}
+
+function parseDocNumber(num) {
+  if (num === null || num === undefined) return 0;
+  const str = String(num).replace(/[۰-۹]/g, d => "۰۱۲۳۴۵۶۷۸۹".indexOf(d).toString()).replace(/[^0-9.-]/g, "");
+  const n = parseFloat(str);
+  return isNaN(n) ? 0 : n;
 }
 
 function fmt(n) {
@@ -373,7 +380,7 @@ function DocDetailModal({ doc, onClose, onDelete, onWorkflowApprove, onWorkflowR
                 return (
                   <span className="inline-flex items-center gap-1 w-fit rounded-full border px-2.5 py-0.5 text-[11px] font-semibold bg-emerald-100 text-emerald-700 border-emerald-200">
                     <CheckCircle2 className="h-3 w-3 text-emerald-600" />
-                    تأییدشده
+                    صدور سند قطعی
                   </span>
                 );
               }
@@ -688,7 +695,7 @@ export default function DocumentsList() {
   const stats = useMemo(() => ({
     total: yearDocs.length,
     draft: yearDocs.filter(d => d.status === "DRAFT" || d.status === "پیش‌نویس").length,
-    confirmed: yearDocs.filter(d => d.status === "CONFIRMED" || d.status === "صدور سند قطعی" || d.status === "FINAL").length,
+    confirmed: yearDocs.filter(d => d.status === "CONFIRMED" || d.status === "صدور سند قطعی" || d.status === "FINAL" || d.status === "تأییدشده" || d.workflowStep === "FINAL").length,
     cancelled: yearDocs.filter(d => d.status === "CANCELLED" || d.status === "ابطال‌شده" || d.isPermanentlyRejected || (d.rejectionCount || 0) >= 3 || d.workflowStep === "PERMANENTLY_REJECTED" || d.status?.includes("رد دائم")).length,
   }), [yearDocs]);
 
@@ -721,12 +728,41 @@ export default function DocumentsList() {
     }
 
     list.sort((a, b) => {
+      if (sortBy === "document_number") {
+        const an = parseDocNumber(a.document_number);
+        const bn = parseDocNumber(b.document_number);
+        if (an !== bn) {
+          return sortDir === "asc" ? an - bn : bn - an;
+        }
+        return sortDir === "asc"
+          ? String(a._id || "").localeCompare(String(b._id || ""))
+          : String(b._id || "").localeCompare(String(a._id || ""));
+      }
+
+      if (sortBy === "fiscal_year") {
+        const an = Number(a.fiscal_year || 0);
+        const bn = Number(b.fiscal_year || 0);
+        if (an !== bn) {
+          return sortDir === "asc" ? an - bn : bn - an;
+        }
+      }
+
+      if (sortBy === "document_date") {
+        const ad = String(a.document_date || "").replace(/[۰-۹]/g, d => "۰۱۲۳۴۵۶۷۸۹".indexOf(d).toString());
+        const bd = String(b.document_date || "").replace(/[۰-۹]/g, d => "۰۱۲۳۴۵۶۷۸۹".indexOf(d).toString());
+        if (ad !== bd) {
+          return sortDir === "asc" ? ad.localeCompare(bd) : bd.localeCompare(ad);
+        }
+      }
+
       let av = a[sortBy] ?? "";
       let bv = b[sortBy] ?? "";
       if (typeof av === "number" && typeof bv === "number") return sortDir === "asc" ? av - bv : bv - av;
-      return sortDir === "asc"
+      const res = sortDir === "asc"
         ? String(av).localeCompare(String(bv), "fa")
         : String(bv).localeCompare(String(av), "fa");
+      if (res !== 0) return res;
+      return String(b._id || "").localeCompare(String(a._id || ""));
     });
 
     return list;
@@ -974,7 +1010,7 @@ export default function DocumentsList() {
                               return (
                                 <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold whitespace-nowrap bg-emerald-100 text-emerald-700 border-emerald-200 shadow-xs">
                                   <CheckCircle2 className="h-2.5 w-2.5 text-emerald-600" />
-                                  تأییدشده
+                                  صدور سند قطعی
                                 </span>
                               );
                             }

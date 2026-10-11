@@ -1400,7 +1400,7 @@ export default function ManualDocument() {
           if (isDocPermRejected) {
             mappedStatus = "ابطال‌شده";
           } else if (doc.status === "CONFIRMED" || doc.status === "FINAL" || doc.status === "صدور سند قطعی" || doc.workflowStep === "FINAL" || doc.status === "تأییدشده") {
-            mappedStatus = "تأییدشده";
+            mappedStatus = "صدور سند قطعی";
           } else if (doc.status === "REJECTED" || doc.status?.startsWith("ابطال") || doc.status?.includes("رد") || doc.status?.includes("برگشت")) {
             mappedStatus = isDocPermRejected ? "ابطال‌شده" : (doc.status || "ثبت اولیه");
           } else if (doc.status === "APPROVED" || doc.workflowStep === "AGENCY_HEAD") {
@@ -1712,19 +1712,22 @@ export default function ManualDocument() {
         if (wfRes.data?.success) {
           const updatedDoc = wfRes.data.data;
           const targetRole = nextTarget?.nextRole || "مرحله بعد";
+          const isFinal = updatedDoc?.workflowStep === "FINAL" || nextTarget?.nextRole === "تکمیل شده";
+          const finalStatus = isFinal ? "صدور سند قطعی" : (updatedDoc?.status || "ثبت اولیه");
           setHeader(prev => ({
             ...prev,
-            status: updatedDoc?.status || "ثبت اولیه",
+            status: finalStatus,
             workflowStep: updatedDoc?.workflowStep,
             currentAssigneeRole: updatedDoc?.currentAssigneeRole,
             docNo: savedDocNumber || prev.docNo
           }));
           if (loadedDoc) {
-            setLoadedDoc(prev => prev ? ({ ...prev, ...updatedDoc, document_number: savedDocNumber }) : prev);
+            setLoadedDoc(prev => prev ? ({ ...prev, ...updatedDoc, status: finalStatus, document_number: savedDocNumber }) : prev);
           } else {
             setLoadedDoc({
               ...(res.data?.data || {}),
               ...updatedDoc,
+              status: finalStatus,
               document_number: savedDocNumber,
             });
           }
@@ -1734,7 +1737,9 @@ export default function ManualDocument() {
 
           setMessage({
             type: "success",
-            text: `سند شماره ${savedDocNumber} با موفقیت ثبت و به «${targetRole}» ارسال گردید.`
+            text: isFinal
+              ? `سند شماره ${savedDocNumber} با موفقیت ثبت قطعی شد و وضعیت آن به «صدور سند قطعی» تغییر یافت.`
+              : `سند شماره ${savedDocNumber} با موفقیت ثبت و به «${targetRole}» ارسال گردید.`
           });
         } else {
           setMessage({
@@ -2284,7 +2289,7 @@ export default function ManualDocument() {
                         header.status === opt.key ||
                         (opt.key === "صدور سند قطعی" && (header.status === "صدور سند قطعی" || header.status === "CONFIRMED" || header.status === "FINAL")) ||
                         (opt.key === "ثبت اولیه" && (header.status === "ثبت اولیه" || header.status?.startsWith("در انتظار تایید") || header.status === "PENDING" || header.status === "در جریان")) ||
-                        (opt.key === "تأییدشده" && (header.status === "تأییدشده" || header.status === "APPROVED")) ||
+                        (opt.key === "تأییدشده" && (header.status === "تأییدشده" || header.status === "APPROVED") && header.status !== "صدور سند قطعی") ||
                         (opt.key === "پیش‌نویس" && (header.status === "پیش‌نویس" || header.status === "DRAFT")) ||
                         (opt.key === "ابطال‌شده" && (header.status === "ابطال‌شده" || header.status?.startsWith("ابطال") || header.status?.includes("برگشت") || header.status?.includes("رد")));
 

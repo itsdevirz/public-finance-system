@@ -252,6 +252,25 @@ export async function fixAndMigrateDocumentNumbers(): Promise<{ updated: number 
     }
   }
 
+  // ارتقای وضعیت اسناد نهایی شده به «صدور سند قطعی»
+  await db.collection<JournalDocument>("journal_documents").updateMany(
+    {
+      $or: [
+        { workflowStep: "FINAL" },
+        { status: "تأییدشده" },
+        { status: "CONFIRMED" },
+        { status: "FINAL" },
+      ]
+    },
+    {
+      $set: {
+        status: "صدور سند قطعی",
+        workflowStep: "FINAL",
+        currentAssigneeRole: "تکمیل شده"
+      }
+    }
+  );
+
   return { updated: updatedCount };
 }
 
@@ -285,7 +304,7 @@ function syncDocumentWorkflowStep(doc: any) {
   } else if (status === "CONFIRMED" || status === "صدور سند قطعی" || status === "FINAL" || doc.workflowStep === "FINAL" || status === "تأییدشده") {
     doc.workflowStep = "FINAL";
     doc.currentAssigneeRole = "تکمیل شده";
-    doc.status = "تأییدشده";
+    doc.status = "صدور سند قطعی";
   } else if (doc.workflowStep === "AGENCY_HEAD") {
     doc.status = "در انتظار تأیید رئیس دستگاه";
   } else if (!doc.workflowStep || (history.length === 0 && doc.workflowStep !== "ACCOUNTANT")) {
@@ -541,7 +560,7 @@ router.put("/:id", async (c) => {
     if (existingDoc.isPermanentlyRejected || (existingDoc.rejectionCount || 0) >= 3 || currentStep === "PERMANENTLY_REJECTED") {
       return c.json({ message: "خطا: این سند به دلیل رد دائمی غیرقابل ویرایش است." }, 403);
     }
-    if (status === "CONFIRMED" || status === "FINAL" || currentStep === "FINAL") {
+    if (status === "CONFIRMED" || status === "FINAL" || status === "صدور سند قطعی" || currentStep === "FINAL") {
       return c.json({ message: "خطا: این سند قطعی شده است و امکان ویرایش آن وجود ندارد." }, 403);
     }
 
@@ -750,7 +769,7 @@ router.post("/:id/workflow/approve", async (c) => {
   } else if (currentStep === "AGENCY_HEAD") {
     nextStep = "FINAL";
     nextRole = "تکمیل شده";
-    nextStatus = "تأییدشده";
+    nextStatus = "صدور سند قطعی";
   }
 
   const historyItem = {

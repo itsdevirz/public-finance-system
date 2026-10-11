@@ -6,12 +6,12 @@ import { toPersianDigits } from "@/components/ui/persian-date-picker";
 const STATUS_LABEL = {
   DRAFT: "پیش‌نویس",
   REGISTERED: "ثبت اولیه",
-  CONFIRMED: "تأییدشده",
+  CONFIRMED: "صدور سند قطعی",
   FINAL: "صدور سند قطعی",
   CANCELLED: "ابطال‌شده",
   "پیش‌نویس": "پیش‌نویس",
   "ثبت اولیه": "ثبت اولیه",
-  "تأییدشده": "تأییدشده",
+  "تأییدشده": "صدور سند قطعی",
   "صدور سند قطعی": "صدور سند قطعی",
   "ابطال‌شده": "ابطال‌شده",
 };
