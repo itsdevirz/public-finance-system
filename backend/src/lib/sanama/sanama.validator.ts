@@ -89,8 +89,10 @@ export class SanamaValidator {
       });
     }
 
+    const cleanMonth = String(header.month || "").trim();
+    const unpaddedMonth = String(parseInt(cleanMonth, 10));
     const validMonths = Object.keys(SANAMA_CONSTANTS.MONTH_MAP);
-    if (!header.month || !validMonths.includes(String(header.month).trim())) {
+    if (!cleanMonth || (!validMonths.includes(cleanMonth) && !validMonths.includes(unpaddedMonth))) {
       errors.push({
         code: "SANAMA_ERR_MONTH",
         category: "Structural",
@@ -189,10 +191,8 @@ export class SanamaValidator {
           if (rowNum === 11 && hasRow9 && isRow9Filled) return;
           if (rowNum === 9 && hasRow11 && isRow11Filled) return;
 
-          // Find matching attribute name
-          const attrName = Object.keys(SANAMA_CONSTANTS.ATTR_TO_ROW_MAP).find(
-            (k) => SANAMA_CONSTANTS.ATTR_TO_ROW_MAP[k] === rowNum
-          );
+          // Find matching attribute name directly from ROW_TO_ATTR_MAP
+          const attrName = SANAMA_CONSTANTS.ROW_TO_ATTR_MAP[rowNum];
           if (attrName) {
             const val = item[attrName];
             if (val === undefined || val === null || String(val).trim() === "") {

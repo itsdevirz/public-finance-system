@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Download, CheckCircle, Calendar, Filter, Layers, Sparkles, RefreshCw, ShieldCheck, AlertTriangle, AlertCircle, Building, Eye, Table } from "lucide-react";
 import { PageShell, PageHeader } from "@/components/layout/PageShell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -29,14 +29,6 @@ const PERSIAN_MONTHS = [
   { value: "15", label: "تراز نهایی سال مالی (ماه ۱۵)" }
 ];
 
-const FISCAL_YEAR_OPTIONS = [
-  { value: "1401", label: "سال مالی ۱۴۰۱" },
-  { value: "1402", label: "سال مالی ۱۴۰۲" },
-  { value: "1403", label: "سال مالی ۱۴۰۳" },
-  { value: "1404", label: "سال مالی ۱۴۰۴" },
-  { value: "1405", label: "سال مالی ۱۴۰۵" }
-];
-
 const SOURCE_TYPE_OPTIONS = [
   { value: "all", label: "تمامی منابع (عمومی، اختصاصی و سایر)" },
   { value: "1", label: "۱. عمومی" },
@@ -45,7 +37,9 @@ const SOURCE_TYPE_OPTIONS = [
 ];
 
 export default function SanamaExport() {
-  const { selectedFiscalYear } = useFiscalYear();
+  const { selectedFiscalYear, fiscalYears: contextFiscalYears, loading: contextFiscalLoading } = useFiscalYear();
+  const [fiscalYearsList, setFiscalYearsList] = useState([]);
+  const [loadingFiscalYears, setLoadingFiscalYears] = useState(true);
   const [loading, setLoading] = useState(false);
   const [validating, setValidating] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
@@ -55,14 +49,62 @@ export default function SanamaExport() {
   const [mainOrgID, setMainOrgID] = useState("10100000000");
   const [mainOrgCode, setMainOrgCode] = useState("400367");
 
-  // ── ۱. پارامترهای اصلی خروجی ──
+  // ── ۱. بارگذاری دوره‌های مالی تعریف‌شده در سیستم ──
+  useEffect(() => {
+    let isMounted = true;
+    api.get("/api/fiscal-years")
+      .then((res) => {
+        if (!isMounted) return;
+        const data = res.data?.data || [];
+        setFiscalYearsList(data);
+      })
+      .catch((err) => {
+        console.error("خطا در بارگذاری دوره‌های مالی سناما:", err);
+      })
+      .finally(() => {
+        if (isMounted) setLoadingFiscalYears(false);
+      });
+    return () => { isMounted = false; };
+  }, []);
+
+  // گزینه‌های سال مالی: منحصراً سال‌های مالی تعریف‌شده در سیستم
+  const fiscalYearOptions = useMemo(() => {
+    const list = fiscalYearsList.length > 0
+      ? fiscalYearsList
+      : (contextFiscalYears && contextFiscalYears.length > 0 ? contextFiscalYears : []);
+
+    return list
+      .map((fy) => {
+        const val = String(fy.year || fy.value || fy);
+        const title = fy.title ? `${fy.title} (${val})` : `سال مالی ${val}`;
+        return {
+          value: val,
+          label: title,
+          yearNum: Number(val) || 0
+        };
+      })
+      .sort((a, b) => b.yearNum - a.yearNum);
+  }, [fiscalYearsList, contextFiscalYears]);
+
+  // ── ۲. پارامترهای اصلی خروجی ──
   const [exportType, setExportType] = useState("monthly"); // "monthly" | "final"
   const [month, setMonth] = useState("3");
-  const [fiscalYear, setFiscalYear] = useState(selectedFiscalYear || "1405");
+  const [fiscalYear, setFiscalYear] = useState(() => selectedFiscalYear || "");
 
+  // به‌روزرسانی انتخاب سال مالی بر اساس سال‌های موجود
   useEffect(() => {
-    if (selectedFiscalYear) setFiscalYear(selectedFiscalYear);
-  }, [selectedFiscalYear]);
+    if (fiscalYearOptions.length > 0) {
+      const exists = fiscalYearOptions.some((opt) => opt.value === String(fiscalYear));
+      if (!exists) {
+        const activeMatch = fiscalYearOptions.find((opt) => opt.value === String(selectedFiscalYear));
+        if (activeMatch) {
+          setFiscalYear(activeMatch.value);
+        } else {
+          setFiscalYear(fiscalYearOptions[0].value);
+        }
+      }
+    }
+  }, [fiscalYearOptions, selectedFiscalYear, fiscalYear]);
 
   // ── ۲. فیلترهای دامنه ──
   const [rangeMode, setRangeMode] = useState("all");
@@ -117,8 +159,8 @@ export default function SanamaExport() {
   const buildQueryParams = () => {
     return new URLSearchParams({
       exportType,
-      month: String(month || "3"),
-      fiscalYear: String(fiscalYear || "1403"),
+      month: exportType === "final" ? "15" : String(month || "3"),
+      fiscalYear: String(fiscalYear || ""),
       rangeMode,
       fromAccountCode,
       toAccountCode,
@@ -132,11 +174,15 @@ export default function SanamaExport() {
 
   // اعتبارسنجی و دریافت پیش‌نمایش
   const handleValidateAndPreview = async () => {
+    if (!fiscalYear) {
+      alert("لطفاً سال مالی را انتخاب نمایید.");
+      return;
+    }
     setValidating(true);
     try {
       const filterBody = {
         exportType,
-        month,
+        month: exportType === "final" ? "15" : month,
         fiscalYear,
         rangeMode,
         fromAccountCode,
@@ -167,6 +213,10 @@ export default function SanamaExport() {
 
   // تولید و دانلود فایل XML رسمی
   const handleDownload = async () => {
+    if (!fiscalYear) {
+      alert("لطفاً سال مالی را انتخاب نمایید.");
+      return;
+    }
     setLoading(true);
     try {
       // 1. Validation for Egress / Export permission
@@ -356,13 +406,32 @@ export default function SanamaExport() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-slate-50/80 rounded-xl border border-slate-200/60">
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold text-slate-700">سال مالی</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-bold text-slate-700">سال مالی</Label>
+                  {fiscalYearOptions.length > 0 && (
+                    <span className="text-[10px] text-slate-500 font-medium">
+                      ({fiscalYearOptions.length} دوره مالی تعریف‌شده در سیستم)
+                    </span>
+                  )}
+                </div>
                 <SearchableSelect
-                  options={FISCAL_YEAR_OPTIONS}
+                  options={fiscalYearOptions}
                   value={fiscalYear}
                   onChange={(val) => setFiscalYear(val)}
-                  placeholder="انتخاب سال مالی"
+                  placeholder={
+                    loadingFiscalYears && fiscalYearOptions.length === 0
+                      ? "در حال بارگذاری سال‌های مالی..."
+                      : fiscalYearOptions.length === 0
+                      ? "هیچ سال مالی در سیستم تعریف نشده است"
+                      : "انتخاب سال مالی"
+                  }
+                  disabled={loadingFiscalYears && fiscalYearOptions.length === 0}
                 />
+                {fiscalYearOptions.length === 0 && !loadingFiscalYears && (
+                  <p className="text-[11px] text-amber-600 mt-1">
+                    هیچ دوره مالی در سیستم یافت نشد. لطفاً ابتدا از منوی تعاریف، سال مالی را تعریف نمایید.
+                  </p>
+                )}
               </div>
 
               {exportType === "monthly" && (

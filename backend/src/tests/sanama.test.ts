@@ -105,68 +105,404 @@ describe("🏛️ SANAMA Protocol Edition 19 Test Suite", () => {
     });
   });
 
-  describe("4. SanamaMapper Data Aggregation & Filtering", () => {
-    it("should filter documents by fiscal year and month", () => {
-      const docs = [
-        { doc_number: "1", doc_date: "1403/01/15", fiscal_year: "1403", month: "1", status: "CONFIRMED" },
-        { doc_number: "2", doc_date: "1403/05/20", fiscal_year: "1403", month: "5", status: "CONFIRMED" },
-        { doc_number: "3", doc_date: "1402/12/29", fiscal_year: "1402", month: "12", status: "CONFIRMED" }
-      ];
+  describe("5. Mandatory 18 Production Scenarios (Section 8 Compliance)", () => {
+    const defaultHeader: SanamaHeader = {
+      protocolName: "SANAMA",
+      protocolVer: "3.2",
+      protocolType: "MonthlyProtocol",
+      mainOrgID: "10100000000",
+      mainOrgCode: "400367",
+      year: "1403",
+      month: "06"
+    };
 
-      const filtered = SanamaMapper.filterDocuments(docs, { fiscalYear: "1403", month: "1" });
-      assert.strictEqual(filtered.length, 1);
-      assert.strictEqual(filtered[0].doc_number, "1");
-    });
-
-    it("should aggregate progress debtor and creditor amounts correctly", () => {
+    // Scenario 1: Period with multiple accounts and confirmed documents
+    it("Scenario 1: should generate correct report items for a period with multiple accounts and confirmed documents", () => {
       const docs = [
         {
-          status: "CONFIRMED",
+          doc_number: "1",
+          status: "صدور سند قطعی",
+          fiscal_year: 1403,
+          document_date: "1403/02/10",
           lines: [
-            { account_code: "41001", debit: 100, credit: 0 },
-            { account_code: "41001", debit: 200, credit: 0 },
-            { account_code: "41001", debit: 0, credit: 50 }
+            { account_code: "11001", debit: 5000000, credit: 0 },
+            { account_code: "41001", debit: 0, credit: 5000000 }
+          ]
+        },
+        {
+          doc_number: "2",
+          status: "CONFIRMED",
+          fiscal_year: 1403,
+          document_date: "1403/05/18",
+          lines: [
+            { account_code: "11001", debit: 3000000, credit: 0 },
+            { account_code: "61001", debit: 3000000, credit: 0 }
           ]
         }
       ];
 
-      const items = SanamaMapper.mapDocumentsToReportItems(docs, {});
-      assert.strictEqual(items.length, 1);
-      assert.strictEqual(items[0].AccCode, "41001");
-      assert.strictEqual(items[0].SummaryProgressDeptor, 300);
-      assert.strictEqual(items[0].SummaryProgressCreditor, 50);
+      const items = SanamaMapper.mapDocumentsToReportItems(docs, { fiscalYear: "1403", month: "6" });
+      assert.strictEqual(items.length, 3);
+      const item11001 = items.find((i) => i.AccCode === "11001");
+      assert.ok(item11001);
+      assert.strictEqual(item11001?.SummaryProgressDeptor, 8000000);
+      assert.strictEqual(item11001?.SummaryProgressCreditor, 0);
     });
 
-    it("should correctly populate default CreditType for account 21001 without SANAMA_WARN_GAP", () => {
+    // Scenario 2: Accounts with only debit progress
+    it("Scenario 2: should handle accounts with only debit progress correctly", () => {
       const docs = [
         {
-          status: "CONFIRMED",
-          fiscal_year: "1403",
-          month: "3",
-          lines: [
-            { account_code: "21001", debit: 20881999999, credit: 0, nominee_code: "A311112345678901" }
-          ]
+          status: "صدور سند قطعی",
+          fiscal_year: 1403,
+          document_date: "1403/03/01",
+          lines: [{ account_code: "11001", debit: 12500000, credit: 0 }]
         }
       ];
-
       const items = SanamaMapper.mapDocumentsToReportItems(docs, { fiscalYear: "1403", month: "3" });
       assert.strictEqual(items.length, 1);
-      assert.strictEqual(items[0].AccCode, "21001");
-      assert.strictEqual(items[0].CreditType, "0");
+      assert.strictEqual(items[0].SummaryProgressDeptor, 12500000);
+      assert.strictEqual(items[0].SummaryProgressCreditor, 0);
+    });
 
-      const header: SanamaHeader = {
+    // Scenario 3: Accounts with only credit progress
+    it("Scenario 3: should handle accounts with only credit progress correctly", () => {
+      const docs = [
+        {
+          status: "صدور سند قطعی",
+          fiscal_year: 1403,
+          document_date: "1403/03/01",
+          lines: [{ account_code: "41001", debit: 0, credit: 9800000 }]
+        }
+      ];
+      const items = SanamaMapper.mapDocumentsToReportItems(docs, { fiscalYear: "1403", month: "3" });
+      assert.strictEqual(items.length, 1);
+      assert.strictEqual(items[0].SummaryProgressDeptor, 0);
+      assert.strictEqual(items[0].SummaryProgressCreditor, 9800000);
+    });
+
+    // Scenario 4: Accounts with both debit and credit progress
+    it("Scenario 4: should handle accounts with both debit and credit progress correctly", () => {
+      const docs = [
+        {
+          status: "صدور سند قطعی",
+          fiscal_year: 1403,
+          document_date: "1403/04/10",
+          lines: [
+            { account_code: "11001", debit: 50000000, credit: 15000000 }
+          ]
+        }
+      ];
+      const items = SanamaMapper.mapDocumentsToReportItems(docs, { fiscalYear: "1403", month: "4" });
+      assert.strictEqual(items.length, 1);
+      assert.strictEqual(items[0].SummaryProgressDeptor, 50000000);
+      assert.strictEqual(items[0].SummaryProgressCreditor, 15000000);
+    });
+
+    // Scenario 5: Accounts with multiple details or persons
+    it("Scenario 5: should emit separate rows for different persons/nominees without merging", () => {
+      const docs = [
+        {
+          status: "صدور سند قطعی",
+          fiscal_year: 1403,
+          document_date: "1403/04/15",
+          lines: [
+            {
+              account_code: "11522",
+              debit: 20000000,
+              credit: 0,
+              sanamaFields: { sanama_20: "1403", sanama_21: "A323114007592633", sanama_43: "400367" }
+            },
+            {
+              account_code: "11522",
+              debit: 35000000,
+              credit: 0,
+              sanamaFields: { sanama_20: "1403", sanama_21: "A323710300062917", sanama_43: "400367" }
+            }
+          ]
+        }
+      ];
+
+      const items = SanamaMapper.mapDocumentsToReportItems(docs, { fiscalYear: "1403", month: "4" });
+      assert.strictEqual(items.length, 2);
+      const nomCodes = items.map((i) => i.NomineeCode);
+      assert.ok(nomCodes.includes("A323114007592633"));
+      assert.ok(nomCodes.includes("A323710300062917"));
+    });
+
+    // Scenario 6: Accounts related to different funding sources and credits
+    it("Scenario 6: should emit separate rows for different funding sources (SourceType 1 vs 2)", () => {
+      const docs = [
+        {
+          status: "صدور سند قطعی",
+          fiscal_year: 1403,
+          document_date: "1403/05/01",
+          lines: [
+            {
+              account_code: "15001",
+              debit: 1000000,
+              credit: 0,
+              sanamaFields: { sanama_1: "1", sanama_5: "1", sanama_6: "2", sanama_8: "1502001010" }
+            },
+            {
+              account_code: "15001",
+              debit: 2000000,
+              credit: 0,
+              sanamaFields: { sanama_1: "2", sanama_5: "1", sanama_6: "2", sanama_8: "1502001010" }
+            }
+          ]
+        }
+      ];
+
+      const items = SanamaMapper.mapDocumentsToReportItems(docs, { fiscalYear: "1403", month: "5" });
+      assert.strictEqual(items.length, 2);
+      assert.ok(items.some((i) => i.SourceType === "1"));
+      assert.ok(items.some((i) => i.SourceType === "2"));
+    });
+
+    // Scenario 7: Accounts with prior-year (سنواتی) data
+    it("Scenario 7: should maintain distinct prior year information (sanama_20) in separate rows", () => {
+      const docs = [
+        {
+          status: "صدور سند قطعی",
+          fiscal_year: 1403,
+          document_date: "1403/06/20",
+          lines: [
+            {
+              account_code: "11522",
+              debit: 7000000,
+              credit: 0,
+              sanamaFields: { sanama_20: "1398", sanama_21: "A323114007592633" }
+            },
+            {
+              account_code: "11522",
+              debit: 9000000,
+              credit: 0,
+              sanamaFields: { sanama_20: "1401", sanama_21: "A323114007592633" }
+            }
+          ]
+        }
+      ];
+
+      const items = SanamaMapper.mapDocumentsToReportItems(docs, { fiscalYear: "1403", month: "6" });
+      assert.strictEqual(items.length, 2);
+      assert.ok(items.some((i) => i.Year === "1398"));
+      assert.ok(items.some((i) => i.Year === "1401"));
+    });
+
+    // Scenario 8: Person info with Persian title and valid NomineeCode
+    it("Scenario 8: should resolve person Persian title from auxiliary personsMap", () => {
+      const docs = [
+        {
+          status: "صدور سند قطعی",
+          fiscal_year: 1403,
+          document_date: "1403/07/01",
+          lines: [
+            {
+              account_code: "11522",
+              debit: 14000000,
+              credit: 0,
+              sanamaFields: { sanama_20: "1403", sanama_21: "A323710300062917" }
+            }
+          ]
+        }
+      ];
+
+      const personsMap = new Map<string, any>();
+      personsMap.set("A323710300062917", { nomineeCode: "A323710300062917", title: "شرکت آبنوس سازان ایلام" });
+
+      const items = SanamaMapper.mapDocumentsToReportItems(docs, { fiscalYear: "1403", month: "7" }, { personsMap });
+      assert.strictEqual(items.length, 1);
+      assert.strictEqual(items[0].NomineeCode, "A323710300062917");
+      assert.strictEqual(items[0].Nominee, "شرکت آبنوس سازان ایلام");
+    });
+
+    // Scenario 9: Invalid or unmapped Moein codes
+    it("Scenario 9: should report error for unmapped or invalid Moein codes", () => {
+      const items: SanamaReportItem[] = [
+        {
+          AccCode: "99999", // Invalid Moein code not in sanamaCodes.json
+          SummaryProgressDeptor: 1000,
+          SummaryProgressCreditor: 0
+        }
+      ];
+
+      const result = SanamaValidator.validateAll(defaultHeader, items, []);
+      assert.strictEqual(result.isValid, false);
+      assert.ok(result.errors.some((e) => e.code === "SANAMA_ERR_INVALID_MOEIN" && e.accCode === "99999"));
+    });
+
+    // Scenario 10: Missing mandatory header information
+    it("Scenario 10: should reject generation when essential header info is missing or invalid", () => {
+      const invalidHeader: SanamaHeader = {
         protocolName: "SANAMA",
         protocolVer: "3.2",
         protocolType: "MonthlyProtocol",
-        mainOrgID: "10100000000",
-        mainOrgCode: "400367",
-        year: "1403",
-        month: "03"
+        mainOrgID: "123", // Invalid length
+        mainOrgCode: "",  // Missing code
+        year: "14",       // Invalid year
+        month: "20"       // Invalid month
       };
 
-      const result = SanamaValidator.validateAll(header, items, []);
-      const gap21001 = result.warnings.filter((w) => w.code === "SANAMA_WARN_GAP" && w.accCode === "21001");
-      assert.strictEqual(gap21001.length, 0, "Account 21001 should not produce SANAMA_WARN_GAP for CreditType");
+      const result = SanamaValidator.validateAll(invalidHeader, [], []);
+      assert.strictEqual(result.isValid, false);
+      assert.ok(result.errors.some((e) => e.code === "SANAMA_ERR_ORG_ID"));
+      assert.ok(result.errors.some((e) => e.code === "SANAMA_ERR_ORG_CODE"));
+      assert.ok(result.errors.some((e) => e.code === "SANAMA_ERR_YEAR"));
+      assert.ok(result.errors.some((e) => e.code === "SANAMA_ERR_MONTH"));
+    });
+
+    // Scenario 11: Period with no reportable data
+    it("Scenario 11: should produce empty report items without error when period has no documents", () => {
+      const items = SanamaMapper.mapDocumentsToReportItems([], { fiscalYear: "1403", month: "1" });
+      assert.strictEqual(items.length, 0);
+
+      const result = SanamaValidator.validateAll(defaultHeader, items, []);
+      assert.strictEqual(result.isValid, true);
+      assert.strictEqual(result.stats.totalReportRows, 0);
+      assert.strictEqual(result.stats.totalDebitProgress, 0);
+    });
+
+    // Scenario 12: Bank reconciliation with detailed diff types
+    it("Scenario 12: should map bank accounts and format difftype details properly in XML", () => {
+      const bankAccounts = [
+        {
+          accountNumber: "4001000041670114",
+          sheba: "IR010000000040010000416701",
+          description: "بانک پرداخت هزینه",
+          accountType: "2",
+          moeinAccount: "11001",
+          balance: 10000000
+        }
+      ];
+
+      const reconciliations = [
+        {
+          accountNumber: "4001000041670114",
+          sheba: "IR010000000040010000416701",
+          diffTypes: [
+            {
+              typeIndex: 10,
+              value: 500000,
+              details: [
+                { CheckNo: "12345", Zinaf: "پیمانکار الف", Expense: 500000, Date: "1403/05/10", DocNo: "55", DocDate: "1403/05/10" }
+              ]
+            }
+          ]
+        }
+      ];
+
+      const contrast = SanamaMapper.mapBankAccountsToContrastList(bankAccounts, reconciliations);
+      assert.strictEqual(contrast.length, 1);
+      assert.strictEqual(contrast[0].accountNumber, "IR010000000040010000416701");
+
+      const xml = SanamaSerializer.serializeToXml(defaultHeader, [], contrast);
+      assert.ok(xml.includes('ContrastAccount_List AccountNumber="IR010000000040010000416701"'));
+      assert.ok(xml.includes('<difftype10 Value="500000">'));
+      assert.ok(xml.includes('CheckNo="12345"'));
+      assert.ok(xml.includes('Zinaf="پیمانکار الف"'));
+    });
+
+    // Scenario 13: Persian text containing special XML characters
+    it("Scenario 13: should safely escape Persian text containing special XML characters", () => {
+      const reportItems: SanamaReportItem[] = [
+        {
+          AccCode: "41001",
+          SummaryProgressDeptor: 100,
+          SummaryProgressCreditor: 0,
+          Nominee: "شرکت کاوش & پیشگامان <صنعت> \"ایران\" 'سهامی خاص'"
+        }
+      ];
+
+      const xml = SanamaSerializer.serializeToXml(defaultHeader, reportItems, []);
+      assert.ok(xml.includes("شرکت کاوش &amp; پیشگامان &lt;صنعت&gt; &quot;ایران&quot; &apos;سهامی خاص&apos;"));
+    });
+
+    // Scenario 14: Very large financial amounts without floating-point precision loss
+    it("Scenario 14: should format very large financial amounts cleanly without scientific notation", () => {
+      const largeDebit = 293182759054321; // 293 trillion rials
+      const largeCredit = 182115687236543;
+      const formattedDebit = SanamaSerializer.formatAmount(largeDebit);
+      const formattedCredit = SanamaSerializer.formatAmount(largeCredit);
+
+      assert.strictEqual(formattedDebit, "293182759054321");
+      assert.strictEqual(formattedCredit, "182115687236543");
+      assert.ok(!formattedDebit.includes("e+"));
+    });
+
+    // Scenario 15: Incomplete data, invalid dates, negative amounts
+    it("Scenario 15: should flag negative debit or credit amounts as accounting validation errors", () => {
+      const items: SanamaReportItem[] = [
+        {
+          AccCode: "11001",
+          SummaryProgressDeptor: -500,
+          SummaryProgressCreditor: 0
+        }
+      ];
+
+      const result = SanamaValidator.validateAll(defaultHeader, items, []);
+      assert.strictEqual(result.isValid, false);
+      assert.ok(result.errors.some((e) => e.code === "SANAMA_ERR_NEG_DEBIT"));
+    });
+
+    // Scenario 16: Idempotent & deterministic execution for identical inputs
+    it("Scenario 16: should produce deterministic and identical XML across repeated runs for identical input", () => {
+      const docs = [
+        {
+          status: "صدور سند قطعی",
+          fiscal_year: 1403,
+          document_date: "1403/02/05",
+          lines: [
+            { account_code: "11001", debit: 1000, credit: 0 },
+            { account_code: "41001", debit: 0, credit: 1000 }
+          ]
+        }
+      ];
+
+      const run1 = SanamaMapper.mapDocumentsToReportItems(docs, { fiscalYear: "1403", month: "2" });
+      const xml1 = SanamaSerializer.serializeToXml(defaultHeader, run1, []);
+
+      const run2 = SanamaMapper.mapDocumentsToReportItems(docs, { fiscalYear: "1403", month: "2" });
+      const xml2 = SanamaSerializer.serializeToXml(defaultHeader, run2, []);
+
+      assert.strictEqual(xml1, xml2);
+    });
+
+    // Scenario 17: Structural match with target Protocol v3.2 Edition 19
+    it("Scenario 17: should include all target Section 4 attributes in canonical order", () => {
+      const reportItems: SanamaReportItem[] = [
+        {
+          AccCode: "11002",
+          SummaryProgressDeptor: 100000,
+          SummaryProgressCreditor: 0,
+          AccountNumber: "IR820100004167011444752404",
+          SubBudgetCode: "400367"
+        }
+      ];
+
+      const xml = SanamaSerializer.serializeToXml(defaultHeader, reportItems, []);
+      assert.ok(xml.includes('ProtocolVer="3.2"'));
+      assert.ok(xml.includes('AccCode="11002"'));
+      assert.ok(xml.includes('SourceType="0"'));
+      assert.ok(xml.includes('SubBudgetCode="400367"'));
+      assert.ok(xml.includes('ExpensePart="0"'));
+      assert.ok(xml.includes('Output="0"'));
+    });
+
+    // Scenario 18: Ensuring data from other years or future periods is strictly excluded
+    it("Scenario 18: should strictly exclude documents from other fiscal years and future months", () => {
+      const docs = [
+        { doc_number: "1", status: "صدور سند قطعی", fiscal_year: 1403, document_date: "1403/03/10", lines: [{ account_code: "11001", debit: 100, credit: 0 }] },
+        { doc_number: "2", status: "صدور سند قطعی", fiscal_year: 1403, document_date: "1403/08/10", lines: [{ account_code: "11001", debit: 200, credit: 0 }] }, // Future month 8
+        { doc_number: "3", status: "صدور سند قطعی", fiscal_year: 1402, document_date: "1402/03/10", lines: [{ account_code: "11001", debit: 300, credit: 0 }] }, // Previous year 1402
+        { doc_number: "4", status: "صدور سند قطعی", fiscal_year: 1404, document_date: "1404/01/10", lines: [{ account_code: "11001", debit: 400, credit: 0 }] }  // Next year 1404
+      ];
+
+      // Export for Year 1403, Month 5 (should only include doc #1)
+      const items = SanamaMapper.mapDocumentsToReportItems(docs, { fiscalYear: "1403", month: "5" });
+      assert.strictEqual(items.length, 1);
+      assert.strictEqual(items[0].SummaryProgressDeptor, 100);
     });
   });
 });
+

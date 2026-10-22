@@ -11,6 +11,7 @@
   "dependencies": {
     "@hono/node-server": "^1.19.17",
     "bcrypt": "^5.1.1",
+    "fast-xml-parser": "^5.11.2",
     "hono": "^4.13.5",
     "jsonwebtoken": "^9.0.2",
     "mongodb": "^6.21.0"
@@ -19,6 +20,7 @@
     "@types/bcrypt": "^5.0.2",
     "@types/jsonwebtoken": "^9.0.7",
     "@types/node": "^22.20.1",
+    "pdf-parse": "^2.4.5",
     "tsx": "^4.23.13",
     "typescript": "^5.9.3"
   }

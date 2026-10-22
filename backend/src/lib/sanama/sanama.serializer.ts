@@ -16,6 +16,16 @@ export class SanamaSerializer {
   }
 
   /**
+   * Format numeric amounts to avoid floating point precision loss or exponential notation
+   */
+  public static formatAmount(val: any): string {
+    if (val === null || val === undefined || val === "") return "0";
+    const num = typeof val === "number" ? val : Number(String(val).replace(/,/g, "").trim());
+    if (isNaN(num)) return "0";
+    return Math.round(num).toLocaleString("en-US", { useGrouping: false });
+  }
+
+  /**
    * Serialize header, report list, and contrast accounts to official UTF-8 SANAMA XML
    */
   public static serializeToXml(
@@ -41,11 +51,26 @@ export class SanamaSerializer {
     for (const item of reportItems) {
       xml += `  <Report_List`;
       xml += ` AccCode="${this.escapeXml(item.AccCode)}"`;
-      xml += ` SummaryProgressDeptor="${item.SummaryProgressDeptor ?? 0}"`;
-      xml += ` SummaryProgressCreditor="${item.SummaryProgressCreditor ?? 0}"`;
+      xml += ` SummaryProgressDeptor="${this.formatAmount(item.SummaryProgressDeptor)}"`;
+      xml += ` SummaryProgressCreditor="${this.formatAmount(item.SummaryProgressCreditor)}"`;
 
       for (const attr of SANAMA_CONSTANTS.ATTRIBUTES) {
-        const val = item[attr] !== undefined ? item[attr] : "";
+        let val = item[attr];
+        // Support fallback alias for AnnualAdjustmentSubject
+        if (val === undefined && attr === "AnnualAdjustmentsSubject" && item["AnnualAdjustmentSubject"] !== undefined) {
+          val = item["AnnualAdjustmentSubject"];
+        }
+        if (val === undefined || val === null) {
+          if (SANAMA_CONSTANTS.EMPTY_IF_NOT_APPLICABLE.has(attr)) {
+            val = "";
+          } else if (attr === "AccountNumber") {
+            val = "IR0";
+          } else if (attr === "SubBudgetCode") {
+            val = header.mainOrgCode || "400367";
+          } else {
+            val = "0";
+          }
+        }
         xml += ` ${attr}="${this.escapeXml(val)}"`;
       }
       xml += ` />\n`;
@@ -56,8 +81,8 @@ export class SanamaSerializer {
       const accNum = this.escapeXml(acc.accountNumber);
       const accDscp = this.escapeXml(acc.accountDscp);
       const accType = this.escapeXml(acc.accountType);
-      const ledger = acc.mojoodiTebgheDaftar ?? 0;
-      const bank = acc.mojoodiTebgheBank ?? 0;
+      const ledger = this.formatAmount(acc.mojoodiTebgheDaftar);
+      const bank = this.formatAmount(acc.mojoodiTebgheBank);
 
       xml += `  <ContrastAccount_List AccountNumber="${accNum}" AccountDscp="${accDscp}" AccountType="${accType}" MojoodiTebgheDaftar="${ledger}" MojoodiTebgheBank="${bank}">`;
       xml += `<AccountNumberImage />`;
@@ -65,19 +90,19 @@ export class SanamaSerializer {
       const diffs = acc.diffTypes || [];
       for (let i = 1; i <= 12; i++) {
         const diff = diffs.find((d) => d.typeIndex === i);
-        const val = diff ? diff.value : 0;
+        const val = this.formatAmount(diff ? diff.value : 0);
         const details = diff && diff.details ? diff.details : [];
 
         xml += `<difftype${i} Value="${val}">`;
         for (const det of details) {
           xml += `<Detail_List`;
-          if (det.Date !== undefined) xml += ` Date="${this.escapeXml(det.Date)}"`;
-          if (det.Description !== undefined) xml += ` Description="${this.escapeXml(det.Description)}"`;
-          if (det.Expense !== undefined) xml += ` Expense="${det.Expense}"`;
-          if (det.DocNo !== undefined) xml += ` DocNo="${this.escapeXml(det.DocNo)}"`;
-          if (det.DocDate !== undefined) xml += ` DocDate="${this.escapeXml(det.DocDate)}"`;
           if (det.CheckNo !== undefined) xml += ` CheckNo="${this.escapeXml(det.CheckNo)}"`;
           if (det.Zinaf !== undefined) xml += ` Zinaf="${this.escapeXml(det.Zinaf)}"`;
+          if (det.Expense !== undefined) xml += ` Expense="${this.formatAmount(det.Expense)}"`;
+          if (det.Date !== undefined) xml += ` Date="${this.escapeXml(det.Date)}"`;
+          if (det.Description !== undefined) xml += ` Description="${this.escapeXml(det.Description)}"`;
+          if (det.DocNo !== undefined) xml += ` DocNo="${this.escapeXml(det.DocNo)}"`;
+          if (det.DocDate !== undefined) xml += ` DocDate="${this.escapeXml(det.DocDate)}"`;
           if (det.Documents !== undefined) xml += ` Documents="${this.escapeXml(det.Documents)}"`;
           xml += ` />`;
         }
@@ -106,3 +131,4 @@ export class SanamaSerializer {
     }
   }
 }
+
