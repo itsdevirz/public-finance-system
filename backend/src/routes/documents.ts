@@ -93,7 +93,7 @@ async function validateAccountBalances(
     {
       $group: {
         _id: { $ifNull: ["$lines.account_code", "$lines.subAccount"] },
-        histDebit:  { $sum: "$lines.debit" },
+        histDebit: { $sum: "$lines.debit" },
         histCredit: { $sum: "$lines.credit" },
       },
     },
@@ -114,10 +114,10 @@ async function validateAccountBalances(
     const nature = getAccountNature(code);
     const hist = histMap.get(code) ?? { debit: 0, credit: 0 };
 
-    const newDebit  = newLines.filter(l => String(l.account_code || (l as any).subAccount) === code).reduce((s, l) => s + (Number(l.debit)  || 0), 0);
+    const newDebit = newLines.filter(l => String(l.account_code || (l as any).subAccount) === code).reduce((s, l) => s + (Number(l.debit) || 0), 0);
     const newCredit = newLines.filter(l => String(l.account_code || (l as any).subAccount) === code).reduce((s, l) => s + (Number(l.credit) || 0), 0);
 
-    const totalDebit  = hist.debit  + newDebit;
+    const totalDebit = hist.debit + newDebit;
     const totalCredit = hist.credit + newCredit;
 
     if (nature === "debit" && totalCredit > totalDebit) {
@@ -345,7 +345,7 @@ router.get("/", async (c) => {
 // GET /api/documents/account-balance/:accountCode — با MongoDB Aggregation
 router.get("/account-balance/:accountCode", async (c) => {
   const accountCode = c.req.param("accountCode");
-  const excludeId   = c.req.query("excludeId");
+  const excludeId = c.req.query("excludeId");
 
   const matchStage: Record<string, unknown> = {
     status: { $ne: "CANCELLED" },
@@ -362,7 +362,7 @@ router.get("/account-balance/:accountCode", async (c) => {
     {
       $group: {
         _id: null,
-        totalDebit:  { $sum: "$lines.debit" },
+        totalDebit: { $sum: "$lines.debit" },
         totalCredit: { $sum: "$lines.credit" },
       },
     },
@@ -373,7 +373,7 @@ router.get("/account-balance/:accountCode", async (c) => {
     .aggregate(pipeline)
     .toArray();
 
-  const totalDebit  = result[0]?.totalDebit  ?? 0;
+  const totalDebit = result[0]?.totalDebit ?? 0;
   const totalCredit = result[0]?.totalCredit ?? 0;
 
   return c.json({
@@ -561,7 +561,7 @@ router.put("/:id", async (c) => {
       return c.json({ message: "خطا: این سند به دلیل رد دائمی غیرقابل ویرایش است." }, 403);
     }
     if (status === "CONFIRMED" || status === "FINAL" || status === "صدور سند قطعی" || currentStep === "FINAL") {
-      return c.json({ message: "خطا: این سند قطعی شده است و امکان ویرایش آن وجود ندارد." }, 403);
+      return c.json({ message: "خطا: این سند صدور قطعی شده است" }, 403);
     }
 
     const userPos = `${user?.position || ""} ${user?.role || ""} ${payload?.role || ""}`.toLowerCase();
@@ -596,15 +596,26 @@ router.put("/:id", async (c) => {
     return c.json({ message: "document_type و fiscal_year الزامی است" }, 400);
   }
 
+  const isExistingDocFinal = (
+    existingDoc.status === "CONFIRMED" ||
+    existingDoc.status === "FINAL" ||
+    existingDoc.status === "صدور سند قطعی" ||
+    existingDoc.workflowStep === "FINAL"
+  );
+
   const updateData: Record<string, unknown> = {
     document_type,
     fiscal_year,
-    status: body.status ?? "DRAFT",
+    status: isExistingDocFinal ? (body.status || existingDoc.status || "صدور سند قطعی") : (body.status ?? "DRAFT"),
     lines: ciphertext ? [] : lines,
     ...(ciphertext ? { ciphertext } : {}),
   };
 
-  if (body.workflowStep) updateData.workflowStep = body.workflowStep;
+  if (body.workflowStep) {
+    updateData.workflowStep = body.workflowStep;
+  } else if (isExistingDocFinal) {
+    updateData.workflowStep = existingDoc.workflowStep || "FINAL";
+  }
   if (body.currentAssigneeRole) updateData.currentAssigneeRole = body.currentAssigneeRole;
   if (body.returnedUser !== undefined) updateData.returnedUser = body.returnedUser;
   if (body.rejectionReason !== undefined) updateData.rejectionReason = body.rejectionReason;
@@ -616,7 +627,7 @@ router.put("/:id", async (c) => {
     try {
       const preview = decryptDocument({ ciphertext } as any);
       if (preview.document_date && !updateData.document_date) updateData.document_date = preview.document_date;
-      if (preview.lines?.length)  updateData.lines = preview.lines;
+      if (preview.lines?.length) updateData.lines = preview.lines;
     } catch { /* ادامه بده */ }
   }
 

@@ -10,11 +10,12 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Plus, Trash2, Save, Printer, RotateCcw,
   FileText, CheckCircle2, Ban, X, AlertCircle,
-  Check, FileEdit, Copy, GitFork, Send
+  Check, FileEdit, Copy, GitFork, Send, ShieldAlert
 } from "lucide-react";
 import api from "@/api";
 import { useApiCache } from "@/hooks/useApiCache";
 import { encrypt } from "@/lib/crypto";
+import { cn } from "@/lib/utils";
 
 import { PersianDatePicker, toPersianDigits } from "@/components/ui/persian-date-picker";
 import sanamaCodes from "@/data/sanamaCodes.json";
@@ -275,7 +276,7 @@ function subAccountOptions(groupCode, accountCode) {
 }
 
 // ---- ردیف جدول ----
-const DocRow = React.memo(({ row, idx, onChange, onDelete, onDuplicate, isActive, onActivate }) => {
+const DocRow = React.memo(({ row, idx, onChange, onDelete, onDuplicate, isActive, onActivate, disabled = false }) => {
   const [debitVal, setDebitVal] = useState(row.debit || "");
   const [creditVal, setCreditVal] = useState(row.credit || "");
   const debitFocused = React.useRef(false);
@@ -301,16 +302,19 @@ const DocRow = React.memo(({ row, idx, onChange, onDelete, onDuplicate, isActive
   }, [row.group, row.account, row.subAccount]);
 
   function setGroup(val) {
+    if (disabled) return;
     onActivate?.();
     onChange({ ...row, group: val, account: "", subAccount: "", debit: "", credit: "", sanamaFields: {}, isSanamaConfirmed: false, lastTouchTimestamp: Date.now() });
   }
 
   function setAccount(val) {
+    if (disabled) return;
     onActivate?.();
     onChange({ ...row, account: val, subAccount: "", debit: "", credit: "", sanamaFields: {}, isSanamaConfirmed: false, lastTouchTimestamp: Date.now() });
   }
 
   function setSubAccount(val) {
+    if (disabled) return;
     onActivate?.();
     const autoCreditInfo = getCreditInfoAutoValue(val);
     const initialSanama = {};
@@ -343,6 +347,7 @@ const DocRow = React.memo(({ row, idx, onChange, onDelete, onDuplicate, isActive
           onChange={setGroup}
           options={groupOptions}
           placeholder="گروه..."
+          disabled={disabled}
         />
       </td>
 
@@ -353,7 +358,7 @@ const DocRow = React.memo(({ row, idx, onChange, onDelete, onDuplicate, isActive
           onChange={setAccount}
           options={accountOptions(row.group)}
           placeholder="کل..."
-          disabled={!row.group}
+          disabled={disabled || !row.group}
         />
       </td>
 
@@ -364,19 +369,21 @@ const DocRow = React.memo(({ row, idx, onChange, onDelete, onDuplicate, isActive
           onChange={setSubAccount}
           options={subAccountOptions(row.group, row.account)}
           placeholder="معین..."
-          disabled={!row.account}
+          disabled={disabled || !row.account}
         />
       </td>
 
       {/* مبلغ بدهکار */}
       <td className={`${cellCls} w-36`}>
         <input
-          className={`${inputCls} text-blue-700`}
+          className={`${inputCls} text-blue-700 ${disabled ? "opacity-60 cursor-not-allowed" : ""}`}
           value={debitVal}
+          disabled={disabled}
           onClick={(e) => e.stopPropagation()}
-          onFocus={() => { debitFocused.current = true; }}
-          onChange={(e) => setDebitVal(e.target.value)}
+          onFocus={() => { if (!disabled) debitFocused.current = true; }}
+          onChange={(e) => !disabled && setDebitVal(e.target.value)}
           onBlur={(e) => {
+            if (disabled) return;
             debitFocused.current = false;
             const formatted = formatNumber(e.target.value);
             setDebitVal(formatted);
@@ -388,12 +395,14 @@ const DocRow = React.memo(({ row, idx, onChange, onDelete, onDuplicate, isActive
       {/* مبلغ بستانکار */}
       <td className={`${cellCls} w-36`}>
         <input
-          className={`${inputCls} text-rose-700`}
+          className={`${inputCls} text-rose-700 ${disabled ? "opacity-60 cursor-not-allowed" : ""}`}
           value={creditVal}
+          disabled={disabled}
           onClick={(e) => e.stopPropagation()}
-          onFocus={() => { creditFocused.current = true; }}
-          onChange={(e) => setCreditVal(e.target.value)}
+          onFocus={() => { if (!disabled) creditFocused.current = true; }}
+          onChange={(e) => !disabled && setCreditVal(e.target.value)}
           onBlur={(e) => {
+            if (disabled) return;
             creditFocused.current = false;
             const formatted = formatNumber(e.target.value);
             setCreditVal(formatted);
@@ -404,30 +413,35 @@ const DocRow = React.memo(({ row, idx, onChange, onDelete, onDuplicate, isActive
 
       {/* عملیات (کپی و حذف) */}
       <td className={`${cellCls} w-16 text-center`}>
-        <div className="flex items-center justify-center gap-1.5">
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onDuplicate?.(); }}
-            className="text-muted-foreground hover:text-blue-600 transition-colors"
-            title={`تکثیر / کپی سطر ${idx + 1}`}
-          >
-            <Copy className="h-3.5 w-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onDelete(); }}
-            className="text-muted-foreground hover:text-rose-500 transition-colors"
-            title={`حذف سطر ${idx + 1}`}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-        </div>
+        {!disabled ? (
+          <div className="flex items-center justify-center gap-1.5">
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onDuplicate?.(); }}
+              className="text-muted-foreground hover:text-blue-600 transition-colors cursor-pointer"
+              title={`تکثیر / کپی سطر ${idx + 1}`}
+            >
+              <Copy className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onDelete(); }}
+              className="text-muted-foreground hover:text-rose-500 transition-colors cursor-pointer"
+              title={`حذف سطر ${idx + 1}`}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ) : (
+          <span className="text-muted-foreground/40 text-[10px]">—</span>
+        )}
       </td>
     </tr>
   );
 }, (prev, next) => {
   return prev.idx === next.idx &&
     prev.isActive === next.isActive &&
+    prev.disabled === next.disabled &&
     prev.row === next.row;
 });
 
@@ -1303,15 +1317,38 @@ export default function ManualDocument() {
     (header?.rejectionCount || 0) > 0
   );
 
+  const isSysAdmin = useMemo(() => {
+    if (!currentUser) return false;
+    const uStr = `${currentUser.position || ""} ${currentUser.role || ""} ${currentUser.userGroup || ""} ${currentUser.workflowLevel || ""} ${currentUser.username || ""}`.toLowerCase();
+    return currentUser.isAdmin === true || currentUser.role === "admin" || uStr.includes("admin") || uStr.includes("مدیر سیستم") || uStr.includes("مدیرکل");
+  }, [currentUser]);
+
+  const isDocFinal = useMemo(() => {
+    const s = loadedDoc?.status || header?.status;
+    const step = loadedDoc?.workflowStep || header?.workflowStep;
+    return Boolean(
+      !copySourceId && (
+        s === "CONFIRMED" ||
+        s === "صدور سند قطعی" ||
+        s === "FINAL" ||
+        s === "تأییدشده" ||
+        step === "FINAL"
+      )
+    );
+  }, [loadedDoc?.status, header?.status, loadedDoc?.workflowStep, header?.workflowStep, copySourceId]);
+
   const canCurrentUserManageDoc = useMemo(() => {
     if (!docId) return true;
+    if (isDocFinal) {
+      // اسناد صدور قطعی شده منحصراً توسط مدیر سیستم (admin) قابل ویرایش است
+      return isSysAdmin;
+    }
     return canUserManageStep(currentUser, docStep, isDocReturned);
-  }, [currentUser, docStep, isDocReturned, docId]);
+  }, [currentUser, docStep, isDocReturned, docId, isDocFinal, isSysAdmin]);
 
   const sendToLabel = useMemo(() => {
-    const isDocFinal = loadedDoc && (loadedDoc.status === "CONFIRMED" || loadedDoc.status === "صدور سند قطعی" || loadedDoc.status === "FINAL" || loadedDoc.workflowStep === "FINAL");
     if (isDocFinal) {
-      return "سند قطعی شده است";
+      return isSysAdmin ? "ذخیره تغییرات سند قطعی" : "سند قطعی شده است (فقط‌خواندنی)";
     }
 
     if (!canCurrentUserManageDoc) {
@@ -1326,7 +1363,7 @@ export default function ManualDocument() {
       return "ثبت و صدور سند قطعی";
     }
     return `ثبت و ارسال به ${nextTarget.nextRole}`;
-  }, [nextTarget, canCurrentUserManageDoc, loadedDoc, header.currentAssigneeRole]);
+  }, [nextTarget, canCurrentUserManageDoc, loadedDoc, header.currentAssigneeRole, isDocFinal, isSysAdmin]);
 
   const activeRow = rows.find((r) => r.id === activeRowId) ?? rows[0];
   const showSanamaFields = needsSanamaFields(activeRow?.subAccount);
@@ -1377,12 +1414,21 @@ export default function ManualDocument() {
         const doc = res.data.data;
         if (doc) {
           setLoadedDoc(doc);
-          const isDocFinal = (doc.status === "CONFIRMED" || doc.status === "صدور سند قطعی" || doc.status === "FINAL" || doc.workflowStep === "FINAL") && !copySourceId;
+          const isDocFinalVal = (doc.status === "CONFIRMED" || doc.status === "صدور سند قطعی" || doc.status === "FINAL" || doc.workflowStep === "FINAL" || doc.status === "تأییدشده") && !copySourceId;
           const isDocPermRejected = doc.isPermanentlyRejected || (doc.rejectionCount || 0) >= 3 || doc.workflowStep === "PERMANENTLY_REJECTED";
           const isReturned = (doc.rejectionCount || 0) > 0 || (doc.status || "").includes("برگشت") || (doc.status || "").includes("رد") || (doc.status || "").includes("ابطال");
 
-          const canManage = canUserManageStep(currentUser, doc.workflowStep, isReturned);
-          const canEditThisDoc = copySourceId ? true : (!isDocPermRejected && !isDocFinal && canManage);
+          let canEditThisDoc = false;
+          if (copySourceId) {
+            canEditThisDoc = true;
+          } else if (isDocPermRejected) {
+            canEditThisDoc = false;
+          } else if (isDocFinalVal) {
+            // وقتی سند صدور قطعی شده: فقط کاربر ادمین یا مدیر سیستم حق ویرایش دارد و بقیه نقش‌ها دسترسی ندارند
+            canEditThisDoc = isSysAdmin;
+          } else {
+            canEditThisDoc = canUserManageStep(currentUser, doc.workflowStep, isReturned);
+          }
           setIsReadOnly(!canEditThisDoc);
 
           const targetFY = selectedFiscalYear || String(doc.fiscal_year || "1405");
@@ -1507,14 +1553,15 @@ export default function ManualDocument() {
   }, [docId, copySourceId]);
 
   async function handleSave(andSend = false) {
-    if (isReadOnly || !canCurrentUserManageDoc) {
-      const isDocFinal = loadedDoc && (loadedDoc.status === "CONFIRMED" || loadedDoc.status === "صدور سند قطعی" || loadedDoc.status === "FINAL" || loadedDoc.workflowStep === "FINAL");
+    if (isDocFinal) {
+      if (!isSysAdmin) {
+        setMessage({ type: "error", text: "خطا: این سند صدور قطعی شده است" });
+        return;
+      }
+    } else if (isReadOnly || !canCurrentUserManageDoc) {
       const isDocPermRejected = loadedDoc && (loadedDoc.isPermanentlyRejected || (loadedDoc.rejectionCount || 0) >= 3 || loadedDoc.workflowStep === "PERMANENTLY_REJECTED");
-
       if (isDocPermRejected) {
         setMessage({ type: "error", text: "خطا: این سند به طور دائم رد و ابطال شده است و امکان ویرایش آن وجود ندارد." });
-      } else if (isDocFinal) {
-        setMessage({ type: "error", text: "خطا: این سند قطعی شده است و امکان ویرایش آن وجود ندارد." });
       } else {
         const currentAssignee = loadedDoc?.currentAssigneeRole || header.currentAssigneeRole || "مراحل بعدی";
         setMessage({ type: "error", text: `خطا: این سند در کارتابل «${currentAssignee}» قرار دارد و در کارتابل شما قابل تغییر نیست.` });
@@ -1649,11 +1696,15 @@ export default function ManualDocument() {
       );
 
       // در حالت فقط «ثبت سند»: به عنوان پیش‌نویس یا وضعیت فعلی ذخیره می‌شود
-      let nextWorkflowStep = header.workflowStep || (loadedDoc?.workflowStep) || "ACCOUNTANT";
-      let nextAssigneeRole = header.currentAssigneeRole || (loadedDoc?.currentAssigneeRole) || "حسابدار";
+      let nextWorkflowStep = isDocFinal
+        ? "FINAL"
+        : (header.workflowStep || (loadedDoc?.workflowStep) || "ACCOUNTANT");
+      let nextAssigneeRole = isDocFinal
+        ? "تکمیل شده"
+        : (header.currentAssigneeRole || (loadedDoc?.currentAssigneeRole) || "حسابدار");
       let nextStatus = hasValidationError
         ? "پیش‌نویس"
-        : (isReturnedDoc ? "برگشت داده شده" : (header.status || "پیش‌نویس"));
+        : (isDocFinal ? "صدور سند قطعی" : (isReturnedDoc ? "برگشت داده شده" : (header.status || "پیش‌نویس")));
 
       const updatedHeader = {
         ...header,
@@ -1707,7 +1758,7 @@ export default function ManualDocument() {
       clearBalanceCache();
 
       // اگر کاربر دکمه "ثبت و ارسال به ..." را زده باشد، روال گردش کار را فراخوانی می‌کنیم
-      if (andSend && savedDocId) {
+      if (andSend && savedDocId && !isDocFinal) {
         const wfRes = await api.post(`/api/documents/${savedDocId}/workflow/approve`);
         if (wfRes.data?.success) {
           const updatedDoc = wfRes.data.data;
@@ -1758,6 +1809,14 @@ export default function ManualDocument() {
 
         if (loadedDoc) {
           setLoadedDoc(prev => prev ? ({ ...prev, status: nextStatus, workflowStep: nextWorkflowStep, currentAssigneeRole: nextAssigneeRole, document_number: savedDocNumber }) : prev);
+        } else {
+          setLoadedDoc({
+            ...(res.data?.data || {}),
+            status: nextStatus,
+            workflowStep: nextWorkflowStep,
+            currentAssigneeRole: nextAssigneeRole,
+            document_number: savedDocNumber,
+          });
         }
 
         if (hasValidationError) {
@@ -1768,7 +1827,9 @@ export default function ManualDocument() {
         } else {
           setMessage({
             type: "success",
-            text: `سند شماره ${savedDocNumber} با موفقیت ثبت شد.`
+            text: isDocFinal
+              ? `سند قطعی شماره ${savedDocNumber} با موفقیت توسط مدیر سیستم به‌روزرسانی و ذخیره شد.`
+              : `سند شماره ${savedDocNumber} با موفقیت ثبت شد.`
           });
         }
       }
@@ -2162,15 +2223,50 @@ export default function ManualDocument() {
         description={copySourceId ? "صدور سند جدید بر اساس سند مبدا" : (docId ? `ویرایش سند شماره ${header.docNo}` : "ثبت و ویرایش اسناد حسابداری")}
       />
 
+      {/* ── بنر اطلاع‌رسانی وضعیت اسناد قطعی‌شده ── */}
+      {isDocFinal && (
+        <div
+          className={cn(
+            "mb-3 p-3.5 rounded-xl border flex items-center justify-between text-xs font-semibold shadow-xs animate-in fade-in duration-200",
+            isSysAdmin
+              ? "bg-amber-50/90 border-amber-300 text-amber-900"
+              : "bg-emerald-50/90 border-emerald-300 text-emerald-900"
+          )}
+          dir="rtl"
+        >
+          <div className="flex items-center gap-2.5">
+            {isSysAdmin ? (
+              <ShieldAlert className="h-5 w-5 text-amber-600 shrink-0" />
+            ) : (
+              <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+            )}
+            <div>
+              <div className="font-bold text-sm">
+                {isSysAdmin
+                  ? "ویرایش سند صدور قطعی"
+                  : "سند صدور قطعی (فقط‌خواندنی)"}
+              </div>
+              <div className="text-[11px] font-normal opacity-90 mt-0.5">
+                {isSysAdmin
+                  ? "این سند قبلاً به وضعیت «صدور سند قطعی» رسیده است. به عنوان مدیر سیستم (admin)، شما دسترسی برای ویرایش و ذخیره این سند را دارید."
+                  : "این سند در سیستم صدور قطعی شده و کلیه مراحل گردش کار آن پایان یافته است. طبق خط‌مشی‌های امنیتی، امکان ویرایش این سند تنها برای مدیر سیستم (admin) مجاز است."}
+              </div>
+            </div>
+          </div>
+          <Badge className={isSysAdmin ? "bg-amber-600 text-white font-mono" : "bg-emerald-600 text-white"}>
+            {isSysAdmin ? "دسترسی Admin" : "فقط‌خواندنی"}
+          </Badge>
+        </div>
+      )}
+
       {message && (
         <div
-          className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-2xl border px-5 py-3.5 text-xs font-semibold shadow-2xl transition-all duration-300 animate-in fade-in slide-in-from-top-4 max-w-xl w-[90%] ${
-            message.type === "success"
-              ? "border-emerald-300 bg-emerald-50/95 text-emerald-900 shadow-emerald-500/10"
-              : message.type === "warning"
+          className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-2xl border px-5 py-3.5 text-xs font-semibold shadow-2xl transition-all duration-300 animate-in fade-in slide-in-from-top-4 max-w-xl w-[90%] ${message.type === "success"
+            ? "border-emerald-300 bg-emerald-50/95 text-emerald-900 shadow-emerald-500/10"
+            : message.type === "warning"
               ? "border-amber-300 bg-amber-50/95 text-amber-900 shadow-amber-500/10"
               : "border-rose-300 bg-rose-50/95 text-rose-900 shadow-rose-500/10"
-          }`}
+            }`}
           dir="rtl"
         >
           {message.type === "success" ? (
@@ -2226,6 +2322,7 @@ export default function ManualDocument() {
                     className="h-8 text-xs rounded-md border bg-white focus:border-primary"
                     value={header.docDate}
                     fixedYear={header.fiscalYear || selectedFiscalYear}
+                    disabled={isReadOnly}
                     onChange={(e) => setH("docDate", e?.target?.value ?? e)}
                   />
                 </div>
@@ -2242,6 +2339,7 @@ export default function ManualDocument() {
                       options={["موقت", "دائم", "اصلاحی", "افتتاحیه", "اختتامیه"].map((t) => ({ value: t, label: t }))}
                       placeholder="نوع سند..."
                       searchable={false}
+                      disabled={isReadOnly}
                     />
                   </div>
                 </div>
@@ -2254,12 +2352,13 @@ export default function ManualDocument() {
                       options={["عادی", "محرمانه"].map((t) => ({ value: t, label: t }))}
                       placeholder="دسترسی..."
                       searchable={false}
+                      disabled={isReadOnly}
                     />
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Label className={labelCls}>شماره نامه</Label>
-                  <Input className={inputCls} value={header.letterNo} onChange={(e) => setH("letterNo", e.target.value)} />
+                  <Input className={inputCls} value={header.letterNo} onChange={(e) => setH("letterNo", e.target.value)} disabled={isReadOnly} />
                 </div>
                 <div className="flex items-center gap-2">
                   <Label className={labelCls}>تاریخ نامه</Label>
@@ -2267,6 +2366,7 @@ export default function ManualDocument() {
                     className="h-8 text-xs rounded-md border bg-white focus:border-primary"
                     value={header.letterDate}
                     fixedYear={header.fiscalYear || selectedFiscalYear}
+                    disabled={isReadOnly}
                     onChange={(e) => setH("letterDate", e?.target?.value ?? e)}
                   />
                 </div>
@@ -2280,6 +2380,7 @@ export default function ManualDocument() {
                   value={header.desc}
                   onChange={(e) => setH("desc", e.target.value)}
                   placeholder="شرح سند را وارد کنید..."
+                  disabled={isReadOnly}
                 />
                 <div className="mt-1">
                   <Label className={`${labelCls} mb-1 block`}>وضعیت سند</Label>
@@ -2301,9 +2402,8 @@ export default function ManualDocument() {
                       return (
                         <div
                           key={opt.key}
-                          className={`rounded-full px-2.5 py-1 text-[10px] font-medium transition-all cursor-default select-none ${
-                            isSelected ? opt.color + " text-white ring-2 ring-offset-1 ring-current font-bold" : "bg-muted text-muted-foreground/60 opacity-60"
-                          }`}
+                          className={`rounded-full px-2.5 py-1 text-[10px] font-medium transition-all cursor-default select-none ${isSelected ? opt.color + " text-white ring-2 ring-offset-1 ring-current font-bold" : "bg-muted text-muted-foreground/60 opacity-60"
+                            }`}
                         >
                           {displayLabel}
                         </div>
@@ -2322,7 +2422,7 @@ export default function ManualDocument() {
         <Card className="mb-3">
           <div className="flex items-center justify-between px-3 py-2 border-b bg-muted/30" dir="rtl">
             <div className="flex items-center gap-2 flex-wrap">
-              <Button size="sm" variant="default" className="gap-1.5 h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-medium" onClick={addRow}>
+              <Button size="sm" variant="default" className="gap-1.5 h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-medium" onClick={addRow} disabled={isReadOnly || !canCurrentUserManageDoc}>
                 <Plus className="h-4 w-4" />
                 درج سطر
               </Button>
@@ -2336,6 +2436,7 @@ export default function ManualDocument() {
                       variant="outline"
                       className="gap-1 h-8 text-xs bg-blue-50/90 hover:bg-blue-100 text-blue-800 border-blue-200 font-medium"
                       onClick={() => handleCopyRow(activeTargetRow.id, prevRowForActive.id)}
+                      disabled={isReadOnly || !canCurrentUserManageDoc}
                       title={`کپی تمام اطلاعات سطر ${activeRowIndex - 1} به سطر ${activeRowIndex}`}
                     >
                       <Copy className="h-3.5 w-3.5 text-blue-600" />
@@ -2344,8 +2445,9 @@ export default function ManualDocument() {
                   )}
                   {otherSourceRows.length > 0 && (
                     <select
-                      className="h-8 text-xs rounded-md border border-blue-200 bg-blue-50/50 text-blue-900 px-2 py-0 cursor-pointer font-medium hover:bg-blue-100/70"
+                      className="h-8 text-xs rounded-md border border-blue-200 bg-blue-50/50 text-blue-900 px-2 py-0 cursor-pointer font-medium hover:bg-blue-100/70 disabled:opacity-60 disabled:cursor-not-allowed"
                       defaultValue=""
+                      disabled={isReadOnly || !canCurrentUserManageDoc}
                       onChange={(e) => {
                         const sourceId = Number(e.target.value);
                         if (sourceId && activeTargetRow) {
@@ -2399,6 +2501,7 @@ export default function ManualDocument() {
                       onChange={(updated) => updateRow(row.id, updated)}
                       onDelete={() => deleteRow(row.id)}
                       onDuplicate={() => handleDuplicateRow(row.id)}
+                      disabled={isReadOnly}
                     />
                   ))}
                 </tbody>

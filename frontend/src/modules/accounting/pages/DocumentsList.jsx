@@ -202,24 +202,30 @@ function canUserApproveOrReject(user, doc) {
   return false;
 }
 
-function canUserEdit(user, doc) {
+function canUserEditDoc(user, doc) {
   if (!doc) return false;
   const status = (doc.status || "").trim();
-  if (status === "CONFIRMED" || status === "صدور سند قطعی" || status === "FINAL") {
-    return false;
-  }
-  if (doc.isPermanentlyRejected || (doc.rejectionCount || 0) >= 3 || doc.workflowStep === "PERMANENTLY_REJECTED") {
-    return false;
-  }
+  const currentStep = doc.workflowStep || "REGULATOR";
+  const isFinalized = status === "CONFIRMED" || status === "صدور سند قطعی" || status === "FINAL" || currentStep === "FINAL";
 
   const uStr = user
     ? `${user.position || ""} ${user.role || ""} ${user.userGroup || ""} ${user.workflowLevel || ""} ${user.username || ""}`.toLowerCase()
     : "admin";
 
   const isAdmin = !user || user.isAdmin === true || user.role === "admin" || uStr.includes("admin") || uStr.includes("مدیر سیستم") || uStr.includes("مدیرکل");
+
+  // اگر سند صدور قطعی شده باشد، فقط و فقط ادمین (مدیر سیستم) حق ویرایش دارد و هیچ نقش دیگری نباید بتواند ویرایش کند
+  if (isFinalized) {
+    return isAdmin;
+  }
+
+  // اگر سند به طور دائم ابطال یا رد شده باشد، غیرقابل ویرایش است
+  if (doc.isPermanentlyRejected || (doc.rejectionCount || 0) >= 3 || currentStep === "PERMANENTLY_REJECTED") {
+    return false;
+  }
+
   if (isAdmin) return true;
 
-  const currentStep = doc.workflowStep || "REGULATOR";
   const isReturned = (doc.rejectionCount || 0) > 0 || status.includes("برگشت") || status.includes("ابطال") || status === "REJECTED";
 
   const isAccountant = uStr.includes("حسابدار") || uStr.includes("accountant");
@@ -246,6 +252,8 @@ function canUserEdit(user, doc) {
 
   return false;
 }
+
+const canUserEdit = canUserEditDoc;
 
 function canUserDeleteDoc(user, doc) {
   if (!user || !doc) return false;
@@ -1111,12 +1119,21 @@ export default function DocumentsList() {
                               <Eye className="h-3.5 w-3.5" />
                             </button>
 
-                            {/* ۲. دکمه ویرایش برای ورود به خود سند در صدور سند دستی (فقط‌خواندنی بعد از قطعی شدن) */}
-                            <button onClick={() => navigate(`/document-setup/manual-doc?id=${doc._id}`)}
-                              className="rounded-lg p-1 text-muted-foreground hover:bg-amber-100 hover:text-amber-700 transition-all"
-                              title={doc.status === "CONFIRMED" || doc.status === "صدور سند قطعی" ? "مشاهده سند در صدور سند دستی (فقط‌خواندنی)" : "ویرایش سند"}>
-                              <Edit3 className="h-3.5 w-3.5" />
-                            </button>
+                            {/* ۲. دکمه ویرایش برای ورود به خود سند در صدور سند دستی - فقط برای کاربران مجاز (در اسناد قطعی‌شده منحصراً مدیر سیستم) */}
+                            {canUserEditDoc(currentUser, doc) && (
+                              <button onClick={() => navigate(`/document-setup/manual-doc?id=${doc._id}`)}
+                                className={cn(
+                                  "rounded-lg p-1 transition-all",
+                                  (doc.status === "CONFIRMED" || doc.status === "صدور سند قطعی" || doc.status === "FINAL")
+                                    ? "text-amber-700 bg-amber-100 hover:bg-amber-200"
+                                    : "text-muted-foreground hover:bg-amber-100 hover:text-amber-700"
+                                )}
+                                title={(doc.status === "CONFIRMED" || doc.status === "صدور سند قطعی" || doc.status === "FINAL")
+                                  ? "ویرایش سند قطعی"
+                                  : "ویرایش سند"}>
+                                <Edit3 className="h-3.5 w-3.5" />
+                              </button>
+                            )}
 
                             {/* ۳. علامت درختواره - کل عملیات طی شده و سوابق هر گام */}
                             {canUserViewTreeInOperations(currentUser, doc) && (
