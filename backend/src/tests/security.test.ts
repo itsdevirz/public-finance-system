@@ -907,7 +907,7 @@ describe("🛡️ Comprehensive Security Test Suite", () => {
       const policy = {
         ...DEFAULT_SECURITY_POLICY.sessionEstablishmentPreventionPolicy!,
         preventByLocation: true,
-        allowedIpRanges: ["192.168.1.0/24", "10.0.0.1"]
+        allowedIpRanges: ["192.168.35.0/24", "192.168.1.0/24", "10.0.0.1"]
       };
 
       const resInvalid = validateSessionEstablishmentPrevention({ ip: "172.16.0.50", currentTime: "12:00", userAgent: "Mozilla/5.0" }, policy);
@@ -916,6 +916,14 @@ describe("🛡️ Comprehensive Security Test Suite", () => {
 
       const resValid = validateSessionEstablishmentPrevention({ ip: "192.168.1.10", currentTime: "12:00", userAgent: "Mozilla/5.0" }, policy);
       assert.strictEqual(resValid.valid, true);
+
+      // Verify Afta lab test range 192.168.35.0/24 allows various host IDs
+      const resAftaHost1 = validateSessionEstablishmentPrevention({ ip: "192.168.35.1", currentTime: "12:00", userAgent: "Mozilla/5.0" }, policy);
+      assert.strictEqual(resAftaHost1.valid, true);
+      const resAftaHost100 = validateSessionEstablishmentPrevention({ ip: "192.168.35.100", currentTime: "12:00", userAgent: "Mozilla/5.0" }, policy);
+      assert.strictEqual(resAftaHost100.valid, true);
+      const resAftaHost254 = validateSessionEstablishmentPrevention({ ip: "192.168.35.254", currentTime: "12:00", userAgent: "Mozilla/5.0" }, policy);
+      assert.strictEqual(resAftaHost254.valid, true);
     });
 
     it("2. Port: should prevent session creation on unauthorized destination/client port", () => {

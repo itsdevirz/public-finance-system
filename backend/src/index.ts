@@ -62,8 +62,17 @@ import { verifyToken } from "./lib/auth.js";
 
 const app = new Hono();
 
-const getAllowedOrigins = (): string[] => {
+const isOriginAllowed = (origin?: string | null): boolean => {
+  if (!origin) return false;
+
   const envOrigins = process.env.ALLOWED_ORIGINS || process.env.CORS_ALLOWED_ORIGINS || process.env.FRONTEND_URL;
+  if (envOrigins) {
+    const parsed = envOrigins.split(",").map((o) => o.trim()).filter(Boolean);
+    if (parsed.includes(origin) || parsed.includes("*")) {
+      return true;
+    }
+  }
+
   const defaultDevOrigins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
@@ -73,14 +82,31 @@ const getAllowedOrigins = (): string[] => {
     "http://127.0.0.1:4173",
     "http://localhost:5000",
     "http://127.0.0.1:5000",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
   ];
-  if (envOrigins) {
-    const parsed = envOrigins.split(",").map((o) => o.trim()).filter(Boolean);
-    if (parsed.length > 0) {
-      return parsed;
-    }
+
+  if (defaultDevOrigins.includes(origin)) {
+    return true;
   }
-  return defaultDevOrigins;
+
+  // 🌟 پشتیبانی از شبکه آزمایشگاهی افتا و رنج‌های شبکه محلی (RFC1918) به‌ویژه 192.168.35.0/24
+  try {
+    const url = new URL(origin);
+    const host = url.hostname;
+    if (
+      host === "localhost" ||
+      host === "127.0.0.1" ||
+      host === "::1" ||
+      /^192\.168\.\d{1,3}\.\d{1,3}$/.test(host) ||
+      /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host) ||
+      /^172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}$/.test(host)
+    ) {
+      return true;
+    }
+  } catch (_) {}
+
+  return false;
 };
 
 // 🌟 Secure CORS - Strict Origin Allowlist
@@ -88,9 +114,7 @@ app.use(
   "*",
   cors({
     origin: (origin) => {
-      if (!origin) return null;
-      const allowed = getAllowedOrigins();
-      if (allowed.includes(origin)) {
+      if (isOriginAllowed(origin)) {
         return origin;
       }
       return null;
@@ -110,14 +134,14 @@ app.use(
     ],
     exposeHeaders: ["X-CSRF-Token", "X-Correlation-ID"],
     credentials: true,
+    maxAge: 86400,
   })
 );
 
 // پاسخ سریع 204 No Content به درخواست‌های پیش‌پرواز OPTIONS با بررسی لایه مجاز
 app.options("*", (c) => {
   const reqOrigin = c.req.header("Origin");
-  const allowed = getAllowedOrigins();
-  if (reqOrigin && allowed.includes(reqOrigin)) {
+  if (reqOrigin && isOriginAllowed(reqOrigin)) {
     c.header("Access-Control-Allow-Origin", reqOrigin);
     c.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
     c.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Correlation-ID, X-CSRF-Token, X-User-Active, X-Timezone, X-Location, Accept, Origin, X-Requested-With");
@@ -477,8 +501,10 @@ app.route("/api/payroll", treasuryPayroll60Router);
 
 connectDb().then(() => {
   startAuditLogAutoCleanupCron();
-  serve({ fetch: app.fetch, port: 8000 }, () => {
-    console.log("🚀 Server running securely at http://localhost:8000 (Auto Log Retention & FPT_FLS.1.1 Secure Failure State Active)");
+  const port = Number(process.env.PORT) || 8000;
+  const host = process.env.HOST || "0.0.0.0";
+  serve({ fetch: app.fetch, port, hostname: host }, () => {
+    console.log(`🚀 Server running securely on ${host}:${port} (Auto Log Retention & FPT_FLS.1.1 Secure Failure State Active)`);
   });
 }).catch(async (err) => {
   console.error("Failed to connect to MongoDB (Hardware/Service Failure):", err);

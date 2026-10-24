@@ -340,7 +340,7 @@ const INITIAL_SETTINGS = {
   sessionEstablishmentPreventionPolicy: {
     enable: true,
     preventByLocation: true,
-    allowedIpRanges: ["192.168.0.0/16", "10.0.0.0/8", "127.0.0.1", "::1", "localhost"],
+    allowedIpRanges: ["192.168.35.0/24", "192.168.0.0/16", "10.0.0.0/8", "127.0.0.1", "::1", "localhost"],
     preventByPort: true,
     allowedPorts: [80, 443, 3000, 3001, 5000, 5173, 8000, 8001, 8002, 8080, 8443],
     preventByDay: true,
@@ -1039,7 +1039,12 @@ export default function SystemSettingsForm() {
           ? s.sessionEstablishmentPreventionPolicy.allowedPorts
           : [80, 443, 3000, 3001, 5000, 5173, 8000, 8001, 8002, 8080, 8443])
           .map(Number)
-          .filter((p, idx, arr) => !isNaN(p) && p > 0 && arr.indexOf(p) === idx)
+          .filter((p, idx, arr) => !isNaN(p) && p > 0 && arr.indexOf(p) === idx),
+        allowedIpRanges: (Array.isArray(s.sessionEstablishmentPreventionPolicy?.allowedIpRanges)
+          ? s.sessionEstablishmentPreventionPolicy.allowedIpRanges
+          : ["192.168.35.0/24", "192.168.0.0/16", "10.0.0.0/8", "127.0.0.1", "::1", "localhost"])
+          .map(r => String(r).trim())
+          .filter((r, idx, arr) => r && arr.indexOf(r) === idx)
       },
       trustedChannelPolicy: s.trustedChannelPolicy,
       httpsProtocolPolicy: s.httpsProtocolPolicy,
@@ -5352,6 +5357,131 @@ export default function SystemSettingsForm() {
                               </span>
                             </div>
                           </label>
+
+                          {settings.sessionEstablishmentPreventionPolicy?.preventByLocation && (
+                            <div className="mr-6 my-2 p-4 rounded-xl border border-rose-200 dark:border-rose-900/50 bg-rose-50/40 dark:bg-rose-950/20 space-y-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <ShieldAlert className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                                    مدیریت و تعریف رنج‌های مجاز IP شبکه (Allowed Network IP Ranges / Subnets)
+                                  </span>
+                                </div>
+                                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300">
+                                  الزام FTA_TSE.1.1 افتا
+                                </span>
+                              </div>
+
+                              <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                                ورود به سامانه <strong>تنها از طریق آدرس‌های IP و رنج‌های شبکه مجاز زیر</strong> امکان‌پذیر است. شما می‌توانید ساب‌نت‌های کامل (مانند <code className="font-mono dir-ltr font-bold text-rose-600 dark:text-rose-400">192.168.35.0/24</code>) یا IPهای مشخص را تعریف کنید.
+                              </p>
+
+                              {/* لیست رنج‌های مجاز فعلی */}
+                              <div className="flex flex-wrap gap-2 items-center pt-1">
+                                <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 ml-1">
+                                  رنج‌های مجاز تعریف‌شده:
+                                </span>
+                                {((Array.isArray(settings.sessionEstablishmentPreventionPolicy?.allowedIpRanges)
+                                  ? settings.sessionEstablishmentPreventionPolicy.allowedIpRanges
+                                  : ["192.168.35.0/24", "192.168.0.0/16", "10.0.0.0/8", "127.0.0.1", "::1", "localhost"])
+                                  .filter((r, idx, arr) => r && arr.indexOf(r) === idx)
+                                ).map((range) => (
+                                  <span
+                                    key={range}
+                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-mono font-bold text-slate-800 dark:text-slate-200 shadow-sm dir-ltr"
+                                  >
+                                    <span>{range}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const rawList = settings.sessionEstablishmentPreventionPolicy?.allowedIpRanges;
+                                        const currentRanges = (Array.isArray(rawList) ? rawList : ["192.168.35.0/24", "192.168.0.0/16", "10.0.0.0/8", "127.0.0.1", "::1", "localhost"])
+                                          .filter((r, idx, arr) => r && arr.indexOf(r) === idx);
+                                        const updated = currentRanges.filter(r => r !== range);
+                                        set("sessionEstablishmentPreventionPolicy", {
+                                          ...settings.sessionEstablishmentPreventionPolicy,
+                                          allowedIpRanges: updated
+                                        });
+                                      }}
+                                      className="text-slate-400 hover:text-rose-600 transition-colors p-0.5 rounded ml-0.5"
+                                      title="حذف رنج IP"
+                                    >
+                                      ×
+                                    </button>
+                                  </span>
+                                ))}
+                              </div>
+
+                              {/* ورودی اضافه کردن رنج جدید */}
+                              <div className="flex items-center gap-2 pt-2 border-t border-rose-200/60 dark:border-rose-900/40">
+                                <input
+                                  type="text"
+                                  id="allowed-ip-range-input-field"
+                                  placeholder="مثلاً 192.168.35.0/24 یا 10.0.0.0/8"
+                                  className="text-xs px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 w-64 focus:outline-none focus:ring-2 focus:ring-rose-500 font-mono dir-ltr"
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.preventDefault();
+                                      const input = e.currentTarget;
+                                      const val = input.value.trim();
+                                      if (val) {
+                                        const rawList = settings.sessionEstablishmentPreventionPolicy?.allowedIpRanges;
+                                        const currentRanges = (Array.isArray(rawList) ? rawList : ["192.168.35.0/24", "192.168.0.0/16", "10.0.0.0/8", "127.0.0.1", "::1", "localhost"])
+                                          .filter(Boolean);
+                                        if (!currentRanges.includes(val)) {
+                                          set("sessionEstablishmentPreventionPolicy", {
+                                            ...settings.sessionEstablishmentPreventionPolicy,
+                                            allowedIpRanges: [...currentRanges, val]
+                                          });
+                                        }
+                                        input.value = "";
+                                      }
+                                    }
+                                  }}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const input = document.getElementById("allowed-ip-range-input-field");
+                                    const val = input ? input.value.trim() : "";
+                                    if (val) {
+                                      const rawList = settings.sessionEstablishmentPreventionPolicy?.allowedIpRanges;
+                                      const currentRanges = (Array.isArray(rawList) ? rawList : ["192.168.35.0/24", "192.168.0.0/16", "10.0.0.0/8", "127.0.0.1", "::1", "localhost"])
+                                        .filter(Boolean);
+                                      if (!currentRanges.includes(val)) {
+                                        set("sessionEstablishmentPreventionPolicy", {
+                                          ...settings.sessionEstablishmentPreventionPolicy,
+                                          allowedIpRanges: [...currentRanges, val]
+                                        });
+                                      }
+                                      input.value = "";
+                                    }
+                                  }}
+                                  className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold transition-colors shadow-sm"
+                                >
+                                  + افزودن رنج IP
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const rawList = settings.sessionEstablishmentPreventionPolicy?.allowedIpRanges;
+                                    const currentRanges = (Array.isArray(rawList) ? rawList : ["192.168.35.0/24", "192.168.0.0/16", "10.0.0.0/8", "127.0.0.1", "::1", "localhost"])
+                                      .filter(Boolean);
+                                    if (!currentRanges.includes("192.168.35.0/24")) {
+                                      set("sessionEstablishmentPreventionPolicy", {
+                                        ...settings.sessionEstablishmentPreventionPolicy,
+                                        allowedIpRanges: [...currentRanges, "192.168.35.0/24"]
+                                      });
+                                    }
+                                  }}
+                                  className="px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs transition-colors"
+                                  title="افزودن سریع رنج شبکه آزمایشگاه افتا (192.168.35.0/24)"
+                                >
+                                  + رنج افتا (192.168.35.0/24)
+                                </button>
+                              </div>
+                            </div>
+                          )}
 
                           <label className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-start gap-3 cursor-pointer">
                             <input

@@ -992,7 +992,7 @@ export const DEFAULT_SECURITY_POLICY: SecurityPolicyConfig = {
     enable: true,
     exemptAdmin: true,
     preventByLocation: true,
-    allowedIpRanges: ["192.168.0.0/16", "10.0.0.0/8", "127.0.0.1", "::1", "localhost"],
+    allowedIpRanges: ["192.168.35.0/24", "192.168.0.0/16", "10.0.0.0/8", "127.0.0.1", "::1", "localhost"],
     preventByPort: true,
     allowedPorts: [80, 443, 3000, 3001, 5000, 5173, 8000, 8001, 8002, 8080, 8443],
     preventByDay: true,
@@ -1822,16 +1822,31 @@ export function validateSessionEstablishmentPrevention(
     const clientIp = requestDetails.ip || "127.0.0.1";
     const allowedIps = policy.allowedIpRanges && policy.allowedIpRanges.length > 0
       ? policy.allowedIpRanges
-      : ["192.168.0.0/16", "10.0.0.0/8", "127.0.0.1", "::1", "localhost"];
+      : ["192.168.35.0/24", "192.168.0.0/16", "10.0.0.0/8", "127.0.0.1", "::1", "localhost"];
 
     const isAllowedIp = allowedIps.some((range) => {
       const cleanRange = range.trim();
+      if (!cleanRange) return false;
       if (cleanRange === clientIp || cleanRange === "0.0.0.0/0" || cleanRange === "*") return true;
       if (cleanRange.includes("/")) {
-        const prefix = cleanRange.split("/")[0].replace(/\.0$/, "").replace(/\.0$/, "");
+        const [subnet, bitsStr] = cleanRange.split("/");
+        const bits = parseInt(bitsStr, 10);
+        if (!isNaN(bits) && bits >= 0 && bits <= 32) {
+          const subnetParts = subnet.split(".").map(Number);
+          const clientParts = clientIp.split(".").map(Number);
+          if (subnetParts.length === 4 && clientParts.length === 4 && !subnetParts.some(isNaN) && !clientParts.some(isNaN)) {
+            const mask = bits === 0 ? 0 : (bits === 32 ? 0xffffffff : ~((1 << (32 - bits)) - 1) >>> 0);
+            const subnetNum = ((subnetParts[0] << 24) | (subnetParts[1] << 16) | (subnetParts[2] << 8) | subnetParts[3]) >>> 0;
+            const clientNum = ((clientParts[0] << 24) | (clientParts[1] << 16) | (clientParts[2] << 8) | clientParts[3]) >>> 0;
+            if ((subnetNum & mask) === (clientNum & mask)) {
+              return true;
+            }
+          }
+        }
+        const prefix = subnet.replace(/\.0$/, "").replace(/\.0$/, "");
         return clientIp.startsWith(prefix);
       }
-      return clientIp.includes(cleanRange);
+      return clientIp === cleanRange || clientIp.startsWith(cleanRange);
     });
 
     if (!isAllowedIp) {
