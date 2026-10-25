@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useMemo } from "react";
+import { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useAssets } from "@/context/AssetContext";
 import api from "@/api";
@@ -25,7 +25,12 @@ export function InventoryProvider({ children }) {
   const [receipts, setReceipts] = useState([]);
   const [issues, setIssues] = useState([]);
   const [alerts, setAlerts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [hasRequested, setHasRequested] = useState(false);
+
+  const ensureLoaded = useCallback(() => {
+    setHasRequested(true);
+  }, []);
 
   // Load all data from backend
   const refreshAllData = async () => {
@@ -55,8 +60,10 @@ export function InventoryProvider({ children }) {
   };
 
   useEffect(() => {
-    refreshAllData();
-  }, [user]);
+    if (hasRequested && user) {
+      refreshAllData();
+    }
+  }, [hasRequested, user]);
 
   // Operations calling Hono Backend APIs
   const addReceipt = async (receipt) => {
@@ -350,6 +357,7 @@ export function InventoryProvider({ children }) {
         getStockBalances,
         getSingleItemBalance,
         getItemKardex,
+        ensureLoaded,
       }}
     >
       {children}
@@ -359,6 +367,12 @@ export function InventoryProvider({ children }) {
 
 export function useInventory() {
   const ctx = useContext(InventoryContext);
+  useEffect(() => {
+    if (ctx?.ensureLoaded) {
+      ctx.ensureLoaded();
+    }
+  }, [ctx]);
+
   if (!ctx) {
     return {
       consumables: [], warehouses: [], receipts: [], issues: [], alerts: [], loading: false,
@@ -366,7 +380,8 @@ export function useInventory() {
       addReceipt: async () => {}, updateReceipt: async () => {}, deleteReceipt: async () => {},
       addIssue: async () => {}, updateIssue: async () => {}, deleteIssue: async () => {},
       addAlert: async () => {}, updateAlert: async () => {}, deleteAlert: async () => {},
-      getStockBalances: () => [], getSingleItemBalance: () => 0, getItemKardex: () => []
+      getStockBalances: () => [], getSingleItemBalance: () => 0, getItemKardex: () => [],
+      ensureLoaded: () => {}
     };
   }
   return ctx;

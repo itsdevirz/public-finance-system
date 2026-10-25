@@ -314,12 +314,19 @@ function syncDocumentWorkflowStep(doc: any) {
   return doc;
 }
 
+let hasCheckedLegacyDocNumbers = false;
+
 // GET /api/documents — با projection برای کاهش داده منتقله
 router.get("/", async (c) => {
   const db = getDb();
-  const legacyCount = await db.collection("journal_documents").countDocuments({ document_number: { $regex: /^DOC-/ } });
-  if (legacyCount > 0) {
-    await fixAndMigrateDocumentNumbers();
+  if (!hasCheckedLegacyDocNumbers) {
+    try {
+      const legacyDoc = await db.collection("journal_documents").findOne({ document_number: { $regex: /^DOC-/ } });
+      if (legacyDoc) {
+        await fixAndMigrateDocumentNumbers();
+      }
+    } catch (_) {}
+    hasCheckedLegacyDocNumbers = true;
   }
 
   const data = await db

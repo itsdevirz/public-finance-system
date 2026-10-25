@@ -733,6 +733,28 @@ const collections = [
   "audits"
 ];
 
+// GET /api/inventory/bulk-all — دریافت یک‌جای تمام تنظیمات انبار و پرسنلی در یک درخواست شبکه
+router.get("/bulk-all", async (c) => {
+  try {
+    const db = getDb();
+    const result: Record<string, any[]> = {};
+    await Promise.all(
+      collections.map(async (name) => {
+        const collName = `inventory_${name}`;
+        let list = await db.collection(collName).find().toArray();
+        if (list.length === 0 && SEED_DATA[name]) {
+          await db.collection(collName).insertMany(SEED_DATA[name]);
+          list = await db.collection(collName).find().toArray();
+        }
+        result[name] = list;
+      })
+    );
+    return c.json({ success: true, data: result });
+  } catch (error: any) {
+    return c.json({ success: false, message: error.message }, 500);
+  }
+});
+
 collections.forEach((name) => {
   const collName = `inventory_${name}`;
 
@@ -740,11 +762,11 @@ collections.forEach((name) => {
   router.get(`/${name}`, async (c) => {
     try {
       const db = getDb();
-      const count = await db.collection(collName).countDocuments();
-      if (count === 0 && SEED_DATA[name]) {
+      let list = await db.collection(collName).find().toArray();
+      if (list.length === 0 && SEED_DATA[name]) {
         await db.collection(collName).insertMany(SEED_DATA[name]);
+        list = await db.collection(collName).find().toArray();
       }
-      const list = await db.collection(collName).find().toArray();
       return c.json({ success: true, data: list });
     } catch (error: any) {
       return c.json({ success: false, message: error.message }, 500);

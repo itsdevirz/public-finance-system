@@ -42,6 +42,14 @@ export default defineConfig({
             if (id.includes('framer-motion')) {
               return 'vendor-motion';
             }
+            // ابزار محاسبات و اکسل — بسیار حجیم و فقط در زمان خروجی مورد نیاز
+            if (id.includes('xlsx')) {
+              return 'vendor-xlsx';
+            }
+            // نمودارها — بزرگ و فقط در داشبورد
+            if (id.includes('highcharts')) {
+              return 'vendor-highcharts';
+            }
             // آیکون‌ها — بزرگ و نادر تغییر
             if (id.includes('lucide-react')) {
               return 'vendor-icons';
@@ -49,6 +57,10 @@ export default defineConfig({
             // Radix UI — مستقل
             if (id.includes('@radix-ui')) {
               return 'vendor-radix';
+            }
+            // ارتباطات شبکه
+            if (id.includes('axios')) {
+              return 'vendor-axios';
             }
             // بقیه node_modules
             return 'vendor';

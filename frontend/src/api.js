@@ -96,7 +96,10 @@ api.interceptors.response.use(
     }
     // همگام‌سازی خودکار لاگ‌های شکست ذخیره‌شده در localStorage در صورت آنلاین بودن سرور
     if (!res.config?.url?.includes("/audit-failure")) {
-      import("@/lib/clientAuditLogger").then((m) => m.syncOfflineFailureLogs()).catch(() => {});
+      const pendingLogs = localStorage.getItem("client_failure_logs");
+      if (pendingLogs && pendingLogs !== "[]") {
+        import("@/lib/clientAuditLogger").then((m) => m.syncOfflineFailureLogs()).catch(() => {});
+      }
     }
     return res;
   },

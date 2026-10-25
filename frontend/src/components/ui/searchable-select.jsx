@@ -1,11 +1,11 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo, memo } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown, Search, X, Check } from "lucide-react";
 
 /**
  * SearchableSelect — RTL-safe dropdown با createPortal، کیبورد ناویگیشن و استایل کاستوم لوکس
  */
-export function SearchableSelect({
+export const SearchableSelect = memo(function SearchableSelect({
   value = "",
   onChange,
   options = [],
@@ -68,12 +68,13 @@ export function SearchableSelect({
   }, [options, showSearch]);
 
   /* ─── فیلتر لیست ────────────────────────────────────────── */
-  const lq       = query.toLowerCase();
-  const filtered = query
-    ? options.filter(o => !o.disabled && (o.label?.toLowerCase().includes(lq) || String(o.value).toLowerCase().includes(lq)))
-    : options;
+  const filtered = useMemo(() => {
+    if (!query) return options;
+    const lq = query.toLowerCase();
+    return options.filter(o => !o.disabled && (o.label?.toLowerCase().includes(lq) || String(o.value).toLowerCase().includes(lq)));
+  }, [query, options]);
 
-  const selectableOptions = filtered.filter(o => !o.disabled);
+  const selectableOptions = useMemo(() => filtered.filter(o => !o.disabled), [filtered]);
 
   /* ─── کلیدهای کیبورد ────────────────────────────────────── */
   function handleKeyDown(e) {
@@ -304,7 +305,7 @@ export function SearchableSelect({
       {panel}
     </>
   );
-}
+});
 
 function GroupHeader({ label }) {
   return (

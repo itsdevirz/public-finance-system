@@ -17,11 +17,8 @@ export const securityHeaders = createMiddleware(async (c, next) => {
   // ۴. فعال‌سازی فیلتر مرورگر برای جلوگیری از حملات Cross-Site Scripting (X-XSS-Protection)
   c.header("X-XSS-Protection", "1; mode=block");
 
-  // ۵. اجبار به استفاده از پروتکل امن HTTPS و HSTS Preload (Strict-Transport-Security) فقط در محیط HTTPS
-  const isHttps = c.req.header("x-forwarded-proto") === "https" || c.req.url.startsWith("https://");
-  if (isHttps) {
-    c.header("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
-  }
+  // ۵. اجبار به استفاده از پروتکل امن HTTPS و HSTS Preload (Strict-Transport-Security)
+  c.header("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
 
   // ۶. سایر سرآیندهای امنیتی مکمل (Referrer Policy, Permissions Policy, CSP)
   c.header("Referrer-Policy", "strict-origin-when-cross-origin");

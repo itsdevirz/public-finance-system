@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Search, RefreshCw, FileText, Eye, ChevronLeft,
@@ -559,6 +559,192 @@ function SortHeader({ label, field, sortBy, sortDir, onSort }) {
   );
 }
 
+// ─── کامپوننت سطر سند با memo برای جلوگیری از رندرهای مجدد غیرضروری ────────────
+const DocumentRowItem = memo(function DocumentRowItem({
+  doc,
+  currentUser,
+  onSelect,
+  onWorkflowApprove,
+  onRequestReject,
+  onOpenTree,
+  onEdit,
+  onDelete,
+}) {
+  const totalD = doc.lines?.reduce((s, l) => s + (l.debit ?? 0), 0) ?? 0;
+  const totalC = doc.lines?.reduce((s, l) => s + (l.credit ?? 0), 0) ?? 0;
+  const StatusIcon = STATUS_ICON[doc.status] ?? Clock;
+  const accountCodes = [...new Set(doc.lines?.map(l => l.account_code).filter(Boolean) ?? [])];
+  const canApprove = canUserApproveOrReject(currentUser, doc);
+  const canEdit = canUserEditDoc(currentUser, doc);
+  const canViewTree = canUserViewTreeInOperations(currentUser, doc);
+  const canDelete = canUserDeleteDoc(currentUser, doc);
+
+  const isConfirmed = doc.status === "CONFIRMED" || doc.status === "تأییدشده" || doc.status === "صدور سند قطعی" || doc.workflowStep === "FINAL";
+  const isPermanentlyRejected = doc.isPermanentlyRejected || (doc.rejectionCount || 0) >= 3 || doc.workflowStep === "PERMANENTLY_REJECTED" || doc.status?.includes("رد دائم");
+  const isRejected = (doc.workflowStep === "ACCOUNTANT" || doc.workflowStep === "DRAFT" || doc.status?.includes("برگشت") || doc.status?.includes("رد")) && (doc.rejectionCount || 0) > 0;
+
+  return (
+    <tr
+      onClick={() => onSelect(doc)}
+      className="border-b last:border-0 hover:bg-primary/[0.03] cursor-pointer transition-colors group"
+    >
+      {/* شماره سند */}
+      <td className="px-4 py-3 text-center">
+        <span className="font-mono text-xs font-bold text-foreground">{doc.document_number ?? "—"}</span>
+      </td>
+
+      {/* دوره مالی */}
+      <td className="px-4 py-3 text-center">
+        <span className="font-mono text-xs text-foreground/80">{doc.fiscal_year}</span>
+      </td>
+
+      {/* تاریخ */}
+      <td className="px-4 py-3">
+        <span className="text-xs text-muted-foreground flex items-center gap-1">
+          <CalendarDays className="h-3 w-3 shrink-0" />
+          {formatDocDate(doc.document_date, doc.fiscal_year)}
+        </span>
+      </td>
+
+      {/* نوع سند */}
+      <td className="px-4 py-3">
+        <span className={cn("inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap",
+          DOC_TYPE_COLOR[doc.document_type] ?? "bg-muted text-muted-foreground border-border")}>
+          {DOC_TYPE_LABEL[doc.document_type] ?? doc.document_type ?? "—"}
+        </span>
+      </td>
+
+      {/* وضعیت */}
+      <td className="px-4 py-3">
+        {isConfirmed ? (
+          <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold whitespace-nowrap bg-emerald-100 text-emerald-700 border-emerald-200 shadow-xs">
+            <CheckCircle2 className="h-2.5 w-2.5 text-emerald-600" />
+            صدور سند قطعی
+          </span>
+        ) : isPermanentlyRejected ? (
+          <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-extrabold bg-rose-600 text-white border-rose-700 shadow-xs">
+            <Ban className="h-2.5 w-2.5" />
+            ابطال‌شده (رد دائم ۳ از ۳)
+          </span>
+        ) : isRejected ? (
+          <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-800 border-amber-300">
+            <AlertTriangle className="h-2.5 w-2.5 text-amber-600" />
+            رد شده (تعداد دفعات رد: {toPersianDigits(doc.rejectionCount)} از ۳)
+          </span>
+        ) : (
+          <span className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap",
+            doc.status?.includes("برگشت") ? "bg-amber-100 text-amber-700 border-amber-200" : (STATUS_COLOR[doc.status] ?? "bg-muted text-muted-foreground border-border"))}>
+            <StatusIcon className="h-2.5 w-2.5" />
+            {getCleanStatusLabel(doc.status)}
+          </span>
+        )}
+      </td>
+
+      {/* کدهای حساب */}
+      <td className="px-4 py-3">
+        <div className="flex flex-wrap gap-1 max-w-[180px]">
+          {accountCodes.slice(0, 3).map(code => (
+            <span key={code} className="font-mono text-[10px] bg-muted rounded px-1.5 py-0.5 text-foreground/70">{code}</span>
+          ))}
+          {accountCodes.length > 3 && (
+            <span className="text-[10px] text-muted-foreground/60">+{accountCodes.length - 3}</span>
+          )}
+          {accountCodes.length === 0 && <span className="text-muted-foreground/40 text-xs">—</span>}
+        </div>
+      </td>
+
+      {/* جمع بدهکار */}
+      <td className="px-4 py-3">
+        <span className="font-mono text-xs text-blue-700 font-medium">{fmt(totalD)}</span>
+      </td>
+
+      {/* جمع بستانکار */}
+      <td className="px-4 py-3">
+        <span className="font-mono text-xs text-rose-700 font-medium">{fmt(totalC)}</span>
+      </td>
+
+      {/* شرح */}
+      <td className="px-4 py-3 max-w-[200px]">
+        <span className="text-xs text-muted-foreground truncate block" title={doc.description}>
+          {doc.description ?? "—"}
+        </span>
+        {doc.rejectionReason && (
+          <span className="inline-flex items-center gap-1 text-[10px] text-rose-700 bg-rose-50 border border-rose-200 rounded px-1.5 py-0.5 mt-1 font-semibold" title={`علت رد: ${doc.rejectionReason}`}>
+            <AlertTriangle className="h-2.5 w-2.5 text-rose-600 shrink-0" />
+            علت رد: {doc.rejectionReason}
+          </span>
+        )}
+      </td>
+
+      {/* عملیات */}
+      <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-center gap-1.5">
+          {canApprove && (
+            <>
+              <button
+                onClick={(e) => { e.stopPropagation(); onWorkflowApprove(doc); }}
+                className="rounded-lg p-1.5 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 hover:text-emerald-700 transition-all border border-emerald-200 cursor-pointer"
+                title={getNextRoleTarget(doc.workflowStep, doc.rejectionCount).actionLabel}
+              >
+                <CheckCircle2 className="h-4 w-4" />
+              </button>
+
+              {doc.workflowStep !== "ACCOUNTANT" && doc.workflowStep !== "DRAFT" && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onRequestReject(doc); }}
+                  className="rounded-lg p-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 hover:text-rose-700 transition-all border border-rose-200 cursor-pointer"
+                  title={`رد سند و برگشت به ${getPrevRoleTarget(doc.workflowStep)}`}
+                >
+                  <Ban className="h-4 w-4" />
+                </button>
+              )}
+            </>
+          )}
+
+          {/* ۱. چشمی - مشاهده جزئیات سند */}
+          <button onClick={() => onSelect(doc)}
+            className="rounded-lg p-1 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-all"
+            title="مشاهده جزئیات (چشمی)">
+            <Eye className="h-3.5 w-3.5" />
+          </button>
+
+          {/* ۲. دکمه ویرایش برای ورود به خود سند در صدور سند دستی */}
+          {canEdit && (
+            <button onClick={() => onEdit(doc)}
+              className={cn(
+                "rounded-lg p-1 transition-all",
+                isConfirmed
+                  ? "text-amber-700 bg-amber-100 hover:bg-amber-200"
+                  : "text-muted-foreground hover:bg-amber-100 hover:text-amber-700"
+              )}
+              title={isConfirmed ? "ویرایش سند قطعی" : "ویرایش سند"}>
+              <Edit3 className="h-3.5 w-3.5" />
+            </button>
+          )}
+
+          {/* ۳. علامت درختواره */}
+          {canViewTree && (
+            <button onClick={() => onOpenTree(doc)}
+              className="rounded-lg p-1 text-primary/80 hover:bg-primary/10 hover:text-primary transition-all"
+              title="درختواره گردش و سوابق سند">
+              <GitFork className="h-3.5 w-3.5" />
+            </button>
+          )}
+
+          {/* حذف */}
+          {canDelete && (
+            <button onClick={() => onDelete(doc._id, doc.document_number)}
+              className="rounded-lg p-1 text-muted-foreground hover:bg-rose-100 hover:text-rose-600 transition-all"
+              title="حذف سند (مدیر سیستم)">
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+      </td>
+    </tr>
+  );
+});
+
 // ─── صفحه اصلی ────────────────────────────────────────────────────────────────
 export default function DocumentsList() {
   const navigate = useNavigate();
@@ -972,191 +1158,19 @@ export default function DocumentsList() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((doc, idx) => {
-                    const totalD = doc.lines?.reduce((s, l) => s + (l.debit ?? 0), 0) ?? 0;
-                    const totalC = doc.lines?.reduce((s, l) => s + (l.credit ?? 0), 0) ?? 0;
-                    const balanced = totalD === totalC;
-                    const StatusIcon = STATUS_ICON[doc.status] ?? Clock;
-                    const accountCodes = [...new Set(doc.lines?.map(l => l.account_code).filter(Boolean) ?? [])];
-
-                    return (
-                      <tr key={doc._id ?? idx}
-                        onClick={() => setSelected(doc)}
-                        className="border-b last:border-0 hover:bg-primary/[0.03] cursor-pointer transition-colors group"
-                      >
-                        {/* شماره سند */}
-                        <td className="px-4 py-3 text-center">
-                          <span className="font-mono text-xs font-bold text-foreground">{doc.document_number ?? "—"}</span>
-                        </td>
-
-                        {/* دوره مالی */}
-                        <td className="px-4 py-3 text-center">
-                          <span className="font-mono text-xs text-foreground/80">{doc.fiscal_year}</span>
-                        </td>
-
-                        {/* تاریخ */}
-                        <td className="px-4 py-3">
-                          <span className="text-xs text-muted-foreground flex items-center gap-1">
-                            <CalendarDays className="h-3 w-3 shrink-0" />
-                            {formatDocDate(doc.document_date, doc.fiscal_year)}
-                          </span>
-                        </td>
-
-                        {/* نوع سند */}
-                        <td className="px-4 py-3">
-                          <span className={cn("inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap",
-                            DOC_TYPE_COLOR[doc.document_type] ?? "bg-muted text-muted-foreground border-border")}>
-                            {DOC_TYPE_LABEL[doc.document_type] ?? doc.document_type ?? "—"}
-                          </span>
-                        </td>
-
-                        {/* وضعیت */}
-                        <td className="px-4 py-3">
-                          {(() => {
-                            const isConfirmed = doc.status === "CONFIRMED" || doc.status === "تأییدشده" || doc.status === "صدور سند قطعی" || doc.status === "FINAL" || doc.workflowStep === "FINAL";
-                            if (isConfirmed) {
-                              return (
-                                <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold whitespace-nowrap bg-emerald-100 text-emerald-700 border-emerald-200 shadow-xs">
-                                  <CheckCircle2 className="h-2.5 w-2.5 text-emerald-600" />
-                                  صدور سند قطعی
-                                </span>
-                              );
-                            }
-
-                            if (doc.isPermanentlyRejected || (doc.rejectionCount || 0) >= 3 || doc.workflowStep === "PERMANENTLY_REJECTED" || doc.status?.includes("رد دائم")) {
-                              return (
-                                <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-extrabold bg-rose-600 text-white border-rose-700 shadow-xs">
-                                  <Ban className="h-2.5 w-2.5" />
-                                  ابطال‌شده (رد دائم ۳ از ۳)
-                                </span>
-                              );
-                            }
-
-                            if ((doc.workflowStep === "ACCOUNTANT" || doc.workflowStep === "DRAFT" || doc.status?.includes("برگشت") || doc.status?.includes("رد")) && (doc.rejectionCount || 0) > 0) {
-                              return (
-                                <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-800 border-amber-300">
-                                  <AlertTriangle className="h-2.5 w-2.5 text-amber-600" />
-                                  رد شده (تعداد دفعات رد: {toPersianDigits(doc.rejectionCount)} از ۳)
-                                </span>
-                              );
-                            }
-
-                            return (
-                              <span className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap",
-                                doc.status?.includes("برگشت") ? "bg-amber-100 text-amber-700 border-amber-200" : (STATUS_COLOR[doc.status] ?? "bg-muted text-muted-foreground border-border"))}>
-                                <StatusIcon className="h-2.5 w-2.5" />
-                                {getCleanStatusLabel(doc.status)}
-                              </span>
-                            );
-                          })()}
-                        </td>
-
-                        {/* کدهای حساب */}
-                        <td className="px-4 py-3">
-                          <div className="flex flex-wrap gap-1 max-w-[180px]">
-                            {accountCodes.slice(0, 3).map(code => (
-                              <span key={code} className="font-mono text-[10px] bg-muted rounded px-1.5 py-0.5 text-foreground/70">{code}</span>
-                            ))}
-                            {accountCodes.length > 3 && (
-                              <span className="text-[10px] text-muted-foreground/60">+{accountCodes.length - 3}</span>
-                            )}
-                            {accountCodes.length === 0 && <span className="text-muted-foreground/40 text-xs">—</span>}
-                          </div>
-                        </td>
-
-                        {/* جمع بدهکار */}
-                        <td className="px-4 py-3">
-                          <span className="font-mono text-xs text-blue-700 font-medium">{fmt(totalD)}</span>
-                        </td>
-
-                        {/* جمع بستانکار */}
-                        <td className="px-4 py-3">
-                          <span className="font-mono text-xs text-rose-700 font-medium">{fmt(totalC)}</span>
-                        </td>
-
-                        {/* شرح */}
-                        <td className="px-4 py-3 max-w-[200px]">
-                          <span className="text-xs text-muted-foreground truncate block" title={doc.description}>
-                            {doc.description ?? "—"}
-                          </span>
-                          {doc.rejectionReason && (
-                            <span className="inline-flex items-center gap-1 text-[10px] text-rose-700 bg-rose-50 border border-rose-200 rounded px-1.5 py-0.5 mt-1 font-semibold" title={`علت رد: ${doc.rejectionReason}`}>
-                              <AlertTriangle className="h-2.5 w-2.5 text-rose-600 shrink-0" />
-                              علت رد: {doc.rejectionReason}
-                            </span>
-                          )}
-                        </td>
-
-                        {/* عملیات */}
-                        <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-                          <div className="flex items-center justify-center gap-1.5">
-                            {canUserApproveOrReject(currentUser, doc) && (
-                              <>
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); handleWorkflowApprove(doc); }}
-                                  className="rounded-lg p-1.5 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 hover:text-emerald-700 transition-all border border-emerald-200 cursor-pointer"
-                                  title={getNextRoleTarget(doc.workflowStep, doc.rejectionCount).actionLabel}
-                                >
-                                  <CheckCircle2 className="h-4 w-4" />
-                                </button>
-
-                                {doc.workflowStep !== "ACCOUNTANT" && doc.workflowStep !== "DRAFT" && (
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); setRejectingDoc(doc); setRejectionReason(""); }}
-                                    className="rounded-lg p-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 hover:text-rose-700 transition-all border border-rose-200 cursor-pointer"
-                                    title={`رد سند و برگشت به ${getPrevRoleTarget(doc.workflowStep)}`}
-                                  >
-                                    <Ban className="h-4 w-4" />
-                                  </button>
-                                )}
-                              </>
-                            )}
-
-                            {/* ۱. چشمی - مشاهده جزئیات سند */}
-                            <button onClick={() => setSelected(doc)}
-                              className="rounded-lg p-1 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-all"
-                              title="مشاهده جزئیات (چشمی)">
-                              <Eye className="h-3.5 w-3.5" />
-                            </button>
-
-                            {/* ۲. دکمه ویرایش برای ورود به خود سند در صدور سند دستی - فقط برای کاربران مجاز (در اسناد قطعی‌شده منحصراً مدیر سیستم) */}
-                            {canUserEditDoc(currentUser, doc) && (
-                              <button onClick={() => navigate(`/document-setup/manual-doc?id=${doc._id}`)}
-                                className={cn(
-                                  "rounded-lg p-1 transition-all",
-                                  (doc.status === "CONFIRMED" || doc.status === "صدور سند قطعی" || doc.status === "FINAL")
-                                    ? "text-amber-700 bg-amber-100 hover:bg-amber-200"
-                                    : "text-muted-foreground hover:bg-amber-100 hover:text-amber-700"
-                                )}
-                                title={(doc.status === "CONFIRMED" || doc.status === "صدور سند قطعی" || doc.status === "FINAL")
-                                  ? "ویرایش سند قطعی"
-                                  : "ویرایش سند"}>
-                                <Edit3 className="h-3.5 w-3.5" />
-                              </button>
-                            )}
-
-                            {/* ۳. علامت درختواره - کل عملیات طی شده و سوابق هر گام */}
-                            {canUserViewTreeInOperations(currentUser, doc) && (
-                              <button onClick={() => setTreeDoc(doc)}
-                                className="rounded-lg p-1 text-primary/80 hover:bg-primary/10 hover:text-primary transition-all"
-                                title="درختواره گردش و سوابق سند">
-                                <GitFork className="h-3.5 w-3.5" />
-                              </button>
-                            )}
-
-                            {/* حذف - فقط با دسترسی مدیر سیستم (فول اکسس) */}
-                            {canUserDeleteDoc(currentUser, doc) && (
-                              <button onClick={() => handleDelete(doc._id, doc.document_number)}
-                                className="rounded-lg p-1 text-muted-foreground hover:bg-rose-100 hover:text-rose-600 transition-all"
-                                title="حذف سند (مدیر سیستم)">
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {filtered.map((doc, idx) => (
+                    <DocumentRowItem
+                      key={doc._id ?? idx}
+                      doc={doc}
+                      currentUser={currentUser}
+                      onSelect={setSelected}
+                      onWorkflowApprove={handleWorkflowApprove}
+                      onRequestReject={(d) => { setRejectingDoc(d); setRejectionReason(""); }}
+                      onOpenTree={setTreeDoc}
+                      onEdit={(d) => navigate(`/document-setup/manual-doc?id=${d._id}`)}
+                      onDelete={handleDelete}
+                    />
+                  ))}
                 </tbody>
               </table>
             </div>

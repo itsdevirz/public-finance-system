@@ -79,7 +79,7 @@ export function validateCsrfToken(incomingToken: string | undefined | null): boo
  */
 export function validateAndConsumeCsrfToken(
   incomingToken: string | undefined | null,
-  gracePeriodMs: number = process.env.NODE_ENV === "test" ? 0 : 5000
+  gracePeriodMs: number = (process.env.NODE_ENV === "test" || process.argv.some(a => a.includes("test"))) ? 0 : 5000
 ): boolean {
   if (!validateCsrfToken(incomingToken)) {
     return false;

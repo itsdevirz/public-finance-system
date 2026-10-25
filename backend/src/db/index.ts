@@ -50,10 +50,19 @@ async function ensureIndexes(db: Db): Promise<void> {
       jd.createIndex({ status: 1, fiscal_year: 1 }, { background: true }),
       // Index روی کد حساب داخل lines برای aggregation
       jd.createIndex({ "lines.account_code": 1 }, { background: true, sparse: true }),
+      // Index روی شماره سند و تاریخ برای جستجو و مرتب‌سازی سریع
+      jd.createIndex({ document_number: 1 }, { background: true }),
+      jd.createIndex({ document_date: 1 }, { background: true }),
 
       // persons collection
       db.collection("persons").createIndex({ nomineeCode: 1 }, { background: true, unique: true, sparse: true }),
       db.collection("persons").createIndex({ inactive: 1 }, { background: true }),
+
+      // users & security collections
+      db.collection("users").createIndex({ username: 1 }, { background: true, unique: true, sparse: true }),
+      db.collection("system_settings").createIndex({ key: 1 }, { background: true, unique: true, sparse: true }),
+      db.collection("ip_lockouts").createIndex({ ip: 1 }, { background: true, unique: true, sparse: true }),
+      db.collection("audit_logs").createIndex({ timestamp: -1 }, { background: true }),
 
       // credit_definitions
       db.collection("credit_definitions").createIndex({ createdAt: -1 }, { background: true }),

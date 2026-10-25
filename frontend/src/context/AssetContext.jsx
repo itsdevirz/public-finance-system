@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import api from "@/api";
 
@@ -37,6 +37,12 @@ export function AssetProvider({ children }) {
   const [employeeLoans, setEmployeeLoans] = useState([]);
   const [employeeAdvances, setEmployeeAdvances] = useState([]);
 
+  const [hasRequested, setHasRequested] = useState(false);
+
+  const ensureLoaded = useCallback(() => {
+    setHasRequested(true);
+  }, []);
+
   const refreshAssets = async () => {
     if (!user) {
       setLoading(false);
@@ -69,6 +75,21 @@ export function AssetProvider({ children }) {
         setSuppliers, setItems, setRequests, setTransfers, setWarehouses, setReceipts, setIssues,
         setEmployees, setEmployeeContracts, setEmployeeDecrees, setAttendanceRecords, setEmployeeLeaves, setEmployeeMissions, setPayrollCalculations, setInsuranceSettings, setEmployeeLoans, setEmployeeAdvances, setAudits
       ];
+
+      // دریافت یک‌جای داده‌ها با ۱ درخواست شبکه به جای ۲۴ درخواست
+      try {
+        const bulkRes = await api.get("/api/inventory/bulk-all");
+        if (bulkRes.data?.success && bulkRes.data?.data) {
+          const bulkData = bulkRes.data.data;
+          names.forEach((name, idx) => {
+            if (bulkData[name]) {
+              setters[idx](bulkData[name]);
+            }
+          });
+          return;
+        }
+      } catch (_) {}
+
       await Promise.all(names.map(async (name, idx) => {
         const res = await api.get(`/api/inventory/${name}`);
         if (res.data?.success) {
@@ -81,11 +102,11 @@ export function AssetProvider({ children }) {
   };
 
   useEffect(() => {
-    refreshAssets();
-    if (user) {
+    if (hasRequested && user) {
+      refreshAssets();
       refreshAllConfigs();
     }
-  }, [user]);
+  }, [hasRequested, user]);
 
   async function addAsset(asset) {
     try {
@@ -165,7 +186,7 @@ export function AssetProvider({ children }) {
       assets, addAsset, updateAsset, deleteAsset, loading, refreshAssets,
       groups, subgroups, types, natures, units, locations, suppliers,
       items, requests, transfers, warehouses, receipts, issues, employees, employeeContracts, employeeDecrees, attendanceRecords, employeeLeaves, employeeMissions, payrollCalculations, insuranceSettings, employeeLoans, employeeAdvances, audits,
-      addConfig, updateConfig, deleteConfig, refreshAllConfigs
+      addConfig, updateConfig, deleteConfig, refreshAllConfigs, ensureLoaded
     }}>
       {children}
     </AssetContext.Provider>
@@ -174,6 +195,12 @@ export function AssetProvider({ children }) {
 
 export function useAssets() {
   const ctx = useContext(AssetContext);
+  useEffect(() => {
+    if (ctx?.ensureLoaded) {
+      ctx.ensureLoaded();
+    }
+  }, [ctx]);
+
   if (!ctx) {
     return {
       assets: [],
@@ -182,7 +209,8 @@ export function useAssets() {
       items: [], requests: [], transfers: [], warehouses: [], receipts: [], issues: [], employees: [],
       employeeContracts: [], employeeDecrees: [], attendanceRecords: [], employeeLeaves: [], employeeMissions: [],
       payrollCalculations: [], insuranceSettings: [], employeeLoans: [], employeeAdvances: [], audits: [],
-      addConfig: async () => {}, updateConfig: async () => {}, deleteConfig: async () => {}, refreshAllConfigs: async () => {}
+      addConfig: async () => {}, updateConfig: async () => {}, deleteConfig: async () => {}, refreshAllConfigs: async () => {},
+      ensureLoaded: () => {}
     };
   }
   return ctx;

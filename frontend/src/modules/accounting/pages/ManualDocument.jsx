@@ -264,15 +264,30 @@ const EMPTY_ROW = {
   sanamaFields: {},
 };
 
-// ---- آماده‌سازی options برای SearchableSelect ----
+// ---- آماده‌سازی options برای SearchableSelect با حافظه کش (عدم ایجاد مکرر آرایه) ----
 const groupOptions = allGroups.map((g) => ({ value: g.code, label: `${g.code} – ${g.title}` }));
 
+const accountOptionsCache = new Map();
 function accountOptions(groupCode) {
-  return getAccounts(groupCode).map((a) => ({ value: a.code, label: `${a.code} – ${a.title}` }));
+  if (!groupCode) return [];
+  let cached = accountOptionsCache.get(groupCode);
+  if (!cached) {
+    cached = getAccounts(groupCode).map((a) => ({ value: a.code, label: `${a.code} – ${a.title}` }));
+    accountOptionsCache.set(groupCode, cached);
+  }
+  return cached;
 }
 
+const subAccountOptionsCache = new Map();
 function subAccountOptions(groupCode, accountCode) {
-  return getSubAccounts(groupCode, accountCode).map((s) => ({ value: s.code, label: `${s.code} – ${s.title}` }));
+  if (!groupCode || !accountCode) return [];
+  const key = `${groupCode}:${accountCode}`;
+  let cached = subAccountOptionsCache.get(key);
+  if (!cached) {
+    cached = getSubAccounts(groupCode, accountCode).map((s) => ({ value: s.code, label: `${s.code} – ${s.title}` }));
+    subAccountOptionsCache.set(key, cached);
+  }
+  return cached;
 }
 
 // ---- ردیف جدول ----

@@ -13,11 +13,11 @@ import LoginSecurityNoticeModal from "./components/LoginSecurityNoticeModal";
 import Login from "./pages/Login";
 import Placeholder from "./pages/Placeholder";
 import NotFound from "./pages/NotFound";
-import Dashboard from "./pages/Dashboard";
 import { buildLayoutRoutes } from "./config/appRoutes";
 import { Button } from "./components/ui/button";
 import { useAmountPlusShortcut } from "./hooks/useAmountPlusShortcut";
 
+const Dashboard = lazy(() => import("./pages/Dashboard"));
 const GuaranteeContractForm = lazy(() => import("./modules/treasury/pages/GuaranteeContractForm"));
 const DepositManualForm = lazy(() => import("./modules/treasury/pages/DepositManualForm"));
 
