@@ -57,6 +57,7 @@ import bankReconciliationRouter from "./routes/bankReconciliation.js";
 import bankAccountsRouter from "./routes/bankAccounts.js";
 import sanamaRouter from "./routes/sanama.js";
 import treasuryPayroll60Router from "./routes/treasuryPayroll60.js";
+import departmentsRouter from "./routes/departments.js";
 
 import { verifyToken } from "./lib/auth.js";
 
@@ -125,6 +126,7 @@ app.use(
       "Authorization",
       "X-Correlation-ID",
       "X-CSRF-Token",
+      "X-Department-Id",
       "X-User-Active",
       "X-Timezone",
       "X-Location",
@@ -132,7 +134,7 @@ app.use(
       "Origin",
       "X-Requested-With"
     ],
-    exposeHeaders: ["X-CSRF-Token", "X-Correlation-ID"],
+    exposeHeaders: ["X-CSRF-Token", "X-Correlation-ID", "X-Department-Id"],
     credentials: true,
     maxAge: 86400,
   })
@@ -144,7 +146,7 @@ app.options("*", (c) => {
   if (reqOrigin && isOriginAllowed(reqOrigin)) {
     c.header("Access-Control-Allow-Origin", reqOrigin);
     c.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
-    c.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Correlation-ID, X-CSRF-Token, X-User-Active, X-Timezone, X-Location, Accept, Origin, X-Requested-With");
+    c.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Correlation-ID, X-CSRF-Token, X-Department-Id, X-User-Active, X-Timezone, X-Location, Accept, Origin, X-Requested-With");
     c.header("Access-Control-Allow-Credentials", "true");
   }
   return c.body(null, 204);
@@ -310,6 +312,7 @@ app.use("*", async (c, next) => {
     path.includes("/credits/definitions") ||
     path.includes("/credits/requests") ||
     path.includes("/fiscal-years") ||
+    path.includes("/departments") ||
     path.includes("/auth/me")
   );
   // ثبت لاگ چرخه‌حیات تنها برای درخواست‌های تغییر دهنده داده و اقدامات واقعی کاربران (POST/PUT/DELETE/PATCH)
@@ -498,6 +501,7 @@ app.route("/api/bank-reconciliation", bankReconciliationRouter);
 app.route("/api/bank-accounts", bankAccountsRouter);
 app.route("/api/sanama", sanamaRouter);
 app.route("/api/payroll", treasuryPayroll60Router);
+app.route("/api/departments", departmentsRouter);
 
 connectDb().then(() => {
   startAuditLogAutoCleanupCron();

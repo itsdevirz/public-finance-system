@@ -5,6 +5,7 @@ export const BASIC_INFO_SUB = [
     to: "/basic-info/definitions",
     label: "تعاریف",
     children: [
+      { to: "/basic-info/definitions/departments", label: "تعریف سازمان/اداره" },
       { to: "/basic-info/definitions/fiscal-year", label: "تعریف دوره مالی" },
       { to: "/basic-info/definitions/persons", label: "تعریف اشخاص" },
       { to: "/basic-info/definitions/bank", label: "تعریف بانک" },

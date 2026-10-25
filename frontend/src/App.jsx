@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Landmark, Loader2, AlertCircle, RefreshCw } from "lucide-react";
 import { AuthProvider } from "./context/AuthContext";
 import { FiscalYearProvider } from "./context/FiscalYearContext";
+import { DepartmentProvider } from "./context/DepartmentContext";
 import { AssetProvider } from "./context/AssetContext";
 import { InventoryProvider } from "./context/InventoryContext";
 import { TabProvider } from "./context/TabContext";
@@ -120,23 +121,25 @@ export default function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <FiscalYearProvider>
-          <BrowserRouter>
-            <Suspense fallback={<PageLoader />}>
-              <Routes>
-                <Route path="/login" element={<Login />} />
-                <Route
-                  path="/*"
-                  element={
-                    <PrivateRoute>
-                      <Layout />
-                    </PrivateRoute>
-                  }
-                />
-              </Routes>
-            </Suspense>
-          </BrowserRouter>
-        </FiscalYearProvider>
+        <DepartmentProvider>
+          <FiscalYearProvider>
+            <BrowserRouter>
+              <Suspense fallback={<PageLoader />}>
+                <Routes>
+                  <Route path="/login" element={<Login />} />
+                  <Route
+                    path="/*"
+                    element={
+                      <PrivateRoute>
+                        <Layout />
+                      </PrivateRoute>
+                    }
+                  />
+                </Routes>
+              </Suspense>
+            </BrowserRouter>
+          </FiscalYearProvider>
+        </DepartmentProvider>
       </AuthProvider>
     </ErrorBoundary>
   );

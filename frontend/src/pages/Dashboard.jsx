@@ -15,6 +15,7 @@ if (typeof window !== "undefined") {
 
 import { useAuth } from "@/context/AuthContext";
 import { useFiscalYear } from "@/context/FiscalYearContext";
+import { useDepartment } from "@/context/DepartmentContext";
 import { PageShell } from "@/components/layout/PageShell";
 import { StaggerContainer, StaggerItem } from "@/components/motion/AnimatedPage";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -31,7 +32,7 @@ import {
   Users, BadgePercent, Sparkles, Bot, Zap,
   BarChart3, PieChart, Layers, ArrowUpRight, CheckCircle2,
   Wallet, Boxes, Coins, FileSpreadsheet, Cpu,
-  Activity, Search, UserCheck, Briefcase
+  Activity, Search, UserCheck, Briefcase, Building2
 } from "lucide-react";
 import api from "@/api";
 
@@ -622,6 +623,7 @@ export default function Dashboard() {
   const user = auth.user;
   const navigate = useNavigate();
   const { selectedFiscalYear, setSelectedFiscalYear, fiscalYears } = useFiscalYear();
+  const { departments, selectedDepartmentId, selectedDepartment, setSelectedDepartmentId } = useDepartment();
 
   const [activeModal, setActiveModal] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -714,7 +716,7 @@ export default function Dashboard() {
 
     fetchDashboardStats();
     return () => { isMounted = false; };
-  }, []);
+  }, [selectedDepartmentId, selectedFiscalYear]);
 
   const now = useMemo(() => new Date().toLocaleDateString("fa-IR", {
     year: "numeric", month: "long", day: "numeric", weekday: "long"
@@ -765,6 +767,12 @@ export default function Dashboard() {
                   <Briefcase className="h-3.5 w-3.5 text-emerald-300" />
                   سمت: {user?.position || user?.role || "کارشناس حسابداری"}
                 </span>
+                {selectedDepartment && (
+                  <span className="flex items-center gap-1.5 bg-teal-500/20 backdrop-blur-md px-3 py-1 rounded-xl border border-teal-400/30 text-teal-200 font-semibold text-xs shadow-sm">
+                    <Building2 className="h-3.5 w-3.5 text-teal-300" />
+                    سازمان: {selectedDepartment.name}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -773,7 +781,7 @@ export default function Dashboard() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex flex-wrap items-center gap-3 shrink-0">
             <motion.button
               whileHover={{ scale: 1.04, y: -2 }}
               whileTap={{ scale: 0.96 }}
@@ -785,6 +793,40 @@ export default function Dashboard() {
               <ArrowUpRight className="h-4 w-4 opacity-80" />
             </motion.button>
 
+            {/* سوییچ بین سازمان‌ها / ادارات در داشبورد */}
+            <div className="flex items-center gap-2.5 bg-white/10 backdrop-blur-md border border-white/15 px-3.5 py-2 rounded-2xl shadow-lg relative transition-all hover:bg-white/15 min-w-[190px]">
+              <div className="h-8.5 w-8.5 rounded-xl bg-teal-500/20 border border-teal-400/40 flex items-center justify-center text-teal-300 shrink-0">
+                <Building2 className="h-4.5 w-4.5" />
+              </div>
+              <div className="text-right flex-1 min-w-0">
+                <label htmlFor="banner-department-select" className="text-[10px] text-slate-300 font-semibold block cursor-pointer leading-none mb-1">
+                  سوییچ اداره / سازمان
+                </label>
+                <div className="relative flex items-center">
+                  <select
+                    id="banner-department-select"
+                    value={selectedDepartmentId}
+                    onChange={(e) => setSelectedDepartmentId(e.target.value)}
+                    className="bg-transparent text-xs font-black text-teal-300 focus:outline-none cursor-pointer border-none p-0 pl-4 appearance-none font-bold text-right w-full truncate"
+                  >
+                    {departments && departments.length > 0 ? (
+                      departments.map((d) => (
+                        <option key={d._id || d.code} value={String(d._id || d.code)} className="bg-slate-900 text-white font-semibold">
+                          {d.name} ({d.code})
+                        </option>
+                      ))
+                    ) : (
+                      <option value="default" className="bg-slate-900 text-white font-semibold">
+                        اداره کل مرکزی (01)
+                      </option>
+                    )}
+                  </select>
+                  <ChevronDown className="h-3.5 w-3.5 text-teal-300 pointer-events-none absolute left-0 top-1/2 -translate-y-1/2" />
+                </div>
+              </div>
+            </div>
+
+            {/* دوره مالی فعال */}
             <div className="flex items-center gap-2.5 bg-white/10 backdrop-blur-md border border-white/15 px-3.5 py-2 rounded-2xl shadow-lg relative transition-all hover:bg-white/15">
               <div className="h-8.5 w-8.5 rounded-xl bg-accent/20 border border-accent/40 flex items-center justify-center text-accent shrink-0">
                 <Landmark className="h-4.5 w-4.5" />

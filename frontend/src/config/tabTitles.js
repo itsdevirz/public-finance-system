@@ -53,6 +53,7 @@ const EXTRA_TITLES = {
   "/deposits/manual-form": "ثبت دستی سپرده",
 
   // ─── اطلاعات پایه و قراردادها ───────────────────────────────────────────
+  "/basic-info/definitions/departments": "تعریف سازمان/اداره",
   "/basic-info/definitions/fiscal-year": "تعریف دوره مالی",
   "/basic-info/definitions/persons": "تعریف اشخاص",
   "/basic-info/definitions/bank": "تعریف بانک",

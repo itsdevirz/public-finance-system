@@ -38,6 +38,7 @@ const Deposits = lazy(() => import("@/modules/treasury/pages/Deposits"));
 const GuaranteeContractForm = lazy(() => import("@/modules/treasury/pages/GuaranteeContractForm"));
 const DepositManualForm = lazy(() => import("@/modules/treasury/pages/DepositManualForm"));
 const PersonsForm = lazy(() => import("@/pages/PersonsForm"));
+const DepartmentsForm = lazy(() => import("@/pages/DepartmentsForm"));
 const FiscalYearForm = lazy(() => import("@/pages/FiscalYearForm"));
 const ContractPartiesForm = lazy(() => import("@/pages/ContractPartiesForm"));
 const ContractTypesForm = lazy(() => import("@/pages/ContractTypesForm"));
@@ -207,6 +208,7 @@ export const PAGE_COMPONENTS = {
   "/basic-info/document-setup": DocumentSetup,
   "/basic-info/check-issuance": CheckIssuance,
   "/basic-info/definitions": BasicInfo,
+  "/basic-info/definitions/departments": DepartmentsForm,
   "/basic-info/definitions/fiscal-year": FiscalYearForm,
   "/basic-info/definitions/persons": PersonsForm,
   "/basic-info/definitions/parties": ContractPartiesForm,

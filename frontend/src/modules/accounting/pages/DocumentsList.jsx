@@ -5,14 +5,17 @@ import {
   ChevronDown, ChevronUp, X, Filter, AlertTriangle,
   CheckCircle2, Clock, Ban, Hash, CalendarDays,
   Layers, ChevronsUpDown, Edit3, Trash2, GitFork,
+  Building2,
 } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import api from "@/api";
 import { useFiscalYear } from "@/context/FiscalYearContext";
+import { useDepartment } from "@/context/DepartmentContext";
 import { useAuth } from "@/context/AuthContext";
 import { toPersianDigits } from "@/components/ui/persian-date-picker";
 import { DocWorkflowTreeModal } from "@/modules/accounting/components/DocWorkflowTreeModal";
@@ -749,6 +752,7 @@ const DocumentRowItem = memo(function DocumentRowItem({
 export default function DocumentsList() {
   const navigate = useNavigate();
   const { selectedFiscalYear } = useFiscalYear();
+  const { selectedDepartment, selectedDepartmentId } = useDepartment();
   const { user: currentUser } = useAuth();
 
   const [docs, setDocs] = useState([]);
@@ -833,7 +837,7 @@ export default function DocumentsList() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedDepartmentId]);
 
   const handleDelete = async (id, docNumber) => {
     if (!window.confirm(`آیا از حذف سند شماره ${docNumber} مطمئن هستید؟`)) return;
@@ -998,9 +1002,17 @@ export default function DocumentsList() {
       </div>
 
       {/* هدر */}
-      <div className="mb-5 flex items-center justify-between" dir="rtl">
+      <div className="mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3" dir="rtl">
         <div>
-          <h1 className="text-xl font-bold text-foreground">لیست اسناد حسابداری</h1>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-xl font-bold text-foreground">لیست اسناد حسابداری</h1>
+            {selectedDepartment && (
+              <Badge variant="outline" className="text-xs bg-teal-500/10 text-teal-700 dark:text-teal-300 border-teal-500/30 gap-1.5 py-1">
+                <Building2 className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
+                <span>سازمان: {selectedDepartment.name} ({selectedDepartment.code})</span>
+              </Badge>
+            )}
+          </div>
           <p className="text-xs text-muted-foreground mt-0.5">مشاهده و جستجوی تمام اسناد ثبت‌شده در سیستم</p>
         </div>
         <div className="flex items-center gap-2">

@@ -10,7 +10,8 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Plus, Trash2, Save, Printer, RotateCcw,
   FileText, CheckCircle2, Ban, X, AlertCircle,
-  Check, FileEdit, Copy, GitFork, Send, ShieldAlert
+  Check, FileEdit, Copy, GitFork, Send, ShieldAlert,
+  Building2
 } from "lucide-react";
 import api from "@/api";
 import { useApiCache } from "@/hooks/useApiCache";
@@ -27,6 +28,7 @@ import ShebaInput from "@/components/ui/sheba-input";
 import { checkDebitNatureBalance, clearBalanceCache } from "@/lib/accountBalanceCheck";
 import { useAuth } from "@/context/AuthContext";
 import { useFiscalYear } from "@/context/FiscalYearContext";
+import { useDepartment } from "@/context/DepartmentContext";
 import { useTabs } from "@/context/TabContext";
 import { DocWorkflowTreeModal } from "@/modules/accounting/components/DocWorkflowTreeModal";
 
@@ -1063,6 +1065,7 @@ function VoucherPrintContent({ header, rows, totalDebit, totalCredit, diff, toda
 export default function ManualDocument() {
   const { user: currentUser } = useAuth();
   const { selectedFiscalYear } = useFiscalYear();
+  const { selectedDepartment, selectedDepartmentId } = useDepartment();
   const { closeTab, activeTabId, tabs } = useTabs();
   const location = useLocation();
   const navigate = useNavigate();
@@ -1132,7 +1135,7 @@ export default function ManualDocument() {
         }));
       });
     }
-  }, [selectedFiscalYear, docId]);
+  }, [selectedFiscalYear, selectedDepartmentId, docId]);
 
   const [fiscalYears, setFiscalYears] = useState([]);
   const [systemUsers, setSystemUsers] = useState([]);
@@ -1749,6 +1752,7 @@ export default function ManualDocument() {
       const payload = {
         document_type: docTypeMapped,
         fiscal_year: Number(header.fiscalYear) || 1405,
+        departmentId: selectedDepartment?._id || selectedDepartment?.code || selectedDepartmentId || "",
         document_date: finalDocDate,
         status: hasValidationError ? "DRAFT" : nextStatus,
         workflowStep: nextWorkflowStep,
@@ -2233,10 +2237,18 @@ export default function ManualDocument() {
 
   return (
     <PageShell>
-      <PageHeader
-        title={copySourceId ? "کپی سند" : (docId ? "ویرایش سند مالی" : "صدور سند دستی")}
-        description={copySourceId ? "صدور سند جدید بر اساس سند مبدا" : (docId ? `ویرایش سند شماره ${header.docNo}` : "ثبت و ویرایش اسناد حسابداری")}
-      />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
+        <PageHeader
+          title={copySourceId ? "کپی سند" : (docId ? "ویرایش سند مالی" : "صدور سند دستی")}
+          description={copySourceId ? "صدور سند جدید بر اساس سند مبدا" : (docId ? `ویرایش سند شماره ${header.docNo}` : "ثبت و ویرایش اسناد حسابداری")}
+        />
+        {selectedDepartment && (
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-500/10 border border-teal-500/20 text-teal-700 dark:text-teal-300 text-xs font-bold self-start sm:self-center shadow-xs">
+            <Building2 className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+            <span>اداره: {selectedDepartment.name} ({selectedDepartment.code})</span>
+          </div>
+        )}
+      </div>
 
       {/* ── بنر اطلاع‌رسانی وضعیت اسناد قطعی‌شده ── */}
       {isDocFinal && (

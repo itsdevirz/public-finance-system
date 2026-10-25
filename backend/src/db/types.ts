@@ -26,6 +26,7 @@ export interface JournalDocument {
   document_type: "PETTY_CASH_PAYMENT" | "GENERAL_PAYMENT" | "REVENUE" | "TRANSFER" | "CLOSING" | string;
   status: "DRAFT" | "CONFIRMED" | "CANCELLED" | string;
   fiscal_year: number;
+  departmentId?: string;
   document_date?: string;
   description?: string;
   reference_number?: string;

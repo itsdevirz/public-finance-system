@@ -60,6 +60,12 @@ api.interceptors.request.use((config) => {
     config.headers["X-CSRF-Token"] = csrfToken;
   }
 
+  // اضافه کردن شناسه اداره فعال
+  const activeDeptId = localStorage.getItem("activeDepartmentId");
+  if (activeDeptId && !config.url?.includes("/auth/")) {
+    config.headers["X-Department-Id"] = activeDeptId;
+  }
+
   // اضافه کردن correlation ID جهت پیگیری لوگ‌های امنیتی
   if (config.headers && !config.headers["X-Correlation-ID"]) {
     config.headers["X-Correlation-ID"] = `req-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;

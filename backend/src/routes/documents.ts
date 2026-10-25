@@ -185,19 +185,57 @@ router.post("/migrate", async (c) => {
   return c.json({ message: `${updated} سند به‌روزرسانی شد`, updated, total: docs.length });
 });
 
-export async function getNextDocumentNumber(fiscalYear: number | string): Promise<string> {
+export async function getNextDocumentNumber(fiscalYear: number | string, departmentId?: string): Promise<string> {
   const db = getDb();
   const fyNum = Number(fiscalYear) || 1405;
   const fyStr = String(fyNum);
 
+  const query: any = {
+    $or: [
+      { fiscal_year: fyNum },
+      { "rawHeader.fiscalYear": fyStr }
+    ]
+  };
+
+  if (departmentId && departmentId !== "all") {
+    let isDef = false;
+    let deptCode = "";
+    try {
+      let dept: any = null;
+      if (ObjectId.isValid(departmentId)) {
+        dept = await db.collection("departments").findOne({ _id: new ObjectId(departmentId) });
+      } else {
+        dept = await db.collection("departments").findOne({ code: departmentId });
+      }
+      if (dept) {
+        isDef = Boolean(dept.isDefault);
+        deptCode = dept.code;
+      }
+    } catch (_) {}
+
+    const deptFilter = isDef
+      ? {
+          $or: [
+            { departmentId },
+            { departmentId: deptCode },
+            { departmentId: { $exists: false } },
+            { departmentId: null },
+            { departmentId: "" }
+          ]
+        }
+      : {
+          $or: [
+            { departmentId },
+            { departmentId: deptCode }
+          ]
+        };
+
+    query.$and = [deptFilter];
+  }
+
   const docs = await db
     .collection<JournalDocument>("journal_documents")
-    .find({
-      $or: [
-        { fiscal_year: fyNum },
-        { "rawHeader.fiscalYear": fyStr }
-      ]
-    } as any)
+    .find(query)
     .project({ document_number: 1, rawHeader: 1 })
     .toArray();
 
@@ -316,7 +354,7 @@ function syncDocumentWorkflowStep(doc: any) {
 
 let hasCheckedLegacyDocNumbers = false;
 
-// GET /api/documents — با projection برای کاهش داده منتقله
+// GET /api/documents — با فیلتر اداره و سال مالی
 router.get("/", async (c) => {
   const db = getDb();
   if (!hasCheckedLegacyDocNumbers) {
@@ -329,9 +367,44 @@ router.get("/", async (c) => {
     hasCheckedLegacyDocNumbers = true;
   }
 
+  const requestedDeptId = c.req.query("departmentId") || c.req.header("x-department-id");
+  const query: any = {};
+
+  if (requestedDeptId && requestedDeptId !== "all") {
+    let isDef = false;
+    let deptCode = "";
+    try {
+      let dept: any = null;
+      if (ObjectId.isValid(requestedDeptId)) {
+        dept = await db.collection("departments").findOne({ _id: new ObjectId(requestedDeptId) });
+      } else {
+        dept = await db.collection("departments").findOne({ code: requestedDeptId });
+      }
+      if (dept) {
+        isDef = Boolean(dept.isDefault);
+        deptCode = dept.code;
+      }
+    } catch (_) {}
+
+    if (isDef) {
+      query.$or = [
+        { departmentId: requestedDeptId },
+        { departmentId: deptCode },
+        { departmentId: { $exists: false } },
+        { departmentId: null },
+        { departmentId: "" }
+      ];
+    } else {
+      query.$or = [
+        { departmentId: requestedDeptId },
+        { departmentId: deptCode }
+      ];
+    }
+  }
+
   const data = await db
     .collection<JournalDocument>("journal_documents")
-    .find()
+    .find(query)
     .sort({ _id: -1 })
     .toArray();
   const decrypted = data.map((d) => {
@@ -471,11 +544,15 @@ router.post("/", async (c) => {
     }
   }
 
-  const document_number = await getNextDocumentNumber(fiscal_year);
+  const deptHeader = c.req.query("departmentId") || c.req.header("x-department-id");
+  const finalDepartmentId = body.departmentId || deptHeader || "";
+
+  const document_number = await getNextDocumentNumber(fiscal_year, finalDepartmentId);
   const result = await getDb()
     .collection<JournalDocument>("journal_documents")
     .insertOne({
       ...body,
+      departmentId: finalDepartmentId,
       document_number,
       document_date: resolvedDate,
       status: body.status ?? "ثبت اولیه",
