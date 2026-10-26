@@ -38,16 +38,91 @@ function isZeroValue(val) {
   return eng === "0" || eng === "0.00";
 }
 
+function isCodeOrIdField(el) {
+  if (!el) return false;
+  if (
+    el.dataset?.allowLeadingZero === "true" ||
+    el.hasAttribute("data-allow-leading-zero") ||
+    el.dataset?.preserveZeros === "true" ||
+    el.hasAttribute("data-preserve-zeros") ||
+    el.dataset?.code === "true" ||
+    el.getAttribute("data-type") === "code"
+  ) {
+    return true;
+  }
+
+  const name = (el.name || "").toLowerCase();
+  const id = (el.id || "").toLowerCase();
+  const placeholder = (el.placeholder || "").toLowerCase();
+  const dataKey = (el.dataset?.key || el.dataset?.field || "").toLowerCase();
+  const ariaLabel = (el.getAttribute("aria-label") || "").toLowerCase();
+  const className = (el.className || "").toLowerCase();
+  const combined = `${name} ${id} ${placeholder} ${dataKey} ${ariaLabel} ${className}`;
+
+  const codeKeywords = [
+    "project", "program", "code", "number", "num", "shomare",
+    "national", "melli", "postal", "phone", "mobile", "tel", "account",
+    "sheba", "iban", "card", "serial", "track", "ref", "notifier", "radif",
+    "طرح", "برنامه", "شماره", "کد", "ردیف", "ملی", "پستی", "تلفن",
+    "موبایل", "حساب", "شبا", "کارت", "سریال", "پیگیری", "شناسه", "فصل"
+  ];
+
+  return codeKeywords.some((kw) => combined.includes(kw));
+}
+
+function isAmountField(el) {
+  if (!el) return false;
+  if (isCodeOrIdField(el)) return false;
+
+  const type = (el.getAttribute("type") || "text").toLowerCase();
+  if (["checkbox", "radio", "submit", "button", "file", "password", "search", "date", "time", "color"].includes(type)) {
+    return false;
+  }
+
+  if (el.dataset?.amount === "true" || el.hasAttribute("data-amount")) {
+    return true;
+  }
+
+  const name = (el.name || "").toLowerCase();
+  const id = (el.id || "").toLowerCase();
+  const placeholder = (el.placeholder || "").toLowerCase();
+  const className = (el.className || "").toLowerCase();
+  const dataKey = (el.dataset?.key || el.dataset?.field || "").toLowerCase();
+
+  // Exclude non-amount text inputs
+  if (
+    name.includes("desc") || id.includes("desc") ||
+    placeholder.includes("شرح") || placeholder.includes("جستجو") ||
+    name.includes("search") || type === "search" ||
+    placeholder.includes("آدرس") || placeholder.includes("توضیح") ||
+    name.includes("username") || name.includes("title") || placeholder.includes("عنوان")
+  ) {
+    return false;
+  }
+
+  const amountKeywords = [
+    "amount", "debit", "credit_amount", "mablagh", "price", "cost", "rate", "fee",
+    "balance", "remittance", "sum", "total", "pay",
+    "مبلغ", "بدهکار", "بستانکار", "قیمت", "نرخ", "تنخواه", "وجه", "ارزش"
+  ];
+
+  const hasAmountAttr = amountKeywords.some((kw) =>
+    name.includes(kw) || id.includes(kw) || placeholder.includes(kw) || className.includes(kw) || dataKey.includes(kw)
+  );
+
+  const isInAmountCell = Boolean(el.closest(".amount-field, [data-amount]"));
+
+  return hasAmountAttr || isInAmountCell;
+}
+
 export function useAmountPlusShortcut() {
   useEffect(() => {
     function handleFocusIn(e) {
       const el = e.target;
       if (!el || (el.tagName !== "INPUT" && el.tagName !== "TEXTAREA")) return;
       if (el.disabled || el.readOnly) return;
-      const type = (el.getAttribute("type") || "text").toLowerCase();
-      if (["checkbox", "radio", "submit", "button", "file", "password", "search", "date", "time", "color"].includes(type)) {
-        return;
-      }
+      if (isCodeOrIdField(el)) return;
+      if (!isAmountField(el)) return;
 
       if (isZeroValue(el.value)) {
         setTimeout(() => {
@@ -64,10 +139,10 @@ export function useAmountPlusShortcut() {
       const el = e.target;
       if (!el || (el.tagName !== "INPUT" && el.tagName !== "TEXTAREA")) return;
       if (el.disabled || el.readOnly) return;
-      const type = (el.getAttribute("type") || "text").toLowerCase();
-      if (["checkbox", "radio", "submit", "button", "file", "password", "search", "date", "time", "color"].includes(type)) {
-        return;
-      }
+
+      // Never strip leading zeros from code/ID fields or non-amount fields
+      if (isCodeOrIdField(el)) return;
+      if (!isAmountField(el)) return;
 
       const val = el.value || "";
       if (/^[0۰]+[1-9۱-۹]/.test(val)) {
@@ -82,12 +157,11 @@ export function useAmountPlusShortcut() {
       if (!el || (el.tagName !== "INPUT" && el.tagName !== "TEXTAREA")) return;
       if (el.disabled || el.readOnly) return;
 
-      const type = (el.getAttribute("type") || "text").toLowerCase();
-      if (["checkbox", "radio", "submit", "button", "file", "password", "search", "date", "time", "color"].includes(type)) {
-        return;
-      }
+      // Code/ID inputs should behave normally without shortcut interference
+      if (isCodeOrIdField(el)) return;
+      if (!isAmountField(el)) return;
 
-      // Handle Backspace on default zero (0 / ۰) value
+      // Handle Backspace on default zero (0 / ۰) value for amounts
       if (e.key === "Backspace" || e.code === "Backspace") {
         if (isZeroValue(el.value)) {
           e.preventDefault();
@@ -100,44 +174,9 @@ export function useAmountPlusShortcut() {
       // Handle Plus shortcut (+ or NumpadAdd)
       if (e.key !== "+" && e.code !== "NumpadAdd") return;
 
-      const name = (el.name || "").toLowerCase();
-      const id = (el.id || "").toLowerCase();
-      const placeholder = (el.placeholder || "").toLowerCase();
-      const className = (el.className || "").toLowerCase();
-      const dataKey = (el.dataset?.key || el.dataset?.field || "").toLowerCase();
-
-      // Ignore description / search / non-numeric text inputs
-      if (
-        name.includes("desc") || id.includes("desc") ||
-        placeholder.includes("شرح") || placeholder.includes("جستجو") ||
-        name.includes("search") || type === "search" ||
-        placeholder.includes("آدرس") || placeholder.includes("توضیح") ||
-        name.includes("username") || name.includes("title")
-      ) {
-        return;
-      }
-
-      const amountKeywords = [
-        "amount", "debit", "credit", "mablagh", "price", "cost", "rate", "fee",
-        "budget", "balance", "value", "remittance", "sum", "total", "pay",
-        "مبلغ", "بدهکار", "بستانکار", "قیمت", "هزینه", "نرخ", "اعتبار", "تنخواه", "وجه", "ارزش"
-      ];
-
-      const hasAmountAttr = amountKeywords.some(kw =>
-        name.includes(kw) || id.includes(kw) || placeholder.includes(kw) || className.includes(kw) || dataKey.includes(kw)
-      );
-
+      const type = (el.getAttribute("type") || "text").toLowerCase();
       const val = (el.value || "").trim();
       const engVal = toEnglishDigits(val).replace(/,/g, "").replace(/،/g, "");
-      const cleanPlaceholder = toEnglishDigits(placeholder).replace(/,/g, "").trim();
-
-      const isNumericValue = /^\d+(\.\d+)?$/.test(engVal) && engVal !== "";
-      const isNumericPlaceholder = /^\d+(\.\d+)?$/.test(cleanPlaceholder);
-      const isInTableCell = Boolean(el.closest("td, th, .amount-field, [data-amount]"));
-
-      const isTarget = hasAmountAttr || type === "number" || type === "tel" || isNumericValue || isNumericPlaceholder || isInTableCell;
-
-      if (!isTarget) return;
 
       e.preventDefault();
       e.stopPropagation();

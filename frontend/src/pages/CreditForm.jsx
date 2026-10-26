@@ -15,6 +15,13 @@ import api from "@/api";
 import { useFiscalYear } from "@/context/FiscalYearContext";
 import { PersianDatePicker, toPersianDigits } from "@/components/ui/persian-date-picker";
 
+function toEnglishDigits(str) {
+  if (str == null) return "";
+  return String(str)
+    .replace(/[۰-۹]/g, (w) => String.fromCharCode(w.charCodeAt(0) - 1776))
+    .replace(/[٠-٩]/g, (w) => String.fromCharCode(w.charCodeAt(0) - 1632));
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // ثوابت
 // ══════════════════════════════════════════════════════════════════════════════
@@ -214,8 +221,18 @@ function ExpenseFields({ data, onChange }) {
       </Field>
       <div />
       <Field label="شماره برنامه" required>
-        <Input value={data.programNumber} onChange={e => set("programNumber", e.target.value)}
-          placeholder="شماره برنامه" className="h-9 text-sm" dir="ltr" />
+        <Input
+          name="programNumber"
+          id="programNumber"
+          data-field="programNumber"
+          data-allow-leading-zero="true"
+          allowLeadingZero
+          value={data.programNumber ?? ""}
+          onChange={e => set("programNumber", toEnglishDigits(e.target.value))}
+          placeholder="شماره برنامه"
+          className="h-9 text-sm font-mono"
+          dir="ltr"
+        />
       </Field>
       <Field label="عنوان برنامه / هزینه">
         <Input value={data.programTitle ?? ""} onChange={e => set("programTitle", e.target.value)}
@@ -243,8 +260,18 @@ function CapitalFields({ data, onChange }) {
   return (
     <div className="grid grid-cols-2 gap-x-6 gap-y-4" dir="rtl">
       <Field label="شماره طرح" required>
-        <Input value={data.projectNumber} onChange={e => set("projectNumber", e.target.value)}
-          placeholder="شماره طرح" className="h-9 text-sm" dir="ltr" />
+        <Input
+          name="projectNumber"
+          id="projectNumber"
+          data-field="projectNumber"
+          data-allow-leading-zero="true"
+          allowLeadingZero
+          value={data.projectNumber ?? ""}
+          onChange={e => set("projectNumber", toEnglishDigits(e.target.value))}
+          placeholder="شماره طرح"
+          className="h-9 text-sm font-mono"
+          dir="ltr"
+        />
       </Field>
       <Field label="فصول" required>
         <SearchableSelect value={data.capitalChapter} onChange={v => set("capitalChapter", v)}
@@ -541,9 +568,22 @@ function CreditModal({ mode, item, onClose, onSaved }) {
               </p>
               {isEditing
                 ? <Field label="ردیف دستگاه ابلاغ‌دهنده" required>
-                  <Input value={form.notifierRow} onChange={setF("notifierRow")}
+                  <Input
+                    name="notifierRow"
+                    id="notifierRow"
+                    data-field="notifierRow"
+                    data-allow-leading-zero="true"
+                    allowLeadingZero
+                    value={form.notifierRow ?? ""}
+                    onChange={e => {
+                      const val = toEnglishDigits(e.target.value);
+                      setForm(f => ({ ...f, notifierRow: val }));
+                      setError(null);
+                    }}
                     placeholder="ردیف دستگاه ابلاغ‌دهنده را وارد کنید"
-                    className="h-9 text-sm max-w-sm" dir="ltr" />
+                    className="h-9 text-sm max-w-sm font-mono"
+                    dir="ltr"
+                  />
                 </Field>
                 : <DetailGrid rows={[{ label: "ردیف ابلاغ‌دهنده", value: item?.notifierRow, mono: true }]} />
               }

@@ -7,9 +7,10 @@ function isZeroVal(val) {
   return s === "0" || s === "۰" || s === "0.00" || s === "۰.۰۰" || s === "00";
 }
 
-const Input = React.forwardRef(({ className, type, onFocus, onKeyDown, ...props }, ref) => {
+const Input = React.forwardRef(({ className, type, onFocus, onKeyDown, allowLeadingZero, ...props }, ref) => {
+  const preserveZeros = allowLeadingZero || props["data-allow-leading-zero"] || props["data-preserve-zeros"];
   const handleFocus = (e) => {
-    if (isZeroVal(e.target.value)) {
+    if (!preserveZeros && isZeroVal(e.target.value)) {
       setTimeout(() => {
         try {
           e.target.select();
@@ -20,7 +21,7 @@ const Input = React.forwardRef(({ className, type, onFocus, onKeyDown, ...props 
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === "Backspace" || e.code === "Backspace") {
+    if (!preserveZeros && (e.key === "Backspace" || e.code === "Backspace")) {
       if (isZeroVal(e.target.value)) {
         e.preventDefault();
         const valueSetter = Object.getOwnPropertyDescriptor(e.target, 'value')?.set;
